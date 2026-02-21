@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from qitos import Action, AgentModule, Decision, StateSchema, ToolRegistry
-from qitos.skills.editor import EditorSkill
+from qitos.kit.tool.editor import EditorToolSet
 
 
 @dataclass
@@ -23,8 +23,8 @@ class ReActEditorAgent(AgentModule[ReActEditorState, Dict[str, Any], Action]):
 
     def __init__(self, workspace_root: str):
         registry = ToolRegistry()
-        registry.include(EditorSkill(workspace_root=workspace_root))
-        super().__init__(toolkit=registry)
+        registry.include(EditorToolSet(workspace_root=workspace_root))
+        super().__init__(tool_registry=registry)
 
     def init_state(self, task: str, **kwargs: Any) -> ReActEditorState:
         path = kwargs.get("path", "react_notes.txt")

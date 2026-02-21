@@ -4,16 +4,16 @@ QitOS is a research-oriented agent framework with one canonical kernel:
 
 - `AgentModule`
 - `Decision`
-- `Policy`
-- `Runtime`
+- `Engine`
 - `ToolRegistry` / `ToolSet`
+- `kit`
 - `Trace`
 
 ## Why QitOS
 
 - Fast agent iteration for ReAct, PlanAct, ToT-style workflows.
 - Strong observability with step traces and replayability.
-- Modular components without runtime rewrites.
+- Modular kits without engine rewrites.
 
 ## Quick Start
 
@@ -35,7 +35,7 @@ class MyAgent(AgentModule[MyState, dict, Action]):
             return a + b
 
         registry.register(add)
-        super().__init__(toolkit=registry)
+        super().__init__(tool_registry=registry)
 
     def init_state(self, task: str, **kwargs):
         return MyState(task=task)
@@ -56,6 +56,36 @@ agent = MyAgent()
 answer = agent.run("compute 40 + 2")
 print(answer)
 ```
+
+With runtime visualization hooks:
+
+```python
+from qitos.render import ClaudeStyleHook
+
+result = agent.run("compute 40 + 2", return_state=True, hooks=[ClaudeStyleHook()])
+```
+
+## Model Config
+
+Use `/Users/morinop/coding/yoga_framework/config.yaml` as the default runtime config:
+
+```yaml
+model:
+  base_url: ${OPENAI_BASE_URL}
+  api_key: ${OPENAI_API_KEY}
+  model: gpt-4o-mini
+```
+
+Set environment variables before running LLM-based examples:
+
+```bash
+export OPENAI_BASE_URL="https://api.openai.com/v1"
+export OPENAI_API_KEY="your_api_key"
+```
+
+## Researcher Learning Path
+
+- `/Users/morinop/coding/yoga_framework/docs/research/README.md`
 
 ## Core Docs
 

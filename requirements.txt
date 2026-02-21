@@ -1,21 +1,13 @@
-# QitOS Framework v3.1
-# 为开发者幸福感而生的状态驱动 Agent 框架
-
-# Core dependencies
-# No external dependencies required for core functionality!
-
-# Optional dependencies for enhanced features
-openai>=1.0.0          # OpenAI API integration
-anthropic>=0.3.0       # Anthropic API integration
-pyyaml>=6.0           # YAML configuration support
+# Runtime dependencies for examples/templates
+openai>=1.0.0
+pyyaml>=6.0
+requests>=2.31.0
+beautifulsoup4>=4.12.3
+lxml>=5.2.0
 
 # Development dependencies
-pytest>=7.0.0          # Testing framework
-pytest-cov>=4.0.0      # Coverage reporting
-black>=23.0.0          # Code formatting
-flake8>=6.0.0          # Linting
-mypy>=1.0.0            # Type checking
-
-# CLI dependencies
-click>=8.0.0           # CLI framework (already minimal implementation)
-rich>=13.0.0           # Rich terminal output
+pytest>=7.0.0
+pytest-cov>=4.0.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.0.0

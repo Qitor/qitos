@@ -1,19 +1,18 @@
 # Release Hardening
 
-Release hardening checks are implemented in `qitos.release.checks`.
+QitOS currently uses repository tests and architecture checks as release hardening gates.
 
 Checks:
 
-- Architecture consistency (canonical export names, no versioned API tokens)
+- Architecture consistency (single kernel, expected package layout)
 - Template contract compliance
 - Trace schema smoke validation
-- Benchmark smoke validation
+- Example smoke runs
+- Test suite pass (`pytest`)
 
-Programmatic usage:
+Recommended commands:
 
-```python
-from qitos.release import run_release_checks, write_release_readiness_report
-
-report = run_release_checks()
-write_release_readiness_report("reports/release_readiness.md")
+```bash
+pytest -q
+python examples/dynamic_tree_planning_agent.py --task "compute 20 + 22 then * 2"
 ```

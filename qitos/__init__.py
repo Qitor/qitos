@@ -11,31 +11,37 @@ Core Features:
 
 __version__ = "0.1-alpha"
 
-from .core.agent_module import AgentModule, LegacyPerceiveAdapter
+from .core.agent_module import AgentModule
 from .core.decision import Decision
-from .core.critic import Critic, PassThroughCritic
-from .core.parser import Parser, BaseParser, JsonDecisionParser, ReActTextParser, XmlDecisionParser
-from .core.policy import Policy, BranchSelector, FirstCandidateSelector
-from .core.search import SearchAdapter, GreedySearchAdapter
 from .core.action import Action, ActionResult, ActionKind, ActionStatus, ActionExecutionPolicy
 from .core.errors import ErrorCategory, StopReason, RuntimeErrorInfo, QitosRuntimeError
 from .core.state import StateSchema, PlanState
-from .core.state_validators import StateValidationGate
+from .core.memory import Memory, MemoryRecord
+from .core.env import Env, EnvSpec, EnvObservation, EnvStepResult, FileSystemCapability, CommandCapability
+from .core.task import Task, TaskResource, TaskBudget
 from .core.tool import BaseTool, FunctionTool, ToolPermission, ToolSpec, tool
 from .core.tool_registry import ToolRegistry
-from .core.toolset import ToolSet
-from .core.skill import skill, ToolRegistry as LegacyToolRegistry
-from .engine.fsm_engine import FSMEngine, EngineResult
+from .engine.engine import Engine, EngineResult
+from .engine.critic import Critic
+from .engine.parser import Parser, BaseParser
+from .engine.search import Search
+from .engine.branching import BranchSelector, FirstCandidateSelector
 from .engine.action_executor import ActionExecutor
+from .engine.hooks import EngineHook, HookContext
 from .engine.recovery import RecoveryPolicy, RecoveryDecision, RecoveryTracker, FailureDiagnostic
 from .engine.states import RuntimePhase, RuntimeEvent, RuntimeBudget, StepRecord
-from .runtime import Runtime, RuntimeResult, StopCriteria, MaxStepsCriteria, MaxRuntimeCriteria, StagnationCriteria, FinalResultCriteria
-from .memory import MemoryAdapter, MemoryRecord, WindowMemory, SummaryMemory, VectorMemory
+from .engine.stop_criteria import StopCriteria, MaxStepsCriteria, MaxRuntimeCriteria, StagnationCriteria, FinalResultCriteria
+from .engine.validation import StateValidationGate
+from .kit.tool.toolset import ToolSet
+from .kit.memory import WindowMemory, SummaryMemory, VectorMemory, MarkdownFileMemory
+from .kit.env import DockerEnv, HostEnv, RepoEnv
+from .kit.critic import PassThroughCritic, SelfReflectionCritic, ReActSelfReflectionCritic
+from .kit.parser import JsonDecisionParser, ReActTextParser, XmlDecisionParser
+from .kit.planning import GreedySearch, DynamicTreeSearch
 from .trace import TraceEvent, TraceStep, TraceWriter, TraceSchemaValidator
 from .debug import Breakpoint, InspectorPayload, ReplaySession, ReplaySnapshot, build_inspector_payload, compare_steps
-from .presets import build_registry as build_preset_registry
-from .release import run_release_checks, write_release_readiness_report
-from .core.hooks import Hook, CompositeHook
+from .render import ClaudeStyleHook, RenderStreamHook, RenderEvent
+from . import kit
 
 __all__ = [
     "AgentModule",
@@ -47,10 +53,9 @@ __all__ = [
     "JsonDecisionParser",
     "ReActTextParser",
     "XmlDecisionParser",
-    "LegacyPerceiveAdapter",
-    "Policy",
-    "SearchAdapter",
-    "GreedySearchAdapter",
+    "Search",
+    "GreedySearch",
+    "DynamicTreeSearch",
     "BranchSelector",
     "FirstCandidateSelector",
     "Action",
@@ -64,7 +69,6 @@ __all__ = [
     "QitosRuntimeError",
     "StateSchema",
     "PlanState",
-    "StateValidationGate",
     "BaseTool",
     "FunctionTool",
     "ToolPermission",
@@ -72,11 +76,11 @@ __all__ = [
     "tool",
     "ToolRegistry",
     "ToolSet",
-    "skill",
-    "LegacyToolRegistry",
-    "FSMEngine",
+    "Engine",
     "EngineResult",
     "ActionExecutor",
+    "EngineHook",
+    "HookContext",
     "RecoveryPolicy",
     "RecoveryDecision",
     "RecoveryTracker",
@@ -85,18 +89,32 @@ __all__ = [
     "RuntimeEvent",
     "RuntimeBudget",
     "StepRecord",
-    "Runtime",
-    "RuntimeResult",
     "StopCriteria",
     "MaxStepsCriteria",
     "MaxRuntimeCriteria",
     "StagnationCriteria",
     "FinalResultCriteria",
-    "MemoryAdapter",
+    "StateValidationGate",
+    "Memory",
     "MemoryRecord",
+    "Env",
+    "EnvSpec",
+    "EnvObservation",
+    "EnvStepResult",
+    "FileSystemCapability",
+    "CommandCapability",
+    "Task",
+    "TaskResource",
+    "TaskBudget",
     "WindowMemory",
     "SummaryMemory",
     "VectorMemory",
+    "MarkdownFileMemory",
+    "HostEnv",
+    "DockerEnv",
+    "RepoEnv",
+    "SelfReflectionCritic",
+    "ReActSelfReflectionCritic",
     "TraceEvent",
     "TraceStep",
     "TraceWriter",
@@ -107,9 +125,8 @@ __all__ = [
     "compare_steps",
     "ReplaySession",
     "ReplaySnapshot",
-    "build_preset_registry",
-    "run_release_checks",
-    "write_release_readiness_report",
-    "Hook",
-    "CompositeHook",
+    "ClaudeStyleHook",
+    "RenderStreamHook",
+    "RenderEvent",
+    "kit",
 ]

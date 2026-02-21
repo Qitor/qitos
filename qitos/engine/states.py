@@ -1,4 +1,4 @@
-"""FSM state and event model for QitOS v2 engine."""
+"""FSM state and event model for the canonical QitOS engine."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ class RuntimePhase(str, Enum):
     OBSERVE = "OBSERVE"
     DECIDE = "DECIDE"
     ACT = "ACT"
+    CRITIC = "CRITIC"
     REDUCE = "REDUCE"
     CHECK_STOP = "CHECK_STOP"
     END = "END"
@@ -44,4 +45,6 @@ class StepRecord:
     decision: Any = None
     actions: List[Any] = field(default_factory=list)
     action_results: List[Any] = field(default_factory=list)
+    tool_invocations: List[Any] = field(default_factory=list)
+    critic_outputs: List[Any] = field(default_factory=list)
     state_diff: Dict[str, Any] = field(default_factory=dict)

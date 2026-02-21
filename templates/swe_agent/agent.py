@@ -1,4 +1,4 @@
-"""SWE-Agent minimal closed-loop template."""
+"""Model-ready SWE-Agent minimal closed loop template."""
 
 from __future__ import annotations
 
@@ -6,28 +6,30 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from qitos import Action, AgentModule, Decision, StateSchema, ToolRegistry
-from qitos.skills.editor import EditorSkill
-from qitos.skills.shell import RunCommand
+from qitos.kit.parser import ReActTextParser
+from qitos.kit.planning import append_log, format_action
+from qitos.kit.prompts import SWE_AGENT_SYSTEM_PROMPT, render_prompt
+from qitos.kit.tool.editor import EditorToolSet
+from qitos.kit.tool.shell import RunCommand
+from qitos.models import Model
 
 
 @dataclass
 class SWEState(StateSchema):
+    scratchpad: List[str] = field(default_factory=list)
     file_path: str = "buggy_module.py"
     expected_snippet: str = "return a + b"
     test_command: str = ""
-    phase: str = "view"  # view -> edit -> test -> submit
-    last_view: Optional[Dict[str, Any]] = None
-    last_edit: Optional[Dict[str, Any]] = None
+    phase: str = "analyze"
     last_test: Optional[Dict[str, Any]] = None
-    patch_log: List[str] = field(default_factory=list)
 
 
 class SWEAgentMini(AgentModule[SWEState, Dict[str, Any], Action]):
-    def __init__(self, workspace_root: str):
+    def __init__(self, llm: Model, workspace_root: str):
         registry = ToolRegistry()
-        registry.include(EditorSkill(workspace_root=workspace_root))
+        registry.include(EditorToolSet(workspace_root=workspace_root))
         registry.register(RunCommand(cwd=workspace_root))
-        super().__init__(toolkit=registry)
+        super().__init__(tool_registry=registry, llm=llm, model_parser=ReActTextParser())
 
     def init_state(self, task: str, **kwargs: Any) -> SWEState:
         return SWEState(
@@ -36,50 +38,45 @@ class SWEAgentMini(AgentModule[SWEState, Dict[str, Any], Action]):
             expected_snippet=kwargs.get("expected_snippet", "return a + b"),
             test_command=kwargs.get(
                 "test_command",
-                "python -c \"import buggy_module; assert buggy_module.add(20, 22) == 42\"",
+                'python -c "import buggy_module; assert buggy_module.add(20, 22) == 42"',
             ),
-            max_steps=int(kwargs.get("max_steps", 10)),
+            max_steps=int(kwargs.get("max_steps", 12)),
         )
 
     def observe(self, state: SWEState, env_view: Dict[str, Any]) -> Dict[str, Any]:
         return {
-            "phase": state.phase,
+            "task": state.task,
             "file_path": state.file_path,
-            "last_test": state.last_test,
-            "patch_log": list(state.patch_log),
+            "phase": state.phase,
+            "expected_snippet": state.expected_snippet,
+            "test_command": state.test_command,
+            "scratchpad": list(state.scratchpad),
+            "memory": env_view.get("memory", {}),
         }
 
     def decide(self, state: SWEState, observation: Dict[str, Any]) -> Decision[Action]:
-        if state.phase == "view":
-            return Decision.act(actions=[Action(name="view", args={"path": state.file_path})])
+        return None
 
-        if state.phase == "edit":
-            # deterministic patch for mini scenario
-            return Decision.act(
-                actions=[
-                    Action(
-                        name="replace_lines",
-                        args={
-                            "path": state.file_path,
-                            "start_line": 2,
-                            "end_line": 2,
-                            "replacement": f"    {state.expected_snippet}",
-                        },
-                    )
-                ]
-            )
+    def build_system_prompt(self, state: SWEState) -> str | None:
+        tool_schema = self.tool_registry.get_tool_descriptions() if self.tool_registry is not None else ""
+        return render_prompt(SWE_AGENT_SYSTEM_PROMPT, {"tool_schema": tool_schema})
 
-        if state.phase == "test":
-            return Decision.act(actions=[Action(name="run_command", args={"command": state.test_command})])
-
-        if state.phase == "submit":
-            test = state.last_test or {}
-            rc = int(test.get("returncode", 1))
-            if rc == 0:
-                return Decision.final(f"patch_valid:{state.file_path}")
-            return Decision.final("patch_invalid")
-
-        return Decision.final("unsupported_phase")
+    def prepare(self, state: SWEState, observation: Dict[str, Any]) -> str:
+        lines = [
+            f"Task: {state.task}",
+            f"Target file: {state.file_path}",
+            f"Expected patch snippet: {state.expected_snippet}",
+            f"Test command: {state.test_command}",
+            f"Phase: {state.phase}",
+        ]
+        if state.scratchpad:
+            lines.append("Scratchpad:")
+            lines.extend(str(x) for x in state.scratchpad[-10:])
+        memory = observation.get("memory") or {}
+        if isinstance(memory, dict) and memory.get("summary"):
+            lines.append("Memory Summary:")
+            lines.append(str(memory["summary"]))
+        return "\n".join(lines)
 
     def reduce(
         self,
@@ -88,24 +85,12 @@ class SWEAgentMini(AgentModule[SWEState, Dict[str, Any], Action]):
         decision: Decision[Action],
         action_results: List[Any],
     ) -> SWEState:
-        if not action_results:
-            return state
-
-        first = action_results[0]
-        if state.phase == "view":
-            state.last_view = first if isinstance(first, dict) else {"raw": first}
-            state.phase = "edit"
-            return state
-
-        if state.phase == "edit":
-            state.last_edit = first if isinstance(first, dict) else {"raw": first}
-            state.patch_log.append(str(first))
-            state.phase = "test"
-            return state
-
-        if state.phase == "test":
-            state.last_test = first if isinstance(first, dict) else {"raw": first}
-            state.phase = "submit"
-            return state
-
+        if decision.rationale:
+            append_log(state, "scratchpad", f"Thought: {decision.rationale}", max_items=24)
+        if decision.actions:
+            append_log(state, "scratchpad", f"Action: {format_action(decision.actions[0])}", max_items=24)
+        if action_results:
+            append_log(state, "scratchpad", f"Observation: {action_results[0]}", max_items=24)
+            if isinstance(action_results[0], dict) and "returncode" in action_results[0]:
+                state.last_test = action_results[0]
         return state

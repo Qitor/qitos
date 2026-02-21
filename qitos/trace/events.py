@@ -1,4 +1,4 @@
-"""Trace event model for QitOS v2."""
+"""Trace event model for QitOS."""
 
 from __future__ import annotations
 

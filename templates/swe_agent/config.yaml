@@ -1,5 +1,13 @@
 name: swe_agent_template
-max_steps: 10
+max_steps: 12
+model:
+  provider: openai_compatible
+  base_url: https://api.siliconflow.cn/v1/
+  api_key: sk-nbxooqwpyyvzfexesvwqgogfogvicxmpyscqgihtsuvyyimr
+  model: Qwen/Qwen3-8B
+  model_name: Qwen/Qwen3-8B
+  temperature: 0.1
+  max_tokens: 2048
 task:
   file: "buggy_module.py"
   expected_snippet: "return a + b"

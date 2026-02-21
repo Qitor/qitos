@@ -125,6 +125,8 @@ def runtime_step_to_trace(step: Any) -> TraceStep:
         decision=_normalize(decision_payload),
         actions=_normalize(list(getattr(step, "actions", []) or [])),
         action_results=_normalize(list(getattr(step, "action_results", []) or [])),
+        tool_invocations=_normalize(list(getattr(step, "tool_invocations", []) or [])),
+        critic_outputs=_normalize(list(getattr(step, "critic_outputs", []) or [])),
         state_diff=_normalize(dict(getattr(step, "state_diff", {}) or {})),
     )
 

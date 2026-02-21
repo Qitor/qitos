@@ -6,7 +6,7 @@
 3. Insert/update skill into skill library.
 4. Reuse skills in future episodes.
 
-## Mapping in QitOS v2
+## Mapping in QitOS
 - `reduce` emits reflection entries.
 - reflection writes `SkillArtifact` into `InMemorySkillLibrary`.
 - next episodes query skill library before deciding actions.

@@ -7,7 +7,7 @@ ReAct combines reasoning traces with tool actions in an interleaved loop:
 3. Observe tool result.
 4. Repeat until final answer.
 
-## Mapping in QitOS v2
+## Mapping in QitOS
 - `observe`: expose task + current scratchpad.
 - `decide`: return `Decision.act(...)` for tool calls, or `Decision.final(...)`.
 - `reduce`: append observation/action result to state scratchpad.

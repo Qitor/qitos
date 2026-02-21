@@ -1,4 +1,4 @@
-"""Recovery policies and diagnostics for QitOS v2 runtime."""
+"""Recovery policies and diagnostics for QitOS runtime."""
 
 from __future__ import annotations
 

@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Generic, List, TypeVar
+from typing import Any, Dict, Generic, List, Optional, TypeVar
 
 from .decision import Decision
+from .task import Task
 
 
 StateT = TypeVar("StateT")
@@ -18,9 +19,10 @@ class AgentModule(ABC, Generic[StateT, ObservationT, ActionT]):
 
     name: str = "agent"
 
-    def __init__(self, toolkit: Any = None, llm: Any = None, **config: Any):
-        self.toolkit = toolkit
+    def __init__(self, tool_registry: Any = None, llm: Any = None, model_parser: Any = None, **config: Any):
+        self.tool_registry = tool_registry
         self.llm = llm
+        self.model_parser = model_parser
         self.config = config
 
     @abstractmethod
@@ -31,13 +33,21 @@ class AgentModule(ABC, Generic[StateT, ObservationT, ActionT]):
         """Optional dynamic system prompt hook."""
         return None
 
+    def prepare(self, state: StateT, observation: ObservationT) -> str:
+        """Convert observation into model-ready text."""
+        return str(observation)
+
+    def build_memory_query(self, state: StateT, env_view: Dict[str, Any]) -> Dict[str, Any] | None:
+        """Optional hook to customize memory retrieval query per step."""
+        return {"format": "records", "max_items": 8}
+
     @abstractmethod
     def observe(self, state: StateT, env_view: Dict[str, Any]) -> ObservationT:
         """Build observation for current step from state and runtime env view."""
 
-    @abstractmethod
-    def decide(self, state: StateT, observation: ObservationT) -> Decision[ActionT]:
-        """Produce decision for current step."""
+    def decide(self, state: StateT, observation: ObservationT) -> Optional[Decision[ActionT]]:
+        """Optional custom decision hook. Return None to use Engine model decision."""
+        return None
 
     @abstractmethod
     def reduce(
@@ -54,59 +64,31 @@ class AgentModule(ABC, Generic[StateT, ObservationT, ActionT]):
         return False
 
     def build_engine(self, **engine_kwargs: Any):
-        """Create an FSMEngine bound to this agent."""
-        from ..engine.fsm_engine import FSMEngine
+        """Create an Engine bound to this agent."""
+        from ..engine.engine import Engine
 
-        return FSMEngine(agent=self, **engine_kwargs)
+        return Engine(agent=self, **engine_kwargs)
 
     def run(
         self,
-        task: str,
+        task: str | Task,
         return_state: bool = False,
+        hooks: List[Any] | None = None,
+        render_hooks: List[Any] | None = None,
         engine_kwargs: Dict[str, Any] | None = None,
         **state_kwargs: Any,
     ) -> Any:
-        """Execute task with FSMEngine."""
-        engine = self.build_engine(**(engine_kwargs or {}))
+        """Execute task with Engine using plain text objective or structured Task."""
+        kwargs = dict(engine_kwargs or {})
+        if hooks is not None:
+            kwargs["hooks"] = hooks
+        if render_hooks is not None:
+            kwargs["render_hooks"] = render_hooks
+        engine = self.build_engine(**kwargs)
         result = engine.run(task, **state_kwargs)
         if return_state:
             return result
         return result.state.final_result
 
 
-class LegacyPerceiveAdapter(AgentModule[Dict[str, Any], Dict[str, Any], Dict[str, Any]]):
-    """Compatibility adapter for old perceive/update_context style agents."""
-
-    def __init__(self, legacy_agent: Any, **config: Any):
-        super().__init__(toolkit=getattr(legacy_agent, "toolkit", None), llm=getattr(legacy_agent, "llm", None), **config)
-        self.legacy_agent = legacy_agent
-
-    def init_state(self, task: str, **kwargs: Any) -> Dict[str, Any]:
-        state: Dict[str, Any] = {"task": task, "metadata": kwargs, "legacy_context": kwargs.get("context")}
-        return state
-
-    def observe(self, state: Dict[str, Any], env_view: Dict[str, Any]) -> Dict[str, Any]:
-        if hasattr(self.legacy_agent, "perceive"):
-            context = state.get("legacy_context") or state
-            return {"messages": self.legacy_agent.perceive(context)}
-        return {"messages": []}
-
-    def decide(self, state: Dict[str, Any], observation: Dict[str, Any]) -> Decision[Dict[str, Any]]:
-        return Decision.wait(rationale="Legacy adapter does not implement automatic decision policy.")
-
-    def reduce(
-        self,
-        state: Dict[str, Any],
-        observation: Dict[str, Any],
-        decision: Decision[Dict[str, Any]],
-        action_results: List[Any],
-    ) -> Dict[str, Any]:
-        if hasattr(self.legacy_agent, "update_context"):
-            context = state.get("legacy_context") or state
-            self.legacy_agent.update_context(context, action_results)
-        state["last_action_results"] = action_results
-        state["last_decision_mode"] = decision.mode
-        return state
-
-
-__all__ = ["AgentModule", "LegacyPerceiveAdapter"]
+__all__ = ["AgentModule"]

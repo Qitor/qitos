@@ -1,4 +1,4 @@
-"""Trace exports for QitOS v2."""
+"""Trace exports for QitOS."""
 
 from .events import TraceEvent, TraceStep
 from .writer import TraceWriter, runtime_event_to_trace, runtime_step_to_trace

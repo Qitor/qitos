@@ -6,7 +6,7 @@
 3. Run validation command.
 4. Submit result when tests pass.
 
-## Mapping in QitOS v2
+## Mapping in QitOS
 - `decide` drives fixed phases: `view -> edit -> test -> submit`.
 - `reduce` stores observations and advances phase state.
 - Uses editor and shell tools to emulate code-repair workflow.

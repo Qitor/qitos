@@ -1,8 +1,13 @@
 name: react_template
-max_steps: 6
-engine:
-  budget:
-    max_steps: 6
+max_steps: 8
+model:
+  provider: openai_compatible
+  base_url: https://api.siliconflow.cn/v1/
+  api_key: sk-nbxooqwpyyvzfexesvwqgogfogvicxmpyscqgihtsuvyyimr
+  model: Qwen/Qwen3-8B
+  model_name: Qwen/Qwen3-8B
+  temperature: 0.2
+  max_tokens: 2048
 dataset:
   - task: "compute 2 + 3"
     expected: "5"

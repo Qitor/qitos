@@ -24,6 +24,7 @@ class ToolSpec:
     timeout_s: Optional[float] = None
     max_retries: int = 0
     permissions: ToolPermission = field(default_factory=ToolPermission)
+    required_ops: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -33,6 +34,7 @@ class ToolMeta:
     timeout_s: Optional[float] = None
     max_retries: int = 0
     permissions: ToolPermission = field(default_factory=ToolPermission)
+    required_ops: List[str] = field(default_factory=list)
 
 
 class BaseTool:
@@ -47,6 +49,14 @@ class BaseTool:
 
     def run(self, **kwargs: Any) -> Any:  # pragma: no cover - interface
         raise NotImplementedError
+
+    def execute(self, args: Dict[str, Any], runtime_context: Optional[Dict[str, Any]] = None) -> Any:
+        """Execute tool with optional runtime context."""
+        sig = inspect.signature(self.run)
+        call_args = dict(args)
+        if "runtime_context" in sig.parameters:
+            call_args["runtime_context"] = runtime_context or {}
+        return self.run(**call_args)
 
     def __call__(self, **kwargs: Any) -> Any:
         return self.run(**kwargs)
@@ -64,6 +74,24 @@ class FunctionTool(BaseTool):
     def run(self, **kwargs: Any) -> Any:
         return self.func(**kwargs)
 
+    def execute(self, args: Dict[str, Any], runtime_context: Optional[Dict[str, Any]] = None) -> Any:
+        runtime_context = runtime_context or {}
+        env = runtime_context.get("env")
+        ops = runtime_context.get("ops", {})
+        sig = inspect.signature(self.func)
+        call_kwargs = dict(args)
+        if "runtime_context" in sig.parameters:
+            call_kwargs["runtime_context"] = runtime_context
+        if "env" in sig.parameters:
+            call_kwargs["env"] = env
+        if "ops" in sig.parameters:
+            call_kwargs["ops"] = ops
+        if "file_ops" in sig.parameters and "file" in ops:
+            call_kwargs["file_ops"] = ops["file"]
+        if "process_ops" in sig.parameters and "process" in ops:
+            call_kwargs["process_ops"] = ops["process"]
+        return self.func(**call_kwargs)
+
 
 def tool(
     name: Optional[str] = None,
@@ -71,6 +99,7 @@ def tool(
     timeout_s: Optional[float] = None,
     max_retries: int = 0,
     permissions: Optional[ToolPermission] = None,
+    required_ops: Optional[List[str]] = None,
 ):
     """Decorator that marks a callable as a QitOS tool without changing binding semantics."""
 
@@ -81,6 +110,7 @@ def tool(
             timeout_s=timeout_s,
             max_retries=max_retries,
             permissions=permissions or ToolPermission(),
+            required_ops=list(required_ops or []),
         )
         setattr(func, "__qitos_tool_meta__", meta)
         setattr(func, "_is_tool", True)
@@ -123,6 +153,7 @@ def build_tool_spec(func: Callable[..., Any], meta: ToolMeta) -> ToolSpec:
         timeout_s=meta.timeout_s,
         max_retries=meta.max_retries,
         permissions=meta.permissions,
+        required_ops=list(meta.required_ops),
     )
 
 

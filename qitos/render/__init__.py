@@ -1,7 +1,7 @@
 """
 QitOS Render Module
 
-提供 Rich 控制台渲染组件和 CLI 钩子。
+Rich rendering components and Engine render hooks.
 
 主要组件：
 - RichRender: 统一的 Rich 渲染工具类
@@ -9,23 +9,8 @@ QitOS Render Module
 - 便捷函数: print_step_header, print_thought 等
 
 Usage:
-    from qitos.render import RichRender, RichConsoleHook
-    
-    # 直接渲染
-    RichRender.print_step_header(0)
-    RichRender.print_action("search", {"query": "python"})
-    RichRender.print_final_answer("结果是 42")
-    
-    # 在 Agent 中使用
-    from qitos import AgentModule
     from qitos.render import RichConsoleHook
-    
-    class MyAgent(AgentModule):
-        def gather(self, context):
-            return f"任务：{context.task}"
-    
-    agent = MyAgent()
-    agent.run(task="xxx", hooks=[RichConsoleHook()])
+    result = agent.run(task="...", return_state=True, render_hooks=[RichConsoleHook()])
 """
 
 from .cli_render import (
@@ -39,10 +24,14 @@ from .cli_render import (
     print_error,
 )
 from .hooks import (
+    RenderHook,
+    RenderStreamHook,
     RichConsoleHook,
     SimpleRichConsoleHook,
     VerboseRichConsoleHook,
+    ClaudeStyleHook,
 )
+from .events import RenderEvent
 
 __all__ = [
     # Rendering
@@ -55,8 +44,12 @@ __all__ = [
     "print_final_answer",
     "print_error",
     
-    # Hooks
+    # Render hooks
+    "RenderHook",
+    "RenderStreamHook",
     "RichConsoleHook",
     "SimpleRichConsoleHook",
     "VerboseRichConsoleHook",
+    "ClaudeStyleHook",
+    "RenderEvent",
 ]

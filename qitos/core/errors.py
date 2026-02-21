@@ -22,6 +22,7 @@ class StopReason(str, Enum):
     BUDGET_STEPS = "budget_steps"
     BUDGET_TIME = "budget_time"
     AGENT_CONDITION = "agent_condition"
+    ENV_TERMINAL = "env_terminal"
     UNRECOVERABLE_ERROR = "unrecoverable_error"
 
 

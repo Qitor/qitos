@@ -11,12 +11,11 @@ Adopt one kernel architecture for first public release:
 
 - `AgentModule`
 - `Decision`
-- `Policy`
-- `Runtime`
+- `Engine`
 - `ToolRegistry` / `ToolSet`
 - `Trace`
 
-No parallel runtime architecture is part of public product scope.
+No parallel engine architecture is part of public product scope.
 
 ## Consequences
 

@@ -66,18 +66,6 @@ class ToolRegistry:
             meta = get_tool_meta(attr)
             if meta is not None:
                 self.register(attr, meta=meta)
-                continue
-
-            underlying = getattr(attr, "__func__", None)
-            is_legacy_skill = (
-                (hasattr(attr, "_is_skill") and getattr(attr, "_is_skill"))
-                or (underlying is not None and hasattr(underlying, "_is_skill") and getattr(underlying, "_is_skill"))
-            )
-            if is_legacy_skill:
-                skill_name = getattr(attr, "_name", None) or (
-                    getattr(underlying, "_name", None) if underlying is not None else None
-                )
-                self.register(attr, name=skill_name)
 
         return self
 
@@ -101,6 +89,7 @@ class ToolRegistry:
         return {
             "name": tool.name,
             "description": tool.spec.description,
+            "required_ops": list(tool.spec.required_ops),
             "origin": {
                 "source": origin.source,
                 "toolset_name": origin.toolset_name,
@@ -108,11 +97,11 @@ class ToolRegistry:
             },
         }
 
-    def call(self, name: str, **kwargs: Any) -> Any:
+    def call(self, name: str, runtime_context: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Any:
         tool = self.get(name)
         if tool is None:
             raise ValueError(f"Tool '{name}' not found")
-        return tool(**kwargs)
+        return tool.execute(kwargs, runtime_context=runtime_context)
 
     def setup(self, context: Optional[Dict[str, Any]] = None) -> None:
         if self._setup_done:
@@ -138,6 +127,8 @@ class ToolRegistry:
             lines.append(f"## {tool.name}")
             lines.append(f"Description: {tool.spec.description}")
             lines.append(f"Source: {origin.source}")
+            if tool.spec.required_ops:
+                lines.append(f"Required Ops: {', '.join(tool.spec.required_ops)}")
             if origin.toolset_name:
                 lines.append(f"ToolSet: {origin.toolset_name}@{origin.toolset_version}")
             lines.append("Parameters:")
@@ -175,6 +166,7 @@ class ToolRegistry:
                         "network": tool.spec.permissions.network,
                         "command": tool.spec.permissions.command,
                     },
+                    "required_ops": list(tool.spec.required_ops),
                 }
             )
         return specs

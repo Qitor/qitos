@@ -1,0 +1,58 @@
+from typing import Any
+
+from qitos import Action, AgentModule, Decision, Engine, RuntimeBudget, StateSchema, ToolRegistry, tool
+from qitos.kit.tool import EditorToolSet
+
+
+class _ToolState(StateSchema):
+    pass
+
+
+class _Agent(AgentModule[_ToolState, dict[str, Any], Action]):
+    def __init__(self, tool_registry: ToolRegistry):
+        super().__init__(tool_registry=tool_registry)
+
+    def init_state(self, task: str, **kwargs: Any) -> _ToolState:
+        return _ToolState(task=task, max_steps=2)
+
+    def observe(self, state: _ToolState, env_view: dict[str, Any]) -> dict[str, Any]:
+        return {"step": state.current_step}
+
+    def decide(self, state: _ToolState, observation: dict[str, Any]) -> Decision[Action]:
+        if state.current_step == 0:
+            return Decision.act([Action(name="math.add", args={"a": 1, "b": 2})])
+        return Decision.final("done")
+
+    def reduce(self, state: _ToolState, observation: dict[str, Any], decision: Decision[Action], action_results: list[Any]) -> _ToolState:
+        return state
+
+
+def test_tool_registry_include_and_toolset_lifecycle(tmp_path):
+    events: list[str] = []
+
+    class MathToolSet:
+        name = "math"
+        version = "1"
+
+        def setup(self, context: dict[str, Any]) -> None:
+            events.append("setup")
+
+        def teardown(self, context: dict[str, Any]) -> None:
+            events.append("teardown")
+
+        @tool(name="add")
+        def add(self, a: int, b: int) -> int:
+            return a + b
+
+        def tools(self):
+            return [self.add]
+
+    registry = ToolRegistry()
+    registry.register_toolset(MathToolSet())
+    result = Engine(agent=_Agent(tool_registry=registry), budget=RuntimeBudget(max_steps=2)).run("x")
+    assert result.state.stop_reason == "final"
+    assert events == ["setup", "teardown"]
+
+    editor = ToolRegistry()
+    editor.include(EditorToolSet(workspace_root=str(tmp_path)))
+    assert "view" in editor.list_tools()

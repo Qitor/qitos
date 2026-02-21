@@ -1,25 +1,24 @@
-"""ReAct-style reference agent on top of AgentModule."""
+"""Model-ready ReAct template on top of AgentModule."""
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from qitos import Action, AgentModule, Decision, StateSchema, ToolRegistry, tool
+from qitos.kit.parser import ReActTextParser
+from qitos.kit.planning import append_log, format_action
+from qitos.kit.prompts import REACT_SYSTEM_PROMPT, render_prompt
+from qitos.models import Model
 
 
 @dataclass
 class ReActState(StateSchema):
     scratchpad: List[str] = field(default_factory=list)
-    pending_action: Optional[Action] = None
-    last_tool_result: Optional[Any] = None
 
 
 class ReActAgent(AgentModule[ReActState, Dict[str, Any], Action]):
-    """Deterministic ReAct baseline for arithmetic tasks."""
-
-    def __init__(self):
+    def __init__(self, llm: Model):
         registry = ToolRegistry()
 
         @tool(name="add", description="Add two integers")
@@ -33,34 +32,39 @@ class ReActAgent(AgentModule[ReActState, Dict[str, Any], Action]):
         registry.register(add)
         registry.register(multiply)
 
-        super().__init__(toolkit=registry)
+        super().__init__(tool_registry=registry, llm=llm, model_parser=ReActTextParser())
 
     def init_state(self, task: str, **kwargs: Any) -> ReActState:
-        return ReActState(task=task, max_steps=int(kwargs.get("max_steps", 6)))
+        return ReActState(task=task, max_steps=int(kwargs.get("max_steps", 8)))
 
     def observe(self, state: ReActState, env_view: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "task": state.task,
-            "scratchpad": list(state.scratchpad),
             "step": state.current_step,
-            "last_tool_result": state.last_tool_result,
+            "scratchpad": list(state.scratchpad),
+            "memory": env_view.get("memory", {}),
         }
 
     def decide(self, state: ReActState, observation: Dict[str, Any]) -> Decision[Action]:
-        if state.last_tool_result is not None:
-            return Decision.final(str(state.last_tool_result), rationale="Tool output available")
+        return None
 
-        parsed = self._parse_task(state.task)
-        if parsed is None:
-            return Decision.final("unsupported task", rationale="No parseable arithmetic expression")
+    def build_system_prompt(self, state: ReActState) -> str | None:
+        tool_schema = self.tool_registry.get_tool_descriptions() if self.tool_registry is not None else ""
+        return render_prompt(REACT_SYSTEM_PROMPT, {"tool_schema": tool_schema})
 
-        op, a, b = parsed
-        if op == "+":
-            action = Action(name="add", args={"a": a, "b": b}, classification="math")
-        else:
-            action = Action(name="multiply", args={"a": a, "b": b}, classification="math")
-
-        return Decision.act(actions=[action], rationale=f"Need tool call for {a} {op} {b}")
+    def prepare(self, state: ReActState, observation: Dict[str, Any]) -> str:
+        lines = [f"Task: {observation.get('task', '')}", f"Step: {observation.get('step', 0)}"]
+        scratchpad = observation.get("scratchpad") or []
+        if scratchpad:
+            lines.append("Scratchpad:")
+            lines.extend(str(x) for x in scratchpad[-8:])
+        memory = observation.get("memory") or {}
+        if isinstance(memory, dict):
+            summary = memory.get("summary", "")
+            if summary:
+                lines.append("Memory Summary:")
+                lines.append(str(summary))
+        return "\n".join(lines)
 
     def reduce(
         self,
@@ -70,24 +74,10 @@ class ReActAgent(AgentModule[ReActState, Dict[str, Any], Action]):
         action_results: List[Any],
     ) -> ReActState:
         if decision.rationale:
-            state.scratchpad.append(f"Thought: {decision.rationale}")
+            append_log(state, "scratchpad", f"Thought: {decision.rationale}", max_items=16)
         if decision.actions:
             for action in decision.actions:
-                state.scratchpad.append(f"Action: {action.name}({action.args})")
+                append_log(state, "scratchpad", f"Action: {format_action(action)}", max_items=16)
         if action_results:
-            state.last_tool_result = action_results[0]
-            state.scratchpad.append(f"Observation: {action_results[0]}")
+            append_log(state, "scratchpad", f"Observation: {action_results[0]}", max_items=16)
         return state
-
-    def _parse_task(self, task: str) -> Optional[tuple[str, int, int]]:
-        text = task.lower().strip()
-
-        # supported: "compute 2 + 3", "compute 7 * 8"
-        match = re.search(r"(-?\d+)\s*([+*])\s*(-?\d+)", text)
-        if match:
-            a = int(match.group(1))
-            op = match.group(2)
-            b = int(match.group(3))
-            return op, a, b
-
-        return None

@@ -38,7 +38,7 @@ class MultimodalToolSetAgent(AgentModule[MultimodalState, Dict[str, Any], Action
     def __init__(self):
         registry = ToolRegistry()
         registry.register_toolset(VisionToolSet())
-        super().__init__(toolkit=registry)
+        super().__init__(tool_registry=registry)
 
     def init_state(self, task: str, **kwargs: Any) -> MultimodalState:
         return MultimodalState(task=task, image_uri=kwargs.get("image_uri"))
