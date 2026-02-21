@@ -1,11 +1,21 @@
 """Engine modules for QitOS Framework."""
 
-from .execution_engine import ExecutionEngine, run_agent, ToolErrorHandler
-from ..core.agent import create_react_agent
+from .fsm_engine import FSMEngine, EngineResult
+from .action_executor import ActionExecutor
+from .recovery import RecoveryPolicy, RecoveryDecision, RecoveryTracker, FailureDiagnostic, build_failure_report
+from .states import RuntimePhase, RuntimeEvent, RuntimeBudget, StepRecord
 
 __all__ = [
-    "ExecutionEngine",
-    "run_agent",
-    "ToolErrorHandler",
-    "create_react_agent",
+    "FSMEngine",
+    "EngineResult",
+    "ActionExecutor",
+    "RecoveryPolicy",
+    "RecoveryDecision",
+    "RecoveryTracker",
+    "FailureDiagnostic",
+    "build_failure_report",
+    "RuntimePhase",
+    "RuntimeEvent",
+    "RuntimeBudget",
+    "StepRecord",
 ]

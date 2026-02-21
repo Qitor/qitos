@@ -1,0 +1,6 @@
+name: swe_agent_template
+max_steps: 10
+task:
+  file: "buggy_module.py"
+  expected_snippet: "return a + b"
+  test_command: "python -c \"import buggy_module; assert buggy_module.add(20, 22) == 42\""

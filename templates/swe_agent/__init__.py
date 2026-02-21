@@ -1,0 +1,1 @@
+"""SWE-agent template package."""

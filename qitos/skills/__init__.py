@@ -10,6 +10,7 @@ Usage:
 """
 
 from qitos.skills.file import WriteFile, ReadFile, ListFiles
+from qitos.skills.library import InMemorySkillLibrary, SkillArtifact
 from qitos.skills.shell import RunCommand
 from qitos.skills.web import HTTPGet, HTTPPost
 
@@ -17,6 +18,8 @@ __all__ = [
     "WriteFile",
     "ReadFile",
     "ListFiles",
+    "InMemorySkillLibrary",
+    "SkillArtifact",
     "RunCommand",
     "HTTPGet",
     "HTTPPost",

@@ -1,0 +1,11 @@
+name: voyager_template
+episodes: 4
+dataset:
+  - task: "compute 5 + 7"
+    expected: "12"
+  - task: "compute 6 * 7"
+    expected: "42"
+  - task: "compute 2 + 8"
+    expected: "10"
+  - task: "compute 3 * 9"
+    expected: "27"

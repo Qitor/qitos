@@ -1,47 +1,29 @@
-"""
-Memory Module
+"""Memory module exports."""
 
-记忆模块，提供多种历史消息检索策略。
+from .adapter import MemoryAdapter, MemoryRecord
+from .adapters import WindowMemory, SummaryMemory, VectorMemory
 
-内置实现：
-- WindowMemory: 滑动窗口记忆（默认）
-- ConversationMemory: 对话式记忆
-- SummaryMemory: 摘要记忆
+# Legacy conversational memories kept for backward utility.
+from .base import BaseMemory, MemoryMixin, ConversationMemory
+from .window import SlidingWindowMemory, FixedWindowMemory, UnlimitedMemory
 
-Usage:
-    from qitos.memory import WindowMemory
-    
-    # 自定义记忆策略
-    memory = WindowMemory(window_size=10)
-"""
-
-from .base import (
-    BaseMemory,
-    MemoryMixin,
-    ConversationMemory,
-    SummaryMemory
-)
-from .window import (
-    WindowMemory,
-    SlidingWindowMemory,
-    FixedWindowMemory,
-    UnlimitedMemory
-)
+# Compatibility exports for existing tests/integrations.
+from .v2 import BaseMemoryV2, WindowMemoryV2, SummaryMemoryV2, VectorMemoryV2
 
 __all__ = [
-    # 基类
+    "MemoryAdapter",
+    "MemoryRecord",
+    "WindowMemory",
+    "SummaryMemory",
+    "VectorMemory",
     "BaseMemory",
     "MemoryMixin",
-    
-    # 对话记忆
     "ConversationMemory",
-    
-    # 摘要记忆
-    "SummaryMemory",
-    
-    # 窗口记忆
-    "WindowMemory",
     "SlidingWindowMemory",
     "FixedWindowMemory",
     "UnlimitedMemory",
+    "BaseMemoryV2",
+    "WindowMemoryV2",
+    "SummaryMemoryV2",
+    "VectorMemoryV2",
 ]

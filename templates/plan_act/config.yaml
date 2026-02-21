@@ -1,0 +1,10 @@
+name: plan_act_template
+max_steps: 8
+engine:
+  budget:
+    max_steps: 8
+dataset:
+  - task: "compute 2 + 3 then * 4"
+    expected: "20"
+  - task: "compute 10 + 5 then * 2"
+    expected: "30"

@@ -1,335 +1,487 @@
-# 🧘 qitos Framework v3.1 PRD
+# QitOS PRD (First Public Release)
 
-## —— 为开发者幸福感而生的状态驱动 Agent 框架
+## 1. Product Intent
+QitOS is a **single-kernel Agent framework** designed for research and rapid innovation.
 
-> **核心宣言**：
-> 1. **显式优于隐式**：拒绝黑盒魔法，所有状态变更必须可追踪、可调试。
-> 2. **状态即一切**：`AgentContext` 是唯一的真理来源。
-> 3. **调试即开发**：提供像 IDE 一样的单步执行（Eager Execution）和时光倒流（Replay）能力。
-> 不得使用toml，使用requirements.txt和 setup.py 进行依赖管理。
-> 
+Primary promise:
+- Build new agent ideas quickly.
+- Debug and explain agent behavior rigorously.
+- Reproduce and compare experiments reliably.
 
----
+This release has **one architecture only**:
+- `State + Policy + Runtime + Trace`
 
-## 一、系统架构概览
-
-qitos v3.1 采用 **"Engine-Managed, State-Driven"** (引擎托管，状态驱动) 的架构。用户只负责定义“怎么看”（Perceive）和“怎么记”（Update），其余的循环、工具调用、错误重试均由引擎负责。
-
-### 1.1 核心数据流
-
-```mermaid
-flowchart TD
-    subgraph State [AgentContext (唯一状态)]
-        Ctx[Context Dict]
-        Log[Mutation Log]
-    end
-
-    subgraph UserCode [AgentModule (用户逻辑)]
-        Perc([perceive])
-        Upd([update_context])
-    end
-
-    subgraph Runtime [ExecutionEngine (框架托管)]
-        LLM[LLM 调用]
-        Parser[工具解析]
-        Exec[工具执行]
-    end
-
-    Start((Task)) --> Ctx
-    Ctx --> Perc
-    Perc -- Messages --> LLM
-    LLM -- Raw Text --> Parser
-    Parser -- Tool Calls --> Exec
-    Exec -- Observations --> Upd
-    Upd -- Metadata Changes --> Ctx
-    Ctx --> Log
-    
-    %% 循环控制
-    Upd --> Check{Max Steps?}
-    Check -- No --> Perc
-    Check -- Yes/Final --> End((Result))
-
-```
+No parallel runtime models are part of the product direction.
 
 ---
 
-## 二、核心组件设计
+## 2. Product Goals
 
-### 2.1 `AgentContext`：全知全能的状态容器
+### 2.1 Core Goals
+1. **Fast Agent Innovation**
+   - A researcher can implement a new agent strategy by writing `state + policy + tools/env`.
+2. **Strong Observability**
+   - Every step is inspectable: observation, decision, actions, results, state diff, stop reason.
+3. **Reproducible Evaluation**
+   - Runs emit schema-validated traces and benchmark-ready artifacts.
+4. **Composable Ecosystem**
+   - Policies, parsers, memories, planners, critics, executors, and toolkits are pluggable modules.
 
-`AgentContext` 不仅仅是一个字典，它是具备**自我审计能力**的状态机。
+### 2.2 User Experience Goals
+1. Beginner path: `agent.run(...)` should be enough.
+2. Advanced path: explicit runtime composition with fine control.
+3. Template path: scaffolded structure, low boilerplate.
 
-* **功能**：存储所有运行时数据（Task, History, Metadata）。
-* **特性**：
-* **Dot Access**：支持 `ctx.task` 访问，同时也支持 `ctx["task"]`。
-* **Mutation Logging**：任何属性的修改（`__setitem__`, `__setattr__`）都会自动记录到 `_mutation_log`。
-* **Memory Window**：自动维护最近 N 轮的 `observations` 快照，避免 Context 爆炸。
+---
 
+## 3. Non-Goals (for this release)
+1. Hosted control plane / SaaS orchestration.
+2. Visual workflow builder.
+3. Model training or fine-tuning platform.
+4. Full production adapters for every external environment.
 
+---
+
+## 4. Target Users
+1. **Agent researchers**
+   - Need rapid policy iteration (ReAct, PlanAct, ToT, Reflection, Voyager-like).
+2. **Applied agent engineers**
+   - Need robust runtime, debugging, and trace standards.
+3. **Template builders**
+   - Need repeatable structure for domain-specific agents (e.g., PPT agents, image reasoning agents, SWE agents).
+
+---
+
+## 5. Design Principles
+1. **Single Kernel**: one orchestrator model in production.
+2. **Policy/Runtime Separation**: strategy in policy, orchestration in runtime.
+3. **Strong Contracts**: typed interfaces, schema validation, explicit errors.
+4. **Composable Layers**: modules are replaceable without runtime rewrites.
+5. **Trace-First**: replay and eval are built-in outputs, not add-ons.
+6. **Simple Default, Explicit Control**: easy entry with transparent advanced options.
+
+---
+
+## 6. System Architecture
+
+### 6.1 Kernel Components
+1. **State**
+   - Typed runtime state object.
+   - Single source of truth during run.
+2. **Policy**
+   - Produces decisions from state and observation.
+   - Updates state from execution feedback.
+3. **Runtime**
+   - Runs phase loop, executes actions, applies stop/recovery logic.
+4. **Trace**
+   - Emits schema-valid artifacts: `manifest.json`, `events.jsonl`, `steps.jsonl`.
+
+### 6.2 Extensible Layers
+1. **Parser layer**: raw model output -> Decision.
+2. **Tool layer**: capability execution contracts.
+3. **Environment layer**: non-tool action targets (browser/office/desktop/repo).
+4. **Memory layer**: retrieval and retention strategies.
+5. **Search layer**: branch expansion/scoring/pruning/backtracking.
+6. **Critic layer**: quality gates and verification.
+
+---
+
+## 7. Core Interface Contracts
+
+## 7.1 State
+State can be dataclass or typed model, accessed through adapter in runtime.
+
+Required runtime semantics:
+- step counter
+- final result
+- stop reason
+
+Recommended fields:
+- metadata
+- memory references
+- policy-local structures (plan, tree nodes, reflections)
+
+---
+
+## 7.2 Decision Contract
 
 ```python
-# qitos/core/context.py
+@dataclass
+class Decision:
+    mode: Literal["act", "final", "wait", "branch"]
+    actions: list[Any] = field(default_factory=list)
+    final_answer: str | None = None
+    rationale: str | None = None
+    meta: dict[str, Any] = field(default_factory=dict)
 
-class AgentContext(OrderedDict):
-    """
-    Agent 的唯一状态容器。
-    所有的状态变更都必须发生在这里，并且会被自动记录。
-    """
-    def __init__(self, task: str, max_steps: int = 10, **kwargs):
-        super().__init__()
-        # 标准字段
-        self["task"] = task
-        self["current_step"] = 0
-        self["max_steps"] = max_steps
-        self["observations"] = [] # 当前轮次的观察结果（只读）
-        self["_final_result"] = None
-        
-        # 审计日志
-        self["_mutation_log"] = [] 
-        
-        # 用户自定义字段
-        self["metadata"] = kwargs
-
-    def __setitem__(self, key: str, value: Any):
-        # 记录变更日志：谁，在第几步，改了什么，旧值是什么，新值是什么
-        if key != "_mutation_log":
-            self["_mutation_log"].append({
-                "step": self.get("current_step", 0),
-                "key": key,
-                "old_value": self.get(key), # 简化处理，实际需深拷贝或repr
-                "new_value": value
-            })
-        super().__setitem__(key, value)
-    
-    # ... __getattr__, __setattr__, to_json, from_json 实现 ...
-
+    # For search/tree strategies
+    candidates: list["Decision"] = field(default_factory=list)
+    decision_id: str | None = None
+    parent_decision_id: str | None = None
+    depth: int | None = None
+    score: float | None = None
+    confidence: float | None = None
 ```
 
-### 2.2 `AgentModule`：极简的用户接口
+Validation rules:
+- `act` requires non-empty `actions`.
+- `final` requires non-empty `final_answer`.
+- `branch` requires non-empty `candidates` and valid candidate decisions.
 
-v3.1 进一步简化了用户接口。90% 的场景下，用户只需要关注 `perceive`。
+---
 
-* **Perceive (感知)**：Context -> LLM Messages。决定此刻 Agent 看到什么。
-* **Update Context (记忆)**：Observations -> Context。决定 Agent 记住什么。（v3.1 改为可选）
+## 7.3 Policy
 
 ```python
-# qitos/core/agent.py
-from abc import ABC, abstractmethod
-from typing import List, Dict, Callable, Any, Optional
-
-class AgentModule(ABC):
-    def __init__(
-        self, 
-        toolkit: ToolRegistry, 
-        llm: Callable,
-        system_prompt: Optional[str] = None  # <--- 加回这里
-    ):
-        self.toolkit = toolkit
-        self.llm = llm
-        self.system_prompt = system_prompt
-
-    @abstractmethod
-    def perceive(self, context: AgentContext) -> List[Dict[str, str]]:
-        """
-        构建消息列表。
-        注意：开发者需要显式地将 system_prompt 放入消息列表（如果需要的话）。
-        """
-        pass
-
-    def update_context(self, context: AgentContext, observations: List[Any]) -> None:
-        pass
-
+class Policy(Protocol[StateT, ObsT, ActionT]):
+    def prepare(self, state: StateT, context: dict[str, Any] | None = None) -> None: ...
+    def propose(self, state: StateT, obs: ObsT) -> Decision: ...
+    def update(self, state: StateT, obs: ObsT, decision: Decision, results: list[Any]) -> StateT: ...
+    def finalize(self, state: StateT) -> None: ...
 ```
 
-### 2.3 `ToolRegistry` & Skills：声明式工具系统 (v3.1 新增)
+Policy owns:
+- planning logic
+- branch/search behavior
+- reflection logic
 
-不再需要繁琐的 JSON Schema 定义。利用 Python 的类型提示（Type Hints）和文档字符串（Docstrings），自动生成工具描述。
+Policy does not own:
+- execution scheduling
+- retries/recovery orchestration
+- trace writing
 
-* **原则**：写工具就是写 Python 函数。
-* **装饰器**：`@skill`
-* **约束**：必须有类型注解；必须有 Docstring；返回值建议为 `Dict`。
+---
+
+## 7.4 Runtime
+
+Runtime phase loop:
+1. OBSERVE
+2. PROPOSE
+3. SELECT (only when decision mode is `branch`)
+4. ACT
+5. UPDATE
+6. STOP
+
+Runtime inputs:
+- policy
+- state adapter
+- action executor
+- optional parser
+- stop criteria
+- recovery policy
+- optional branch selector
+- optional memory adapter
+- optional critic chain
+- trace writer
+
+Runtime outputs:
+- final state
+- step count
+- structured runtime events
+
+---
+
+## 7.5 State Adapter
+Runtime must not hardcode state field names.
 
 ```python
-# qitos/core/skills.py
-
-from typing import Dict, Any
-
-def skill(domain: str = "default"):
-    """装饰器：标记一个函数为 Agent 可用的 Skill"""
-    def decorator(func):
-        func._is_skill = True
-        func._domain = domain
-        return func
-    return decorator
-
-# 用户代码示例
-@skill(domain="file_io")
-def read_file(path: str, encoding: str = "utf-8") -> Dict[str, Any]:
-    """
-    读取指定路径的文件内容。
-    
-    Args:
-        path: 文件绝对路径
-        encoding: 文件编码，默认 utf-8
-    Returns:
-        包含 content 或 error 的字典
-    """
-    try:
-        with open(path, 'r', encoding=encoding) as f:
-            return {"status": "success", "content": f.read()}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
+class StateAdapter(Protocol[StateT]):
+    def get_step(self, state: StateT) -> int: ...
+    def set_step(self, state: StateT, value: int) -> None: ...
+    def get_final(self, state: StateT) -> str | None: ...
+    def set_final(self, state: StateT, value: str | None) -> None: ...
+    def get_stop_reason(self, state: StateT) -> str | None: ...
+    def set_stop_reason(self, state: StateT, value: str | None) -> None: ...
 ```
 
 ---
 
-## 三、执行引擎 (`ExecutionEngine`)
-
-引擎是幕后的调度者，负责处理脏活累活。
-
-### 3.1 标准执行循环 (`step`)
-
-1. **Hook**: `on_step_start`
-2. **Perceive**: 调用 `agent.perceive(context)` 获取 messages。
-3. **LLM**: 调用 `agent.llm(messages)` 获取 raw response。
-4. **Parse**: 解析 raw response，提取 `tool_calls` 或 `final_answer`。
-5. **Branch**:
-* 若是 `final_answer`: 设置 `context._final_result`，结束。
-* 若是 `tool_calls`:
-1. **Execute**: 并行/串行执行工具（支持 Sync/Async）。
-2. **Capture**: 捕获结果（及异常），标准化为 `observations` List。
-3. **Update**: 调用 `agent.update_context(context, observations)`。
-4. **Inject**: Engine 刷新 `context.observations` 为本轮结果。
-
-
-
-
-6. **Hook**: `on_step_end`
-7. **Increment**: `context.current_step += 1`
-
-### 3.2 错误处理策略
-
-Engine 内置 `ToolErrorHandler`，支持配置策略：
-
-* `raise`: 直接抛出异常（调试用）。
-* `inject_error`: 将异常信息格式化为 Observation 返回给 Agent（生产用，让 Agent 自我修正）。
-
----
-
-## 四、CLI 工具链：开发者幸福感的来源
-
-qitos v3.1 的 CLI 不仅仅是启动器，它是完整的开发环境。
-
-### 4.1 `qitos init <name>`
-
-生成标准目录结构，包含 `agent.py`, `skills.py`, `prompts.py`。
-
-### 4.2 `qitos play` (交互式沙盒)
-
-这是 v3.1 的杀手级功能。它启动一个 REPL 环境，允许开发者介入 Agent 的每一步。
-
-* **命令支持**：
-* `(text)`: 作为 User 输入发送给 Agent。
-* `:step`: 仅执行一步（感知 -> 推理 -> 工具 -> 暂停）。
-* `:ctx`: 打印当前 Context JSON。
-* `:log`: 查看最近的 Mutation Log。
-* `:undo`: 回滚到上一步（利用 Mutation Log 反向操作）。
-* `:save <file>`: 保存当前现场快照。
-
-
-
-### 4.3 `qitos replay <trace_id/file>`
-
-从 Crash 现场恢复。加载 `trace.json`，重建 `AgentContext`，重现 Bug。
-
-### 4.4 `qitos list-tools`
-
-扫描项目中的 `@skill`，生成可读的工具列表文档，检查 Schema 合法性。
-
----
-
-## 五、Inspector：可视化与可观测性
-
-Inspector 是一个基于 Web 或 TUI 的工具，用于可视化 `_mutation_log`。
-
-* **Timeline View**: 左侧显示 Step 0 -> Step N 的时间轴。
-* **Diff View**: 点击某一步，右侧显示 Context 在这一步发生了什么变化（Diff）。
-* *e.g.* `metadata.search_results`: `None` -> `[Result A, Result B]`
-
-
-* **Performance**: 显示 LLM 耗时、工具执行耗时。
-
----
-
-## 六、API 参考 (Cheatsheet)
-
-### 6.1 快速创建一个 Simple Agent
+## 7.6 Tool Contract
 
 ```python
-from qitos import create_simple_agent, ToolRegistry
-from my_skills import web_search
+@dataclass
+class ToolSpec:
+    name: str
+    version: str
+    description: str
+    parameters_schema: dict[str, Any]
+    permissions: dict[str, bool]  # filesystem/network/command/etc.
+    timeout_s: float | None = None
+    max_retries: int = 0
 
-# 零样板代码，由工厂函数组装
-agent = create_simple_agent(
-    system_prompt="你是一个研究助手，请使用工具获取信息。",
-    toolkit=ToolRegistry([web_search]),
-    llm=openai_client.chat.completions.create,
-    model="gpt-4"
-)
-
-# 直接运行
-result = agent("分析一下 qitos Framework v3.1 的优势")
-
+class ToolSet(Protocol):
+    name: str
+    version: str
+    def setup(self, context: dict[str, Any]) -> None: ...
+    def teardown(self, context: dict[str, Any]) -> None: ...
+    def tools(self) -> list[Any]: ...  # function tools / tool callables / tool specs
 ```
 
-### 6.2 目录结构规范
+Tool registry responsibilities:
+- registration
+- lookup
+- invocation
+- metadata introspection
+- support both plain function registration and ToolSet registration
+- collision-safe namespacing across ToolSets
 
-```text
-my_agent/
-├── app.py             # 入口 (create_simple_agent 或 自定义类)
-├── skills/            # 工具包
-│   ├── __init__.py    # 暴露 ToolRegistry
-│   ├── browser.py     # @skill 定义
-│   └── calculator.py
-├── prompts.py         # 提示词模板
-├── config.yaml        # 配置 (LLM keys, max_steps)
-└── requirements.txt
+Action executor responsibilities:
+- execute action lists
+- normalize outputs into ActionResult
+- attach latency/retry/error metadata
 
+Runtime lifecycle guarantees:
+- call `ToolSet.setup(...)` exactly once before first tool invocation
+- call `ToolSet.teardown(...)` exactly once on run end (success or failure)
+- emit trace events for toolset lifecycle phases
+
+---
+
+## 7.7 Parser Contract
+
+```python
+class Parser(Protocol):
+    def parse(self, raw_output: Any, context: dict[str, Any] | None = None) -> Decision: ...
+```
+
+Rules:
+- Parser must output valid Decision.
+- Parser errors are structured runtime errors.
+
+---
+
+## 7.8 Memory Contract
+
+```python
+class MemoryAdapter(Protocol):
+    def append(self, record: Any) -> None: ...
+    def retrieve(self, query: dict[str, Any] | None = None) -> list[Any]: ...
+    def summarize(self, max_items: int = 5) -> str: ...
+    def evict(self) -> int: ...
 ```
 
 ---
 
-## 七、开发与发布计划
+## 7.9 Search Contract
 
-### Phase 1: Core (v3.1.0-alpha)
-
-* [ ] `AgentContext` 实现 (Mutation Log, Serialization)。
-* [ ] `ExecutionEngine` 基础循环。
-* [ ] `ToolRegistry` 与 `@skill` 解析器。
-* [ ] 单元测试覆盖率 > 80%。
-
-### Phase 2: DX (v3.1.0-beta)
-
-* [ ] CLI 实现 (`play`, `init`, `replay`)。
-* [ ] `Inspector` 基础文本版实现。
-* [ ] 完善的错误处理与重试机制。
-
-### Phase 3: Ecosystem (v3.1.0-stable)
-
-* [ ] `qitos serve` (FastAPI wrapper)。
-* [ ] 预置通用 Skill Sets (File, Shell, Web)。
-* [ ] 官方文档与最佳实践示例。
+```python
+class SearchAdapter(Protocol):
+    def expand(self, state: Any, obs: Any, seed_decision: Decision) -> list[Decision]: ...
+    def score(self, state: Any, obs: Any, candidates: list[Decision]) -> list[float]: ...
+    def select(self, candidates: list[Decision], scores: list[float]) -> Decision: ...
+    def prune(self, candidates: list[Decision], scores: list[float]) -> list[Decision]: ...
+    def backtrack(self, state: Any) -> Any: ...
+```
 
 ---
 
-## 八、FAQ
+## 7.10 Critic Contract
 
-**Q: 为什么不使用 JSON Schema 定义工具？**
-A: 手写 JSON Schema 容易出错且冗余。Python 的 Type Hint 已经足够表达类型，Docstring 足够表达语义。我们遵循 DRY (Don't Repeat Yourself) 原则。
+```python
+class Critic(Protocol):
+    def evaluate(self, state: Any, decision: Decision, results: list[Any]) -> dict[str, Any]: ...
+```
 
-**Q: `update_context` 既然可选，什么时候需要用它？**
-A: 当你需要跨轮次的“长期记忆”时。例如，Agent 在第1步搜索到了 10 篇文章，你可能希望在 `update_context` 中对它们进行摘要，并存入 `context.metadata['summary']`，而不是让原始的 10 篇文章一直停留在 `observations` 窗口中占用 Token。
+Critic output may influence:
+- continue
+- retry
+- stop
 
-**Q: 如何集成 LangChain 或 LlamaIndex 的工具？**
-A: `ToolRegistry` 将提供适配器（Adapter），可以将 LangChain 的 `BaseTool` 包装成 qitos 的 Skill。
+---
+
+## 7.11 Environment Contract
+
+```python
+class EnvAdapter(Protocol):
+    def observe(self) -> Any: ...
+    def apply_action(self, action: Any) -> Any: ...
+    def reset(self) -> None: ...
+    def snapshot(self) -> dict[str, Any]: ...
+```
+
+This enables non-tool-first agents (e.g., Office/Browser/Desktop workflows).
+
+---
+
+## 8. Multimodal Observation Standard
+
+## 8.1 ObservationPacket
+
+```python
+@dataclass
+class ObservationPacket:
+    text: list[str] = field(default_factory=list)
+    images: list[dict[str, Any]] = field(default_factory=list)    # uri/hash/shape/source
+    documents: list[dict[str, Any]] = field(default_factory=list) # uri/hash/type/source
+    audio: list[dict[str, Any]] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+```
+
+Requirement:
+- Policy input can always be represented as ObservationPacket.
+
+---
+
+## 9. Trace Standard (Spec v1)
+
+## 9.1 Artifacts
+- `manifest.json`
+- `events.jsonl`
+- `steps.jsonl`
+
+## 9.2 Required Manifest Fields
+- schema_version
+- run_id
+- status
+- step_count
+- event_count
+- summary
+- model_id
+- prompt_hash
+- tool_versions
+- seed
+- run_config_hash
+- stop_reason
+- cost/token/latency summaries
+
+## 9.3 Required Event Fields
+- step_id
+- phase
+- ok
+- ts
+- payload
+- error (nullable)
+
+## 9.4 Required Step Fields
+- step_id
+- observation
+- decision
+- actions
+- action_results
+- state_diff
+
+Trace validation is mandatory before run completion is marked successful.
+
+---
+
+## 10. Debugging and Inspection
+
+Required debugging capabilities:
+1. step-into
+2. step-over
+3. breakpoints (step/phase/condition)
+4. run comparison at same step
+5. explanation view per step:
+   - state diff
+   - decision rationale
+   - execution I/O
+   - critic output
+   - recovery path
+   - stop reason
+
+---
+
+## 11. Evaluation Framework
+
+## 11.1 Evaluation Contract
+- Every template must provide an `eval.py`.
+- Eval output must include:
+  - success_rate
+  - average_steps
+  - latency/cost
+  - recovery_count
+  - branch/search metrics (if applicable)
+
+## 11.2 Regression Gate
+- CI must run benchmark smoke tests for core templates.
+- Fail build on significant regression according to policy thresholds.
+
+---
+
+## 12. Template Contract
+
+Each template must follow:
+- `state.py`
+- `policy.py`
+- `tools.py`
+- `config.yaml`
+- `eval.py`
+
+Template code must not contain runtime loop implementation.
+
+---
+
+## 13. Preset Ecosystem
+
+Preset layers:
+- policies
+- parsers
+- memories
+- planners/search
+- toolkits
+- critics
+- executors
+
+Design rule:
+- Presets must compose via contracts, never via hidden side effects.
+
+---
+
+## 14. CLI Surface (first release)
+
+Required commands:
+- `run`
+- `eval`
+- `replay`
+- `inspect`
+- `template new`
+
+CLI must map directly to kernel abstractions and not introduce alternate semantics.
+
+---
+
+## 15. Quality Gates
+
+## 15.1 Engineering Gates
+- Unit tests for all core contracts.
+- Integration tests across policy/runtime/tool/memory/parser.
+- Trace schema validation in CI.
+
+## 15.2 Product Gates
+- New user can run first template within 10 minutes.
+- A failed run can be diagnosed quickly via inspector outputs.
+- Benchmark reports are reproducible from config + trace.
+
+---
+
+## 16. Risks and Mitigations
+
+1. Risk: Hidden second execution path appears over time.
+   - Mitigation: CI architecture checks + strict exports.
+
+2. Risk: Parser and decision drift.
+   - Mitigation: strict Decision schema and fail-fast validation.
+
+3. Risk: Preset sprawl with inconsistent quality.
+   - Mitigation: layered preset contracts + compatibility tests.
+
+4. Risk: Multimodal payload instability in trace.
+   - Mitigation: ObservationPacket schema + trace serialization rules.
+
+---
+
+## 17. Release Readiness Criteria
+The framework is release-ready when:
+1. One kernel path is used by docs, CLI, templates, and tests.
+2. Core templates (ReAct, PlanAct, ToT baseline, Voyager-like, SWE-mini) run on same runtime.
+3. Trace artifacts are schema-valid for all benchmark smoke runs.
+4. Inspector can explain at least one successful and one failed run end-to-end.
+
+---
+
+## 18. Summary
+QitOS first release is a **single-kernel, research-grade, composable agent framework**.
+
+It is simple where users start (`agent.run`) and strict where research requires rigor (contracts, trace, evaluation, inspection).
+
+The product is designed so new agent ideas are implemented by replacing modules, not rewriting the framework core.

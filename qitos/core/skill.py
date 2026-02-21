@@ -1,7 +1,7 @@
 """
 Skills System: Declarative tool system
 
-v3.1 core feature: Writing tools is writing Python functions.
+Core feature: Writing tools is writing Python functions.
 Leverages Python type hints and docstrings to auto-generate tool descriptions.
 
 Features:
@@ -23,7 +23,7 @@ class Skill(ABC):
     """
     Skill abstract base class
     
-    v3.1 core: Define tools by inheriting from Skill class.
+    Core: Define tools by inheriting from Skill class.
     Just implement run() method, get_spec() auto-generates Schema from signature and docstring.
     
     Example:
@@ -526,8 +526,13 @@ def skill(domain: str = "default", name: Optional[str] = None):
             '''
             ...
     """
-    def decorator(func: Callable) -> Skill:
-        return _FunctionSkill(func, domain)
+    def decorator(func: Callable) -> Callable:
+        # Keep original callable to preserve binding semantics for instance methods.
+        # ToolRegistry will wrap callables into Skill objects during registration.
+        func._is_skill = True
+        func._domain = domain
+        func._name = name or func.__name__
+        return func
     return decorator
 
 
@@ -656,22 +661,26 @@ class ToolRegistry:
         skill_methods = []
         
         for attr_name in dir(obj):
-            # print(attr_name)
             if attr_name.startswith('_'):
                 continue
             
             attr = getattr(obj, attr_name)
-            if callable(attr) and hasattr(attr, '_is_skill') and attr._is_skill:
+            underlying = getattr(attr, "__func__", None)
+            is_marked = (
+                (hasattr(attr, '_is_skill') and attr._is_skill)
+                or (underlying is not None and hasattr(underlying, "_is_skill") and underlying._is_skill)
+            )
+            if callable(attr) and is_marked:
                 skill_methods.append(attr_name)
-                print(attr_name)
         
         if not skill_methods:
             return self
         
         for method_name in skill_methods:
             method = getattr(obj, method_name)
-            method._domain = domain or getattr(method, '_domain', 'default')
-            self.register(method)
+            method_domain = domain or getattr(method, '_domain', 'default')
+            method_name_override = getattr(method, '_name', None)
+            self.register(method, name=method_name_override, domain=method_domain)
         
         return self
     
