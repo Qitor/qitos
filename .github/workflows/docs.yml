@@ -41,6 +41,10 @@ jobs:
         run: |
           pip install -r docs/requirements.txt
 
+      - name: Install qitos package
+        run: |
+          pip install -e .
+
       - name: Build docs
         run: |
           mkdocs build --strict
