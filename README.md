@@ -2,8 +2,18 @@
 
 ![QitOS Logo](assets/logo.png)
 
-Research-first agentic framework with one canonical kernel:
+[![Python](https://img.shields.io/badge/python-3.9%2B-3776AB)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/Qitor/qitos)
+[![Docs](https://img.shields.io/badge/docs-online-0A66C2)](https://qitor.github.io/QitOS/)
+[![Repo](https://img.shields.io/badge/github-Qitor%2Fqitos-black)](https://github.com/Qitor/qitos)
+
+**QitOS is a research-first agentic framework with one canonical kernel:**
 `AgentModule + Engine`.
+
+It is designed for researchers and advanced builders who need:
+- full control of agent scaffolding,
+- fast iteration on new agent designs,
+- reproducible experiments with clear traces.
 
 - Chinese README: [README.zh.md](README.zh.md)
 - Docs: [https://qitor.github.io/QitOS/](https://qitor.github.io/QitOS/)
@@ -11,10 +21,33 @@ Research-first agentic framework with one canonical kernel:
 
 ## Why QitOS
 
-- Single execution mainline for all agents: `observe -> decide -> act -> reduce -> check_stop`.
-- Fast reproduction of research patterns: ReAct, PlanAct, ToT, Reflexion, SWE-style loops.
-- Strong observability: hooks + standardized traces + `qita` board/view/replay/export.
-- Modular composition: tools, env backends, memory, parser, critic, search.
+1. **One execution mainline, zero architecture ambiguity**
+- `observe -> decide -> act -> reduce -> check_stop`
+- no Runtime-vs-Engine split
+- no hidden policy layer competing with `AgentModule`
+
+2. **Modular without fragmentation**
+- `qitos.core`: contracts
+- `qitos.engine`: runtime kernel
+- `qitos.kit`: concrete reusable implementations
+- `qitos.benchmark`: external benchmark adapters -> canonical `Task`
+
+3. **Research velocity**
+- quickly implement ReAct, PlanAct, ToT, Reflexion, SWE-style loops
+- benchmark adapters (e.g., GAIA) integrate through `Task` conversion
+
+4. **Serious observability**
+- standardized run traces
+- hook system across lifecycle phases
+- `qita` for board/view/replay/export
+
+## Architecture Snapshot
+
+```text
+Task -> Engine.run(...)
+      -> observe -> decide -> act -> reduce -> check_stop -> ...
+      -> hooks + trace + qita replay
+```
 
 ## Install
 
@@ -22,15 +55,21 @@ Research-first agentic framework with one canonical kernel:
 pip install -e .
 ```
 
+Optional extras (if needed):
+
+```bash
+pip install -e ".[models,yaml]"
+```
+
 ## Quick Start
 
-Run a minimal kernel check:
+### 1) Minimal kernel smoke test
 
 ```bash
 python examples/quickstart/minimal_agent.py
 ```
 
-Run an LLM-backed pattern agent:
+### 2) Run an LLM-backed ReAct agent
 
 ```bash
 export OPENAI_BASE_URL="https://api.siliconflow.cn/v1/"
@@ -39,25 +78,95 @@ export OPENAI_API_KEY="<your_api_key>"
 python examples/patterns/react.py --workspace ./playground
 ```
 
-Inspect runs:
+### 3) Inspect runs with qita
 
 ```bash
 qita board --logdir runs
 ```
 
-## Core Design
+## Minimal Authoring Example
 
-- Policy contract: `qitos/core/agent_module.py`
-- Runtime kernel: `qitos/engine/engine.py`
-- Typed state: `qitos/core/state.py`
-- Task + Env + Memory contracts:
+```python
+from dataclasses import dataclass
+from qitos import AgentModule, StateSchema, Decision, Action, Engine, ToolRegistry, tool
+
+@dataclass
+class MyState(StateSchema):
+    pass
+
+class MyAgent(AgentModule[MyState, dict, Action]):
+    def __init__(self):
+        reg = ToolRegistry()
+
+        @tool(name="add")
+        def add(a: int, b: int) -> int:
+            return a + b
+
+        reg.register(add)
+        super().__init__(tool_registry=reg)
+
+    def init_state(self, task: str, **kwargs):
+        return MyState(task=task, max_steps=3)
+
+    def observe(self, state, env_view):
+        return {"task": state.task, "step": state.current_step}
+
+    def decide(self, state, observation):
+        if state.current_step == 0:
+            return Decision.act(actions=[Action(name="add", args={"a": 19, "b": 23})])
+        return Decision.final("done")
+
+    def reduce(self, state, observation, decision, action_results):
+        return state
+
+result = Engine(agent=MyAgent()).run("compute 19+23")
+print(result.state.final_result)
+```
+
+## Real Examples
+
+- Pattern agents:
+  - `python examples/patterns/react.py --workspace /tmp/qitos_react`
+  - `python examples/patterns/planact.py --workspace /tmp/qitos_planact`
+  - `python examples/patterns/tot.py --workspace /tmp/qitos_tot`
+  - `python examples/patterns/reflexion.py --workspace /tmp/qitos_reflexion`
+- Practical agents:
+  - `python examples/real/coding_agent.py --workspace /tmp/qitos_coding`
+  - `python examples/real/swe_agent.py --workspace /tmp/qitos_swe`
+  - `python examples/real/computer_use_agent.py --workspace /tmp/qitos_computer`
+  - `python examples/real/epub_reader_agent.py --workspace /tmp/qitos_epub`
+  - `python examples/real/open_deep_research_gaia_agent.py --workspace /tmp/qitos_gaia --gaia-from-local`
+
+## Benchmark Integration
+
+QitOS uses a clean benchmark adapter path:
+
+- External dataset row
+- `qitos.benchmark.*Adapter`
+- Canonical `Task`
+- Standard `Engine` run loop
+
+Current GAIA integration:
+- adapter: `qitos/benchmark/gaia.py`
+- runnable example: `examples/real/open_deep_research_gaia_agent.py`
+
+## Core Package Map
+
+- Contracts:
+  - `qitos/core/agent_module.py`
   - `qitos/core/task.py`
   - `qitos/core/env.py`
   - `qitos/core/memory.py`
-- Tool dispatch:
   - `qitos/core/tool.py`
   - `qitos/core/tool_registry.py`
+- Runtime:
+  - `qitos/engine/engine.py`
   - `qitos/engine/action_executor.py`
+  - `qitos/engine/hooks.py`
+- Reusable implementations:
+  - `qitos/kit/*`
+- Benchmarks:
+  - `qitos/benchmark/*`
 
 ## Documentation
 
@@ -68,30 +177,29 @@ qita board --logdir runs
 - 30-min labs:
   - [English](https://qitor.github.io/QitOS/research/labs/)
   - [中文](https://qitor.github.io/QitOS/zh/research/labs/)
-- Auto-generated API Reference (build-time synced from `qitos/*`):
+- API reference (auto-generated from `qitos/*`):
   - [English](https://qitor.github.io/QitOS/reference/api_generated/)
   - [中文](https://qitor.github.io/QitOS/zh/reference/api_generated/)
 
-## Local Docs Development
+## Local Docs
 
 ```bash
 pip install -r docs/requirements.txt
 mkdocs serve
 ```
 
-Notes:
-
-- The docs build uses `docs/hooks.py` to auto-generate API reference pages under:
+Docs generation note:
+- API pages are generated by `docs/hooks.py` into:
   - `docs/reference/api_generated/`
   - `docs/zh/reference/api_generated/`
 
-## GitHub Pages Deployment
+## Contributing Direction
 
-The workflow file is:
+QitOS is optimized for one long-term objective:
+- become a world-class open-source agentic Python framework for researchers and super-developers.
 
-- `.github/workflows/docs.yml`
-
-It builds docs on push to `main` and deploys to GitHub Pages.
-Target URL is:
-
-- [https://qitor.github.io/QitOS/](https://qitor.github.io/QitOS/)
+Before adding new abstractions, ensure they improve:
+- composability,
+- lifecycle clarity,
+- reproducibility,
+- developer ergonomics.

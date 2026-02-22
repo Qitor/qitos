@@ -2,8 +2,17 @@
 
 ![QitOS Logo](assets/logo.png)
 
-面向研究与工程落地的智能体框架，采用唯一内核主线：
+[![Python](https://img.shields.io/badge/python-3.9%2B-3776AB)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/Qitor/qitos)
+[![Docs](https://img.shields.io/badge/docs-online-0A66C2)](https://qitor.github.io/QitOS/)
+[![Repo](https://img.shields.io/badge/github-Qitor%2Fqitos-black)](https://github.com/Qitor/qitos)
+
+**QitOS 是一个研究优先的智能体框架，且只保留一条内核主线：**
 `AgentModule + Engine`。
+
+它面向两类核心用户：
+- 研究者：快速试验、复现、对比新 agent 设计；
+- 高阶开发者：精细控制 agent scaffolding，充分发挥模型能力。
 
 - English README: [README.md](README.md)
 - 文档站点: [https://qitor.github.io/QitOS/](https://qitor.github.io/QitOS/)
@@ -11,10 +20,33 @@
 
 ## 为什么是 QitOS
 
-- 所有 Agent 统一执行主线：`observe -> decide -> act -> reduce -> check_stop`。
-- 可快速复现研究范式：ReAct、PlanAct、ToT、Reflexion、SWE-style。
-- 可观测性强：hooks + 标准化 trace + `qita`（board/view/replay/export）。
-- 组合式扩展：tool、env、memory、parser、critic、search 均可替换。
+1. **执行主线唯一且清晰**
+- 生命周期固定为：`observe -> decide -> act -> reduce -> check_stop`
+- 不存在 Runtime/Engine 双线并存
+- 不引入与 `AgentModule` 冲突的隐式策略层
+
+2. **模块化但不碎片化**
+- `qitos.core`：核心契约
+- `qitos.engine`：运行时内核
+- `qitos.kit`：可复用具体实现
+- `qitos.benchmark`：外部 benchmark 到 `Task` 的标准转换
+
+3. **研究迭代速度优先**
+- 可快速实现 ReAct、PlanAct、ToT、Reflexion、SWE-style 等范式
+- benchmark 统一接入 `Task`，便于横向比较与复现实验
+
+4. **可观测性是第一公民**
+- 标准化 trace
+- 全生命周期 hooks
+- `qita` 支持 board/view/replay/export
+
+## 架构速览
+
+```text
+Task -> Engine.run(...)
+      -> observe -> decide -> act -> reduce -> check_stop -> ...
+      -> hooks + trace + qita replay
+```
 
 ## 安装
 
@@ -22,15 +54,21 @@
 pip install -e .
 ```
 
+按需安装额外依赖：
+
+```bash
+pip install -e ".[models,yaml]"
+```
+
 ## 快速开始
 
-先跑最小内核链路：
+### 1) 运行最小内核链路
 
 ```bash
 python examples/quickstart/minimal_agent.py
 ```
 
-再跑一个大模型驱动示例：
+### 2) 运行一个 LLM 驱动的 ReAct 示例
 
 ```bash
 export OPENAI_BASE_URL="https://api.siliconflow.cn/v1/"
@@ -39,25 +77,95 @@ export OPENAI_API_KEY="<your_api_key>"
 python examples/patterns/react.py --workspace ./playground
 ```
 
-查看运行轨迹：
+### 3) 使用 qita 查看运行轨迹
 
 ```bash
 qita board --logdir runs
 ```
 
-## 内核设计入口
+## 最小可改的 Agent 编写示例
 
-- 策略契约：`qitos/core/agent_module.py`
-- 运行时内核：`qitos/engine/engine.py`
-- 类型化状态：`qitos/core/state.py`
-- Task / Env / Memory 契约：
+```python
+from dataclasses import dataclass
+from qitos import AgentModule, StateSchema, Decision, Action, Engine, ToolRegistry, tool
+
+@dataclass
+class MyState(StateSchema):
+    pass
+
+class MyAgent(AgentModule[MyState, dict, Action]):
+    def __init__(self):
+        reg = ToolRegistry()
+
+        @tool(name="add")
+        def add(a: int, b: int) -> int:
+            return a + b
+
+        reg.register(add)
+        super().__init__(tool_registry=reg)
+
+    def init_state(self, task: str, **kwargs):
+        return MyState(task=task, max_steps=3)
+
+    def observe(self, state, env_view):
+        return {"task": state.task, "step": state.current_step}
+
+    def decide(self, state, observation):
+        if state.current_step == 0:
+            return Decision.act(actions=[Action(name="add", args={"a": 19, "b": 23})])
+        return Decision.final("done")
+
+    def reduce(self, state, observation, decision, action_results):
+        return state
+
+result = Engine(agent=MyAgent()).run("compute 19+23")
+print(result.state.final_result)
+```
+
+## 实战示例
+
+- 模式示例：
+  - `python examples/patterns/react.py --workspace /tmp/qitos_react`
+  - `python examples/patterns/planact.py --workspace /tmp/qitos_planact`
+  - `python examples/patterns/tot.py --workspace /tmp/qitos_tot`
+  - `python examples/patterns/reflexion.py --workspace /tmp/qitos_reflexion`
+- 真实场景示例：
+  - `python examples/real/coding_agent.py --workspace /tmp/qitos_coding`
+  - `python examples/real/swe_agent.py --workspace /tmp/qitos_swe`
+  - `python examples/real/computer_use_agent.py --workspace /tmp/qitos_computer`
+  - `python examples/real/epub_reader_agent.py --workspace /tmp/qitos_epub`
+  - `python examples/real/open_deep_research_gaia_agent.py --workspace /tmp/qitos_gaia --gaia-from-local`
+
+## Benchmark 接入方式
+
+QitOS 的 benchmark 接入遵循统一路径：
+
+- 外部数据集样本
+- `qitos.benchmark.*Adapter`
+- 标准化 `Task`
+- 标准 `Engine` 循环执行
+
+当前 GAIA 接入：
+- 适配器：`qitos/benchmark/gaia.py`
+- 运行示例：`examples/real/open_deep_research_gaia_agent.py`
+
+## 核心目录映射
+
+- 契约层：
+  - `qitos/core/agent_module.py`
   - `qitos/core/task.py`
   - `qitos/core/env.py`
   - `qitos/core/memory.py`
-- Tool 调度：
   - `qitos/core/tool.py`
   - `qitos/core/tool_registry.py`
+- 运行时：
+  - `qitos/engine/engine.py`
   - `qitos/engine/action_executor.py`
+  - `qitos/engine/hooks.py`
+- 可复用实现：
+  - `qitos/kit/*`
+- benchmark 适配：
+  - `qitos/benchmark/*`
 
 ## 文档导航
 
@@ -68,7 +176,7 @@ qita board --logdir runs
 - 30 分钟实验课：
   - [English](https://qitor.github.io/QitOS/research/labs/)
   - [中文](https://qitor.github.io/QitOS/zh/research/labs/)
-- 自动生成 API 参考（构建时从 `qitos/*` 同步）：
+- API 参考（构建时自动从 `qitos/*` 生成）：
   - [English](https://qitor.github.io/QitOS/reference/api_generated/)
   - [中文](https://qitor.github.io/QitOS/zh/reference/api_generated/)
 
@@ -79,7 +187,21 @@ pip install -r docs/requirements.txt
 mkdocs serve
 ```
 
-说明：
+文档生成说明：
+- API 页面由 `docs/hooks.py` 自动生成到：
+  - `docs/reference/api_generated/`
+  - `docs/zh/reference/api_generated/`
+
+## 贡献方向
+
+QitOS 的长期目标是：
+- 成为面向研究者与高阶开发者的世界级开源 agentic Python 框架。
+
+新增抽象前，请先确认它是否真正提升了：
+- 组合性、
+- 生命周期清晰度、
+- 可复现性、
+- 开发者体验。
 
 - 文档构建会执行 `docs/hooks.py`，自动生成 API 参考到：
   - `docs/reference/api_generated/`

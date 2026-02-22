@@ -6,7 +6,7 @@ from .file import WriteFile, ReadFile, ListFiles
 from .shell import RunCommand
 from .thinking import ThinkingToolSet, ThoughtData
 from .web import HTTPRequest, HTTPGet, HTTPPost, HTMLExtractText
-from .open_deep_research import OpenDeepResearchToolSet
+from .text_web_browser import WebSearch, VisitURL, PageDown, PageUp, FindInPage, FindNext, ArchiveSearch
 from .library import InMemoryToolLibrary, ToolArtifact, BaseToolLibrary
 from .tools import math_tools, editor_tools
 
@@ -23,7 +23,13 @@ __all__ = [
     "HTTPGet",
     "HTTPPost",
     "HTMLExtractText",
-    "OpenDeepResearchToolSet",
+    "WebSearch",
+    "VisitURL",
+    "PageDown",
+    "PageUp",
+    "FindInPage",
+    "FindNext",
+    "ArchiveSearch",
     "InMemoryToolLibrary",
     "ToolArtifact",
     "BaseToolLibrary",

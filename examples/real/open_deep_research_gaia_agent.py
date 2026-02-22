@@ -2,7 +2,7 @@
 
 This example shows:
 1) converting GAIA samples -> QitOS Task (qitos.benchmark),
-2) using a dedicated deep-research toolset (qitos.kit.tool),
+2) using atomic browser tools + text web env (qitos.kit.tool + qitos.kit.env),
 3) running one benchmark task through AgentModule + Engine.
 """
 
@@ -17,11 +17,23 @@ from typing import Any, Dict, List
 
 from qitos import Action, AgentModule, Decision, EnvSpec, StateSchema, Task, TaskBudget, ToolRegistry
 from qitos.benchmark import GaiaAdapter
-from qitos.kit.env import HostEnv
+from qitos.kit.env import TextWebEnv
 from qitos.kit.parser import ReActTextParser
 from qitos.kit.planning import format_action
 from qitos.kit.prompts import render_prompt
-from qitos.kit.tool import ListFiles, OpenDeepResearchToolSet, ReadFile, RunCommand, WriteFile
+from qitos.kit.tool import (
+    ArchiveSearch,
+    FindInPage,
+    FindNext,
+    ListFiles,
+    PageDown,
+    PageUp,
+    ReadFile,
+    RunCommand,
+    VisitURL,
+    WebSearch,
+    WriteFile,
+)
 from qitos.render import ClaudeStyleHook
 
 from examples.common import add_common_args, build_model_from_args, make_trace_writer, setup_workspace
@@ -56,7 +68,13 @@ class OpenDeepResearchGaiaAgent(AgentModule[ODRGaiaState, Dict[str, Any], Action
 
     def __init__(self, llm: Any, workspace_root: str):
         registry = ToolRegistry()
-        registry.include(OpenDeepResearchToolSet(workspace_root=workspace_root))
+        registry.register(WebSearch())
+        registry.register(VisitURL())
+        registry.register(PageUp())
+        registry.register(PageDown())
+        registry.register(FindInPage())
+        registry.register(FindNext())
+        registry.register(ArchiveSearch())
         registry.register(ReadFile(root_dir=workspace_root))
         registry.register(ListFiles(root_dir=workspace_root))
         registry.register(WriteFile(root_dir=workspace_root))
@@ -145,7 +163,7 @@ def _load_one_gaia_task(args: argparse.Namespace, workspace_root: Path) -> Task:
         raise RuntimeError("No GAIA records loaded.")
     idx = max(0, min(int(args.gaia_index), len(records) - 1))
     task = adapter.to_task(records[idx], split=args.gaia_split, idx=idx)
-    task.env_spec = EnvSpec(type="host", config={"workspace_root": str(workspace_root)})
+    task.env_spec = EnvSpec(type="text_web_env", config={"workspace_root": str(workspace_root)})
     task.budget = TaskBudget(max_steps=int(args.max_steps))
     _materialize_attachments(task, workspace_root)
     return task
@@ -173,7 +191,7 @@ def main() -> None:
     trace_writer = make_trace_writer(args, "gaia_odr")
     hooks = [] if args.disable_render else [ClaudeStyleHook(output_jsonl=str(root / "render_events.jsonl"), theme=args.theme)]
 
-    engine_kwargs: dict[str, Any] = {"env": HostEnv(workspace_root=str(root))}
+    engine_kwargs: dict[str, Any] = {"env": TextWebEnv(workspace_root=str(root))}
     if trace_writer is not None:
         engine_kwargs["trace_writer"] = trace_writer
 
