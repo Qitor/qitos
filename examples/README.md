@@ -48,6 +48,7 @@ python examples/real/coding_agent.py --workspace /tmp/qitos_coding
 python examples/real/swe_agent.py --workspace /tmp/qitos_swe
 python examples/real/computer_use_agent.py --workspace /tmp/qitos_computer
 python examples/real/epub_reader_agent.py --workspace /tmp/qitos_epub
+python examples/real/open_deep_research_gaia_agent.py --workspace /tmp/qitos_gaia --gaia-from-local
 ```
 
 ## Common CLI flags

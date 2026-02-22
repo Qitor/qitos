@@ -155,3 +155,4 @@ secrets.local.yml
 # QitOS specific
 qitos.egg-info/
 .trae/
+references/

@@ -1,5 +1,7 @@
 # QitOS
 
+![QitOS Logo](assets/logo.png)
+
 面向研究与工程落地的智能体框架，采用唯一内核主线：
 `AgentModule + Engine`。
 

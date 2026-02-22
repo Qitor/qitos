@@ -1,5 +1,7 @@
 # QitOS
 
+![QitOS Logo](assets/logo.png)
+
 Research-first agentic framework with one canonical kernel:
 `AgentModule + Engine`.
 

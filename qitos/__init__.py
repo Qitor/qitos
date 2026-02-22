@@ -20,6 +20,7 @@ from .core.task import (
 )
 from .core.tool import BaseTool, FunctionTool, ToolPermission, ToolSpec, tool
 from .core.tool_registry import ToolRegistry
+from .benchmark import BenchmarkAdapter, BenchmarkSource, GaiaAdapter, load_gaia_tasks
 from .engine.engine import Engine, EngineResult
 from .engine.states import RuntimeBudget
 
@@ -56,6 +57,10 @@ __all__ = [
     "ToolSpec",
     "tool",
     "ToolRegistry",
+    "BenchmarkAdapter",
+    "BenchmarkSource",
+    "GaiaAdapter",
+    "load_gaia_tasks",
     "RuntimeBudget",
     "ErrorCategory",
     "StopReason",
