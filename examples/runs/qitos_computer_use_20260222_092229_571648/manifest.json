@@ -1,0 +1,19 @@
+{
+  "run_id": "qitos_computer_use_20260222_092229_571648",
+  "schema_version": "v1",
+  "status": "running",
+  "updated_at": "2026-02-22T09:22:29.571831+00:00",
+  "event_count": 0,
+  "step_count": 0,
+  "summary": {
+    "stop_reason": null,
+    "final_result": null,
+    "steps": 0,
+    "failure_report": {}
+  },
+  "model_id": "Qwen/Qwen3-8B",
+  "prompt_hash": "unknown",
+  "tool_versions": {},
+  "seed": null,
+  "run_config_hash": "unknown"
+}

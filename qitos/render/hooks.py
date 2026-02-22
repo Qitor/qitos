@@ -255,7 +255,7 @@ class ClaudeStyleHook(RenderStreamHook):
 
     def on_run_start(self, task: str, state: Any, engine: "Engine") -> None:
         super().on_run_start(task, state, engine)
-        self._start_status("YOGA runtime is warming up")
+        self._start_status("QitOS runtime is warming up")
 
     def on_before_observe(self, ctx: HookContext, engine: "Engine") -> None:
         self._update_status(f"Step {ctx.step_id}: observing environment")
@@ -321,15 +321,15 @@ class ClaudeStyleHook(RenderStreamHook):
 
     def _print_banner(self) -> None:
         banner_lines = [
-            " __   __   ___    ____    ___ ",
-            " \\ \\ / /  / _ \\  / ___|  / _ \\",
-            "  \\ V /  | | | | | |  _  | | | |",
-            "   | |   | |_| | | |_| | | |_| |",
-            "   |_|    \\___/   \\____|  \\___/ ",
+            "  ____    _ _    ___    ____  ",
+            " / __ \\  (_) |  / _ \\  / __/  ",
+            "/ /_/ / / / |_/ /_/ / _\\ \\    ",
+            "\\___\\_\\/_/|___/\\____/ /___/   ",
+            "            QitOS · 气         ",
         ]
         body = Text("\n".join(banner_lines), style=self._banner_style)
         subtitle = Text("Agent Runtime Visual Console", style="dim")
-        self.console.print(Panel(Text.assemble(body, "\n", subtitle), title="YOGA", border_style=self._banner_style))
+        self.console.print(Panel(Text.assemble(body, "\n", subtitle), title="QitOS · 气", border_style=self._banner_style))
 
     def _start_status(self, text: str) -> None:
         if self._status is None:

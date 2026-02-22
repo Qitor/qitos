@@ -55,5 +55,9 @@ class SummaryMemory(Memory):
         self._records = self._records[-self.keep_last :]
         return removed
 
+    def reset(self, run_id: Optional[str] = None) -> None:
+        self._records = []
+        self._summaries = []
+
 
 __all__ = ["SummaryMemory"]

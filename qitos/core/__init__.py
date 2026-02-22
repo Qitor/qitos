@@ -7,17 +7,19 @@ from .errors import (
     StopReason,
     RuntimeErrorInfo,
     QitosRuntimeError,
-    ModelExecutionError,
-    ParseExecutionError,
-    ToolExecutionError,
-    StateExecutionError,
-    SystemExecutionError,
-    classify_exception,
 )
 from .state import StateSchema, PlanState, StateMigrationRegistry, StateValidationError, StateMigrationError
 from .memory import Memory, MemoryRecord
 from .env import Env, EnvSpec, EnvObservation, EnvStepResult, FileSystemCapability, CommandCapability
-from .task import Task, TaskResource, TaskBudget
+from .task import (
+    Task,
+    TaskResource,
+    TaskBudget,
+    TaskValidationIssue,
+    TaskResourceBinding,
+    TaskCriterionResult,
+    TaskResult,
+)
 from .tool import BaseTool, FunctionTool, ToolPermission, ToolSpec, tool
 from .tool_registry import ToolRegistry
 
@@ -33,12 +35,6 @@ __all__ = [
     "StopReason",
     "RuntimeErrorInfo",
     "QitosRuntimeError",
-    "ModelExecutionError",
-    "ParseExecutionError",
-    "ToolExecutionError",
-    "StateExecutionError",
-    "SystemExecutionError",
-    "classify_exception",
     "StateSchema",
     "PlanState",
     "StateMigrationRegistry",
@@ -55,6 +51,10 @@ __all__ = [
     "Task",
     "TaskResource",
     "TaskBudget",
+    "TaskValidationIssue",
+    "TaskResourceBinding",
+    "TaskCriterionResult",
+    "TaskResult",
     "BaseTool",
     "FunctionTool",
     "ToolPermission",

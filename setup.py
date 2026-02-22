@@ -51,6 +51,11 @@ setup(
     },
     include_package_data=True,
     zip_safe=False,
+    entry_points={
+        "console_scripts": [
+            "qita=qitos.qita.cli:main",
+        ]
+    },
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",

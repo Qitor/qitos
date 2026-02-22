@@ -39,6 +39,8 @@ def test_env_spec_defaults():
 
 def test_env_contract_lifecycle_and_terminal_default():
     env = _DummyEnv()
+    env.setup(task="fix bug", workspace="/tmp/work")
+    assert env.health_check().get("ok") is True
     obs0 = env.reset(task="fix bug", workspace="/tmp/work")
     assert obs0.data["event"] == "reset"
     assert obs0.data["task"] == "fix bug"
@@ -55,5 +57,5 @@ def test_env_contract_lifecycle_and_terminal_default():
     assert r2.done is True
     assert env.is_terminal(last_result=r2) is True
 
-    env.close()
+    env.teardown()
     assert env.closed is True

@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, ClassVar, Dict, List, Optional, Tuple, Type, TypeVar
 
+from .errors import StopReason
+
 
 MigrationFn = Callable[[Dict[str, Any]], Dict[str, Any]]
 StateT = TypeVar("StateT", bound="StateSchema")
@@ -116,6 +118,11 @@ class StateSchema:
             raise StateValidationError("current_step cannot exceed max_steps")
         if self.final_result is not None and not isinstance(self.final_result, str):
             raise StateValidationError("final_result must be a string when provided")
+        if self.stop_reason is not None:
+            try:
+                StopReason(str(self.stop_reason))
+            except ValueError as exc:
+                raise StateValidationError(f"invalid stop_reason: {self.stop_reason}") from exc
         if self.plan.cursor < 0:
             raise StateValidationError("plan.cursor must be >= 0")
         if self.plan.status not in {"idle", "executing", "completed"}:
@@ -123,8 +130,11 @@ class StateSchema:
         if self.plan.cursor > len(self.plan.steps):
             raise StateValidationError("plan.cursor cannot exceed number of plan steps")
 
-    def set_stop(self, reason: str, final_result: Optional[str] = None) -> None:
-        self.stop_reason = reason
+    def set_stop(self, reason: StopReason | str, final_result: Optional[str] = None) -> None:
+        if isinstance(reason, StopReason):
+            self.stop_reason = reason.value
+        else:
+            self.stop_reason = StopReason(str(reason)).value
         if final_result is not None:
             self.final_result = final_result
 

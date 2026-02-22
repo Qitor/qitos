@@ -65,6 +65,9 @@ class MarkdownFileMemory(Memory):
         self._records = self._records[-self.max_in_memory :]
         return removed
 
+    def reset(self, run_id: Optional[str] = None) -> None:
+        self._records = []
+
     def _ensure_file(self) -> None:
         if self.path.exists():
             return

@@ -69,6 +69,10 @@ class VectorMemory(Memory):
     def evict(self) -> int:
         return 0
 
+    def reset(self, run_id: Optional[str] = None) -> None:
+        self._records = []
+        self._vectors = []
+
     def _default_embedder(self, text: str) -> List[float]:
         buckets = [0.0] * 16
         for i, ch in enumerate(text):

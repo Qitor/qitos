@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Iterable, List
 
+from ..core.errors import StopReason
 from ..core.state import StateSchema, StateValidationError
 
 
@@ -24,9 +25,12 @@ def validate_plan_cursor(state: StateSchema) -> None:
 
 
 def validate_final_consistency(state: StateSchema) -> None:
-    if state.stop_reason and not isinstance(state.stop_reason, str):
-        raise StateValidationError("stop_reason must be a string")
-    if state.stop_reason == "final" and not state.final_result:
+    if state.stop_reason:
+        try:
+            StopReason(str(state.stop_reason))
+        except ValueError as exc:
+            raise StateValidationError("stop_reason must be one of StopReason values") from exc
+    if state.stop_reason == StopReason.FINAL.value and not state.final_result:
         raise StateValidationError("stop_reason=final requires final_result")
 
 

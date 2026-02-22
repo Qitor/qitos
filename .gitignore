@@ -143,6 +143,12 @@ config.local.yaml
 config.local.yml
 secrets.yaml
 secrets.yml
+secrets.local.yaml
+secrets.local.yml
+.qitos_secrets.yaml
+.qitos_secrets.yml
+.qitos_secrets.local.yaml
+.qitos_secrets.local.yml
 .env.local
 .env.*.local
 

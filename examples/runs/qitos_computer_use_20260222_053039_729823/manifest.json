@@ -1,0 +1,239 @@
+{
+  "run_id": "qitos_computer_use_20260222_053039_729823",
+  "schema_version": "v1",
+  "status": "completed",
+  "updated_at": "2026-02-22T05:32:38.739444+00:00",
+  "event_count": 96,
+  "step_count": 7,
+  "summary": {
+    "stop_reason": "final",
+    "final_result": "report.md has been created with the summary: \"寒潮、大风、沙尘暴、暴雪四预警连发！春节假期后半段天气大转变，北方多地降温将超10℃，冷暖快速反转。大风、沙尘也来袭，沙尘南界或推进到长江中下游沿线。另外，内蒙\"",
+    "steps": 7,
+    "failure_report": {
+      "failure_count": 0,
+      "failures": [],
+      "stop_reason": "final"
+    },
+    "token_usage": 62731,
+    "task_meta": {
+      "task_id": "computer_use_react_demo",
+      "env_spec": {
+        "type": "host",
+        "config": {
+          "workspace_root": "playground"
+        },
+        "required_tools": [],
+        "capabilities": [],
+        "metadata": {}
+      },
+      "budget": {
+        "max_steps": 10,
+        "max_runtime_seconds": null,
+        "max_tokens": null
+      },
+      "success_criteria": [],
+      "input_hash": "1f06967664fa50d7"
+    },
+    "task_result": {
+      "task_id": "computer_use_react_demo",
+      "success": true,
+      "stop_reason": "final",
+      "final_result": "report.md has been created with the summary: \"寒潮、大风、沙尘暴、暴雪四预警连发！春节假期后半段天气大转变，北方多地降温将超10℃，冷暖快速反转。大风、沙尘也来袭，沙尘南界或推进到长江中下游沿线。另外，内蒙\"",
+      "criteria": [],
+      "artifacts": [],
+      "metrics": {
+        "steps": 7,
+        "elapsed_seconds": 119.0093842500064,
+        "token_usage": 62731
+      },
+      "metadata": {
+        "task_meta": {
+          "task_id": "computer_use_react_demo",
+          "env_spec": {
+            "type": "host",
+            "config": {
+              "workspace_root": "playground"
+            },
+            "required_tools": [],
+            "capabilities": [],
+            "metadata": {}
+          },
+          "budget": {
+            "max_steps": 10,
+            "max_runtime_seconds": null,
+            "max_tokens": null
+          },
+          "success_criteria": [],
+          "input_hash": "1f06967664fa50d7"
+        },
+        "run_meta": {
+          "model_name": "Qwen/Qwen3-8B",
+          "parser": "ReActTextParser",
+          "tool_count": 5,
+          "tools": [
+            {
+              "name": "extract_web_text",
+              "description": "Extract readable text from HTML content",
+              "required_ops": [],
+              "origin": {
+                "source": "function",
+                "toolset_name": null,
+                "toolset_version": null
+              }
+            },
+            {
+              "name": "http_get",
+              "description": "HTTP GET request with retries and structured output",
+              "required_ops": [],
+              "origin": {
+                "source": "function",
+                "toolset_name": null,
+                "toolset_version": null
+              }
+            },
+            {
+              "name": "read_file",
+              "description": "Read file content under workspace",
+              "required_ops": [
+                "file"
+              ],
+              "origin": {
+                "source": "function",
+                "toolset_name": null,
+                "toolset_version": null
+              }
+            },
+            {
+              "name": "run_command",
+              "description": "Execute shell command in working directory",
+              "required_ops": [
+                "process"
+              ],
+              "origin": {
+                "source": "function",
+                "toolset_name": null,
+                "toolset_version": null
+              }
+            },
+            {
+              "name": "write_file",
+              "description": "Write content to a file under workspace",
+              "required_ops": [
+                "file"
+              ],
+              "origin": {
+                "source": "function",
+                "toolset_name": null,
+                "toolset_version": null
+              }
+            }
+          ],
+          "env": {
+            "enabled": true,
+            "name": "host_env",
+            "version": "1.0"
+          }
+        }
+      }
+    },
+    "run_meta": {
+      "model_name": "Qwen/Qwen3-8B",
+      "parser": "ReActTextParser",
+      "tool_count": 5,
+      "tools": [
+        {
+          "name": "extract_web_text",
+          "description": "Extract readable text from HTML content",
+          "required_ops": [],
+          "origin": {
+            "source": "function",
+            "toolset_name": null,
+            "toolset_version": null
+          }
+        },
+        {
+          "name": "http_get",
+          "description": "HTTP GET request with retries and structured output",
+          "required_ops": [],
+          "origin": {
+            "source": "function",
+            "toolset_name": null,
+            "toolset_version": null
+          }
+        },
+        {
+          "name": "read_file",
+          "description": "Read file content under workspace",
+          "required_ops": [
+            "file"
+          ],
+          "origin": {
+            "source": "function",
+            "toolset_name": null,
+            "toolset_version": null
+          }
+        },
+        {
+          "name": "run_command",
+          "description": "Execute shell command in working directory",
+          "required_ops": [
+            "process"
+          ],
+          "origin": {
+            "source": "function",
+            "toolset_name": null,
+            "toolset_version": null
+          }
+        },
+        {
+          "name": "write_file",
+          "description": "Write content to a file under workspace",
+          "required_ops": [
+            "file"
+          ],
+          "origin": {
+            "source": "function",
+            "toolset_name": null,
+            "toolset_version": null
+          }
+        }
+      ],
+      "env": {
+        "enabled": true,
+        "name": "host_env",
+        "version": "1.0"
+      }
+    }
+  },
+  "model_id": "Qwen/Qwen3-8B",
+  "prompt_hash": "6049131700f441c2",
+  "tool_versions": {
+    "extract_web_text": {
+      "source": "function",
+      "toolset_name": null,
+      "toolset_version": null
+    },
+    "http_get": {
+      "source": "function",
+      "toolset_name": null,
+      "toolset_version": null
+    },
+    "read_file": {
+      "source": "function",
+      "toolset_name": null,
+      "toolset_version": null
+    },
+    "run_command": {
+      "source": "function",
+      "toolset_name": null,
+      "toolset_version": null
+    },
+    "write_file": {
+      "source": "function",
+      "toolset_name": null,
+      "toolset_version": null
+    }
+  },
+  "seed": null,
+  "run_config_hash": "a3a77c2914f967ad"
+}

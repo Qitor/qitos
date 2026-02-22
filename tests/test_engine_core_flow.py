@@ -170,6 +170,9 @@ def test_engine_uses_memory_retrieve_messages_contract():
         def evict(self) -> int:
             return 0
 
+        def reset(self, run_id=None) -> None:
+            self._records = []
+
     seen_messages: list[dict[str, str]] = []
 
     class _DummyModel:

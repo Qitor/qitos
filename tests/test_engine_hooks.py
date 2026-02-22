@@ -141,3 +141,40 @@ def test_render_stream_hook_outputs_structured_events(tmp_path):
     assert "observation" in nodes
     assert "decision" in nodes
     assert "done" in nodes
+
+
+def test_hook_context_payload_has_canonical_fields():
+    seen_payloads: list[dict[str, Any]] = []
+
+    class _PayloadHook(EngineHook):
+        def on_after_observe(self, ctx, engine):
+            seen_payloads.append(dict(ctx.payload))
+
+        def on_after_decide(self, ctx, engine):
+            seen_payloads.append(dict(ctx.payload))
+
+    engine = Engine(agent=_LLMAgent(), budget=RuntimeBudget(max_steps=2), hooks=[_PayloadHook()])
+    result = engine.run("x")
+    assert result.state.final_result == "ok"
+    assert seen_payloads
+    required = {"run_id", "step_id", "phase", "hook", "task", "stop_reason", "ts", "state_digest", "decision_digest", "action_digest", "error"}
+    for payload in seen_payloads:
+        assert required.issubset(set(payload.keys()))
+
+
+def test_runtime_event_payload_has_canonical_fields():
+    captured: list[dict[str, Any]] = []
+
+    class _EventHook(EngineHook):
+        def on_event(self, event, state, record, engine) -> None:
+            captured.append(dict(event.payload))
+
+    engine = Engine(agent=_LLMAgent(), budget=RuntimeBudget(max_steps=2), hooks=[_EventHook()])
+    result = engine.run("x")
+    assert result.state.final_result == "ok"
+    assert captured
+    for payload in captured:
+        assert "run_id" in payload
+        assert "step_id" in payload
+        assert "phase" in payload
+        assert "ts" in payload

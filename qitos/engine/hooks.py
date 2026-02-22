@@ -26,6 +26,8 @@ class HookContext:
     payload: Dict[str, Any] = field(default_factory=dict)
     error: Optional[Exception] = None
     stop_reason: Optional[str] = None
+    run_id: str = ""
+    ts: str = ""
 
 
 class EngineHook:

@@ -64,5 +64,9 @@ class Memory(ABC):
     def evict(self) -> int:
         """Apply retention strategy and return number of evicted records."""
 
+    @abstractmethod
+    def reset(self, run_id: Optional[str] = None) -> None:
+        """Reset memory runtime state for a new run."""
+
 
 __all__ = ["MemoryRecord", "Memory"]

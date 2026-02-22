@@ -12,7 +12,7 @@ from ..core.errors import RuntimeErrorInfo, StopReason, classify_exception
 class RecoveryDecision:
     handled: bool
     continue_run: bool
-    stop_reason: Optional[str] = None
+    stop_reason: Optional[StopReason] = None
     note: Optional[str] = None
 
 
@@ -59,6 +59,10 @@ class RecoveryPolicy:
         self._recoveries = 0
         self.tracker = RecoveryTracker()
 
+    def reset(self) -> None:
+        self._recoveries = 0
+        self.tracker = RecoveryTracker()
+
     def handle(self, state: Any, phase: str, step_id: int, exc: Exception) -> RecoveryDecision:
         info = classify_exception(exc, phase, step_id)
         recommendation = self._recommendation_for(info.category)
@@ -68,7 +72,7 @@ class RecoveryPolicy:
             return RecoveryDecision(
                 handled=True,
                 continue_run=False,
-                stop_reason=StopReason.UNRECOVERABLE_ERROR.value,
+                stop_reason=StopReason.UNRECOVERABLE_ERROR,
                 note="max_recovery_exhausted",
             )
 
@@ -81,7 +85,7 @@ class RecoveryPolicy:
         return RecoveryDecision(
             handled=True,
             continue_run=False,
-            stop_reason=StopReason.UNRECOVERABLE_ERROR.value,
+            stop_reason=StopReason.UNRECOVERABLE_ERROR,
             note="unrecoverable_stop",
         )
 

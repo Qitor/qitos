@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import time
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar
+from uuid import uuid4
 
 from ..core.action import Action
 from ..core.agent_module import AgentModule
@@ -13,7 +17,7 @@ from ..core.errors import ErrorCategory, ParseExecutionError, RuntimeErrorInfo, 
 from ..core.env import Env, EnvObservation, EnvStepResult
 from ..core.memory import Memory, MemoryRecord
 from ..core.state import StateSchema
-from ..core.task import Task
+from ..core.task import Task, TaskCriterionResult, TaskResult, TaskValidationIssue
 from ..trace import TraceWriter, runtime_event_to_trace, runtime_step_to_trace
 from .action_executor import ActionExecutor
 from .branching import BranchSelector, FirstCandidateSelector
@@ -23,7 +27,7 @@ from .parser import Parser
 from .recovery import RecoveryPolicy, build_failure_report
 from .search import Search
 from .states import RuntimeBudget, RuntimeEvent, RuntimePhase, StepRecord
-from .stop_criteria import FinalResultCriteria, MaxRuntimeCriteria, MaxStepsCriteria, StopCriteria
+from .stop_criteria import FinalResultCriteria, StopCriteria
 from .validation import StateValidationGate
 
 
@@ -40,6 +44,7 @@ class EngineResult(Generic[StateT]):
     records: List[StepRecord]
     events: List[RuntimeEvent]
     step_count: int
+    task_result: Optional[TaskResult] = None
 
 
 class Engine(Generic[StateT, ObservationT, ActionT]):
@@ -86,10 +91,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             self.hooks.extend(render_hooks)
         if stop_criteria is None:
             self._uses_default_stop_criteria = True
-            self.stop_criteria = [MaxStepsCriteria(self.budget.max_steps)]
-            if self.budget.max_runtime_seconds is not None:
-                self.stop_criteria.append(MaxRuntimeCriteria(self.budget.max_runtime_seconds))
-            self.stop_criteria.append(FinalResultCriteria())
+            self.stop_criteria = [FinalResultCriteria()]
         else:
             self._uses_default_stop_criteria = False
             self.stop_criteria = stop_criteria
@@ -102,6 +104,8 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self._active_task_obj: Optional[Task] = None
         self._last_env_observation: Optional[EnvObservation] = None
         self._last_env_result: Optional[EnvStepResult] = None
+        self._token_usage: int = 0
+        self._active_run_id: str = ""
 
     def register_hook(self, hook: Any) -> None:
         """Register one runtime hook instance."""
@@ -116,13 +120,32 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self.hooks = []
 
     def run(self, task: str | Task, **kwargs: Any) -> EngineResult[StateT]:
+        self.events = []
+        self.records = []
+        self._last_env_observation = None
+        self._last_env_result = None
+        if self.memory is not None:
+            try:
+                self.memory.reset()
+            except Exception:
+                pass
+        if hasattr(self.recovery_policy, "reset"):
+            try:
+                self.recovery_policy.reset()
+            except Exception:
+                pass
+        self._active_run_id = (
+            str(getattr(self.trace_writer, "run_id", "")).strip() if self.trace_writer is not None else ""
+        ) or f"run_{uuid4().hex[:12]}"
         task_obj, task_text = self._normalize_task(task)
         self._apply_task_budget(task_obj)
+        self._token_usage = 0
         state = self.agent.init_state(task_text, **kwargs)
         self._active_task = task_text
         self._active_task_obj = task_obj
         self._active_state = state
         started_at = time.monotonic()
+        self._hydrate_trace_metadata(task_obj=task_obj, task_text=task_text)
 
         self._setup_toolsets({"state": state, "trace_writer": self.trace_writer, "task": task_obj or task_text})
         self._setup_env(task_obj=task_obj, state=state, kwargs=kwargs)
@@ -132,10 +155,44 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             payload={
                 "task": task_text,
                 "task_id": task_obj.id if task_obj is not None else None,
+                "task_meta": self._task_meta(task_obj),
+                "run_meta": self._run_meta(),
                 "env": self._env_identity(),
             },
         )
         self._notify_run_start(task_text, state)
+        preflight_issues = self._preflight_validate(task_obj=task_obj, workspace=kwargs.get("workspace"))
+        if preflight_issues:
+            has_task_issue = any(not issue.code.startswith("ENV_") for issue in preflight_issues)
+            stop_reason = StopReason.TASK_VALIDATION_FAILED if has_task_issue else StopReason.ENV_CAPABILITY_MISMATCH
+            state.set_stop(stop_reason)
+            state.final_result = "Preflight validation failed."
+            self._emit(
+                0,
+                RuntimePhase.END,
+                ok=False,
+                payload={
+                    "stop_reason": state.stop_reason,
+                    "error_category": ErrorCategory.TASK.value if has_task_issue else ErrorCategory.ENV.value,
+                    "issues": [self._task_issue_to_dict(x) for x in preflight_issues],
+                },
+            )
+            result = EngineResult(
+                state=state,
+                records=self.records,
+                events=self.events,
+                step_count=0,
+                task_result=self._build_task_result(state, task_obj=task_obj, started_at=started_at),
+            )
+            self._notify_run_end(result)
+            self._active_state = None
+            self._active_task = ""
+            self._active_task_obj = None
+            self._last_env_observation = None
+            self._last_env_result = None
+            self._teardown_env()
+            self._teardown_toolsets({"state": state, "trace_writer": self.trace_writer, "task": task_obj or task_text})
+            return result
 
         step_id = 0
         try:
@@ -190,7 +247,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
 
                 critic_action = self._apply_critics(state, record)
                 if critic_action == "stop":
-                    state.set_stop("critic_stop")
+                    state.set_stop(StopReason.CRITIC_STOP)
                     self._finalize_step(record, state)
                     self._dispatch_hook(
                         "on_after_step",
@@ -255,17 +312,28 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                     "stop_reason": state.stop_reason,
                     "final_result": state.final_result,
                     "steps": len(self.records),
+                    "token_usage": self._token_usage,
+                    "task_meta": self._task_meta(task_obj),
+                    "task_result": self._build_task_result(state, task_obj=task_obj, started_at=started_at).to_dict(),
+                    "run_meta": self._run_meta(),
                     "failure_report": build_failure_report(self.recovery_policy, state.stop_reason),
                 },
             )
 
-        result = EngineResult(state=state, records=self.records, events=self.events, step_count=len(self.records))
+        result = EngineResult(
+            state=state,
+            records=self.records,
+            events=self.events,
+            step_count=len(self.records),
+            task_result=self._build_task_result(state, task_obj=task_obj, started_at=started_at),
+        )
         self._notify_run_end(result)
         self._active_state = None
         self._active_task = ""
         self._active_task_obj = None
         self._last_env_observation = None
         self._last_env_result = None
+        self._active_run_id = ""
         return result
 
     def _apply_task_budget(self, task_obj: Optional[Task]) -> None:
@@ -274,10 +342,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self.budget.max_tokens = self._base_budget.max_tokens
         if task_obj is None:
             if self._uses_default_stop_criteria:
-                self.stop_criteria = [MaxStepsCriteria(self.budget.max_steps)]
-                if self.budget.max_runtime_seconds is not None:
-                    self.stop_criteria.append(MaxRuntimeCriteria(self.budget.max_runtime_seconds))
-                self.stop_criteria.append(FinalResultCriteria())
+                self.stop_criteria = [FinalResultCriteria()]
             return
         budget = task_obj.budget
         if budget.max_steps is not None:
@@ -287,10 +352,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         if budget.max_tokens is not None:
             self.budget.max_tokens = int(budget.max_tokens)
         if self._uses_default_stop_criteria:
-            self.stop_criteria = [MaxStepsCriteria(self.budget.max_steps)]
-            if self.budget.max_runtime_seconds is not None:
-                self.stop_criteria.append(MaxRuntimeCriteria(self.budget.max_runtime_seconds))
-            self.stop_criteria.append(FinalResultCriteria())
+            self.stop_criteria = [FinalResultCriteria()]
 
     def _build_env_view(self, state: StateT, step_id: int, started_at: float) -> Dict[str, Any]:
         elapsed = time.monotonic() - started_at
@@ -303,6 +365,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                 "max_steps": self.budget.max_steps,
                 "max_runtime_seconds": self.budget.max_runtime_seconds,
                 "max_tokens": self.budget.max_tokens,
+                "consumed_tokens": self._token_usage,
             },
             "metadata": state.metadata,
             "memory": memory_context,
@@ -406,6 +469,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             self._memory_append("message", current_user, record.step_id, metadata={"source": "engine"})
             self._memory_append("model_input", {"messages": messages}, record.step_id)
             raw_decision = self.agent.llm(messages)
+            self._token_usage += self._estimate_tokens(messages) + self._estimate_tokens(str(raw_decision))
             self._emit(
                 record.step_id,
                 RuntimePhase.DECIDE,
@@ -682,7 +746,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self._emit(state.current_step, RuntimePhase.CHECK_STOP, payload={"stage": "start"})
 
         if decision.mode == "final":
-            state.set_stop(StopReason.FINAL.value, decision.final_answer)
+            state.set_stop(StopReason.FINAL, decision.final_answer)
             self._emit(
                 state.current_step,
                 RuntimePhase.CHECK_STOP,
@@ -704,7 +768,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
 
         if self.agent.should_stop(state):
             if state.stop_reason is None:
-                state.set_stop(StopReason.AGENT_CONDITION.value)
+                state.set_stop(StopReason.AGENT_CONDITION)
             self._emit(
                 state.current_step,
                 RuntimePhase.CHECK_STOP,
@@ -726,7 +790,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
 
         if self.env is not None and self.env.is_terminal(state=state, last_result=self._last_env_result):
             if state.stop_reason is None:
-                state.set_stop(StopReason.ENV_TERMINAL.value)
+                state.set_stop(StopReason.ENV_TERMINAL)
             self._emit(
                 state.current_step,
                 RuntimePhase.CHECK_STOP,
@@ -752,14 +816,19 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             return True
 
         elapsed = time.monotonic() - started_at
-        should_stop, reason = self._should_stop_by_criteria(state, step_id, elapsed)
+        should_stop, reason, detail = self._should_stop_by_criteria(state, step_id, elapsed)
         if should_stop:
             if state.stop_reason is None:
-                state.set_stop(reason or StopReason.MAX_STEPS.value)
+                state.set_stop(reason or StopReason.UNRECOVERABLE_ERROR)
             self._emit(
                 state.current_step,
                 RuntimePhase.CHECK_STOP,
-                payload={"stage": "stop", "stop_reason": state.stop_reason, "final_result": state.final_result},
+                payload={
+                    "stage": "stop",
+                    "stop_reason": state.stop_reason,
+                    "final_result": state.final_result,
+                    "stop_detail": detail,
+                },
             )
             self._dispatch_hook(
                 "on_after_check_stop",
@@ -789,9 +858,9 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         )
         return False
 
-    def _should_stop_by_criteria(self, state: StateT, step_id: int, elapsed_seconds: float) -> tuple[bool, Optional[str]]:
+    def _should_stop_by_criteria(self, state: StateT, step_id: int, elapsed_seconds: float) -> tuple[bool, Optional[StopReason], Optional[str]]:
         for criteria in self.stop_criteria:
-            hit, reason = criteria.should_stop(
+            hit, reason, detail = criteria.should_stop(
                 state,
                 step_id,
                 runtime_info={
@@ -802,19 +871,23 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                 },
             )
             if hit:
-                return True, reason
-        return False, None
+                return True, reason, detail
+        return False, None, None
 
     def _budget_exhausted(self, step_id: int, started_at: float, state: StateT) -> bool:
         if step_id >= self.budget.max_steps:
-            state.set_stop(StopReason.BUDGET_STEPS.value)
+            state.set_stop(StopReason.BUDGET_STEPS)
             return True
 
         if self.budget.max_runtime_seconds is not None:
             elapsed = time.monotonic() - started_at
             if elapsed > self.budget.max_runtime_seconds:
-                state.set_stop(StopReason.BUDGET_TIME.value)
+                state.set_stop(StopReason.BUDGET_TIME)
                 return True
+
+        if self.budget.max_tokens is not None and self._token_usage >= int(self.budget.max_tokens):
+            state.set_stop(StopReason.BUDGET_TOKENS)
+            return True
 
         return False
 
@@ -875,7 +948,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             state.set_stop(decision.stop_reason)
 
         if not decision.continue_run and state.stop_reason is None:
-            state.set_stop(StopReason.UNRECOVERABLE_ERROR.value)
+            state.set_stop(StopReason.UNRECOVERABLE_ERROR)
 
         return decision.continue_run
 
@@ -887,7 +960,13 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         payload: Optional[Dict[str, Any]] = None,
         error: Optional[str] = None,
     ) -> None:
-        event = RuntimeEvent(step_id=step_id, phase=phase, ok=ok, payload=payload or {}, error=error)
+        event_ts = datetime.now(timezone.utc).isoformat()
+        event_payload = dict(payload or {})
+        event_payload.setdefault("run_id", self._active_run_id)
+        event_payload.setdefault("step_id", step_id)
+        event_payload.setdefault("phase", phase.value)
+        event_payload.setdefault("ts", event_ts)
+        event = RuntimeEvent(step_id=step_id, phase=phase, ok=ok, payload=event_payload, error=error, ts=event_ts)
         self.events.append(event)
         if self.records and self.records[-1].step_id == step_id:
             self.records[-1].phase_events.append(event)
@@ -984,9 +1063,110 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
 
     def _normalize_task(self, task: str | Task) -> tuple[Optional[Task], str]:
         if isinstance(task, Task):
-            task.validate()
             return task, task.objective
         return None, str(task)
+
+    def _preflight_validate(self, task_obj: Optional[Task], workspace: Any = None) -> List[TaskValidationIssue]:
+        issues: List[TaskValidationIssue] = []
+        if task_obj is not None:
+            try:
+                issues.extend(task_obj.validate_structured(workspace=str(workspace) if workspace else None))
+            except Exception as exc:
+                issues.append(
+                    TaskValidationIssue(
+                        code="TASK_VALIDATION_EXCEPTION",
+                        message=str(exc),
+                        field="task",
+                    )
+                )
+
+        for issue in self._validate_env_capabilities():
+            issues.append(
+                TaskValidationIssue(
+                    code=str(issue.get("code", "ENV_CAPABILITY_ERROR")),
+                    message=str(issue.get("message", "Environment capability mismatch")),
+                    field=str(issue.get("field", "env")),
+                    details=issue.get("details", {}) if isinstance(issue.get("details", {}), dict) else {},
+                )
+            )
+        health = self._validate_env_health()
+        if health is not None:
+            issues.append(
+                TaskValidationIssue(
+                    code=str(health.get("code", "ENV_HEALTH_CHECK_FAILED")),
+                    message=str(health.get("message", "Environment health check failed")),
+                    field=str(health.get("field", "env")),
+                    details=health.get("details", {}) if isinstance(health.get("details", {}), dict) else {},
+                )
+            )
+        return issues
+
+    def _validate_env_capabilities(self) -> List[Dict[str, Any]]:
+        required = self._collect_required_ops()
+        if not required:
+            return []
+        if self.env is None:
+            return [
+                {
+                    "code": "ENV_REQUIRED_OPS_MISSING",
+                    "message": "No env configured but tools require env ops",
+                    "field": "env",
+                    "details": {"required_ops": sorted(required)},
+                }
+            ]
+        missing = [group for group in sorted(required) if not self.env.has_ops(group)]
+        if not missing:
+            return []
+        return [
+            {
+                "code": "ENV_OPS_GROUP_MISSING",
+                "message": "Env is missing required ops groups",
+                "field": "env",
+                "details": {
+                    "env_name": getattr(self.env, "name", self.env.__class__.__name__),
+                    "missing_ops": missing,
+                    "required_ops": sorted(required),
+                },
+            }
+        ]
+
+    def _collect_required_ops(self) -> set[str]:
+        required: set[str] = set()
+        if self.tool_registry is None or not hasattr(self.tool_registry, "list_tools"):
+            return required
+        try:
+            for tool_name in self.tool_registry.list_tools():
+                tool = self.tool_registry.get(tool_name) if hasattr(self.tool_registry, "get") else None
+                spec = getattr(tool, "spec", None)
+                groups = getattr(spec, "required_ops", None)
+                if isinstance(groups, list):
+                    required.update(str(x) for x in groups if str(x))
+        except Exception:
+            return required
+        return required
+
+    def _validate_env_health(self) -> Optional[Dict[str, Any]]:
+        if self.env is None:
+            return None
+        try:
+            probe = self.env.health_check()
+        except Exception as exc:
+            return {
+                "code": "ENV_HEALTH_CHECK_EXCEPTION",
+                "message": f"Env health_check raised exception: {exc}",
+                "field": "env",
+                "details": {"env_name": getattr(self.env, "name", self.env.__class__.__name__)},
+            }
+        if not isinstance(probe, dict):
+            return None
+        if bool(probe.get("ok", True)):
+            return None
+        return {
+            "code": "ENV_HEALTH_CHECK_FAILED",
+            "message": str(probe.get("message", "Environment health probe failed")),
+            "field": "env",
+            "details": probe,
+        }
 
     def _setup_env(self, task_obj: Optional[Task], state: StateT, kwargs: Dict[str, Any]) -> None:
         if self.env is None and task_obj is not None and task_obj.env_spec is not None:
@@ -995,8 +1175,10 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             return
         workspace = kwargs.get("workspace")
         reset_task: Any = task_obj if task_obj is not None else self._active_task
+        resources = task_obj.resolve_resources(workspace=str(workspace) if workspace else None) if task_obj is not None else []
         try:
-            first = self.env.reset(task=reset_task, workspace=workspace)
+            self.env.setup(task=reset_task, workspace=workspace, resources=resources)
+            first = self.env.reset(task=reset_task, workspace=workspace, resources=resources)
             if not isinstance(first, EnvObservation):
                 first = EnvObservation(data={"value": first})
             self._last_env_observation = first
@@ -1042,7 +1224,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         if self.env is None:
             return
         try:
-            self.env.close()
+            self.env.teardown()
         except Exception:
             return
 
@@ -1158,6 +1340,123 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         )
         self.trace_writer.write_event(event)
 
+    def _estimate_tokens(self, payload: Any) -> int:
+        text = payload if isinstance(payload, str) else repr(payload)
+        if not text:
+            return 0
+        return max(1, len(text) // 4)
+
+    def _task_meta(self, task_obj: Optional[Task]) -> Optional[Dict[str, Any]]:
+        if task_obj is None:
+            return None
+        payload = task_obj.to_dict()
+        serialized = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+        return {
+            "task_id": task_obj.id,
+            "env_spec": payload.get("env_spec"),
+            "budget": payload.get("budget"),
+            "success_criteria": payload.get("success_criteria", []),
+            "input_hash": hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:16],
+        }
+
+    def _task_issue_to_dict(self, issue: TaskValidationIssue) -> Dict[str, Any]:
+        return {
+            "code": issue.code,
+            "message": issue.message,
+            "field": issue.field,
+            "details": issue.details,
+        }
+
+    def _hydrate_trace_metadata(self, task_obj: Optional[Task], task_text: str) -> None:
+        if self.trace_writer is None:
+            return
+        run_meta = self._run_meta()
+        task_meta = self._task_meta(task_obj) or {}
+        prompt_seed = {
+            "task": task_text,
+            "agent": getattr(self.agent, "name", self.agent.__class__.__name__),
+            "parser": run_meta.get("parser"),
+            "model_name": run_meta.get("model_name"),
+            "tool_count": run_meta.get("tool_count"),
+        }
+        prompt_hash = hashlib.sha256(json.dumps(prompt_seed, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+        run_cfg_hash = hashlib.sha256(json.dumps({"task_meta": task_meta, "run_meta": run_meta}, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+        self.trace_writer.metadata.update(
+            {
+                "model_id": run_meta.get("model_name") or "unknown",
+                "prompt_hash": prompt_hash,
+                "tool_versions": {item.get("name", ""): item.get("origin", {}) for item in run_meta.get("tools", []) if isinstance(item, dict)},
+                "seed": getattr(self.agent, "config", {}).get("seed") if isinstance(getattr(self.agent, "config", {}), dict) else None,
+                "run_config_hash": run_cfg_hash,
+                "task_hash": task_meta.get("input_hash"),
+                "env_fingerprint": run_meta.get("env"),
+            }
+        )
+
+    def _run_meta(self) -> Dict[str, Any]:
+        llm = getattr(self.agent, "llm", None)
+        model_name = getattr(llm, "model", None) if llm is not None else None
+        parser_name = self.parser.__class__.__name__ if self.parser is not None else (
+            self.agent.model_parser.__class__.__name__ if getattr(self.agent, "model_parser", None) is not None else None
+        )
+        tools: List[Dict[str, Any]] = []
+        if self.tool_registry is not None and hasattr(self.tool_registry, "list_tools"):
+            try:
+                for name in self.tool_registry.list_tools():
+                    if hasattr(self.tool_registry, "describe_tool"):
+                        tools.append(self.tool_registry.describe_tool(name))
+                    else:
+                        tools.append({"name": name})
+            except Exception:
+                pass
+        env_info = self._env_identity()
+        return {
+            "model_name": model_name,
+            "parser": parser_name,
+            "tool_count": len(tools),
+            "tools": tools,
+            "env": env_info,
+        }
+
+    def _build_task_result(self, state: StateT, task_obj: Optional[Task], started_at: float) -> TaskResult:
+        stop_reason = state.stop_reason
+        success = stop_reason in {
+            StopReason.SUCCESS.value,
+            StopReason.FINAL.value,
+            StopReason.ENV_TERMINAL.value,
+            StopReason.AGENT_CONDITION.value,
+        }
+        criteria_results: List[TaskCriterionResult] = []
+        criteria = task_obj.success_criteria if task_obj is not None else []
+        for c in criteria:
+            criteria_results.append(
+                TaskCriterionResult(
+                    criterion=str(c),
+                    passed=success,
+                    evidence=str(state.final_result or stop_reason or ""),
+                )
+            )
+        workspace = getattr(self.env, "workspace_root", None) if self.env is not None else None
+        artifacts = task_obj.resolve_resources(workspace=workspace) if task_obj is not None else []
+        elapsed_seconds = max(0.0, time.monotonic() - started_at)
+        return TaskResult(
+            task_id=task_obj.id if task_obj is not None else "",
+            success=success,
+            stop_reason=stop_reason,
+            final_result=state.final_result,
+            criteria=criteria_results,
+            artifacts=artifacts,
+            metrics={
+                "steps": len(self.records),
+                "elapsed_seconds": elapsed_seconds,
+                "token_usage": self._token_usage,
+            },
+            metadata={
+                "task_meta": self._task_meta(task_obj),
+                "run_meta": self._run_meta(),
+            },
+        )
+
     def _sanitize_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         safe: Dict[str, Any] = {}
         for key, value in payload.items():
@@ -1203,6 +1502,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                 continue
 
     def _dispatch_hook(self, method_name: str, ctx: HookContext) -> None:
+        self._inject_hook_payload(method_name, ctx)
         for hook in self.hooks:
             method = getattr(hook, method_name, None)
             if method is None:
@@ -1217,6 +1517,45 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                     continue
             except Exception:
                 continue
+
+    def _inject_hook_payload(self, method_name: str, ctx: HookContext) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        ctx.run_id = self._active_run_id
+        if not ctx.ts:
+            ctx.ts = now
+        payload = dict(ctx.payload or {})
+        payload.setdefault("run_id", self._active_run_id)
+        payload.setdefault("step_id", ctx.step_id)
+        payload.setdefault("phase", ctx.phase.value)
+        payload.setdefault("hook", method_name)
+        payload.setdefault("task", ctx.task)
+        payload.setdefault("stop_reason", ctx.stop_reason or getattr(ctx.state, "stop_reason", None))
+        payload.setdefault("ts", ctx.ts)
+        payload.setdefault(
+            "state_digest",
+            {
+                "current_step": getattr(ctx.state, "current_step", None),
+                "has_final_result": bool(getattr(ctx.state, "final_result", None)),
+                "stop_reason": getattr(ctx.state, "stop_reason", None),
+            },
+        )
+        payload.setdefault(
+            "decision_digest",
+            {
+                "mode": getattr(ctx.decision, "mode", None) if ctx.decision is not None else None,
+                "has_actions": bool(getattr(ctx.decision, "actions", None)) if ctx.decision is not None else False,
+                "has_final_answer": bool(getattr(ctx.decision, "final_answer", None)) if ctx.decision is not None else False,
+            },
+        )
+        payload.setdefault(
+            "action_digest",
+            {
+                "result_count": len(ctx.action_results or []),
+                "tool_invocation_count": len(getattr(ctx.record, "tool_invocations", []) or []) if ctx.record is not None else 0,
+            },
+        )
+        payload.setdefault("error", str(ctx.error) if ctx.error is not None else None)
+        ctx.payload = payload
 
 
 __all__ = ["Engine", "EngineResult"]

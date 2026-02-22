@@ -55,13 +55,13 @@ class Env(ABC):
     def step(self, action: Any, state: Any = None) -> EnvStepResult:
         """Apply one action to environment and return step result."""
 
-    def supports_action(self, action: Any) -> bool:
-        """Whether this env can directly interpret and execute a runtime action."""
-        return False
+    def setup(self, task: Any = None, workspace: Optional[str] = None, **kwargs: Any) -> None:
+        """Prepare env before reset/run."""
+        return None
 
-    def execute_action(self, action: Any, state: Any = None) -> Any:
-        """Execute one action in env scope and return a tool-like result payload."""
-        raise NotImplementedError(f"{self.__class__.__name__} does not implement execute_action()")
+    def health_check(self) -> Dict[str, Any]:
+        """Return health probe result used by runtime preflight."""
+        return {"ok": True}
 
     def get_ops(self, group: str) -> Any:
         """Return concrete ops implementation for one capability group."""
@@ -80,6 +80,10 @@ class Env(ABC):
     def close(self) -> None:
         """Release environment resources."""
         return None
+
+    def teardown(self) -> None:
+        """Symmetric shutdown hook called by runtime."""
+        self.close()
 
 
 class FileSystemCapability(ABC):

@@ -12,6 +12,8 @@ class ErrorCategory(str, Enum):
     PARSE = "parse_error"
     TOOL = "tool_error"
     STATE = "state_error"
+    TASK = "task_error"
+    ENV = "env_error"
     SYSTEM = "system_error"
 
 
@@ -21,8 +23,13 @@ class StopReason(str, Enum):
     MAX_STEPS = "max_steps"
     BUDGET_STEPS = "budget_steps"
     BUDGET_TIME = "budget_time"
+    BUDGET_TOKENS = "budget_tokens"
     AGENT_CONDITION = "agent_condition"
+    CRITIC_STOP = "critic_stop"
+    STAGNATION = "stagnation"
     ENV_TERMINAL = "env_terminal"
+    TASK_VALIDATION_FAILED = "task_validation_failed"
+    ENV_CAPABILITY_MISMATCH = "env_capability_mismatch"
     UNRECOVERABLE_ERROR = "unrecoverable_error"
 
 

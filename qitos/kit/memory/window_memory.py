@@ -55,6 +55,9 @@ class WindowMemory(Memory):
         self._records = self._records[-self.window_size :]
         return remove_n
 
+    def reset(self, run_id: Optional[str] = None) -> None:
+        self._records = []
+
     @property
     def records(self) -> List[MemoryRecord]:
         return list(self._records)

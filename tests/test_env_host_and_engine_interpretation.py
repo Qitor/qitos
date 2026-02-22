@@ -88,8 +88,10 @@ def test_engine_fails_when_required_ops_missing_env(tmp_path: Path):
             self.tool_registry = registry
 
     result = Engine(agent=_NoEnvAgent(), budget=RuntimeBudget(max_steps=2)).run("write file")
-    assert result.records
-    first_results = result.records[0].action_results
-    assert first_results and isinstance(first_results[0], dict)
-    assert "error" in first_results[0]
-    assert "requires ops" in str(first_results[0]["error"])
+    assert result.state.stop_reason == "env_capability_mismatch"
+    assert result.step_count == 0
+    assert result.events
+    end_events = [e for e in result.events if e.phase.value == "END"]
+    assert end_events
+    issues = end_events[-1].payload.get("issues", [])
+    assert issues and issues[0].get("code") == "ENV_REQUIRED_OPS_MISSING"

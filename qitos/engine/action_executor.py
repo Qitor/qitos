@@ -18,8 +18,7 @@ class ActionExecutor:
 
     def execute(self, actions: Sequence[Action], env: Optional[Env] = None, state: Any = None) -> List[ActionResult]:
         if self.policy.mode == "parallel":
-            # Kept serial for now; deterministic behavior is preferred for reproducibility.
-            return [self._execute_one(action, env=env, state=state) for action in actions]
+            raise NotImplementedError("ActionExecutionPolicy.mode='parallel' is not implemented in the canonical executor")
         return [self._execute_one(action, env=env, state=state) for action in actions]
 
     def _execute_one(self, action: Action, env: Optional[Env] = None, state: Any = None) -> ActionResult:

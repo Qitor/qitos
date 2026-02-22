@@ -102,6 +102,7 @@ def runtime_event_to_trace(run_id: str, event: Any) -> TraceEvent:
     phase = getattr(event, "phase", None)
     if hasattr(phase, "value"):
         phase = phase.value
+    ts = str(getattr(event, "ts", "")).strip() or datetime.now(timezone.utc).isoformat()
     return TraceEvent(
         run_id=run_id,
         step_id=int(getattr(event, "step_id", 0)),
@@ -109,6 +110,7 @@ def runtime_event_to_trace(run_id: str, event: Any) -> TraceEvent:
         ok=bool(getattr(event, "ok", True)),
         payload=_normalize(getattr(event, "payload", {}) or {}),
         error=getattr(event, "error", None),
+        ts=ts,
     )
 
 

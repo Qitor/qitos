@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -35,6 +36,7 @@ class RuntimeEvent:
     ok: bool = True
     payload: Dict[str, Any] = field(default_factory=dict)
     error: Optional[str] = None
+    ts: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 @dataclass
