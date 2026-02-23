@@ -20,8 +20,10 @@ from .core.task import (
 )
 from .core.tool import BaseTool, FunctionTool, ToolPermission, ToolSpec, tool
 from .core.tool_registry import ToolRegistry
-from .benchmark import BenchmarkAdapter, BenchmarkSource, GaiaAdapter, load_gaia_tasks
+from .benchmark import BenchmarkAdapter, BenchmarkSource, GaiaAdapter, TauBenchAdapter, load_gaia_tasks, load_tau_bench_tasks
+from .evaluate import EvaluationContext, EvaluationResult, EvaluationSuite, SuiteEvaluationResult, TrajectoryEvaluator
 from .engine.engine import Engine, EngineResult
+from .metric import Metric, MetricInput, MetricRegistry, MetricReport
 from .engine.states import RuntimeBudget
 
 __all__ = [
@@ -60,7 +62,18 @@ __all__ = [
     "BenchmarkAdapter",
     "BenchmarkSource",
     "GaiaAdapter",
+    "TauBenchAdapter",
     "load_gaia_tasks",
+    "load_tau_bench_tasks",
+    "TrajectoryEvaluator",
+    "EvaluationContext",
+    "EvaluationResult",
+    "EvaluationSuite",
+    "SuiteEvaluationResult",
+    "Metric",
+    "MetricInput",
+    "MetricRegistry",
+    "MetricReport",
     "RuntimeBudget",
     "ErrorCategory",
     "StopReason",

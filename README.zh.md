@@ -41,6 +41,11 @@
 - 全生命周期 hooks
 - `qita` 支持 board/view/replay/export
 
+5. **评测原生的 benchmark 工作流**
+- `qitos.benchmark` 已适配 GAIA 与 Tau-Bench
+- `qitos.evaluate` 用于单轨迹任务完成判定
+- `qitos.metric` 用于多任务聚合评测（成功率、pass@k 等）
+
 ## 架构速览
 
 ```text
@@ -120,6 +125,26 @@ python examples/real/open_deep_research_gaia_agent.py \
   --run-all --concurrency 2 --resume
 ```
 
+### 5) 运行 Tau-Bench 评测（单题 / 全量）
+
+单题：
+
+```bash
+python examples/real/tau_bench_eval.py \
+  --workspace ./qitos_tau_workspace \
+  --tau-env retail --tau-split test \
+  --task-index 0
+```
+
+全量：
+
+```bash
+python examples/real/tau_bench_eval.py \
+  --workspace ./qitos_tau_workspace \
+  --tau-env retail --tau-split test \
+  --run-all --num-trials 1 --concurrency 4 --resume
+```
+
 ## 最小可改的 Agent 编写示例
 
 ```python
@@ -185,6 +210,28 @@ QitOS 的 benchmark 接入遵循统一路径：
 当前 GAIA 接入：
 - 适配器：`qitos/benchmark/gaia.py`
 - 运行示例：`examples/real/open_deep_research_gaia_agent.py`
+
+当前 Tau-Bench 接入：
+- 适配器：`qitos/benchmark/tau_bench.py`
+- 内置运行时：`qitos/benchmark/tau_runtime.py` + `qitos/benchmark/tau_port/*`
+- 运行示例：`examples/real/tau_bench_eval.py`
+
+## Evaluate 与 Metric 架构
+
+QitOS 将“任务完成判定”和“评测聚合指标”拆开：
+
+- `qitos.evaluate`：
+  - 面向单个 task + trajectory 的完成判定
+  - 产出结构化 `EvaluationResult`（原因、证据、分数）
+- `qitos.metric`：
+  - 面向多任务运行结果的聚合指标
+  - 产出成功率、平均 reward、pass@k 等报告
+
+预实现：
+- `qitos.kit.evaluate`：
+  - `RuleBasedEvaluator`、`DSLEvaluator`、`ModelBasedEvaluator`
+- `qitos.kit.metric`：
+  - `SuccessRateMetric`、`AverageRewardMetric`、`PassAtKMetric`、`MeanStepsMetric`、`StopReasonDistributionMetric`
 
 ## 预定义组件目录（Torch 风格）
 

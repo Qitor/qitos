@@ -1,0 +1,1 @@
+"""Vendored Tau retail assets."""

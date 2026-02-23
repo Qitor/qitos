@@ -8,7 +8,9 @@ This section is generated automatically at build time from the `qitos` package.
 - [qitos.core](#group-qitos-core)
 - [qitos.debug](#group-qitos-debug)
 - [qitos.engine](#group-qitos-engine)
+- [qitos.evaluate](#group-qitos-evaluate)
 - [qitos.kit](#group-qitos-kit)
+- [qitos.metric](#group-qitos-metric)
 - [qitos.models](#group-qitos-models)
 - [qitos.qita](#group-qitos-qita)
 - [qitos.render](#group-qitos-render)
@@ -22,6 +24,60 @@ This section is generated automatically at build time from the `qitos` package.
 - [`qitos.benchmark`](qitos/benchmark.md)
 - [`qitos.benchmark.base`](qitos/benchmark/base.md)
 - [`qitos.benchmark.gaia`](qitos/benchmark/gaia.md)
+- [`qitos.benchmark.tau_bench`](qitos/benchmark/tau_bench.md)
+- [`qitos.benchmark.tau_port`](qitos/benchmark/tau_port.md)
+- [`qitos.benchmark.tau_port.envs`](qitos/benchmark/tau_port/envs.md)
+- [`qitos.benchmark.tau_port.envs.airline`](qitos/benchmark/tau_port/envs/airline.md)
+- [`qitos.benchmark.tau_port.envs.airline.data`](qitos/benchmark/tau_port/envs/airline/data.md)
+- [`qitos.benchmark.tau_port.envs.airline.env`](qitos/benchmark/tau_port/envs/airline/env.md)
+- [`qitos.benchmark.tau_port.envs.airline.rules`](qitos/benchmark/tau_port/envs/airline/rules.md)
+- [`qitos.benchmark.tau_port.envs.airline.tasks`](qitos/benchmark/tau_port/envs/airline/tasks.md)
+- [`qitos.benchmark.tau_port.envs.airline.tasks_test`](qitos/benchmark/tau_port/envs/airline/tasks_test.md)
+- [`qitos.benchmark.tau_port.envs.airline.tools`](qitos/benchmark/tau_port/envs/airline/tools.md)
+- [`qitos.benchmark.tau_port.envs.airline.tools.book_reservation`](qitos/benchmark/tau_port/envs/airline/tools/book_reservation.md)
+- [`qitos.benchmark.tau_port.envs.airline.tools.calculate`](qitos/benchmark/tau_port/envs/airline/tools/calculate.md)
+- [`qitos.benchmark.tau_port.envs.airline.tools.cancel_reservation`](qitos/benchmark/tau_port/envs/airline/tools/cancel_reservation.md)
+- [`qitos.benchmark.tau_port.envs.airline.tools.get_reservation_details`](qitos/benchmark/tau_port/envs/airline/tools/get_reservation_details.md)
+- [`qitos.benchmark.tau_port.envs.airline.tools.get_user_details`](qitos/benchmark/tau_port/envs/airline/tools/get_user_details.md)
+- [`qitos.benchmark.tau_port.envs.airline.tools.list_all_airports`](qitos/benchmark/tau_port/envs/airline/tools/list_all_airports.md)
+- [`qitos.benchmark.tau_port.envs.airline.tools.search_direct_flight`](qitos/benchmark/tau_port/envs/airline/tools/search_direct_flight.md)
+- [`qitos.benchmark.tau_port.envs.airline.tools.search_onestop_flight`](qitos/benchmark/tau_port/envs/airline/tools/search_onestop_flight.md)
+- [`qitos.benchmark.tau_port.envs.airline.tools.send_certificate`](qitos/benchmark/tau_port/envs/airline/tools/send_certificate.md)
+- [`qitos.benchmark.tau_port.envs.airline.tools.think`](qitos/benchmark/tau_port/envs/airline/tools/think.md)
+- [`qitos.benchmark.tau_port.envs.airline.tools.transfer_to_human_agents`](qitos/benchmark/tau_port/envs/airline/tools/transfer_to_human_agents.md)
+- [`qitos.benchmark.tau_port.envs.airline.tools.update_reservation_baggages`](qitos/benchmark/tau_port/envs/airline/tools/update_reservation_baggages.md)
+- [`qitos.benchmark.tau_port.envs.airline.tools.update_reservation_flights`](qitos/benchmark/tau_port/envs/airline/tools/update_reservation_flights.md)
+- [`qitos.benchmark.tau_port.envs.airline.tools.update_reservation_passengers`](qitos/benchmark/tau_port/envs/airline/tools/update_reservation_passengers.md)
+- [`qitos.benchmark.tau_port.envs.airline.wiki`](qitos/benchmark/tau_port/envs/airline/wiki.md)
+- [`qitos.benchmark.tau_port.envs.retail`](qitos/benchmark/tau_port/envs/retail.md)
+- [`qitos.benchmark.tau_port.envs.retail.data`](qitos/benchmark/tau_port/envs/retail/data.md)
+- [`qitos.benchmark.tau_port.envs.retail.env`](qitos/benchmark/tau_port/envs/retail/env.md)
+- [`qitos.benchmark.tau_port.envs.retail.rules`](qitos/benchmark/tau_port/envs/retail/rules.md)
+- [`qitos.benchmark.tau_port.envs.retail.tasks`](qitos/benchmark/tau_port/envs/retail/tasks.md)
+- [`qitos.benchmark.tau_port.envs.retail.tasks_dev`](qitos/benchmark/tau_port/envs/retail/tasks_dev.md)
+- [`qitos.benchmark.tau_port.envs.retail.tasks_test`](qitos/benchmark/tau_port/envs/retail/tasks_test.md)
+- [`qitos.benchmark.tau_port.envs.retail.tasks_train`](qitos/benchmark/tau_port/envs/retail/tasks_train.md)
+- [`qitos.benchmark.tau_port.envs.retail.tools`](qitos/benchmark/tau_port/envs/retail/tools.md)
+- [`qitos.benchmark.tau_port.envs.retail.tools.calculate`](qitos/benchmark/tau_port/envs/retail/tools/calculate.md)
+- [`qitos.benchmark.tau_port.envs.retail.tools.cancel_pending_order`](qitos/benchmark/tau_port/envs/retail/tools/cancel_pending_order.md)
+- [`qitos.benchmark.tau_port.envs.retail.tools.exchange_delivered_order_items`](qitos/benchmark/tau_port/envs/retail/tools/exchange_delivered_order_items.md)
+- [`qitos.benchmark.tau_port.envs.retail.tools.find_user_id_by_email`](qitos/benchmark/tau_port/envs/retail/tools/find_user_id_by_email.md)
+- [`qitos.benchmark.tau_port.envs.retail.tools.find_user_id_by_name_zip`](qitos/benchmark/tau_port/envs/retail/tools/find_user_id_by_name_zip.md)
+- [`qitos.benchmark.tau_port.envs.retail.tools.get_order_details`](qitos/benchmark/tau_port/envs/retail/tools/get_order_details.md)
+- [`qitos.benchmark.tau_port.envs.retail.tools.get_product_details`](qitos/benchmark/tau_port/envs/retail/tools/get_product_details.md)
+- [`qitos.benchmark.tau_port.envs.retail.tools.get_user_details`](qitos/benchmark/tau_port/envs/retail/tools/get_user_details.md)
+- [`qitos.benchmark.tau_port.envs.retail.tools.list_all_product_types`](qitos/benchmark/tau_port/envs/retail/tools/list_all_product_types.md)
+- [`qitos.benchmark.tau_port.envs.retail.tools.modify_pending_order_address`](qitos/benchmark/tau_port/envs/retail/tools/modify_pending_order_address.md)
+- [`qitos.benchmark.tau_port.envs.retail.tools.modify_pending_order_items`](qitos/benchmark/tau_port/envs/retail/tools/modify_pending_order_items.md)
+- [`qitos.benchmark.tau_port.envs.retail.tools.modify_pending_order_payment`](qitos/benchmark/tau_port/envs/retail/tools/modify_pending_order_payment.md)
+- [`qitos.benchmark.tau_port.envs.retail.tools.modify_user_address`](qitos/benchmark/tau_port/envs/retail/tools/modify_user_address.md)
+- [`qitos.benchmark.tau_port.envs.retail.tools.return_delivered_order_items`](qitos/benchmark/tau_port/envs/retail/tools/return_delivered_order_items.md)
+- [`qitos.benchmark.tau_port.envs.retail.tools.think`](qitos/benchmark/tau_port/envs/retail/tools/think.md)
+- [`qitos.benchmark.tau_port.envs.retail.tools.transfer_to_human_agents`](qitos/benchmark/tau_port/envs/retail/tools/transfer_to_human_agents.md)
+- [`qitos.benchmark.tau_port.envs.retail.wiki`](qitos/benchmark/tau_port/envs/retail/wiki.md)
+- [`qitos.benchmark.tau_port.envs.tool`](qitos/benchmark/tau_port/envs/tool.md)
+- [`qitos.benchmark.tau_port.types`](qitos/benchmark/tau_port/types.md)
+- [`qitos.benchmark.tau_runtime`](qitos/benchmark/tau_runtime.md)
 
 <a id="group-qitos-core"></a>
 ### `qitos.core`
@@ -62,6 +118,12 @@ This section is generated automatically at build time from the `qitos` package.
 - [`qitos.engine.stop_criteria`](qitos/engine/stop_criteria.md)
 - [`qitos.engine.validation`](qitos/engine/validation.md)
 
+<a id="group-qitos-evaluate"></a>
+### `qitos.evaluate`
+
+- [`qitos.evaluate`](qitos/evaluate.md)
+- [`qitos.evaluate.base`](qitos/evaluate/base.md)
+
 <a id="group-qitos-kit"></a>
 ### `qitos.kit`
 
@@ -75,11 +137,17 @@ This section is generated automatically at build time from the `qitos` package.
 - [`qitos.kit.env.host_env`](qitos/kit/env/host_env.md)
 - [`qitos.kit.env.repo_env`](qitos/kit/env/repo_env.md)
 - [`qitos.kit.env.text_web_env`](qitos/kit/env/text_web_env.md)
+- [`qitos.kit.evaluate`](qitos/kit/evaluate.md)
+- [`qitos.kit.evaluate.dsl_based`](qitos/kit/evaluate/dsl_based.md)
+- [`qitos.kit.evaluate.model_based`](qitos/kit/evaluate/model_based.md)
+- [`qitos.kit.evaluate.rule_based`](qitos/kit/evaluate/rule_based.md)
 - [`qitos.kit.memory`](qitos/kit/memory.md)
 - [`qitos.kit.memory.markdown_file_memory`](qitos/kit/memory/markdown_file_memory.md)
 - [`qitos.kit.memory.summary_memory`](qitos/kit/memory/summary_memory.md)
 - [`qitos.kit.memory.vector_memory`](qitos/kit/memory/vector_memory.md)
 - [`qitos.kit.memory.window_memory`](qitos/kit/memory/window_memory.md)
+- [`qitos.kit.metric`](qitos/kit/metric.md)
+- [`qitos.kit.metric.basic`](qitos/kit/metric/basic.md)
 - [`qitos.kit.parser`](qitos/kit/parser.md)
 - [`qitos.kit.parser.func_parser`](qitos/kit/parser/func_parser.md)
 - [`qitos.kit.parser.json_parser`](qitos/kit/parser/json_parser.md)
@@ -108,6 +176,12 @@ This section is generated automatically at build time from the `qitos` package.
 - [`qitos.kit.tool.tools`](qitos/kit/tool/tools.md)
 - [`qitos.kit.tool.toolset`](qitos/kit/tool/toolset.md)
 - [`qitos.kit.tool.web`](qitos/kit/tool/web.md)
+
+<a id="group-qitos-metric"></a>
+### `qitos.metric`
+
+- [`qitos.metric`](qitos/metric.md)
+- [`qitos.metric.base`](qitos/metric/base.md)
 
 <a id="group-qitos-models"></a>
 ### `qitos.models`

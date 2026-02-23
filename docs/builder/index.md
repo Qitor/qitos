@@ -19,7 +19,8 @@ Get a useful agent running fast, then integrate it safely into your own system.
 5. [From Core to Agent](from_core_to_agent.md)
 6. [Tools & Env](tools_env.md)
 7. [GAIA Benchmark Integration](benchmark_gaia.md)
-8. [Production Guide](production.md)
+8. [Tau-Bench Integration](benchmark_tau.md)
+9. [Production Guide](production.md)
 
 ## Builder principles in QitOS
 

@@ -85,6 +85,7 @@ nav:
           - Env & Ops Capabilities: reference/env.md
           - Memory: reference/memory.md
           - Hooks & Trace: reference/trace_and_hooks.md
+          - Evaluate & Metric: reference/evaluate_metric.md
           - StopReason: reference/stop_reason.md
           - qita CLI: reference/qita_cli.md
       - Tutorials:
@@ -107,6 +108,7 @@ nav:
           - Model Integration: builder/model.md
           - Tools & Env (Builders): builder/tools_env.md
           - GAIA Benchmark: builder/benchmark_gaia.md
+          - Tau-Bench: builder/benchmark_tau.md
           - Production Guide: builder/production.md
       - Comparison:
           - Why QitOS: compare/why_qitos.md
@@ -132,6 +134,7 @@ nav:
           - Env 与能力组: zh/reference/env.md
           - Memory: zh/reference/memory.md
           - Hooks 与 Trace: zh/reference/trace_and_hooks.md
+          - Evaluate 与 Metric: zh/reference/evaluate_metric.md
           - StopReason: zh/reference/stop_reason.md
           - qita 命令行: zh/reference/qita_cli.md
       - 教程:
@@ -145,6 +148,7 @@ nav:
           - 模型接入: zh/builder/model.md
           - 工具与环境: zh/builder/tools_env.md
           - GAIA Benchmark 适配: zh/builder/benchmark_gaia.md
+          - Tau-Bench 适配: zh/builder/benchmark_tau.md
           - 生产落地指南: zh/builder/production.md
       - 对比:
           - 为什么是 QitOS: zh/compare/why_qitos.md

@@ -42,6 +42,11 @@ It is designed for researchers and advanced builders who need:
 - hook system across lifecycle phases
 - `qita` for board/view/replay/export
 
+5. **Evaluation-native benchmark workflow**
+- `qitos.benchmark` adapters for GAIA and Tau-Bench
+- `qitos.evaluate` for trajectory success judgement
+- `qitos.metric` for benchmark-level reporting (success rate, pass@k, etc.)
+
 ## Architecture Snapshot
 
 ```text
@@ -121,6 +126,26 @@ python examples/real/open_deep_research_gaia_agent.py \
   --run-all --concurrency 2 --resume
 ```
 
+### 5) Run Tau-Bench eval (single or full)
+
+Single task:
+
+```bash
+python examples/real/tau_bench_eval.py \
+  --workspace ./qitos_tau_workspace \
+  --tau-env retail --tau-split test \
+  --task-index 0
+```
+
+Full eval:
+
+```bash
+python examples/real/tau_bench_eval.py \
+  --workspace ./qitos_tau_workspace \
+  --tau-env retail --tau-split test \
+  --run-all --num-trials 1 --concurrency 4 --resume
+```
+
 ## Minimal Authoring Example
 
 ```python
@@ -186,6 +211,28 @@ QitOS uses a clean benchmark adapter path:
 Current GAIA integration:
 - adapter: `qitos/benchmark/gaia.py`
 - runnable example: `examples/real/open_deep_research_gaia_agent.py`
+
+Current Tau-Bench integration:
+- adapter: `qitos/benchmark/tau_bench.py`
+- self-contained runtime: `qitos/benchmark/tau_runtime.py` + `qitos/benchmark/tau_port/*`
+- runnable example: `examples/real/tau_bench_eval.py`
+
+## Evaluate + Metric Architecture
+
+QitOS separates success judgement from aggregate metrics:
+
+- `qitos.evaluate`:
+  - evaluates one trajectory against one task
+  - returns structured `EvaluationResult` with evidence/reasons
+- `qitos.metric`:
+  - aggregates many task runs
+  - returns benchmark reports (`success_rate`, `avg_reward`, `pass@k`, etc.)
+
+Predefined implementations:
+- evaluators in `qitos.kit.evaluate`:
+  - `RuleBasedEvaluator`, `DSLEvaluator`, `ModelBasedEvaluator`
+- metrics in `qitos.kit.metric`:
+  - `SuccessRateMetric`, `AverageRewardMetric`, `PassAtKMetric`, `MeanStepsMetric`, `StopReasonDistributionMetric`
 
 ## Predefined Kit Catalog (Torch-style)
 
