@@ -63,6 +63,20 @@ python examples/patterns/react.py --workspace ./playground
 </div>
 </div>
 
+## Product Snapshot
+
+### QitOS CLI
+
+![QitOS CLI](assets/qitos_cli_snapshot.png)
+
+### qita board
+
+![qita board](assets/qita_board_snapshot.png)
+
+### qita trajectory view
+
+![qita trajectory view](assets/qita_traj_snapshot.png)
+
 ## Source Index
 
 - [examples/quickstart/minimal_agent.py](https://github.com/Qitor/qitos/blob/main/examples/quickstart/minimal_agent.py)

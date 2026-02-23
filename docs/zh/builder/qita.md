@@ -4,6 +4,16 @@
 
 把 `qita` 作为你默认的运行分析工具，形成完整闭环：board、view、replay、export。
 
+## 界面截图
+
+### qita board
+
+![qita board](../../assets/qita_board_snapshot.png)
+
+### qita 轨迹视图
+
+![qita trajectory view](../../assets/qita_traj_snapshot.png)
+
 ## 0）先生成至少一次运行产物
 
 先跑一个示例（默认会写 trace）：

@@ -4,7 +4,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/Qitor/qitos)
-[![Docs](https://img.shields.io/badge/docs-online-0A66C2)](https://qitor.github.io/QitOS/)
+[![Docs](https://img.shields.io/badge/docs-online-0A66C2)](https://qitor.github.io/qitos/)
 [![Repo](https://img.shields.io/badge/github-Qitor%2Fqitos-black)](https://github.com/Qitor/qitos)
 
 **QitOS 是一个研究优先的智能体框架，且只保留一条内核主线：**
@@ -16,7 +16,7 @@
 - 基准评测用户：可直接接入 benchmark（GAIA 已适配）。
 
 - English README: [README.md](README.md)
-- 文档站点: [https://qitor.github.io/QitOS/](https://qitor.github.io/QitOS/)
+- 文档站点: [https://qitor.github.io/qitos/](https://qitor.github.io/qitos/)
 - 仓库地址: [https://github.com/Qitor/qitos](https://github.com/Qitor/qitos)
 
 ## 为什么是 QitOS
@@ -83,6 +83,20 @@ python examples/patterns/react.py --workspace ./playground
 ```bash
 qita board --logdir runs
 ```
+
+## 产品界面截图
+
+### QitOS CLI 渲染效果
+
+![QitOS CLI](assets/qitos_cli_snapshot.png)
+
+### qita board
+
+![qita board](assets/qita_board_snapshot.png)
+
+### qita 轨迹视图
+
+![qita trajectory view](assets/qita_traj_snapshot.png)
 
 ### 4) 运行 GAIA Benchmark（QitOS 适配版）
 
@@ -235,16 +249,16 @@ from qitos.kit.planning import DynamicTreeSearch, PlanCursor, LLMDecisionBlock
 
 ## 文档导航
 
-- 文档首页: [https://qitor.github.io/QitOS/](https://qitor.github.io/QitOS/)
+- 文档首页: [https://qitor.github.io/qitos/](https://qitor.github.io/qitos/)
 - 内核架构：
-  - [English](https://qitor.github.io/QitOS/research/kernel/)
-  - [中文](https://qitor.github.io/QitOS/zh/research/kernel/)
+  - [English](https://qitor.github.io/qitos/research/kernel/)
+  - [中文](https://qitor.github.io/qitos/zh/research/kernel/)
 - 30 分钟实验课：
-  - [English](https://qitor.github.io/QitOS/research/labs/)
-  - [中文](https://qitor.github.io/QitOS/zh/research/labs/)
+  - [English](https://qitor.github.io/qitos/research/labs/)
+  - [中文](https://qitor.github.io/qitos/zh/research/labs/)
 - API 参考（构建时自动从 `qitos/*` 生成）：
-  - [English](https://qitor.github.io/QitOS/reference/api_generated/)
-  - [中文](https://qitor.github.io/QitOS/zh/reference/api_generated/)
+  - [English](https://qitor.github.io/qitos/reference/api_generated/)
+  - [中文](https://qitor.github.io/qitos/zh/reference/api_generated/)
 
 ## 本地文档开发
 
@@ -281,4 +295,4 @@ QitOS 的长期目标是：
 
 该工作流会在 `main` 分支更新时自动构建并发布到 GitHub Pages，目标地址：
 
-- [https://qitor.github.io/QitOS/](https://qitor.github.io/QitOS/)
+- [https://qitor.github.io/qitos/](https://qitor.github.io/qitos/)

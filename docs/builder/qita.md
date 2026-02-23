@@ -4,6 +4,16 @@
 
 Use `qita` as your default run inspection tool: board, view, replay, and export.
 
+## UI Snapshot
+
+### qita board
+
+![qita board](../assets/qita_board_snapshot.png)
+
+### qita trajectory view
+
+![qita trajectory view](../assets/qita_traj_snapshot.png)
+
 ## 0) First create at least one run
 
 Run any example with trace enabled (default):

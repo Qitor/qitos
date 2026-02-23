@@ -1,6 +1,6 @@
 site_name: QitOS
 site_description: A research-first agentic kernel for modular, reproducible agent workflows.
-site_url: https://qitor.github.io/QitOS/
+site_url: https://qitor.github.io/qitos/
 repo_url: https://github.com/Qitor/qitos
 repo_name: Qitor/qitos
 edit_uri: edit/main/docs/

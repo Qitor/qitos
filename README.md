@@ -4,7 +4,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/Qitor/qitos)
-[![Docs](https://img.shields.io/badge/docs-online-0A66C2)](https://qitor.github.io/QitOS/)
+[![Docs](https://img.shields.io/badge/docs-online-0A66C2)](https://qitor.github.io/qitos/)
 [![Repo](https://img.shields.io/badge/github-Qitor%2Fqitos-black)](https://github.com/Qitor/qitos)
 
 **QitOS is a research-first agentic framework with one canonical kernel:**
@@ -17,7 +17,7 @@ It is designed for researchers and advanced builders who need:
 - benchmark-ready evaluation loops (GAIA already adapted).
 
 - Chinese README: [README.zh.md](README.zh.md)
-- Docs: [https://qitor.github.io/QitOS/](https://qitor.github.io/QitOS/)
+- Docs: [https://qitor.github.io/qitos/](https://qitor.github.io/qitos/)
 - Repository: [https://github.com/Qitor/qitos](https://github.com/Qitor/qitos)
 
 ## Why QitOS
@@ -84,6 +84,20 @@ python examples/patterns/react.py --workspace ./playground
 ```bash
 qita board --logdir runs
 ```
+
+## Product UI Snapshots
+
+### QitOS CLI render
+
+![QitOS CLI](assets/qitos_cli_snapshot.png)
+
+### qita board
+
+![qita board](assets/qita_board_snapshot.png)
+
+### qita trajectory view
+
+![qita trajectory view](assets/qita_traj_snapshot.png)
 
 ### 4) Run GAIA with the QitOS benchmark adapter
 
@@ -236,16 +250,16 @@ from qitos.kit.planning import DynamicTreeSearch, PlanCursor, LLMDecisionBlock
 
 ## Documentation
 
-- Docs home: [https://qitor.github.io/QitOS/](https://qitor.github.io/QitOS/)
+- Docs home: [https://qitor.github.io/qitos/](https://qitor.github.io/qitos/)
 - Kernel architecture:
-  - [English](https://qitor.github.io/QitOS/research/kernel/)
-  - [中文](https://qitor.github.io/QitOS/zh/research/kernel/)
+  - [English](https://qitor.github.io/qitos/research/kernel/)
+  - [中文](https://qitor.github.io/qitos/zh/research/kernel/)
 - 30-min labs:
-  - [English](https://qitor.github.io/QitOS/research/labs/)
-  - [中文](https://qitor.github.io/QitOS/zh/research/labs/)
+  - [English](https://qitor.github.io/qitos/research/labs/)
+  - [中文](https://qitor.github.io/qitos/zh/research/labs/)
 - API reference (auto-generated from `qitos/*`):
-  - [English](https://qitor.github.io/QitOS/reference/api_generated/)
-  - [中文](https://qitor.github.io/QitOS/zh/reference/api_generated/)
+  - [English](https://qitor.github.io/qitos/reference/api_generated/)
+  - [中文](https://qitor.github.io/qitos/zh/reference/api_generated/)
 
 ## Local Docs
 
