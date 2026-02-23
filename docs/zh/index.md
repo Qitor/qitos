@@ -33,6 +33,11 @@ QitOS 是一个面向研究与工程落地的 **Agent 内核框架**。
     <p>用 qita 做 board/view/replay/export 全链路分析。</p>
     <p><a href="zh/builder/qita/">打开 qita 使用指南</a></p>
   </div>
+  <div class="qitos-card">
+    <h3>基准评测就绪</h3>
+    <p>GAIA 已通过 qitos.benchmark -> Task 完成适配。</p>
+    <p><a href="zh/builder/benchmark_gaia/">使用 QitOS 跑 GAIA</a></p>
+  </div>
 </div>
 </div>
 

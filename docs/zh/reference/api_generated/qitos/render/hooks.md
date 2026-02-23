@@ -18,7 +18,7 @@
 
 <a id="class-claudestylehook"></a>
 ???+ note "Class: `ClaudeStyleHook(self, output_jsonl: 'Optional[str]' = None, max_preview_chars: 'int' = 800, theme: 'str' = 'research')`"
-    Claude-code style readable terminal output with full intermediate nodes.
+    Content-first terminal output focused on task, thought, action, observation, memory.
 
 <a id="class-renderhook"></a>
 ???+ note "Class: `RenderHook(self, /, *args, **kwargs)`"

@@ -23,6 +23,28 @@ Build portable agents where action intent is stable but execution backend can ch
 3. Never hide backend assumptions inside parser or prompts.
 4. Keep side effects localized to env ops layer.
 
+## Predefined kits you can use directly
+
+Tool kits (`qitos.kit.tool`):
+
+- `EditorToolSet`, `EpubToolSet`
+- `WriteFile`, `ReadFile`, `ListFiles`
+- `RunCommand`
+- `HTTPRequest`, `HTTPGet`, `HTTPPost`, `HTMLExtractText`
+- `WebSearch`, `VisitURL`, `PageDown`, `PageUp`, `FindInPage`, `FindNext`, `ArchiveSearch`
+- `ThinkingToolSet`
+
+Planning kits (`qitos.kit.planning`):
+
+- `ToolAwareMessageBuilder`, `LLMDecisionBlock`
+- `PlanCursor`, `parse_numbered_plan`
+- `GreedySearch`, `DynamicTreeSearch`
+- `append_log`, `format_action`, `set_final`, `set_if_empty`
+
+See full details in:
+
+- [Tools & ToolRegistry (Reference)](../reference/tools.md)
+
 ## Troubleshooting
 
 1. `ENV_CAPABILITY_MISMATCH`:

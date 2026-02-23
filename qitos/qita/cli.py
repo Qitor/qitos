@@ -517,6 +517,10 @@ def _render_run_html(payload: Dict[str, Any], embedded: bool) -> str:
 .panel.active{{display:block}}
 .controls{{display:grid;grid-template-columns:1.2fr .8fr .8fr .8fr .8fr auto auto auto;gap:8px;margin:12px 0}}
 .controls input,.controls select{{border:1px solid var(--line);background:#0d1527;color:var(--txt);border-radius:8px;padding:8px 10px;font-size:12px}}
+.overview{{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin:10px 0 12px}}
+.ov{{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,0));border:1px solid #2a3d61;border-radius:10px;padding:8px 10px}}
+.ov .k{{font-size:11px;color:#91a8d6;text-transform:uppercase;letter-spacing:.3px}}
+.ov .v{{font-size:14px;color:#e7f0ff;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
 .timeline{{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin:0 0 12px}}
 .trow{{display:grid;grid-template-columns:82px 1fr 64px;gap:8px;align-items:center;margin:6px 0}}
 .tlabel{{font-size:12px;color:#9fb2d8}}
@@ -527,6 +531,9 @@ def _render_run_html(payload: Dict[str, Any], embedded: bool) -> str:
 .flow{{display:grid;grid-template-columns:1fr;gap:12px}}
 @media (max-width:1180px){{.layout{{grid-template-columns:1fr}} .side{{position:relative;top:0;height:auto}} .controls{{grid-template-columns:1fr 1fr}}}}
 .card{{break-inside:avoid;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin:0 0 12px;box-shadow:0 8px 20px rgba(0,0,0,.2)}}
+.kind-thinking{{border-left:4px solid #9b8cff}} .kind-action{{border-left:4px solid #3dd68c}}
+.kind-observation{{border-left:4px solid #4db5ff}} .kind-critic{{border-left:4px solid #f7b955}}
+.kind-other{{border-left:4px solid #7287ad}}
 .card-head{{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}}
 .step{{font-weight:800}}
 h4{{margin:8px 0 6px;font-size:12px;color:#95add8;text-transform:uppercase;letter-spacing:.3px;display:flex;justify-content:space-between;align-items:center}}
@@ -568,8 +575,9 @@ pre{{margin:0;background:#0b1220;border:1px solid #1c2b44;padding:10px;border-ra
         <button class="tab" id="tabManifest" type="button">Manifest</button>
       </div>
       <section class="panel active" id="panelTraj">
+        <section class="overview" id="overview"></section>
         <div class="controls">
-          <input id="q" placeholder="Filter by text in decision/action/obs/critic/events"/>
+          <input id="q" placeholder="Filter by text in observation/decision/action/critic/events"/>
           <select id="eventFilter"><option value="">All events</option></select>
           <select id="sort"><option value="asc">step asc</option><option value="desc">step desc</option></select>
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#a7b8da"><input type="checkbox" id="showObs" checked/>obs</label>
@@ -599,6 +607,7 @@ const eventsByStep = payload.events_by_step || {{}};
 const flow = document.getElementById('flow');
 const toc = document.getElementById('toc');
 const timelineRoot = document.getElementById('timeline');
+const overview = document.getElementById('overview');
 const fontDownBtn = document.getElementById('fontDown');
 const fontResetBtn = document.getElementById('fontReset');
 const fontUpBtn = document.getElementById('fontUp');
@@ -629,15 +638,163 @@ function kvRow(k, v){{
 function kvBlock(rows){{
   return '<div class="kv">' + rows.join('') + '</div>';
 }}
-function chipsFromObject(obj){{
-  if(!obj || typeof obj !== 'object') return '';
-  const out = [];
-  const keys = Object.keys(obj).slice(0, 8);
-  for(const k of keys){{
-    out.push('<span class="chip">'+esc(k)+': '+esc(toPreview(obj[k]))+'</span>');
+function truncateText(v, n){{
+  const s = String(v === null || v === undefined ? '' : v);
+  const lim = Number(n || 260);
+  if(s.length <= lim) return s;
+  return s.slice(0, lim) + '...';
+}}
+function shortUrl(url){{
+  try {{
+    const u = new URL(String(url));
+    const p = u.pathname || '';
+    return u.host + (p.length > 24 ? (p.slice(0, 24) + '...') : p);
+  }} catch (_e) {{
+    return truncateText(url, 36);
   }}
-  if(Object.keys(obj).length > keys.length) out.push('<span class="chip">...</span>');
-  return '<div class="chips">' + out.join('') + '</div>';
+}}
+function extractThought(decision, events){{
+  if(decision && typeof decision === 'object' && typeof decision.rationale === 'string' && decision.rationale.trim()) {{
+    return decision.rationale.trim();
+  }}
+  const es = Array.isArray(events) ? events : [];
+  for(let i = es.length - 1; i >= 0; i -= 1){{
+    const p = es[i] && es[i].payload;
+    if(!p || typeof p !== 'object') continue;
+    if(String(p.stage || '') !== 'model_output') continue;
+    const raw = String(p.raw_output || '');
+    if(!raw) continue;
+    const m = raw.match(/Thought\\s*:\\s*([\\s\\S]*?)(?:\\n(?:Action|Final|Observation|Critic|Plan)\\s*:|$)/i);
+    if(m && m[1]) return m[1].trim();
+    return truncateText(raw, 220);
+  }}
+  return '';
+}}
+function firstActionLabel(actions){{
+  if(!Array.isArray(actions) || !actions.length) return '';
+  const a = actions[0] || {{}};
+  const tool = a.tool || a.name || a.action || a.type || 'action';
+  const args = (a.args && typeof a.args === 'object') ? a.args : (a.kwargs && typeof a.kwargs === 'object' ? a.kwargs : {{}});
+  const pick = ['query','url','path','command','prompt','file'];
+  const parts = [];
+  for(const k of pick){{ if(k in args) parts.push(k + '=' + truncateText(args[k], 80)); }}
+  if(!parts.length){{
+    const ks = Object.keys(args);
+    if(ks.length) parts.push(ks[0] + '=' + truncateText(args[ks[0]], 80));
+  }}
+  return parts.length ? (tool + '(' + parts.join(', ') + ')') : String(tool);
+}}
+function flattenResults(input){{
+  const out = [];
+  function walk(x, d){{
+    if(d > 3) return;
+    if(Array.isArray(x)){{ for(const it of x) walk(it, d + 1); return; }}
+    if(!x || typeof x !== 'object') return;
+    if(Array.isArray(x.results)) out.push(...x.results);
+    if(Array.isArray(x.items)) out.push(...x.items);
+    if(Array.isArray(x.search_results)) out.push(...x.search_results);
+    for(const k of Object.keys(x)) walk(x[k], d + 1);
+  }}
+  walk(input, 0);
+  return out;
+}}
+function renderSearchTable(rows){{
+  if(!rows.length) return '';
+  let h = '<table style="width:100%;border-collapse:collapse;font-size:12px;background:#0b1220;border:1px solid #1c2b44;border-radius:8px;overflow:hidden">';
+  h += '<thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid #1c2b44;color:#9fb2d8">Title</th><th style="text-align:left;padding:8px;border-bottom:1px solid #1c2b44;color:#9fb2d8">URL</th></tr></thead><tbody>';
+  for(const r of rows.slice(0, 8)){{
+    h += '<tr><td style="padding:8px;border-bottom:1px solid #1c2b44">'+esc(truncateText(r.title, 90))+'</td><td style="padding:8px;border-bottom:1px solid #1c2b44;color:#86c8ff">'+esc(shortUrl(r.url))+'</td></tr>';
+  }}
+  h += '</tbody></table>';
+  return h;
+}}
+function renderState(obs){{
+  if(!obs || typeof obs !== 'object') return '<div class="muted">No state.</div>';
+  const observeOut = (obs.observe_output && typeof obs.observe_output === 'object') ? obs.observe_output : {{}};
+  const parts = [];
+  const keys = Object.keys(observeOut);
+  for(const k of keys.slice(0, 12)){{
+    if(['run_id','latency_ms','error_category','ts','step_id','phase'].includes(k)) continue;
+    const v = observeOut[k];
+    if(typeof v === 'object') continue;
+    parts.push(kvRow(k, v));
+  }}
+  if(parts.length) return kvBlock(parts);
+  return '<div class="muted">No scalar state fields.</div>';
+}}
+function renderDirectObservation(actionResults){{
+  const ars = Array.isArray(actionResults) ? actionResults : [];
+  if(!ars.length) return '<div class="muted">No direct observation from action.</div>';
+  const flat = flattenResults(ars);
+  const rows = [];
+  for(const it of flat){{
+    if(!it || typeof it !== 'object') continue;
+    const title = it.title || it.name || '';
+    const url = it.url || it.link || it.href || '';
+    if(title && url) rows.push({{title:String(title), url:String(url)}});
+  }}
+  const table = renderSearchTable(rows);
+  if(table) return table;
+  const first = ars[0];
+  if(first && typeof first === 'object' && 'error' in first){{
+    return '<div style="color:#ff8a8a"><b>[✘] Error:</b> ' + esc(truncateText(first.error, 220)) + '</div>';
+  }}
+  return '<pre>' + esc(JSON.stringify(first, null, 2).slice(0, 1200)) + (JSON.stringify(first).length > 1200 ? '\\n... (truncated)' : '') + '</pre>';
+}}
+function renderThought(decision, events){{
+  const thought = extractThought(decision, events);
+  if(!thought) return '<div class="muted">No explicit thought.</div>';
+  return '<div style="white-space:pre-wrap;line-height:1.6;background:#0b1220;border:1px solid #1c2b44;border-radius:8px;padding:10px;color:#cfe6ff">'+esc(thought)+'</div>';
+}}
+function renderAction(actions){{
+  const label = firstActionLabel(actions);
+  if(!label) return '<div class="muted">No action.</div>';
+  return '<div style="font-size:13px;color:#f4df8f">🛠️ <b>Action:</b> ' + esc(label) + '</div>';
+}}
+function renderMemoryUpdate(observeOut){{
+  const mem = observeOut && typeof observeOut === 'object' ? observeOut.memory : null;
+  if(!mem || typeof mem !== 'object') return '<div class="muted">No memory update.</div>';
+  const rows = [];
+  if('enabled' in mem) rows.push(kvRow('enabled', mem.enabled));
+  if(Array.isArray(mem.records)) rows.push(kvRow('records', mem.records.length));
+  if(typeof mem.summary === 'string' && mem.summary.trim()) rows.push(kvRow('summary', truncateText(mem.summary, 220)));
+  return rows.length ? kvBlock(rows) : '<div class="muted">No memory update.</div>';
+}}
+function renderCritic(data){{
+  if(!Array.isArray(data) || !data.length) return '<div class="muted">No critic outputs.</div>';
+  const first = data[0];
+  if(first && typeof first === 'object'){{
+    const rows = [];
+    if('action' in first) rows.push(kvRow('action', first.action));
+    if('reason' in first) rows.push(kvRow('reason', first.reason));
+    if('score' in first) rows.push(kvRow('score', first.score));
+    return kvBlock(rows.length ? rows : [kvRow('critic', JSON.stringify(first))]);
+  }}
+  return kvBlock([kvRow('critic', first)]);
+}}
+function renderEvents(events){{
+  if(!Array.isArray(events) || !events.length) return '<div class="muted">No events.</div>';
+  const items = [];
+  for(const e of events){{
+    items.push('<div class="item">' + kvBlock([
+      kvRow('phase', e.phase || ''),
+      kvRow('ok', e.ok),
+      kvRow('error', e.error || ''),
+    ]) + '</div>');
+  }}
+  return '<div class="list">' + items.join('') + '</div>';
+}}
+function sectionHtml(title, bodyHtml, rawData, key, collapsed){{
+  const txt = esc(JSON.stringify(rawData, null, 2));
+  const isCollapsed = !!collapsed;
+  const display = isCollapsed ? 'none' : 'block';
+  const btn = isCollapsed ? 'expand' : 'collapse';
+  const tree = '<details class="tree-wrap"><summary class="muted">Structured View</summary>' + renderTree(rawData) + '</details>';
+  return '<section data-key="' + key + '" style="display:' + display + '">' +
+    '<h4>' + title + ' <button class="sbtn tgl" data-key="' + key + '" type="button">' + btn + '</button></h4>' +
+    bodyHtml +
+    tree +
+    '<details class="raw"><summary class="muted">Raw JSON</summary><pre>' + txt + '</pre></details></section>';
 }}
 function applyFontScale(){{
   if(!Number.isFinite(fontScale)) fontScale = 1.1;
@@ -683,95 +840,6 @@ function treeNode(key, val, depth){{
 function renderTree(data){{
   return '<div class="tree">' + treeNode('value', data, 0) + '</div>';
 }}
-function renderDecision(data){{
-  if(!data || typeof data !== 'object') return kvBlock([kvRow('decision', data)]);
-  const rows = [];
-  if('mode' in data) rows.push(kvRow('mode', data.mode));
-  if('stop' in data) rows.push(kvRow('stop', data.stop));
-  if('stop_reason' in data) rows.push(kvRow('stop_reason', data.stop_reason));
-  if('rationale' in data) rows.push(kvRow('rationale', data.rationale));
-  if('next_state' in data) rows.push(kvRow('next_state', data.next_state));
-  if(!rows.length) rows.push(kvRow('summary', JSON.stringify(data)));
-  return kvBlock(rows) + chipsFromObject(data);
-}}
-function renderActions(actions){{
-  if(!Array.isArray(actions) || !actions.length) return '<div class="muted">No actions.</div>';
-  const items = [];
-  for(const a of actions){{
-    const tool = a.tool || a.name || a.action || a.type || 'action';
-    const args = a.args || a.kwargs || a.input || a.params || {{}};
-    let h = '<div class="item">';
-    h += kvBlock([kvRow('tool', tool), kvRow('status', a.status || a.ok || ''), kvRow('reason', a.reason || '')]);
-    h += chipsFromObject(args);
-    h += '</div>';
-    items.push(h);
-  }}
-  return '<div class="list">' + items.join('') + '</div>';
-}}
-function renderObservation(obs){{
-  if(!obs || typeof obs !== 'object') return kvBlock([kvRow('observation', obs)]);
-  const keys = Object.keys(obs);
-  const rows = [kvRow('keys', keys.join(', '))];
-  if('task' in obs) rows.push(kvRow('task', obs.task));
-  if('target_url' in obs) rows.push(kvRow('target_url', obs.target_url));
-  if('report_file' in obs) rows.push(kvRow('report_file', obs.report_file));
-  if('error' in obs) rows.push(kvRow('error', obs.error));
-  if('observation' in obs && typeof obs.observation === 'string') rows.push(kvRow('text', obs.observation));
-  return kvBlock(rows) + chipsFromObject(obs);
-}}
-function renderCritic(data){{
-  if(!Array.isArray(data) || !data.length) return '<div class="muted">No critic outputs.</div>';
-  const items = [];
-  for(const c of data){{
-    const rows = [];
-    if(c && typeof c === 'object'){{
-      if('verdict' in c) rows.push(kvRow('verdict', c.verdict));
-      if('score' in c) rows.push(kvRow('score', c.score));
-      if('risk' in c) rows.push(kvRow('risk', c.risk));
-      if('advice' in c) rows.push(kvRow('advice', c.advice));
-      if('reason' in c) rows.push(kvRow('reason', c.reason));
-      if(!rows.length) rows.push(kvRow('critic', JSON.stringify(c)));
-      items.push('<div class="item">'+kvBlock(rows) + chipsFromObject(c) + '</div>');
-    }} else {{
-      items.push('<div class="item">'+kvBlock([kvRow('critic', c)])+'</div>');
-    }}
-  }}
-  return '<div class="list">' + items.join('') + '</div>';
-}}
-function renderEvents(events){{
-  if(!Array.isArray(events) || !events.length) return '<div class="muted">No events.</div>';
-  const items = [];
-  for(const e of events){{
-    items.push('<div class="item">' + kvBlock([
-      kvRow('phase', e.phase || ''),
-      kvRow('node', e.node || ''),
-      kvRow('ok', e.ok),
-      kvRow('ts', e.ts || ''),
-      kvRow('error', e.error || ''),
-    ]) + '</div>');
-  }}
-  return '<div class="list">' + items.join('') + '</div>';
-}}
-function sectionHtml(title, data, key, collapsed){{
-  const txt = esc(JSON.stringify(data, null, 2));
-  const hiddenByDefault = (key === 'events');
-  const isCollapsed = collapsed || hiddenByDefault;
-  const display = isCollapsed ? 'none' : 'block';
-  const btn = isCollapsed ? 'expand' : 'collapse';
-  let human = '';
-  if(key === 'decision') human = renderDecision(data);
-  else if(key === 'actions') human = renderActions(data);
-  else if(key === 'observation') human = renderObservation(data);
-  else if(key === 'critic') human = renderCritic(data);
-  else if(key === 'events') human = renderEvents(data);
-  else human = kvBlock([kvRow(key, txt)]);
-  const tree = '<details class="tree-wrap" open><summary class="muted">Structured View</summary>' + renderTree(data) + '</details>';
-  return '<section data-key="' + key + '" style="display:' + display + '">' +
-    '<h4>' + title + ' <button class="sbtn tgl" data-key="' + key + '" type="button">' + btn + '</button></h4>' +
-    human +
-    tree +
-    '<details class="raw"><summary class="muted">Raw JSON</summary><pre>' + txt + '</pre></details></section>';
-}}
 function parseTs(ts){{
   const v = Date.parse(String(ts||''));
   return Number.isNaN(v) ? null : v;
@@ -785,6 +853,31 @@ function phaseColor(phase){{
   if(p.includes('memory')) return '#46d1c2';
   if(p.includes('done') || p.includes('stop')) return '#ff8c8c';
   return '#7f92b8';
+}}
+function inferPrimaryKind(events){{
+  const es = Array.isArray(events) ? events : [];
+  for(let i = es.length - 1; i >= 0; i -= 1){{
+    const p = String(es[i] && es[i].phase || '').toLowerCase();
+    if(p.includes('critic')) return 'critic';
+    if(p.includes('act') || p.includes('tool')) return 'action';
+    if(p.includes('observe')) return 'observation';
+    if(p.includes('decide') || p.includes('model')) return 'thinking';
+  }}
+  return 'other';
+}}
+function paintOverview(items){{
+  const m = payload.manifest || {{}};
+  const s = m.summary || {{}};
+  const total = items.length;
+  const avgEvents = total ? (items.reduce((a,it)=>a + (it.events||[]).length, 0) / total).toFixed(1) : '0.0';
+  overview.innerHTML = [
+    ['run', payload.run_id || '-'],
+    ['status', m.status || '-'],
+    ['stop', s.stop_reason || '-'],
+    ['steps', String(total)],
+    ['avg events/step', String(avgEvents)],
+    ['model', m.model_id || '-'],
+  ].map(([k,v])=>'<div class="ov"><div class="k">'+esc(k)+'</div><div class="v">'+esc(v)+'</div></div>').join('');
 }}
 function buildTimeline(items){{
   const rows = [];
@@ -832,20 +925,26 @@ function render(){{
   if(eventFilter) items = items.filter(function(it){{ return it.events.some(function(e){{ return String(e.phase||'')===eventFilter; }}); }});
   if(q) items = items.filter(function(it){{ return cardText(it.step,it.events).includes(q); }});
   items.sort(function(a,b){{ return sort==='desc' ? Number(b.sid)-Number(a.sid) : Number(a.sid)-Number(b.sid); }});
+  paintOverview(items);
   buildTimeline(items);
   flow.innerHTML = '';
   toc.innerHTML = '';
   for(const it of items){{
     const d = it.step.decision || {{}};
+    const obsInput = {{
+      observe_output: it.step.observation || {{}},
+    }};
     const card = document.createElement('article');
-    card.className = 'card';
+    card.className = 'card kind-' + inferPrimaryKind(it.events);
     card.id = 'step-' + it.sid;
     let h = '<div class="card-head"><div class="step">STEP ' + it.sid + '</div><div class="muted">events ' + it.events.length + '</div></div>';
-    h += sectionHtml('Decision', d, 'decision', collapsedAll);
-    h += sectionHtml('Action', it.step.actions||[], 'actions', collapsedAll);
-    if(showObs) h += sectionHtml('Observation', it.step.observation||{{}}, 'observation', collapsedAll);
-    if(showCritic) h += sectionHtml('Critic', it.step.critic_outputs||[], 'critic', collapsedAll);
-    h += sectionHtml('Trace Events', it.events, 'events', collapsedAll);
+    if(showObs) h += sectionHtml('State', renderState(obsInput), obsInput, 'state', collapsedAll);
+    h += sectionHtml('Thought', renderThought(d, it.events), d, 'thought', collapsedAll);
+    h += sectionHtml('Action', renderAction(it.step.actions||[]), it.step.actions||[], 'action', collapsedAll);
+    h += sectionHtml('Direct Observation', renderDirectObservation(it.step.action_results||[]), it.step.action_results||[], 'direct_observation', collapsedAll);
+    h += sectionHtml('Memory Update', renderMemoryUpdate(obsInput.observe_output || {{}}), obsInput.observe_output || {{}}, 'memory', collapsedAll);
+    if(showCritic) h += sectionHtml('Critic', renderCritic(it.step.critic_outputs||[]), it.step.critic_outputs||[], 'critic', collapsedAll);
+    h += sectionHtml('Trace Events', renderEvents(it.events), it.events, 'events', true);
     card.innerHTML = h;
     flow.appendChild(card);
     const b = document.createElement('button');
@@ -924,6 +1023,7 @@ def _build_replay_records(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
         step = _find_step(steps, sid) or {}
         body = {
             "event": ev,
+            "observation": step.get("observation", {}),
             "decision": step.get("decision", {}),
             "actions": step.get("actions", []),
             "action_results": step.get("action_results", []),
@@ -1000,6 +1100,8 @@ body{{margin:0;background:radial-gradient(circle at 20% 0%,#12233f,#090d16 62%);
 .btn{{display:inline-block;border:1px solid var(--line);color:var(--txt);text-decoration:none;padding:6px 10px;border-radius:8px;background:#14223d;font-size:12px;cursor:pointer}}
 .terminal{{background:#050a14;border:1px solid var(--line);border-radius:12px;overflow:hidden}}
 .bar{{background:#0b1528;border-bottom:1px solid var(--line);padding:8px 10px;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:10px;align-items:center}}
+.stats{{display:flex;gap:8px;flex-wrap:wrap;padding:8px 10px;border-bottom:1px solid var(--line);background:#081021}}
+.chip{{font-size:11px;color:#cde0ff;border:1px solid #28406a;border-radius:999px;padding:3px 8px;background:#0d1a31}}
 .screen{{padding:14px;min-height:480px;display:grid;gap:10px}}
 .card{{border:1px solid var(--line);background:#0a1224;border-radius:10px;padding:10px;box-shadow:0 6px 16px rgba(0,0,0,.25)}}
 .ctitle{{font-size:12px;font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between;gap:8px}}
@@ -1035,12 +1137,14 @@ body{{margin:0;background:radial-gradient(circle at 20% 0%,#12233f,#090d16 62%);
         <label>Progress <input id="progress" type="range" min="0" max="0" value="0"/></label>
       </div>
     </div>
+    <div class="stats" id="stats"></div>
     <div class="screen" id="screen"></div>
   </div>
 </div>
 <script>
 const records = {records};
 const screen = document.getElementById('screen');
+const stats = document.getElementById('stats');
 const progress = document.getElementById('progress');
 const speedEl = document.getElementById('speed');
 const playBtn = document.getElementById('play');
@@ -1053,12 +1157,84 @@ let playing = true;
 let timer = null;
 progress.max = String(Math.max(records.length, 1));
 function esc(s){{ return String(s).replace(/[&<>]/g, function(c){{ return {{'&':'&amp;','<':'&lt;','>':'&gt;'}}[c]; }}); }}
+function truncateText(v, n){{
+  const s = String(v === null || v === undefined ? '' : v);
+  const lim = Number(n || 260);
+  return s.length <= lim ? s : (s.slice(0, lim) + '...');
+}}
+function thoughtFromDecision(d){{
+  if(!d || typeof d !== 'object') return '';
+  const r = d.rationale;
+  if(typeof r !== 'string') return '';
+  return truncateText(r, 260);
+}}
+function actionLabel(actions){{
+  if(!Array.isArray(actions) || !actions.length) return '';
+  const a = actions[0] || {{}};
+  const tool = a.tool || a.name || a.action || a.type || 'action';
+  const args = (a.args && typeof a.args === 'object') ? a.args : {{}};
+  const ks = ['query','url','path','command','prompt','file'];
+  const parts = [];
+  for(const k of ks){{ if(k in args) parts.push(k + '=' + truncateText(args[k], 80)); }}
+  return parts.length ? (tool + '(' + parts.join(', ') + ')') : String(tool);
+}}
+function stateSummary(observation){{
+  if(!observation || typeof observation !== 'object') return 'No state.';
+  const keep = [];
+  const keys = Object.keys(observation);
+  for(const k of keys){{
+    if(['run_id','latency_ms','error_category','ts','step_id','phase'].includes(k)) continue;
+    const v = observation[k];
+    if(typeof v === 'object') continue;
+    keep.push(k + '=' + truncateText(v, 60));
+    if(keep.length >= 6) break;
+  }}
+  return keep.length ? keep.join(' · ') : 'No scalar state fields.';
+}}
+function observationSummary(actionResults){{
+  if(!Array.isArray(actionResults) || !actionResults.length) return 'No observation.';
+  const first = actionResults[0];
+  if(first && typeof first === 'object'){{
+    if(Array.isArray(first.results) && first.results.length){{
+      const r = first.results[0] || {{}};
+      const t = r.title || r.name || '';
+      const u = r.url || r.link || r.href || '';
+      if(t || u) return truncateText((t ? t + ' · ' : '') + u, 180);
+    }}
+    if('error' in first) return 'error: ' + truncateText(first.error, 180);
+  }}
+  return truncateText(JSON.stringify(first), 180);
+}}
+function criticSummary(cs){{
+  if(!Array.isArray(cs) || !cs.length) return 'No critic output.';
+  const c = cs[0];
+  if(c && typeof c === 'object'){{
+    const action = c.action ? ('action=' + c.action + ' ') : '';
+    const reason = c.reason ? ('reason=' + truncateText(c.reason, 180)) : truncateText(JSON.stringify(c), 180);
+    return action + reason;
+  }}
+  return truncateText(c, 180);
+}}
+function renderRecordBody(r){{
+  const phase = String(r.phase||'').toLowerCase();
+  if(phase.includes('observe')) return '🧭 <b>State:</b> ' + esc(stateSummary(r.body && r.body.observation));
+  if(r.kind === 'thinking') return '🧠 <b>Thought:</b> ' + esc(thoughtFromDecision(r.body && r.body.decision));
+  if(r.kind === 'action') return '🛠️ <b>Action:</b> ' + esc(actionLabel(r.body && r.body.actions)) + '<br/>✅ <b>Direct Observation:</b> ' + esc(observationSummary(r.body && r.body.action_results));
+  if(r.kind === 'observation') return '✅ <b>Direct Observation:</b> ' + esc(observationSummary(r.body && r.body.action_results));
+  if(r.kind === 'memory') return '💾 <b>Memory Update:</b> ' + esc('memory context updated');
+  if(r.kind === 'critic') return '🧪 <b>Critic:</b> ' + esc(criticSummary(r.body && r.body.critic_outputs));
+  if(r.kind === 'done') return '🏁 <b>Done:</b> ' + esc(truncateText(JSON.stringify((r.body && r.body.summary) || {{}}), 220));
+  if(r.error) return '❌ <b>Error:</b> ' + esc(truncateText(r.error, 220));
+  return esc(truncateText(r.title || '', 220));
+}}
 function fmt(r){{
-  const body = esc(JSON.stringify(r.body, null, 2));
   const err = r.error ? '<span class="tag kind-error">error</span>' : '';
+  const raw = esc(JSON.stringify(r.body, null, 2));
   return '<article class="card kind-'+esc(r.kind)+'">' +
     '<div class="ctitle"><span>'+esc(r.title)+'</span><span><span class="tag">'+esc(r.phase||'')+'</span> <span class="tag kind-'+esc(r.kind)+'">'+esc(r.kind)+'</span> '+err+'</span></div>' +
-    '<div class="cbody">'+body+'</div></article>';
+    '<div class="cbody">'+renderRecordBody(r)+'</div>' +
+    '<details style="margin-top:8px"><summary style="cursor:pointer;color:#8aa2c7">Raw</summary><pre style="white-space:pre-wrap;background:#081021;border:1px solid #1b2a44;border-radius:8px;padding:8px">'+raw+'</pre></details>' +
+    '</article>';
 }}
 function shouldShow(r){{
   if(onlyErr.checked && !r.error) return false;
@@ -1072,6 +1248,15 @@ function hitBreakpoint(r){{
 }}
 function render(){{
   const shown = records.slice(0, i).filter(shouldShow);
+  const errCount = shown.filter((r)=>!!r.error).length;
+  const kindMap = new Map();
+  for(const r of shown){{ kindMap.set(r.kind, (kindMap.get(r.kind)||0)+1); }}
+  const kindText = Array.from(kindMap.entries()).slice(0,6).map(([k,v])=>k+':'+v).join(' · ') || '-';
+  stats.innerHTML =
+    '<span class="chip">shown: '+shown.length+'</span>' +
+    '<span class="chip">errors: '+errCount+'</span>' +
+    '<span class="chip">cursor: '+i+'/'+records.length+'</span>' +
+    '<span class="chip">kinds: '+esc(kindText)+'</span>';
   screen.innerHTML = shown.map(fmt).join('') + (i >= records.length ? '<span class="cursor"></span>' : '');
   progress.value = String(i);
   window.scrollTo(0, document.body.scrollHeight);

@@ -49,6 +49,7 @@ python examples/real/swe_agent.py --workspace /tmp/qitos_swe
 python examples/real/computer_use_agent.py --workspace /tmp/qitos_computer
 python examples/real/epub_reader_agent.py --workspace /tmp/qitos_epub
 python examples/real/open_deep_research_gaia_agent.py --workspace /tmp/qitos_gaia --gaia-from-local
+python examples/real/open_deep_research_gaia_agent.py --workspace /tmp/qitos_gaia --gaia-from-local --run-all --concurrency 4 --limit 50 --output-jsonl /tmp/qitos_gaia/gaia_results.jsonl
 ```
 
 ## Common CLI flags

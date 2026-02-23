@@ -29,6 +29,28 @@ Tool 声明所需 ops group，Env 提供对应 capability。
 3. 命令执行不稳定
 - 收紧 timeout，限制命令模板输入。
 
+## 可直接使用的预定义组件
+
+工具组件（`qitos.kit.tool`）：
+
+- `EditorToolSet`、`EpubToolSet`
+- `WriteFile`、`ReadFile`、`ListFiles`
+- `RunCommand`
+- `HTTPRequest`、`HTTPGet`、`HTTPPost`、`HTMLExtractText`
+- `WebSearch`、`VisitURL`、`PageDown`、`PageUp`、`FindInPage`、`FindNext`、`ArchiveSearch`
+- `ThinkingToolSet`
+
+规划组件（`qitos.kit.planning`）：
+
+- `ToolAwareMessageBuilder`、`LLMDecisionBlock`
+- `PlanCursor`、`parse_numbered_plan`
+- `GreedySearch`、`DynamicTreeSearch`
+- `append_log`、`format_action`、`set_final`、`set_if_empty`
+
+完整说明见：
+
+- [Tool 与 ToolRegistry（参考）](../reference/tools.md)
+
 ## Source Index
 
 - [qitos/core/tool.py](https://github.com/Qitor/qitos/blob/main/qitos/core/tool.py)

@@ -12,7 +12,7 @@
 ## Classes
 
 <a id="class-xmldecisionparser"></a>
-???+ note "Class: `XmlDecisionParser(self, /, *args, **kwargs)`"
+???+ note "Class: `XmlDecisionParser(self, *, thought_keys: 'Optional[Sequence[str]]' = None, reflection_keys: 'Optional[Sequence[str]]' = None, action_keys: 'Optional[Sequence[str]]' = None, final_keys: 'Optional[Sequence[str]]' = None, xml_think_tags: 'Optional[Sequence[str]]' = None, xml_reflection_tags: 'Optional[Sequence[str]]' = None, xml_action_tags: 'Optional[Sequence[str]]' = None, xml_final_tags: 'Optional[Sequence[str]]' = None)`"
     Helper class that provides a standard way to create an ABC using
 
 ## Functions

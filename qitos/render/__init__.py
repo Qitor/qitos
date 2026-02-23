@@ -32,6 +32,7 @@ from .hooks import (
     ClaudeStyleHook,
 )
 from .events import RenderEvent
+from .content_renderer import ContentFirstRenderer
 
 __all__ = [
     # Rendering
@@ -52,4 +53,5 @@ __all__ = [
     "VerboseRichConsoleHook",
     "ClaudeStyleHook",
     "RenderEvent",
+    "ContentFirstRenderer",
 ]

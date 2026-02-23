@@ -95,9 +95,57 @@ flowchart TB
   D --> F[Tool.run]
 ```
 
+## 预定义工具包（`qitos.kit.tool`）
+
+这些组件可以直接组合使用，类似 `torch.nn` 的现成模块。
+
+- 编辑器工具包：
+  - `EditorToolSet`（`view`、`create`、`str_replace`、`insert`、`search`、`list_tree`、`replace_lines`）
+- EPUB 工具包：
+  - `EpubToolSet`（`list_chapters`、`read_chapter`、`search`）
+- 文件工具：
+  - `WriteFile`、`ReadFile`、`ListFiles`
+- 进程工具：
+  - `RunCommand`
+- HTTP/Web 工具：
+  - `HTTPRequest`、`HTTPGet`、`HTTPPost`、`HTMLExtractText`
+- 文本浏览器工具：
+  - `WebSearch`、`VisitURL`、`PageDown`、`PageUp`、`FindInPage`、`FindNext`、`ArchiveSearch`
+- 思维工具集：
+  - `ThinkingToolSet`、`ThoughtData`
+- 工具库：
+  - `InMemoryToolLibrary`、`ToolArtifact`、`BaseToolLibrary`
+- 注册表快捷构造：
+  - `math_tools()`、`editor_tools(workspace_root)`
+
+导入示例：
+
+```python
+from qitos.kit.tool import EditorToolSet, RunCommand, HTTPGet, ThinkingToolSet
+```
+
+## 预定义规划模块（`qitos.kit.planning`）
+
+- LLM 编排模块：
+  - `ToolAwareMessageBuilder`、`LLMDecisionBlock`
+- 计划工具：
+  - `PlanCursor`、`parse_numbered_plan`
+- 搜索策略：
+  - `GreedySearch`、`DynamicTreeSearch`
+- 状态辅助函数：
+  - `append_log`、`format_action`、`set_final`、`set_if_empty`
+
+导入示例：
+
+```python
+from qitos.kit.planning import DynamicTreeSearch, PlanCursor, LLMDecisionBlock
+```
+
 ## Source Index
 
 - [qitos/core/tool.py](https://github.com/Qitor/qitos/blob/main/qitos/core/tool.py)
 - [qitos/core/tool_registry.py](https://github.com/Qitor/qitos/blob/main/qitos/core/tool_registry.py)
 - [qitos/engine/action_executor.py](https://github.com/Qitor/qitos/blob/main/qitos/engine/action_executor.py)
 - [qitos/kit/tool/toolset.py](https://github.com/Qitor/qitos/blob/main/qitos/kit/tool/toolset.py)
+- [qitos/kit/tool/__init__.py](https://github.com/Qitor/qitos/blob/main/qitos/kit/tool/__init__.py)
+- [qitos/kit/planning/__init__.py](https://github.com/Qitor/qitos/blob/main/qitos/kit/planning/__init__.py)

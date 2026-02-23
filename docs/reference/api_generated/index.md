@@ -4,6 +4,7 @@ This section is generated automatically at build time from the `qitos` package.
 
 ## Group Jump
 
+- [qitos.benchmark](#group-qitos-benchmark)
 - [qitos.core](#group-qitos-core)
 - [qitos.debug](#group-qitos-debug)
 - [qitos.engine](#group-qitos-engine)
@@ -14,6 +15,13 @@ This section is generated automatically at build time from the `qitos` package.
 - [qitos.trace](#group-qitos-trace)
 
 ## Modules by Group
+
+<a id="group-qitos-benchmark"></a>
+### `qitos.benchmark`
+
+- [`qitos.benchmark`](qitos/benchmark.md)
+- [`qitos.benchmark.base`](qitos/benchmark/base.md)
+- [`qitos.benchmark.gaia`](qitos/benchmark/gaia.md)
 
 <a id="group-qitos-core"></a>
 ### `qitos.core`
@@ -66,6 +74,7 @@ This section is generated automatically at build time from the `qitos` package.
 - [`qitos.kit.env.docker_env`](qitos/kit/env/docker_env.md)
 - [`qitos.kit.env.host_env`](qitos/kit/env/host_env.md)
 - [`qitos.kit.env.repo_env`](qitos/kit/env/repo_env.md)
+- [`qitos.kit.env.text_web_env`](qitos/kit/env/text_web_env.md)
 - [`qitos.kit.memory`](qitos/kit/memory.md)
 - [`qitos.kit.memory.markdown_file_memory`](qitos/kit/memory/markdown_file_memory.md)
 - [`qitos.kit.memory.summary_memory`](qitos/kit/memory/summary_memory.md)
@@ -74,6 +83,7 @@ This section is generated automatically at build time from the `qitos` package.
 - [`qitos.kit.parser`](qitos/kit/parser.md)
 - [`qitos.kit.parser.func_parser`](qitos/kit/parser/func_parser.md)
 - [`qitos.kit.parser.json_parser`](qitos/kit/parser/json_parser.md)
+- [`qitos.kit.parser.parser_utils`](qitos/kit/parser/parser_utils.md)
 - [`qitos.kit.parser.react_parser`](qitos/kit/parser/react_parser.md)
 - [`qitos.kit.parser.xml_parser`](qitos/kit/parser/xml_parser.md)
 - [`qitos.kit.planning`](qitos/kit/planning.md)
@@ -93,6 +103,7 @@ This section is generated automatically at build time from the `qitos` package.
 - [`qitos.kit.tool.library.base`](qitos/kit/tool/library/base.md)
 - [`qitos.kit.tool.library.store`](qitos/kit/tool/library/store.md)
 - [`qitos.kit.tool.shell`](qitos/kit/tool/shell.md)
+- [`qitos.kit.tool.text_web_browser`](qitos/kit/tool/text_web_browser.md)
 - [`qitos.kit.tool.thinking`](qitos/kit/tool/thinking.md)
 - [`qitos.kit.tool.tools`](qitos/kit/tool/tools.md)
 - [`qitos.kit.tool.toolset`](qitos/kit/tool/toolset.md)
@@ -117,6 +128,7 @@ This section is generated automatically at build time from the `qitos` package.
 
 - [`qitos.render`](qitos/render.md)
 - [`qitos.render.cli_render`](qitos/render/cli_render.md)
+- [`qitos.render.content_renderer`](qitos/render/content_renderer.md)
 - [`qitos.render.events`](qitos/render/events.md)
 - [`qitos.render.hooks`](qitos/render/hooks.md)
 

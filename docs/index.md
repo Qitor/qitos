@@ -33,6 +33,11 @@ QitOS is a research-first **agentic kernel** for modular and reproducible agent 
     <p>Inspect every run with qita board/view/replay/export.</p>
     <p><a href="builder/qita/">Open qita Guide</a></p>
   </div>
+  <div class="qitos-card">
+    <h3>Benchmark Ready</h3>
+    <p>GAIA is already adapted through qitos.benchmark -> Task.</p>
+    <p><a href="builder/benchmark_gaia/">Run GAIA with QitOS</a></p>
+  </div>
 </div>
 </div>
 

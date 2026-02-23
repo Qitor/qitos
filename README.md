@@ -14,6 +14,7 @@ It is designed for researchers and advanced builders who need:
 - full control of agent scaffolding,
 - fast iteration on new agent designs,
 - reproducible experiments with clear traces.
+- benchmark-ready evaluation loops (GAIA already adapted).
 
 - Chinese README: [README.zh.md](README.zh.md)
 - Docs: [https://qitor.github.io/QitOS/](https://qitor.github.io/QitOS/)
@@ -84,6 +85,28 @@ python examples/patterns/react.py --workspace ./playground
 qita board --logdir runs
 ```
 
+### 4) Run GAIA with the QitOS benchmark adapter
+
+Single sample:
+
+```bash
+python examples/real/open_deep_research_gaia_agent.py \
+  --workspace ./qitos_gaia_workspace \
+  --gaia-download-snapshot \
+  --gaia-split validation \
+  --gaia-index 0
+```
+
+Full split (with resume):
+
+```bash
+python examples/real/open_deep_research_gaia_agent.py \
+  --workspace ./qitos_gaia_workspace \
+  --gaia-download-snapshot \
+  --gaia-split validation \
+  --run-all --concurrency 2 --resume
+```
+
 ## Minimal Authoring Example
 
 ```python
@@ -149,6 +172,49 @@ QitOS uses a clean benchmark adapter path:
 Current GAIA integration:
 - adapter: `qitos/benchmark/gaia.py`
 - runnable example: `examples/real/open_deep_research_gaia_agent.py`
+
+## Predefined Kit Catalog (Torch-style)
+
+QitOS ships reusable building blocks in `qitos.kit`, so users can compose instead of rewriting.
+
+### `qitos.kit.tool` (predefined tool packages)
+
+- Editor bundle:
+  - `EditorToolSet` (`view`, `create`, `str_replace`, `insert`, `search`, `list_tree`, `replace_lines`)
+- EPUB bundle:
+  - `EpubToolSet` (`list_chapters`, `read_chapter`, `search`)
+- File tools:
+  - `WriteFile`, `ReadFile`, `ListFiles`
+- Process tool:
+  - `RunCommand`
+- HTTP/Web tools:
+  - `HTTPRequest`, `HTTPGet`, `HTTPPost`, `HTMLExtractText`
+- Text-browser tools (for GAIA/OpenDeepResearch-style loops):
+  - `WebSearch`, `VisitURL`, `PageDown`, `PageUp`, `FindInPage`, `FindNext`, `ArchiveSearch`
+- Thinking toolset:
+  - `ThinkingToolSet`, `ThoughtData`
+- Tool library:
+  - `InMemoryToolLibrary`, `ToolArtifact`, `BaseToolLibrary`
+- Registry builders:
+  - `math_tools()`, `editor_tools(workspace_root)`
+
+### `qitos.kit.planning` (predefined planning primitives)
+
+- LLM orchestration blocks:
+  - `ToolAwareMessageBuilder`, `LLMDecisionBlock`
+- Plan utilities:
+  - `PlanCursor`, `parse_numbered_plan`
+- Search strategies:
+  - `GreedySearch`, `DynamicTreeSearch`
+- State ops helpers:
+  - `append_log`, `format_action`, `set_final`, `set_if_empty`
+
+Quick import:
+
+```python
+from qitos.kit.tool import EditorToolSet, RunCommand, HTTPGet, ThinkingToolSet
+from qitos.kit.planning import DynamicTreeSearch, PlanCursor, LLMDecisionBlock
+```
 
 ## Core Package Map
 

@@ -12,7 +12,7 @@
 ## Classes
 
 <a id="class-reacttextparser"></a>
-???+ note "Class: `ReActTextParser(self, /, *args, **kwargs)`"
+???+ note "Class: `ReActTextParser(self, *, thought_keys: 'Optional[Sequence[str]]' = None, reflection_keys: 'Optional[Sequence[str]]' = None, action_keys: 'Optional[Sequence[str]]' = None, final_keys: 'Optional[Sequence[str]]' = None)`"
     Helper class that provides a standard way to create an ABC using
 
 ## Functions

@@ -106,6 +106,7 @@ nav:
           - From Core to Agent (Builders): builder/from_core_to_agent.md
           - Model Integration: builder/model.md
           - Tools & Env (Builders): builder/tools_env.md
+          - GAIA Benchmark: builder/benchmark_gaia.md
           - Production Guide: builder/production.md
       - Comparison:
           - Why QitOS: compare/why_qitos.md
@@ -143,6 +144,7 @@ nav:
           - 从 Core 到 Agent 实战: zh/builder/from_core_to_agent.md
           - 模型接入: zh/builder/model.md
           - 工具与环境: zh/builder/tools_env.md
+          - GAIA Benchmark 适配: zh/builder/benchmark_gaia.md
           - 生产落地指南: zh/builder/production.md
       - 对比:
           - 为什么是 QitOS: zh/compare/why_qitos.md

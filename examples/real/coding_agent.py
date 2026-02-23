@@ -21,6 +21,7 @@ from qitos.kit.tool import EditorToolSet, RunCommand
 from qitos.models import OpenAICompatibleModel
 from qitos.render import ClaudeStyleHook
 from qitos.trace import TraceWriter
+from examples.common import recent_rationales_from_scratchpad
 
 
 SYSTEM_PROMPT = """You are a production-grade coding agent.
@@ -117,6 +118,10 @@ class CodingMemoryReactAgent(AgentModule[CodingState, Dict[str, Any], Action]):
             f"Verification command: {state.test_command}",
             f"Step: {state.current_step}/{state.max_steps}",
         ]
+        rationales = recent_rationales_from_scratchpad(state.scratchpad, max_items=6)
+        if rationales:
+            lines.append("Recent rationale:")
+            lines.extend(f"- {x}" for x in rationales)
         memory = observation.get("memory", {})
         if isinstance(memory, dict) and memory.get("summary"):
             lines.append("Memory summary:")

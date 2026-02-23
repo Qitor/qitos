@@ -66,3 +66,21 @@ def make_trace_writer(args: argparse.Namespace, case_name: str) -> TraceWriter |
         strict_validate=True,
         metadata={"model_id": str(args.model_name)},
     )
+
+
+def recent_rationales_from_scratchpad(scratchpad: list[str], max_items: int = 6) -> list[str]:
+    """Extract latest rationale/thought lines from trajectory scratchpad."""
+    out: list[str] = []
+    for item in reversed(scratchpad or []):
+        text = str(item).strip()
+        if not text:
+            continue
+        low = text.lower()
+        if low.startswith("thought:"):
+            out.append(text.split(":", 1)[1].strip())
+        elif low.startswith("rationale:"):
+            out.append(text.split(":", 1)[1].strip())
+        if len(out) >= max(1, int(max_items)):
+            break
+    out.reverse()
+    return out

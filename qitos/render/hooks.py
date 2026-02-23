@@ -6,8 +6,8 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
-from rich.console import Console
-from rich.panel import Panel
+from rich.console import Console, Group
+from rich.padding import Padding
 from rich.rule import Rule
 from rich.syntax import Syntax
 from rich.text import Text
@@ -15,6 +15,7 @@ from rich.text import Text
 from ..core.action import Action
 from ..engine.hooks import EngineHook, HookContext
 from .cli_render import RichRender
+from .content_renderer import ContentFirstRenderer
 from .events import RenderEvent
 
 if TYPE_CHECKING:
@@ -232,7 +233,7 @@ class RenderStreamHook(RenderHook):
 
 
 class ClaudeStyleHook(RenderStreamHook):
-    """Claude-code style readable terminal output with full intermediate nodes."""
+    """Content-first terminal output focused on task, thought, action, observation, memory."""
 
     def __init__(
         self,
@@ -247,33 +248,36 @@ class ClaudeStyleHook(RenderStreamHook):
         self._status: Any = None
         chosen = _CLAUDE_THEME_PRESETS.get(theme, _CLAUDE_THEME_PRESETS["research"])
         self.theme_name = theme if theme in _CLAUDE_THEME_PRESETS else "research"
-        self._icons: Dict[str, str] = dict(chosen["icons"])
-        self._styles: Dict[str, str] = dict(chosen["styles"])
-        self._spinner: str = str(chosen["spinner"])
-        self._banner_style: str = str(chosen["banner_style"])
-        self._status_style: str = str(chosen["status_style"])
+        self._spinner: str = "arc"
+        self._renderer = ContentFirstRenderer(max_preview_chars=max_preview_chars)
+        self._thought_steps: set[int] = set()
+        self._action_steps: set[int] = set()
+        self._observation_steps: set[int] = set()
+        self._state_steps: set[int] = set()
+        self._memory_steps: set[int] = set()
 
     def on_run_start(self, task: str, state: Any, engine: "Engine") -> None:
         super().on_run_start(task, state, engine)
-        self._start_status("QitOS runtime is warming up")
+        self._print_agent_composition(engine)
+        self._start_status("[dim]Agent is warming up...[/dim]")
 
     def on_before_observe(self, ctx: HookContext, engine: "Engine") -> None:
-        self._update_status(f"Step {ctx.step_id}: observing environment")
+        self._update_status("[dim]Agent is gathering observations...[/dim]")
 
     def on_before_decide(self, ctx: HookContext, engine: "Engine") -> None:
-        self._update_status(f"Step {ctx.step_id}: thinking with model")
+        self._update_status("[dim]Agent is brainstorming...[/dim]")
 
     def on_before_act(self, ctx: HookContext, engine: "Engine") -> None:
-        self._update_status(f"Step {ctx.step_id}: executing action")
+        self._update_status("[dim]Agent is executing actions...[/dim]")
 
     def on_before_critic(self, ctx: HookContext, engine: "Engine") -> None:
-        self._update_status(f"Step {ctx.step_id}: running critic")
+        self._update_status("[dim]Agent is self-critiquing...[/dim]")
 
     def on_before_reduce(self, ctx: HookContext, engine: "Engine") -> None:
-        self._update_status(f"Step {ctx.step_id}: reducing state")
+        self._update_status("[dim]Agent is updating state...[/dim]")
 
     def on_before_check_stop(self, ctx: HookContext, engine: "Engine") -> None:
-        self._update_status(f"Step {ctx.step_id}: checking stop criteria")
+        self._update_status("[dim]Agent is evaluating stop criteria...[/dim]")
 
     def on_run_end(self, result: "EngineResult", engine: "Engine") -> None:
         self._stop_status()
@@ -282,70 +286,219 @@ class ClaudeStyleHook(RenderStreamHook):
     def on_render_event(self, event: RenderEvent) -> None:
         if event.node == "run_start":
             self._print_banner()
-            self.console.print(Rule("[bold]RUN[/bold]", style="bright_black"))
-            self.console.print(f"[cyan]task:[/cyan] {event.payload.get('task')}")
-            self.console.print(f"[dim]theme:[/dim] {self.theme_name}")
+            self.console.print(Rule("[dim]RUN[/dim]", style="gray23"))
             return
 
         if event.node == "step_start":
             self._last_step = event.step_id
-            self.console.print(Rule(f"[bold]STEP {event.step_id}[/bold]", style="bright_black"))
+            self.console.print(Rule(f"STEP {event.step_id + 1}", style="gray23"))
             return
 
-        if event.channel in {"plan", "thinking", "action", "observation", "memory", "critic", "state"}:
-            icon = self._icons.get(event.channel, "•")
-            style = self._styles.get(event.channel, "bright_black")
-            title = f"{icon} {event.channel}:{event.node}"
-            self.console.print(Panel(self._rich_value(event.payload), title=title, border_style=style))
+        if event.channel == "thinking":
+            if event.node == "model_input":
+                return
+            if event.step_id in self._thought_steps:
+                return
+            thought = self._renderer.thought_text(event)
+            if thought:
+                self._rail("purple", "[purple]⦿[/purple] [italic slate_blue3]" + thought + "[/italic slate_blue3]")
+                self._thought_steps.add(event.step_id)
+            return
+
+        if event.channel == "action":
+            if event.step_id in self._action_steps:
+                return
+            action = self._renderer.action_summary(event)
+            if action:
+                status = action.get("status", "neutral")
+                bg = "blue" if status != "error" else "red"
+                badge = action.get("label", "ACTION")
+                detail = action.get("detail", "")
+                line = f"🚀 [bold white on {bg}] {badge} [/bold white on {bg}]"
+                if detail:
+                    line += f" [cyan]{detail}[/cyan]"
+                self._rail("blue", line)
+                self._action_steps.add(event.step_id)
+            return
+
+        if event.channel == "observation":
+            if event.node == "observation":
+                if event.step_id in self._state_steps:
+                    return
+                stats = self._renderer.state_summary(event)
+                if stats:
+                    fixed = self._render_state_row(stats)
+                    self._rail("gray40", f"[dim]State[/dim] [dim]{fixed}[/dim]")
+                self._state_steps.add(event.step_id)
+                return
+            if event.step_id in self._observation_steps:
+                return
+            obs = self._renderer.observation_summary(event)
+            if obs:
+                status = str(obs.get("status", "neutral"))
+                color = "green" if status == "success" else ("red" if status == "error" else "blue")
+                title = str(obs.get("title", "Observation"))
+                if status == "error":
+                    self._rail("red", f"[red][✘] Error: {title}[/red]")
+                    self._observation_steps.add(event.step_id)
+                    return
+                self._rail(color, f"🔎 [bold {color}]Observation[/bold {color}] [bold italic]Title:[/bold italic] {title}")
+                url = str(obs.get("url", "")).strip()
+                if url:
+                    self._rail(color, f"[dim]URL: {url}[/dim]")
+                body = str(obs.get("body", "")).strip()
+                if body:
+                    self._rail(color, body if status != "error" else f"[red]{body}[/red]")
+                table = obs.get("table")
+                syntax = obs.get("syntax")
+                if table is not None:
+                    self.console.print(Text("┃", style=color), end=" ")
+                    self.console.print(table)
+                if isinstance(syntax, Syntax):
+                    self.console.print(Text("┃", style=color), end=" ")
+                    self.console.print(syntax)
+                self._observation_steps.add(event.step_id)
+            return
+
+        if event.channel == "memory":
+            if event.step_id in self._memory_steps:
+                return
+            mem = self._renderer.memory_summary(event)
+            if mem:
+                self._rail("gray50", f"[dim]memory[/dim] [dim]{mem}[/dim]")
+                self._memory_steps.add(event.step_id)
+            return
+
+        if event.node == "step_end":
+            self.console.print()
             return
 
         if event.node == "done":
-            self.console.print(Rule("[bold]DONE[/bold]", style="green"))
-            self.console.print(f"[green]stop_reason:[/green] {event.payload.get('stop_reason')}")
-            self.console.print(f"[green]final_result:[/green] {self._preview(event.payload.get('final_result'))}")
+            self.console.print(Rule("[bold]DONE[/bold]", style="gray23"))
+            summary = self._renderer.done_summary(stop_reason=event.payload.get("stop_reason"), final_result=event.payload.get("final_result"))
+            self._rail("green", f"[bold green]{summary}[/bold green]")
             return
 
-    def _rich_value(self, value: Any) -> Any:
-        if isinstance(value, (dict, list)):
-            dumped = json.dumps(value, ensure_ascii=False, indent=2)
-            if len(dumped) > self.max_preview_chars:
-                dumped = dumped[: self.max_preview_chars] + "\n... [truncated]"
-            return Syntax(dumped, "json", word_wrap=True)
-        return self._preview(value)
-
-    def _preview(self, value: Any) -> str:
-        text = str(value)
-        if len(text) > self.max_preview_chars:
-            return text[: self.max_preview_chars] + "... [truncated]"
-        return text
-
     def _print_banner(self) -> None:
-        banner_lines = [
-            "  ____    _ _    ___    ____  ",
-            " / __ \\  (_) |  / _ \\  / __/  ",
-            "/ /_/ / / / |_/ /_/ / _\\ \\    ",
-            "\\___\\_\\/_/|___/\\____/ /___/   ",
-            "            QitOS · 气         ",
+        self.console.print(Rule("[bold bright_cyan]QitOS · 气[/bold bright_cyan]", style="bright_cyan"))
+        self.console.print("[bright_cyan]   ██████╗ ██╗████████╗ ██████╗ ███████╗[/bright_cyan]")
+        self.console.print("[cyan]  ██╔═══██╗██║╚══██╔══╝██╔═══██╗██╔════╝[/cyan]")
+        self.console.print("[blue]  ██║   ██║██║   ██║   ██║   ██║███████╗[/blue]")
+        self.console.print("[bright_blue]  ██║▄▄ ██║██║   ██║   ██║   ██║╚════██║[/bright_blue]")
+        self.console.print("[blue]  ╚██████╔╝██║   ██║   ╚██████╔╝███████║[/blue]")
+        self.console.print("[cyan]   ╚══▀▀═╝ ╚═╝   ╚═╝    ╚═════╝ ╚══════╝[/cyan]")
+        self.console.print(f"[dim]minimalist stream runtime · theme={self.theme_name}[/dim]")
+        self.console.print()
+
+    def _rail(self, color: str, line: str) -> None:
+        grp = Group(
+            Padding(Text.from_markup(f"[{color}]┃[/{color}] {line}"), (0, 0, 0, 0)),
+        )
+        self.console.print(grp)
+
+    def _render_state_row(self, stats: Dict[str, Any]) -> str:
+        order = [
+            ("scratchpad_tokens", "sp_toks"),
+            ("scratchpad_items", "sp_items"),
+            ("memory_records", "mem_recs"),
+            ("workspace_files", "ws_files"),
         ]
-        body = Text("\n".join(banner_lines), style=self._banner_style)
-        subtitle = Text("Agent Runtime Visual Console", style="dim")
-        self.console.print(Panel(Text.assemble(body, "\n", subtitle), title="QitOS · 气", border_style=self._banner_style))
+        cells: List[str] = []
+        for key, label in order:
+            raw = stats.get(key, "-")
+            value = "-" if raw is None else str(raw)
+            cell = f"{label:<9} {value:>6}"
+            cells.append(cell)
+        return "  ".join(cells)
+
+    def _print_agent_composition(self, engine: "Engine") -> None:
+        self.console.print(Rule("[dim]AGENT COMPOSITION[/dim]", style="gray23"))
+        memory_name = self._memory_name(engine)
+        model_name = self._model_name(engine)
+        planning_name = self._planning_name(engine)
+        tools = self._tool_list(engine)
+        tools_desc = ", ".join(tools[:8]) if tools else "none"
+        if len(tools) > 8:
+            tools_desc += ", ..."
+        rows = [
+            ("memory", memory_name),
+            ("base_model", model_name),
+            ("planning", planning_name),
+            ("tools", f"{tools_desc} ({len(tools)})"),
+        ]
+        for key, value in rows:
+            self._rail("gray50", self._composition_row(key, value))
+        self.console.print()
+
+    def _memory_name(self, engine: "Engine") -> str:
+        mem = getattr(engine, "memory", None)
+        if mem is None:
+            return "none"
+        return mem.__class__.__name__
+
+    def _model_name(self, engine: "Engine") -> str:
+        llm = getattr(getattr(engine, "agent", None), "llm", None)
+        if llm is None:
+            return "none"
+        for key in ("model_name", "model", "name"):
+            value = getattr(llm, key, None)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return llm.__class__.__name__
+
+    def _planning_name(self, engine: "Engine") -> str:
+        search = getattr(engine, "search", None)
+        if search is not None:
+            return search.__class__.__name__
+        selector = getattr(engine, "branch_selector", None)
+        if selector is not None:
+            return selector.__class__.__name__
+        planner = getattr(getattr(engine, "agent", None), "planner", None)
+        if planner is not None:
+            return planner.__class__.__name__
+        return "none"
+
+    def _tool_list(self, engine: "Engine") -> List[str]:
+        registry = getattr(engine, "tool_registry", None)
+        if registry is None:
+            return []
+        names: List[str] = []
+        try:
+            listed = registry.list_tools() if hasattr(registry, "list_tools") else []
+            if isinstance(listed, list):
+                names = [str(x) for x in listed]
+        except Exception:
+            names = []
+        return sorted(names)
+
+    def _composition_row(self, key: str, value: str) -> str:
+        key_w = 12
+        val_w = 92
+        k = f"{key:<{key_w}}"
+        v = self._truncate_plain(str(value), val_w)
+        return f"[dim]{k}[/dim] [white]{v}[/white]"
+
+    def _truncate_plain(self, text: str, limit: int) -> str:
+        if len(text) <= limit:
+            return text
+        return text[: max(8, limit - 3)] + "..."
+
 
     def _start_status(self, text: str) -> None:
         if self._status is None:
             self._status = self.console.status(
-                f"[{self._status_style}]{text}[/]",
+                text,
                 spinner=self._spinner,
             )
             self._status.start()
         else:
-            self._status.update(f"[{self._status_style}]{text}[/]")
+            self._status.update(text)
 
     def _update_status(self, text: str) -> None:
         if self._status is None:
             self._start_status(text)
             return
-        self._status.update(f"[{self._status_style}]{text}[/]")
+        self._status.update(text)
 
     def _stop_status(self) -> None:
         if self._status is None:

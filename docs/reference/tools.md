@@ -97,9 +97,57 @@ flowchart TB
   D --> F[Tool.run]
 ```
 
+## Predefined Tool Packages (`qitos.kit.tool`)
+
+Use these as off-the-shelf components, similar to using `torch.nn` blocks.
+
+- Editor bundle:
+  - `EditorToolSet` (`view`, `create`, `str_replace`, `insert`, `search`, `list_tree`, `replace_lines`)
+- EPUB bundle:
+  - `EpubToolSet` (`list_chapters`, `read_chapter`, `search`)
+- File tools:
+  - `WriteFile`, `ReadFile`, `ListFiles`
+- Process tool:
+  - `RunCommand`
+- HTTP/Web tools:
+  - `HTTPRequest`, `HTTPGet`, `HTTPPost`, `HTMLExtractText`
+- Text-browser tools:
+  - `WebSearch`, `VisitURL`, `PageDown`, `PageUp`, `FindInPage`, `FindNext`, `ArchiveSearch`
+- Thinking toolset:
+  - `ThinkingToolSet`, `ThoughtData`
+- Tool libraries:
+  - `InMemoryToolLibrary`, `ToolArtifact`, `BaseToolLibrary`
+- Registry builders:
+  - `math_tools()`, `editor_tools(workspace_root)`
+
+Import pattern:
+
+```python
+from qitos.kit.tool import EditorToolSet, RunCommand, HTTPGet, ThinkingToolSet
+```
+
+## Predefined Planning Primitives (`qitos.kit.planning`)
+
+- LLM orchestration:
+  - `ToolAwareMessageBuilder`, `LLMDecisionBlock`
+- Plan utilities:
+  - `PlanCursor`, `parse_numbered_plan`
+- Search strategies:
+  - `GreedySearch`, `DynamicTreeSearch`
+- State helpers:
+  - `append_log`, `format_action`, `set_final`, `set_if_empty`
+
+Import pattern:
+
+```python
+from qitos.kit.planning import DynamicTreeSearch, PlanCursor, LLMDecisionBlock
+```
+
 ## Source Index
 
 - [qitos/core/tool.py](https://github.com/Qitor/qitos/blob/main/qitos/core/tool.py)
 - [qitos/core/tool_registry.py](https://github.com/Qitor/qitos/blob/main/qitos/core/tool_registry.py)
 - [qitos/engine/action_executor.py](https://github.com/Qitor/qitos/blob/main/qitos/engine/action_executor.py)
 - [qitos/kit/tool/toolset.py](https://github.com/Qitor/qitos/blob/main/qitos/kit/tool/toolset.py)
+- [qitos/kit/tool/__init__.py](https://github.com/Qitor/qitos/blob/main/qitos/kit/tool/__init__.py)
+- [qitos/kit/planning/__init__.py](https://github.com/Qitor/qitos/blob/main/qitos/kit/planning/__init__.py)

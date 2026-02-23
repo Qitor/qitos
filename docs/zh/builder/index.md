@@ -12,7 +12,8 @@
 4. [模型接入](model.md)
 5. [从 Core 到 Agent 实战](from_core_to_agent.md)
 6. [工具与环境](tools_env.md)
-7. [生产落地指南](production.md)
+7. [GAIA Benchmark 适配](benchmark_gaia.md)
+8. [生产落地指南](production.md)
 
 ## 1 小时上手路径
 

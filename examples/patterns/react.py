@@ -14,7 +14,13 @@ from qitos.kit.prompts import render_prompt
 from qitos.kit.tool import EditorToolSet, RunCommand
 from qitos.render import ClaudeStyleHook
 
-from examples.common import add_common_args, build_model_from_args, make_trace_writer, setup_workspace
+from examples.common import (
+    add_common_args,
+    build_model_from_args,
+    make_trace_writer,
+    recent_rationales_from_scratchpad,
+    setup_workspace,
+)
 
 SYSTEM_PROMPT = """You are a concise ReAct agent.
 
@@ -56,6 +62,10 @@ class ReactAgent(AgentModule[ReactState, Dict[str, Any], Action]):
 
     def prepare(self, state: ReactState, observation: Dict[str, Any]) -> str:
         parts = [f"Task: {state.task}", f"Step: {state.current_step}/{state.max_steps}"]
+        rationales = recent_rationales_from_scratchpad(state.scratchpad, max_items=4)
+        if rationales:
+            parts.append("Recent rationale:")
+            parts.extend(f"- {x}" for x in rationales)
         if state.scratchpad:
             parts.extend(["Recent:", *state.scratchpad[-6:]])
         return "\n".join(parts)

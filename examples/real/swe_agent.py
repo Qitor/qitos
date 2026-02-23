@@ -19,6 +19,7 @@ from qitos.kit.tool import EditorToolSet, RunCommand
 from qitos.models import OpenAICompatibleModel
 from qitos.render import ClaudeStyleHook
 from qitos.trace import TraceWriter
+from examples.common import recent_rationales_from_scratchpad
 
 
 PLAN_PROMPT = """You are planning a software bug-fix workflow.
@@ -143,6 +144,10 @@ class SWEDynamicPlanningAgent(AgentModule[SWEPlanState, Dict[str, Any], Action])
             for i, item in enumerate(state.plan_steps):
                 marker = "->" if i == state.cursor else "  "
                 lines.append(f"{marker} [{i}] {item}")
+        rationales = recent_rationales_from_scratchpad(state.scratchpad, max_items=6)
+        if rationales:
+            lines.append("Recent rationale:")
+            lines.extend(f"- {x}" for x in rationales)
         if state.scratchpad:
             lines.append("Recent execution trace:")
             lines.extend(state.scratchpad[-10:])

@@ -19,6 +19,7 @@ from qitos.kit.tool import HTMLExtractText, HTTPGet, ReadFile, RunCommand, Write
 from qitos.models import OpenAICompatibleModel
 from qitos.render import ClaudeStyleHook
 from qitos.trace import TraceWriter
+from examples.common import recent_rationales_from_scratchpad
 
 
 SYSTEM_PROMPT = """You are a computer-use research assistant.
@@ -134,6 +135,10 @@ class ComputerUseReActAgent(AgentModule[ComputerUseState, Dict[str, Any], Action
             f"Report file: {state.report_file}",
             f"Step: {state.current_step}/{state.max_steps}",
         ]
+        rationales = recent_rationales_from_scratchpad(state.scratchpad, max_items=6)
+        if rationales:
+            lines.append("Recent rationale:")
+            lines.extend(f"- {x}" for x in rationales)
         if state.scratchpad:
             lines.append("Recent trajectory:")
             lines.extend(state.scratchpad[-8:])

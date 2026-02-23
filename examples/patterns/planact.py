@@ -14,7 +14,13 @@ from qitos.kit.prompts import render_prompt
 from qitos.kit.tool import EditorToolSet, RunCommand
 from qitos.render import ClaudeStyleHook
 
-from examples.common import add_common_args, build_model_from_args, make_trace_writer, setup_workspace
+from examples.common import (
+    add_common_args,
+    build_model_from_args,
+    make_trace_writer,
+    recent_rationales_from_scratchpad,
+    setup_workspace,
+)
 
 PLAN_PROMPT = """Task: {task}\nTarget file: {target_file}\nReturn a numbered plan (3-5 steps), last step must run tests."""
 
@@ -60,6 +66,27 @@ class PlanActAgent(AgentModule[PlanActState, Dict[str, Any], Action]):
 
     def build_system_prompt(self, state: PlanActState) -> str | None:
         return render_prompt(EXEC_PROMPT, {"current_step": self._current_step_text(state), "tool_schema": self.tool_registry.get_tool_descriptions()})
+
+    def prepare(self, state: PlanActState, observation: Dict[str, Any]) -> str:
+        lines = [
+            f"Task: {state.task}",
+            f"Plan cursor: {state.cursor}/{len(state.plan_steps)}",
+            f"Current step: {self._current_step_text(state)}",
+            f"Step: {state.current_step}/{state.max_steps}",
+        ]
+        if state.plan_steps:
+            lines.append("Plan:")
+            for i, item in enumerate(state.plan_steps):
+                marker = "->" if i == state.cursor else "  "
+                lines.append(f"{marker} [{i}] {item}")
+        rationales = recent_rationales_from_scratchpad(state.scratchpad, max_items=5)
+        if rationales:
+            lines.append("Recent rationale:")
+            lines.extend(f"- {x}" for x in rationales)
+        if state.scratchpad:
+            lines.append("Recent trajectory:")
+            lines.extend(state.scratchpad[-8:])
+        return "\n".join(lines)
 
     def decide(self, state: PlanActState, observation: Dict[str, Any]) -> Optional[Decision[Action]]:
         if not state.plan_steps or state.cursor >= len(state.plan_steps):

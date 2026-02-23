@@ -33,11 +33,13 @@ def test_parser_and_critic_impls():
     d1 = JsonDecisionParser().parse('{"mode":"wait"}')
     assert d1.mode == "wait"
 
-    d2 = ReActTextParser().parse("Final Answer: done")
+    d2 = ReActTextParser().parse("Thought: done now\nFinal Answer: done")
     assert d2.mode == "final"
+    assert d2.rationale == "done now"
     d2b = ReActTextParser().parse("Thought: x\nAction: {'name': 'add', 'args': {'a': 2, 'b': 3}}")
     assert d2b.mode == "act"
     assert d2b.actions[0]["name"] == "add"
+    assert d2b.rationale == "x"
 
     long_html = "<html><head><script>var x = {a:1,b:2};</script></head><body>Hello, world</body></html>"
     raw = f"Thought: parse\nAction: extract_web_text(html={long_html!r}, max_chars=6000, keep_links=False)"
@@ -47,6 +49,7 @@ def test_parser_and_critic_impls():
     assert d2c.actions[0]["args"]["max_chars"] == 6000
     assert d2c.actions[0]["args"]["keep_links"] is False
     assert "Hello, world" in d2c.actions[0]["args"]["html"]
+    assert d2c.rationale == "parse"
 
     d3 = XmlDecisionParser().parse('<decision mode="wait"></decision>')
     assert d3.mode == "wait"
@@ -73,3 +76,30 @@ def test_func_parser_handles_nested_and_truncated_calls():
     assert parsed2 is not None
     assert parsed2["name"] == "extract_web_text"
     assert parsed2["args"]["max_chars"] == 5000
+
+
+def test_parser_custom_keywords_and_reflection():
+    txt = "Thinking: multi-line plan\n- step1\nReflection: retry strategy\nAction: web_search(query='nemo fish')"
+    d = ReActTextParser(
+        thought_keys=("thinking",),
+        reflection_keys=("reflection",),
+        action_keys=("action",),
+    ).parse(txt)
+    assert d.mode == "act"
+    assert d.rationale and "multi-line plan" in d.rationale
+    assert d.meta.get("reflection") == "retry strategy"
+    assert d.actions[0]["name"] == "web_search"
+
+    xml = "<root><think>reasoning</think><reflection>self-check</reflection><action>run_command(command='echo ok')</action></root>"
+    d2 = XmlDecisionParser().parse(xml)
+    assert d2.mode == "act"
+    assert d2.rationale == "reasoning"
+    assert d2.meta.get("reflection") == "self-check"
+    assert d2.actions[0]["name"] == "run_command"
+
+    js = '{"thinking":"ponder", "reflection":"double check", "action":"write_file(filename=\\"x.md\\", content=\\"ok\\")"}'
+    d3 = JsonDecisionParser(thought_keys=("thinking",), reflection_keys=("reflection",), action_keys=("action",)).parse(js)
+    assert d3.mode == "act"
+    assert d3.rationale == "ponder"
+    assert d3.meta.get("reflection") == "double check"
+    assert d3.actions[0]["name"] == "write_file"

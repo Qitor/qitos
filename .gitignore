@@ -156,3 +156,10 @@ secrets.local.yml
 qitos.egg-info/
 .trae/
 references/
+examples/data/
+data/
+runs/
+examples/runs/
+qitos_gaia_workspace/
+examples/qitos_gaia_workspace/
+examples/playground/

@@ -13,6 +13,7 @@
 它面向两类核心用户：
 - 研究者：快速试验、复现、对比新 agent 设计；
 - 高阶开发者：精细控制 agent scaffolding，充分发挥模型能力。
+- 基准评测用户：可直接接入 benchmark（GAIA 已适配）。
 
 - English README: [README.md](README.md)
 - 文档站点: [https://qitor.github.io/QitOS/](https://qitor.github.io/QitOS/)
@@ -83,6 +84,28 @@ python examples/patterns/react.py --workspace ./playground
 qita board --logdir runs
 ```
 
+### 4) 运行 GAIA Benchmark（QitOS 适配版）
+
+单题运行：
+
+```bash
+python examples/real/open_deep_research_gaia_agent.py \
+  --workspace ./qitos_gaia_workspace \
+  --gaia-download-snapshot \
+  --gaia-split validation \
+  --gaia-index 0
+```
+
+整集合运行（支持断点续跑）：
+
+```bash
+python examples/real/open_deep_research_gaia_agent.py \
+  --workspace ./qitos_gaia_workspace \
+  --gaia-download-snapshot \
+  --gaia-split validation \
+  --run-all --concurrency 2 --resume
+```
+
 ## 最小可改的 Agent 编写示例
 
 ```python
@@ -148,6 +171,49 @@ QitOS 的 benchmark 接入遵循统一路径：
 当前 GAIA 接入：
 - 适配器：`qitos/benchmark/gaia.py`
 - 运行示例：`examples/real/open_deep_research_gaia_agent.py`
+
+## 预定义组件目录（Torch 风格）
+
+QitOS 在 `qitos.kit` 内提供可复用组件，强调“组合优先、少造轮子”。
+
+### `qitos.kit.tool`（预定义工具包）
+
+- 编辑器工具包：
+  - `EditorToolSet`（`view`、`create`、`str_replace`、`insert`、`search`、`list_tree`、`replace_lines`）
+- EPUB 工具包：
+  - `EpubToolSet`（`list_chapters`、`read_chapter`、`search`）
+- 文件工具：
+  - `WriteFile`、`ReadFile`、`ListFiles`
+- 命令执行工具：
+  - `RunCommand`
+- HTTP/Web 工具：
+  - `HTTPRequest`、`HTTPGet`、`HTTPPost`、`HTMLExtractText`
+- 文本浏览器工具（GAIA/OpenDeepResearch 常用）：
+  - `WebSearch`、`VisitURL`、`PageDown`、`PageUp`、`FindInPage`、`FindNext`、`ArchiveSearch`
+- 思维工具集：
+  - `ThinkingToolSet`、`ThoughtData`
+- 工具库：
+  - `InMemoryToolLibrary`、`ToolArtifact`、`BaseToolLibrary`
+- 注册表快捷构造：
+  - `math_tools()`、`editor_tools(workspace_root)`
+
+### `qitos.kit.planning`（预定义规划模块）
+
+- LLM 编排模块：
+  - `ToolAwareMessageBuilder`、`LLMDecisionBlock`
+- 计划工具：
+  - `PlanCursor`、`parse_numbered_plan`
+- 搜索策略：
+  - `GreedySearch`、`DynamicTreeSearch`
+- 状态辅助函数：
+  - `append_log`、`format_action`、`set_final`、`set_if_empty`
+
+快速导入示例：
+
+```python
+from qitos.kit.tool import EditorToolSet, RunCommand, HTTPGet, ThinkingToolSet
+from qitos.kit.planning import DynamicTreeSearch, PlanCursor, LLMDecisionBlock
+```
 
 ## 核心目录映射
 
