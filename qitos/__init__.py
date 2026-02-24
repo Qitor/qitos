@@ -1,4 +1,8 @@
-"""QitOS public API surface."""
+"""
+@Copyright (c) 2026, Qitor Research. All rights reserved.
+QitOS public API surface.
+
+"""
 
 __version__ = "0.1.0a1"
 
