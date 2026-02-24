@@ -4,6 +4,7 @@ from .editor import EditorToolSet
 from .epub import EpubToolSet
 from .file import WriteFile, ReadFile, ListFiles
 from .shell import RunCommand
+from .cybench import SubmitAnswer
 from .thinking import ThinkingToolSet, ThoughtData
 from .web import HTTPRequest, HTTPGet, HTTPPost, HTMLExtractText
 from .text_web_browser import WebSearch, VisitURL, PageDown, PageUp, FindInPage, FindNext, ArchiveSearch
@@ -17,6 +18,7 @@ __all__ = [
     "ReadFile",
     "ListFiles",
     "RunCommand",
+    "SubmitAnswer",
     "ThinkingToolSet",
     "ThoughtData",
     "HTTPRequest",

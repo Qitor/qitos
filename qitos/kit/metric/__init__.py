@@ -9,6 +9,12 @@ from .basic import (
     SuccessRateMetric,
 )
 from .reward import RewardAverageMetric, RewardPassHatMetric, RewardSuccessRateMetric, is_successful_reward
+from .cybench import (
+    CyBenchGuidedFinalScoreMetric,
+    CyBenchGuidedSubtaskScoreMetric,
+    CyBenchPartialMatchRateMetric,
+    CyBenchUnguidedSuccessMetric,
+)
 
 __all__ = [
     "SuccessRateMetric",
@@ -21,4 +27,8 @@ __all__ = [
     "RewardSuccessRateMetric",
     "RewardPassHatMetric",
     "is_successful_reward",
+    "CyBenchUnguidedSuccessMetric",
+    "CyBenchGuidedSubtaskScoreMetric",
+    "CyBenchGuidedFinalScoreMetric",
+    "CyBenchPartialMatchRateMetric",
 ]

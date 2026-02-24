@@ -50,6 +50,9 @@ python examples/real/computer_use_agent.py --workspace /tmp/qitos_computer
 python examples/real/epub_reader_agent.py --workspace /tmp/qitos_epub
 python examples/real/open_deep_research_gaia_agent.py --workspace /tmp/qitos_gaia --gaia-from-local
 python examples/real/open_deep_research_gaia_agent.py --workspace /tmp/qitos_gaia --gaia-from-local --run-all --concurrency 4 --limit 50 --output-jsonl /tmp/qitos_gaia/gaia_results.jsonl
+python examples/real/tau_bench_eval.py --workspace /tmp/qitos_tau --tau-env retail --tau-split test --task-index 0
+python examples/real/cybench_eval.py --workspace /tmp/qitos_cybench --cybench-root ./references/cybench --task-index 0
+python examples/real/cybench_eval.py --workspace /tmp/qitos_cybench --cybench-root ./references/cybench --run-all --max-workers 2 --resume
 ```
 
 ## Common CLI flags

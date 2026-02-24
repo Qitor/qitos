@@ -4,7 +4,7 @@
 
 QitOS 已完成 GAIA 的可运行适配链路：
 
-- 适配器：`qitos/benchmark/gaia.py`
+- 适配器：`qitos/benchmark/gaia/adapter.py`
 - 标准转换：GAIA 样本 -> `Task`
 - 执行内核：统一 `Engine` 循环（不做 benchmark 特化 runtime）
 - 示例入口：`examples/real/open_deep_research_gaia_agent.py`
@@ -65,5 +65,5 @@ qita board --logdir runs
 
 ## Source Index
 
-- [qitos/benchmark/gaia.py](https://github.com/Qitor/qitos/blob/main/qitos/benchmark/gaia.py)
+- [qitos/benchmark/gaia/adapter.py](https://github.com/Qitor/qitos/blob/main/qitos/benchmark/gaia/adapter.py)
 - [examples/real/open_deep_research_gaia_agent.py](https://github.com/Qitor/qitos/blob/main/examples/real/open_deep_research_gaia_agent.py)

@@ -4,8 +4,8 @@
 
 QitOS 已支持 Tau-Bench 的标准接入链路：
 
-- 适配器：`qitos/benchmark/tau_bench.py`
-- 内置运行时：`qitos/benchmark/tau_runtime.py` + `qitos/benchmark/tau_port/*`
+- 适配器：`qitos/benchmark/tau_bench/adapter.py`
+- 内置运行时：`qitos/benchmark/tau_bench/runtime.py` + `qitos/benchmark/tau_bench/port/*`
 - 转换：Tau task -> `qitos.core.task.Task`
 - 评测脚本：`examples/real/tau_bench_eval.py`
 
@@ -56,7 +56,7 @@ python examples/real/tau_bench_eval.py \
 
 ## Source Index
 
-- [qitos/benchmark/tau_bench.py](https://github.com/Qitor/qitos/blob/main/qitos/benchmark/tau_bench.py)
+- [qitos/benchmark/tau_bench/adapter.py](https://github.com/Qitor/qitos/blob/main/qitos/benchmark/tau_bench/adapter.py)
 - [examples/real/tau_bench_eval.py](https://github.com/Qitor/qitos/blob/main/examples/real/tau_bench_eval.py)
 - [qitos/evaluate/base.py](https://github.com/Qitor/qitos/blob/main/qitos/evaluate/base.py)
 - [qitos/metric/base.py](https://github.com/Qitor/qitos/blob/main/qitos/metric/base.py)

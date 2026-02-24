@@ -30,7 +30,7 @@ from qitos.kit.planning import format_action
 from qitos.kit.prompts import render_prompt
 from qitos.metric import MetricInput, MetricRegistry
 from qitos.render import ClaudeStyleHook
-from qitos.benchmark.tau_port.types import Action as TauAction
+from qitos.benchmark.tau_bench.port.types import Action as TauAction
 
 from examples.common import add_common_args, build_model_from_args, make_trace_writer, setup_workspace
 
@@ -221,7 +221,7 @@ def _read_done(path: Path) -> set[str]:
 
 
 def _build_tau_env(args: argparse.Namespace, task_index: int | None = None) -> Any:
-    from qitos.benchmark.tau_runtime import get_tau_runtime_env
+    from qitos.benchmark.tau_bench.runtime import get_tau_runtime_env
 
     return get_tau_runtime_env(env_name=args.tau_env, task_split=args.tau_split, task_index=task_index)
 

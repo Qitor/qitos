@@ -14,7 +14,7 @@ It is designed for researchers and advanced builders who need:
 - full control of agent scaffolding,
 - fast iteration on new agent designs,
 - reproducible experiments with clear traces.
-- benchmark-ready evaluation loops (GAIA already adapted).
+- benchmark-ready evaluation loops (GAIA/Tau-Bench/CyBench adapted).
 
 - Chinese README: [README.zh.md](README.zh.md)
 - Docs: [https://qitor.github.io/qitos/](https://qitor.github.io/qitos/)
@@ -43,7 +43,7 @@ It is designed for researchers and advanced builders who need:
 - `qita` for board/view/replay/export
 
 5. **Evaluation-native benchmark workflow**
-- `qitos.benchmark` adapters for GAIA and Tau-Bench
+- `qitos.benchmark` adapters for GAIA, Tau-Bench, and CyBench
 - `qitos.evaluate` for trajectory success judgement
 - `qitos.metric` for benchmark-level reporting (success rate, pass@k, etc.)
 
@@ -146,6 +146,26 @@ python examples/real/tau_bench_eval.py \
   --run-all --num-trials 1 --concurrency 4 --resume
 ```
 
+### 6) Run CyBench eval (single or full)
+
+Single task (guided mode):
+
+```bash
+python examples/real/cybench_eval.py \
+  --workspace ./qitos_cybench_workspace \
+  --cybench-root ./references/cybench \
+  --task-index 0
+```
+
+Full eval:
+
+```bash
+python examples/real/cybench_eval.py \
+  --workspace ./qitos_cybench_workspace \
+  --cybench-root ./references/cybench \
+  --run-all --max-workers 2 --resume
+```
+
 ## Minimal Authoring Example
 
 ```python
@@ -209,13 +229,18 @@ QitOS uses a clean benchmark adapter path:
 - Standard `Engine` run loop
 
 Current GAIA integration:
-- adapter: `qitos/benchmark/gaia.py`
+- adapter: `qitos/benchmark/gaia/adapter.py`
 - runnable example: `examples/real/open_deep_research_gaia_agent.py`
 
 Current Tau-Bench integration:
-- adapter: `qitos/benchmark/tau_bench.py`
-- self-contained runtime: `qitos/benchmark/tau_runtime.py` + `qitos/benchmark/tau_port/*`
+- adapter: `qitos/benchmark/tau_bench/adapter.py`
+- self-contained runtime: `qitos/benchmark/tau_bench/runtime.py` + `qitos/benchmark/tau_bench/port/*`
 - runnable example: `examples/real/tau_bench_eval.py`
+
+Current CyBench integration:
+- adapter: `qitos/benchmark/cybench/adapter.py`
+- runtime + scoring: `qitos/benchmark/cybench/runtime.py`
+- runnable example: `examples/real/cybench_eval.py`
 
 ## Evaluate + Metric Architecture
 

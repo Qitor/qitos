@@ -1,6 +1,6 @@
 """QitOS public API surface."""
 
-__version__ = "0.1-alpha"
+__version__ = "0.1.0a1"
 
 from .core.agent_module import AgentModule
 from .core.action import Action, ActionExecutionPolicy, ActionKind, ActionResult, ActionStatus
@@ -20,7 +20,18 @@ from .core.task import (
 )
 from .core.tool import BaseTool, FunctionTool, ToolPermission, ToolSpec, tool
 from .core.tool_registry import ToolRegistry
-from .benchmark import BenchmarkAdapter, BenchmarkSource, GaiaAdapter, TauBenchAdapter, load_gaia_tasks, load_tau_bench_tasks
+from .benchmark import (
+    BenchmarkAdapter,
+    BenchmarkSource,
+    CyBenchAdapter,
+    CyBenchRuntime,
+    GaiaAdapter,
+    TauBenchAdapter,
+    load_cybench_tasks,
+    load_gaia_tasks,
+    load_tau_bench_tasks,
+    score_cybench_submission,
+)
 from .evaluate import EvaluationContext, EvaluationResult, EvaluationSuite, SuiteEvaluationResult, TrajectoryEvaluator
 from .engine.engine import Engine, EngineResult
 from .metric import Metric, MetricInput, MetricRegistry, MetricReport
@@ -61,6 +72,10 @@ __all__ = [
     "ToolRegistry",
     "BenchmarkAdapter",
     "BenchmarkSource",
+    "CyBenchAdapter",
+    "CyBenchRuntime",
+    "score_cybench_submission",
+    "load_cybench_tasks",
     "GaiaAdapter",
     "TauBenchAdapter",
     "load_gaia_tasks",

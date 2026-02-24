@@ -4,7 +4,7 @@
 
 QitOS has a working GAIA adapter and runnable agent pipeline:
 
-- Adapter: `qitos/benchmark/gaia.py`
+- Adapter: `qitos/benchmark/gaia/adapter.py`
 - Canonical conversion: GAIA row -> `Task`
 - Runtime: standard `Engine` loop (no benchmark-specific runtime fork)
 - Example runner: `examples/real/open_deep_research_gaia_agent.py`
@@ -65,5 +65,5 @@ qita board --logdir runs
 
 ## Source Index
 
-- [qitos/benchmark/gaia.py](https://github.com/Qitor/qitos/blob/main/qitos/benchmark/gaia.py)
+- [qitos/benchmark/gaia/adapter.py](https://github.com/Qitor/qitos/blob/main/qitos/benchmark/gaia/adapter.py)
 - [examples/real/open_deep_research_gaia_agent.py](https://github.com/Qitor/qitos/blob/main/examples/real/open_deep_research_gaia_agent.py)

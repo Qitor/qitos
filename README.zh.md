@@ -13,7 +13,7 @@
 它面向两类核心用户：
 - 研究者：快速试验、复现、对比新 agent 设计；
 - 高阶开发者：精细控制 agent scaffolding，充分发挥模型能力。
-- 基准评测用户：可直接接入 benchmark（GAIA 已适配）。
+- 基准评测用户：可直接接入 benchmark（GAIA/Tau-Bench/CyBench 已适配）。
 
 - English README: [README.md](README.md)
 - 文档站点: [https://qitor.github.io/qitos/](https://qitor.github.io/qitos/)
@@ -42,7 +42,7 @@
 - `qita` 支持 board/view/replay/export
 
 5. **评测原生的 benchmark 工作流**
-- `qitos.benchmark` 已适配 GAIA 与 Tau-Bench
+- `qitos.benchmark` 已适配 GAIA、Tau-Bench 与 CyBench
 - `qitos.evaluate` 用于单轨迹任务完成判定
 - `qitos.metric` 用于多任务聚合评测（成功率、pass@k 等）
 
@@ -145,6 +145,26 @@ python examples/real/tau_bench_eval.py \
   --run-all --num-trials 1 --concurrency 4 --resume
 ```
 
+### 6) 运行 CyBench 评测（单题 / 全量）
+
+单题（Guided 模式）：
+
+```bash
+python examples/real/cybench_eval.py \
+  --workspace ./qitos_cybench_workspace \
+  --cybench-root ./references/cybench \
+  --task-index 0
+```
+
+全量：
+
+```bash
+python examples/real/cybench_eval.py \
+  --workspace ./qitos_cybench_workspace \
+  --cybench-root ./references/cybench \
+  --run-all --max-workers 2 --resume
+```
+
 ## 最小可改的 Agent 编写示例
 
 ```python
@@ -208,13 +228,18 @@ QitOS 的 benchmark 接入遵循统一路径：
 - 标准 `Engine` 循环执行
 
 当前 GAIA 接入：
-- 适配器：`qitos/benchmark/gaia.py`
+- 适配器：`qitos/benchmark/gaia/adapter.py`
 - 运行示例：`examples/real/open_deep_research_gaia_agent.py`
 
 当前 Tau-Bench 接入：
-- 适配器：`qitos/benchmark/tau_bench.py`
-- 内置运行时：`qitos/benchmark/tau_runtime.py` + `qitos/benchmark/tau_port/*`
+- 适配器：`qitos/benchmark/tau_bench/adapter.py`
+- 内置运行时：`qitos/benchmark/tau_bench/runtime.py` + `qitos/benchmark/tau_bench/port/*`
 - 运行示例：`examples/real/tau_bench_eval.py`
+
+当前 CyBench 接入：
+- 适配器：`qitos/benchmark/cybench/adapter.py`
+- 运行时 + 评分：`qitos/benchmark/cybench/runtime.py`
+- 运行示例：`examples/real/cybench_eval.py`
 
 ## Evaluate 与 Metric 架构
 
