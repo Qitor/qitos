@@ -10,7 +10,6 @@ from typing import Any, Dict, List, Optional
 
 class RuntimePhase(str, Enum):
     INIT = "INIT"
-    OBSERVE = "OBSERVE"
     DECIDE = "DECIDE"
     ACT = "ACT"
     CRITIC = "CRITIC"

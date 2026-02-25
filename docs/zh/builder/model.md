@@ -8,7 +8,7 @@
 
 当 `AgentModule.decide(...)` 返回 `None` 时：
 
-1. Engine 调 `agent.prepare(state, observation)`
+1. Engine 调 `agent.prepare(state)`
 2. Engine 拼接 system prompt
 3. Engine 注入 memory messages
 4. Engine 调 `agent.llm(messages)`
@@ -27,7 +27,7 @@ class MyAgent(AgentModule):
     def build_system_prompt(self, state):
         return "你是严谨的代码智能体。"
 
-    def prepare(self, state, observation):
+    def prepare(self, state):
         return f"任务: {state.task}\n观察: {observation}"
 
     def decide(self, state, observation):

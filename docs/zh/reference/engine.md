@@ -2,100 +2,47 @@
 
 ## 职责
 
-`Engine` 是唯一内核执行器，负责：
+`Engine` 是唯一运行时内核，负责：
 
-- 标准循环顺序
-- 预检（task + env）
-- 动作执行分发
-- budget 与 stop
-- hooks + events + trace
+- 循环编排
+- task/env 预检
+- action 执行
+- budget 与 stop 判定
+- hooks/events/trace
 
-## 运行阶段
+## 运行链路
 
-1. `OBSERVE`
-2. `DECIDE`
-3. `ACT`
-4. `REDUCE`
-5. `CRITIC`（可选）
-6. `CHECK_STOP`
+每一步：
 
-## 与 AgentModule.run(...) 的关系
+1. DECIDE
+2. ACT
+3. REDUCE
+4. CHECK_STOP
 
-`AgentModule.run(...)` 是一个非常薄的便捷封装：
+当 `agent.decide(...)` 返回 `None` 时，DECIDE 阶段会调用 `prepare(state)`。
 
-- 通过 `agent.build_engine(...)` 构造 Engine
-- 透传 `hooks` / `engine_kwargs` / state kwargs
-- 默认返回 `final_result`，当 `return_state=True` 时返回 `EngineResult`
+## 默认模型路径
 
-当你想显式掌控 env/memory/trace/hook 的接线时，直接用 `Engine.run(...)` 更清晰。
+当 `decide` 返回 `None`，Engine 会：
 
-## 基本用法
+1. `prepared = agent.prepare(state)`
+2. 组装 messages（system + memory history + 当前 user 输入）
+3. `raw = agent.llm(messages)`
+4. parser 解析成 `Decision`
 
-```python
-from qitos import Engine
+## 常用参数
 
-result = Engine(agent=my_agent, env=my_env).run(task)
-print(result.state.final_result, result.state.stop_reason)
-```
+- `env`
+- `hooks`
+- `trace_writer`
+- `memory`（便捷注入到 `agent.memory`）
 
-## 常用运行参数（推荐你先理解）
+## 返回结果
 
-你通常会把这些参数交给 Engine（无论你是直接 new Engine，还是通过 `agent.run(..., engine_kwargs=...)` 间接传入）：
+`Engine.run(...)` 返回：
 
-- `env`：执行后端（host/docker/remote）
-- `memory`：为 DECIDE 阶段提供可检索的上下文 messages/records
-- `hooks`：阶段级回调（结构化）
-- `trace_writer`：写入 run artifacts（manifest/events/steps）
-
-## 最小：Engine 触发模型调用路径
-
-关键契约：当 `AgentModule.decide(...)` 返回 `None`，Engine 会调用你提供的 `llm(messages)`，并用 parser 把输出转成 `Decision`。
-
-```python
-from dataclasses import dataclass
-from typing import Any
-
-from qitos import Action, AgentModule, Decision, Engine, StateSchema, ToolRegistry, tool
-from qitos.kit.env import HostEnv
-from qitos.kit.parser import ReActTextParser
-from qitos.models import OpenAICompatibleModel
-
-@dataclass
-class S(StateSchema):
-    pass
-
-@tool(name="add")
-def add(a: int, b: int) -> int:
-    return a + b
-
-class A(AgentModule[S, dict[str, Any], Action]):
-    def __init__(self, llm: Any):
-        reg = ToolRegistry()
-        reg.register(add)
-        super().__init__(tool_registry=reg, llm=llm, model_parser=ReActTextParser())
-
-    def init_state(self, task: str, **kwargs: Any) -> S:
-        return S(task=task, max_steps=4)
-
-    def observe(self, state: S, env_view: dict[str, Any]) -> dict[str, Any]:
-        return {"task": state.task}
-
-    def build_system_prompt(self, state: S) -> str | None:
-        return "Use ReAct. Call add(a=..., b=...) or output Final Answer: ..."
-
-    def decide(self, state: S, observation: dict[str, Any]):
-        return None
-
-    def reduce(self, state: S, observation: dict[str, Any], decision: Decision[Action], action_results: list[Any]) -> S:
-        return state
-
-llm = OpenAICompatibleModel(model="Qwen/Qwen3-8B", base_url="https://api.siliconflow.cn/v1/", api_key="...")
-env = HostEnv(workspace_root="./playground")
-result = Engine(agent=A(llm), env=env).run("compute 19+23 using add")
-print(result.state.final_result, result.state.stop_reason)
-```
-
-## Source Index
-
-- [qitos/engine/engine.py](https://github.com/Qitor/qitos/blob/main/qitos/engine/engine.py)
-- [qitos/engine/states.py](https://github.com/Qitor/qitos/blob/main/qitos/engine/states.py)
+- `state`
+- `records`
+- `events`
+- `step_count`
+- `task_result`（可选）

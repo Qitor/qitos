@@ -5,7 +5,7 @@
 QitOS 是一个面向研究与工程落地的 **Agent 内核框架**。
 
 - 单主线：`AgentModule + Engine`
-- 显式循环：`observe -> decide -> act -> reduce -> check_stop`
+- 显式循环：`prepare -> decide -> act -> reduce -> check_stop`
 - 可复现：hooks + trace 作为一等公民
 
 <div class="qitos-actions">

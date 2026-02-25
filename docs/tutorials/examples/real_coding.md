@@ -19,7 +19,7 @@ It is designed to be a tutorial for building a “shippable” agent:
 1. **State contains trajectory**, not hidden global variables.
 2. **Verification is a first-class tool call**, not narrative text.
 3. **Self-reflection is a Critic**, not extra prompt tokens sprinkled randomly.
-4. **Memory is owned by Engine**, not the agent (agent only chooses what to surface/consume).
+4. **Memory is owned by the AgentModule** (`self.memory`), and consumed explicitly in `prepare`.
 
 ## Method-by-method design
 
@@ -40,7 +40,7 @@ What it wires:
 - `RunCommand` (verification)
 - `ReActTextParser` for text-protocol decisions
 
-### `build_memory_query`: control the *memory view* shown in `env_view`
+### `build_memory_query`: control retrieval policy for `self.memory`
 
 This example returns:
 
@@ -54,15 +54,15 @@ Design principle:
 
 Important nuance:
 
-- this query shapes `env_view["memory"]` (the memory context view)
+- keep retrieval bounded and stable for reproducibility.
 
-### `observe`: publish task, constraints, and memory view
+### `prepare`: publish task + constraints, and optionally inject memory context
 
-What it exposes:
+What it can expose:
 
 - file/test constraints
 - bounded scratchpad
-- `env_view["memory"]` so the agent can “see” a summary/records
+- selected memory snippets from `self.memory` (if needed)
 
 ### `build_system_prompt`: enforce one-action-per-step and verification discipline
 

@@ -846,7 +846,7 @@ function parseTs(ts){{
 }}
 function phaseColor(phase){{
   const p = String(phase||'').toLowerCase();
-  if(p.includes('observe')) return '#4db5ff';
+  if(p.includes('state') || p.includes('observe')) return '#4db5ff';
   if(p.includes('decide') || p.includes('model')) return '#9b8cff';
   if(p.includes('action') || p.includes('tool')) return '#3dd68c';
   if(p.includes('critic') || p.includes('reflect')) return '#f7b955';
@@ -860,7 +860,7 @@ function inferPrimaryKind(events){{
     const p = String(es[i] && es[i].phase || '').toLowerCase();
     if(p.includes('critic')) return 'critic';
     if(p.includes('act') || p.includes('tool')) return 'action';
-    if(p.includes('observe')) return 'observation';
+    if(p.includes('state') || p.includes('observe')) return 'observation';
     if(p.includes('decide') || p.includes('model')) return 'thinking';
   }}
   return 'other';
@@ -1064,7 +1064,7 @@ def _infer_kind(phase: str, node: str, error: Any) -> str:
     key = f"{phase} {node}".lower()
     if "plan" in key:
         return "plan"
-    if "observe" in key:
+    if "state" in key or "observe" in key:
         return "observation"
     if "memory" in key:
         return "memory"
@@ -1217,7 +1217,7 @@ function criticSummary(cs){{
 }}
 function renderRecordBody(r){{
   const phase = String(r.phase||'').toLowerCase();
-  if(phase.includes('observe')) return '🧭 <b>State:</b> ' + esc(stateSummary(r.body && r.body.observation));
+  if(phase.includes('state') || phase.includes('observe')) return '🧭 <b>State:</b> ' + esc(stateSummary(r.body && r.body.observation));
   if(r.kind === 'thinking') return '🧠 <b>Thought:</b> ' + esc(thoughtFromDecision(r.body && r.body.decision));
   if(r.kind === 'action') return '🛠️ <b>Action:</b> ' + esc(actionLabel(r.body && r.body.actions)) + '<br/>✅ <b>Direct Observation:</b> ' + esc(observationSummary(r.body && r.body.action_results));
   if(r.kind === 'observation') return '✅ <b>Direct Observation:</b> ' + esc(observationSummary(r.body && r.body.action_results));

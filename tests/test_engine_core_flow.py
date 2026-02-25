@@ -26,11 +26,8 @@ class DemoAgent(AgentModule[DemoState, dict[str, Any], Action]):
     def init_state(self, task: str, **kwargs: Any) -> DemoState:
         return DemoState(task=task, max_steps=3)
 
-    def build_memory_query(self, state: DemoState, env_view: dict[str, Any]) -> dict[str, Any] | None:
+    def build_memory_query(self, state: DemoState, runtime_view: dict[str, Any]) -> dict[str, Any] | None:
         return {"max_items": 4}
-
-    def observe(self, state: DemoState, env_view: dict[str, Any]) -> dict[str, Any]:
-        return {"task": state.task, "step": state.current_step}
 
     def decide(self, state: DemoState, observation: dict[str, Any]) -> Decision[Action]:
         if state.current_step == 0:
@@ -42,8 +39,8 @@ class DemoAgent(AgentModule[DemoState, dict[str, Any], Action]):
         state: DemoState,
         observation: dict[str, Any],
         decision: Decision[Action],
-        action_results: list[Any],
     ) -> DemoState:
+        action_results = observation.get("action_results", []) if isinstance(observation, dict) else []
         if action_results:
             state.logs.append(str(action_results[0]))
         return state
@@ -62,18 +59,11 @@ def test_agent_run_shortcut():
 
 
 def test_engine_injects_memory_context_into_env_view():
-    seen: dict[str, Any] = {}
-
-    class MemoryAwareDemo(DemoAgent):
-        def observe(self, state: DemoState, env_view: dict[str, Any]) -> dict[str, Any]:
-            seen.update(env_view.get("memory", {}))
-            return super().observe(state, env_view)
-
-    agent = MemoryAwareDemo()
+    agent = DemoAgent()
     result = Engine(agent=agent, budget=RuntimeBudget(max_steps=3), memory=WindowMemory(window_size=20)).run("compute")
     assert result.state.final_result == "42"
-    assert seen.get("enabled") is True
-    assert "summary" in seen
+    assert hasattr(agent, "memory")
+    assert agent.memory is not None
 
 
 def test_engine_default_model_decide_with_prepare():
@@ -93,8 +83,8 @@ def test_engine_default_model_decide_with_prepare():
         def build_system_prompt(self, state: DemoState) -> str | None:
             return "System prompt"
 
-        def prepare(self, state: DemoState, observation: dict[str, Any]) -> str:
-            return f"Task={observation['task']} Step={observation['step']}"
+        def prepare(self, state: DemoState) -> str:
+            return f"Task={state.task} Step={state.current_step}"
 
         def decide(self, state: DemoState, observation: dict[str, Any]):
             if state.current_step == 0:
@@ -125,8 +115,8 @@ def test_engine_uses_memory_retrieved_messages_for_next_llm_call():
         def build_system_prompt(self, state: DemoState) -> str | None:
             return "System prompt"
 
-        def prepare(self, state: DemoState, observation: dict[str, Any]) -> str:
-            return f"Task={observation['task']} Step={observation['step']}"
+        def prepare(self, state: DemoState) -> str:
+            return f"Task={state.task} Step={state.current_step}"
 
         def decide(self, state: DemoState, observation: dict[str, Any]):
             if state.current_step < 2:
@@ -189,7 +179,7 @@ def test_engine_uses_memory_retrieve_messages_contract():
         def build_system_prompt(self, state: DemoState) -> str | None:
             return "System prompt"
 
-        def prepare(self, state: DemoState, observation: dict[str, Any]) -> str:
+        def prepare(self, state: DemoState) -> str:
             return "solve"
 
         def decide(self, state: DemoState, observation: dict[str, Any]):

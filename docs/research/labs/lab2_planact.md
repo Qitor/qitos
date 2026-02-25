@@ -88,11 +88,11 @@ class PlanActAgent(AgentModule[PlanActState, dict, Action]):
 
 ```python
 class PlanActAgent(AgentModule[PlanActState, dict, Action]):
-    # ... init/observe/prepare omitted
+    # ... init/prepare/prepare omitted
 
-    def reduce(self, state: PlanActState, observation: dict, decision, action_results: list):
-        if action_results and isinstance(action_results[0], dict):
-            r = action_results[0]
+    def reduce(self, state: PlanActState, observation: dict, decision):
+        if observation['action_results'] and isinstance(observation['action_results'][0], dict):
+            r = observation['action_results'][0]
             if r.get("status") == "success":
                 state.cursor += 1
             if int(r.get("returncode", 1)) == 0:

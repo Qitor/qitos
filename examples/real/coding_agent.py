@@ -94,23 +94,11 @@ class CodingMemoryReactAgent(AgentModule[CodingState, Dict[str, Any], Action]):
     def build_memory_query(self, state: CodingState, env_view: Dict[str, Any]) -> Dict[str, Any] | None:
         return {"format": "records", "max_items": 12}
 
-    def observe(self, state: CodingState, env_view: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "task": state.task,
-            "target_file": state.target_file,
-            "test_command": state.test_command,
-            "expected_snippet": state.expected_snippet,
-            "scratchpad": list(state.scratchpad[-20:]),
-            "memory": env_view.get("memory", {}),
-            "current_step": state.current_step,
-            "max_steps": state.max_steps,
-        }
-
     def build_system_prompt(self, state: CodingState) -> str | None:
         schema = self.tool_registry.get_tool_descriptions() if self.tool_registry else ""
         return render_prompt(SYSTEM_PROMPT, {"tool_schema": schema})
 
-    def prepare(self, state: CodingState, observation: Dict[str, Any]) -> str:
+    def prepare(self, state: CodingState) -> str:
         lines = [
             f"Task: {state.task}",
             f"Target file: {state.target_file}",
@@ -122,10 +110,6 @@ class CodingMemoryReactAgent(AgentModule[CodingState, Dict[str, Any], Action]):
         if rationales:
             lines.append("Recent rationale:")
             lines.extend(f"- {x}" for x in rationales)
-        memory = observation.get("memory", {})
-        if isinstance(memory, dict) and memory.get("summary"):
-            lines.append("Memory summary:")
-            lines.append(str(memory["summary"]))
         if state.scratchpad:
             lines.append("Recent trajectory:")
             lines.extend(state.scratchpad[-10:])
@@ -136,8 +120,8 @@ class CodingMemoryReactAgent(AgentModule[CodingState, Dict[str, Any], Action]):
         state: CodingState,
         observation: Dict[str, Any],
         decision: Decision[Action],
-        action_results: List[Any],
-    ) -> CodingState:
+            ) -> CodingState:
+        action_results = observation.get("action_results", []) if isinstance(observation, dict) else []
         if decision.rationale:
             state.scratchpad.append(f"Thought: {decision.rationale}")
         if decision.actions:

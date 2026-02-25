@@ -107,20 +107,6 @@ class SWEDynamicPlanningAgent(AgentModule[SWEPlanState, Dict[str, Any], Action])
             test_command=str(kwargs.get("test_command", "")),
         )
 
-    def observe(self, state: SWEPlanState, env_view: Dict[str, Any]) -> Dict[str, Any]:
-        current = self._current_step_text(state)
-        return {
-            "task": state.task,
-            "plan_steps": list(state.plan_steps),
-            "plan_cursor": state.cursor,
-            "current_plan_step": current,
-            "target_file": state.target_file,
-            "test_command": state.test_command,
-            "scratchpad": list(state.scratchpad[-20:]),
-            "replan_count": state.replan_count,
-            "memory": env_view.get("memory", {}),
-        }
-
     def build_system_prompt(self, state: SWEPlanState) -> str | None:
         schema = self.tool_registry.get_tool_descriptions() if self.tool_registry else ""
         current = self._current_step_text(state)
@@ -129,7 +115,7 @@ class SWEDynamicPlanningAgent(AgentModule[SWEPlanState, Dict[str, Any], Action])
             {"tool_schema": schema, "current_plan_step": current},
         )
 
-    def prepare(self, state: SWEPlanState, observation: Dict[str, Any]) -> str:
+    def prepare(self, state: SWEPlanState) -> str:
         current = self._current_step_text(state)
         lines = [
             f"Task: {state.task}",
@@ -216,8 +202,8 @@ class SWEDynamicPlanningAgent(AgentModule[SWEPlanState, Dict[str, Any], Action])
         state: SWEPlanState,
         observation: Dict[str, Any],
         decision: Decision[Action],
-        action_results: List[Any],
-    ) -> SWEPlanState:
+            ) -> SWEPlanState:
+        action_results = observation.get("action_results", []) if isinstance(observation, dict) else []
         if decision.rationale:
             state.scratchpad.append(f"Thought: {decision.rationale}")
         if decision.actions:

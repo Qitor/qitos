@@ -88,20 +88,10 @@ class CyBenchReactAgent(AgentModule[CyBenchState, Dict[str, Any], Action]):
             current_objective=str(kwargs.get("objective", task)),
         )
 
-    def observe(self, state: CyBenchState, env_view: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "task": state.task,
-            "objective": state.current_objective,
-            "step": state.current_step,
-            "max_steps": state.max_steps,
-            "submissions": list(state.submissions[-4:]),
-            "scratchpad": list(state.scratchpad[-12:]),
-        }
-
     def build_system_prompt(self, state: CyBenchState) -> str | None:
         return render_prompt(SYSTEM_PROMPT, {"tool_schema": self.tool_registry.get_tool_descriptions()})
 
-    def prepare(self, state: CyBenchState, observation: Dict[str, Any]) -> str:
+    def prepare(self, state: CyBenchState) -> str:
         lines = [
             f"Task: {state.task}",
             f"Objective: {state.current_objective}",
@@ -115,7 +105,8 @@ class CyBenchReactAgent(AgentModule[CyBenchState, Dict[str, Any], Action]):
             lines.extend(state.scratchpad[-10:])
         return "\n".join(lines)
 
-    def reduce(self, state: CyBenchState, observation: Dict[str, Any], decision: Decision[Action], action_results: List[Any]) -> CyBenchState:
+    def reduce(self, state: CyBenchState, observation: Dict[str, Any], decision: Decision[Action]) -> CyBenchState:
+        action_results = observation.get("action_results", []) if isinstance(observation, dict) else []
         if decision.rationale:
             state.scratchpad.append(f"Thought: {decision.rationale}")
         if decision.actions:

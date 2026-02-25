@@ -73,16 +73,6 @@ class ReflexionAgent(AgentModule[ReflexionState, Dict[str, Any], Action]):
             max_reflections=int(kwargs.get("max_reflections", 2)),
         )
 
-    def observe(self, state: ReflexionState, env_view: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "task": state.task,
-            "target_url": state.target_url,
-            "has_html": bool(state.page_html),
-            "has_text": bool(state.page_text),
-            "draft_answer": state.draft_answer,
-            "reflection_count": len(state.reflections),
-        }
-
     def decide(self, state: ReflexionState, observation: Dict[str, Any]) -> Optional[Decision[Action]]:
         if not state.page_html:
             return Decision.act([Action(name="http_get", args={"url": state.target_url})], rationale="fetch_source")
@@ -106,7 +96,8 @@ class ReflexionAgent(AgentModule[ReflexionState, Dict[str, Any], Action]):
         citations = payload.get("citations") if isinstance(payload.get("citations"), list) else []
         return Decision.final(answer=f"{answer}\n\nCitations: {citations}")
 
-    def reduce(self, state: ReflexionState, observation: Dict[str, Any], decision: Decision[Action], action_results: List[Any]) -> ReflexionState:
+    def reduce(self, state: ReflexionState, observation: Dict[str, Any], decision: Decision[Action]) -> ReflexionState:
+        action_results = observation.get("action_results", []) if isinstance(observation, dict) else []
         if action_results:
             first = action_results[0]
             if isinstance(first, dict):

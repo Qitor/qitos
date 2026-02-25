@@ -83,9 +83,9 @@ class PlanActAgent(...):
             return Decision.wait("plan_ready")
         return None  # 让 Engine+LLM 执行当前计划步骤
 
-    def reduce(self, state: PlanActState, observation: dict, decision, action_results):
-        if action_results and isinstance(action_results[0], dict):
-            r = action_results[0]
+    def reduce(self, state: PlanActState, observation: dict, decision):
+        if observation['action_results'] and isinstance(observation['action_results'][0], dict):
+            r = observation['action_results'][0]
             if r.get("status") == "success":
                 state.cursor += 1
             if int(r.get("returncode", 1)) == 0:

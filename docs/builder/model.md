@@ -8,7 +8,7 @@ Connect your model in a way that is robust for multi-step agent runs.
 
 When `AgentModule.decide(...)` returns `None`:
 
-1. Engine calls `agent.prepare(state, observation)`.
+1. Engine calls `agent.prepare(state)`.
 2. Engine adds system prompt from `build_system_prompt`.
 3. Engine retrieves memory messages.
 4. Engine calls `agent.llm(messages)`.
@@ -27,7 +27,7 @@ class MyAgent(AgentModule):
     def build_system_prompt(self, state):
         return "You are a precise coding assistant."
 
-    def prepare(self, state, observation):
+    def prepare(self, state):
         return f"Task: {state.task}\nObservation: {observation}"
 
     def decide(self, state, observation):

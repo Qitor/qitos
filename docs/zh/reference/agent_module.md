@@ -2,45 +2,37 @@
 
 ## 职责
 
-`AgentModule` 只负责“策略语义”：
+`AgentModule` 只定义策略语义，`Engine` 负责运行时编排。
 
-- 观察怎么组织
-- 决策怎么产生
-- 行动结果如何写回状态
+你主要实现：状态初始化、模型输入准备、决策以及状态归约。
 
-循环顺序、预算、hooks、trace 都由 Engine 统一负责。
+## 必须实现
 
-## 两种运行方式
+- `init_state(task: str, **kwargs) -> State`
+- `reduce(state, observation, decision) -> State`
 
-QitOS 支持两种入口：
+## 可选覆盖
 
-1. `Engine(agent=...).run(task)`：更显式、便于做运行时编排
-2. `agent.run(task, ...)`：对使用者更省事的便捷封装
+- `build_system_prompt(state) -> str | None`
+- `prepare(state) -> str`
+- `decide(state, observation) -> Decision | None`
+- `build_memory_query(state, runtime_view) -> dict | None`
+- `should_stop(state) -> bool`
 
-`agent.run(...)` 默认直接返回 `final_result`；当 `return_state=True` 时返回 `EngineResult`（包含 state/trace 等）。
+## 决策语义
 
-## 必须实现的方法
+- 返回 `Decision`：完全自定义策略路径。
+- 返回 `None`：使用 Engine 默认模型路径（`prepare -> messages -> llm -> parser`）。
 
-- `init_state(task, **kwargs)`
-- `observe(state, env_view)`
-- `reduce(state, observation, decision, action_results)`
+## Memory 语义
 
-## 可选覆盖的方法
+Memory 在 agent 上（`self.memory`）。
 
-- `build_system_prompt(state)`
-- `prepare(state, observation)`
-- `decide(state, observation)`
-- `build_memory_query(state, env_view)`
-- `should_stop(state)`
+- 建议在 agent 构造时传入 memory。
+- 在 `prepare` 中可直接通过 `self.memory` 检索上下文。
+- 当 `decide` 返回 `None` 时，Engine 也会用 `self.memory` 构建历史消息。
 
-## decide 的关键语义
-
-- 返回 `Decision`：你完全控制决策（确定性策略）。
-- 返回 `None`：Engine 调用 `llm(messages)` 并用 parser 解析。
-
-## 典型骨架（LLM 驱动）
-
-大多数研究型 agent 最终都会收敛到这个最小形态：
+## 最小骨架
 
 ```python
 from dataclasses import dataclass, field
@@ -66,29 +58,17 @@ class A(AgentModule[S, dict[str, Any], Action]):
     def init_state(self, task: str, **kwargs: Any) -> S:
         return S(task=task, max_steps=6)
 
-    def observe(self, state: S, env_view: dict[str, Any]) -> dict[str, Any]:
-        return {"task": state.task, "recent": state.scratchpad[-6:]}
-
-    def build_system_prompt(self, state: S) -> str | None:
-        return "Use ReAct. Call add(a=..., b=...) or output Final Answer: ..."
-
-    def prepare(self, state: S, observation: dict[str, Any]) -> str:
-        return f"Task: {observation['task']}\nRecent: {observation['recent']}"
+    def prepare(self, state: S) -> str:
+        return f"Task: {state.task}\nRecent: {state.scratchpad[-6:]}"
 
     def decide(self, state: S, observation: dict[str, Any]):
-        return None  # 交给 Engine：走默认模型路径
+        return None
 
-    def reduce(self, state: S, observation: dict[str, Any], decision: Decision[Action], action_results: list[Any]) -> S:
+    def reduce(self, state: S, observation: dict[str, Any], decision: Decision[Action]) -> S:
         if decision.rationale:
             state.scratchpad.append(f"Thought: {decision.rationale}")
-        if decision.actions:
-            state.scratchpad.append(f"Action: {decision.actions[0]}")
-        if action_results:
-            state.scratchpad.append(f"Observation: {action_results[0]}")
+        results = observation.get("action_results", [])
+        if results:
+            state.scratchpad.append(f"Observation: {results[0]}")
         return state
 ```
-
-## Source Index
-
-- [qitos/core/agent_module.py](https://github.com/Qitor/qitos/blob/main/qitos/core/agent_module.py)
-- [docs/zh/research/agent_authoring.md](../research/agent_authoring.md)

@@ -117,35 +117,26 @@ class OpenDeepResearchGaiaAgent(AgentModule[ODRGaiaState, Dict[str, Any], Action
             task_payload=dict(kwargs.get("task_payload", {}) or {}),
         )
 
-    def observe(self, state: ODRGaiaState, env_view: Dict[str, Any]) -> Dict[str, Any]:
-        payload = dict(getattr(state, "task_payload", {}) or {})
-        return {
-            "task": state.task,
-            "question": payload.get("question", state.task),
-            "attachments": payload.get("attachments", []),
-            "scratchpad": state.scratchpad[-10:],
-            "workspace_files": env_view.get("env", {}).get("files", [])[:20],
-        }
-
     def build_system_prompt(self, state: ODRGaiaState) -> str | None:
         return render_prompt(SYSTEM_PROMPT, {"tool_schema": self.tool_registry.get_tool_descriptions()})
 
-    def prepare(self, state: ODRGaiaState, observation: Dict[str, Any]) -> str:
+    def prepare(self, state: ODRGaiaState) -> str:
+        payload = dict(getattr(state, "task_payload", {}) or {})
         lines = [
-            f"Task: {observation['question']}",
+            f"Task: {payload.get('question', state.task)}",
             f"Step: {state.current_step}/{state.max_steps}",
         ]
         rationales = recent_rationales_from_scratchpad(state.scratchpad, max_items=6)
         if rationales:
             lines.append("Recent rationale:")
             lines.extend(f"- {x}" for x in rationales)
-        attachments = observation.get("attachments") or []
+        attachments = payload.get("attachments") or []
         if attachments:
             lines.append("Attachments:")
             lines.extend([f"- {x}" for x in attachments])
-        if observation.get("scratchpad"):
+        if state.scratchpad:
             lines.append("Recent Evidence:")
-            lines.extend(observation["scratchpad"][-8:])
+            lines.extend(state.scratchpad[-8:])
         return "\n".join(lines)
 
     def reduce(
@@ -153,8 +144,8 @@ class OpenDeepResearchGaiaAgent(AgentModule[ODRGaiaState, Dict[str, Any], Action
         state: ODRGaiaState,
         observation: Dict[str, Any],
         decision: Decision[Action],
-        action_results: List[Any],
-    ) -> ODRGaiaState:
+            ) -> ODRGaiaState:
+        action_results = observation.get("action_results", []) if isinstance(observation, dict) else []
         if decision.rationale:
             state.scratchpad.append(f"Thought: {decision.rationale}")
         if decision.actions:

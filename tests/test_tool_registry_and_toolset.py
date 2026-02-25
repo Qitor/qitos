@@ -15,15 +15,12 @@ class _Agent(AgentModule[_ToolState, dict[str, Any], Action]):
     def init_state(self, task: str, **kwargs: Any) -> _ToolState:
         return _ToolState(task=task, max_steps=2)
 
-    def observe(self, state: _ToolState, env_view: dict[str, Any]) -> dict[str, Any]:
-        return {"step": state.current_step}
-
     def decide(self, state: _ToolState, observation: dict[str, Any]) -> Decision[Action]:
         if state.current_step == 0:
             return Decision.act([Action(name="math.add", args={"a": 1, "b": 2})])
         return Decision.final("done")
 
-    def reduce(self, state: _ToolState, observation: dict[str, Any], decision: Decision[Action], action_results: list[Any]) -> _ToolState:
+    def reduce(self, state: _ToolState, observation: dict[str, Any], decision: Decision[Action]) -> _ToolState:
         return state
 
 

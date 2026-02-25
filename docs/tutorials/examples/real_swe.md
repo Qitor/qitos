@@ -33,7 +33,7 @@ Fields:
 - `target_file`, `test_command`: stable constraints
 - `replan_count`: tracks instability (useful for eval)
 
-### `observe`: expose plan cursor and memory view
+### `prepare`: expose plan cursor and memory view
 
 Why:
 

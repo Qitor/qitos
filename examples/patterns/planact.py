@@ -55,19 +55,10 @@ class PlanActAgent(AgentModule[PlanActState, Dict[str, Any], Action]):
     def init_state(self, task: str, **kwargs: Any) -> PlanActState:
         return PlanActState(task=task, max_steps=int(kwargs.get("max_steps", 10)))
 
-    def observe(self, state: PlanActState, env_view: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "task": state.task,
-            "plan_steps": state.plan_steps,
-            "cursor": state.cursor,
-            "current_step": self._current_step_text(state),
-            "scratchpad": state.scratchpad[-8:],
-        }
-
     def build_system_prompt(self, state: PlanActState) -> str | None:
         return render_prompt(EXEC_PROMPT, {"current_step": self._current_step_text(state), "tool_schema": self.tool_registry.get_tool_descriptions()})
 
-    def prepare(self, state: PlanActState, observation: Dict[str, Any]) -> str:
+    def prepare(self, state: PlanActState) -> str:
         lines = [
             f"Task: {state.task}",
             f"Plan cursor: {state.cursor}/{len(state.plan_steps)}",
@@ -95,7 +86,8 @@ class PlanActAgent(AgentModule[PlanActState, Dict[str, Any], Action]):
             return Decision.wait("plan_ready")
         return None
 
-    def reduce(self, state: PlanActState, observation: Dict[str, Any], decision: Decision[Action], action_results: List[Any]) -> PlanActState:
+    def reduce(self, state: PlanActState, observation: Dict[str, Any], decision: Decision[Action]) -> PlanActState:
+        action_results = observation.get("action_results", []) if isinstance(observation, dict) else []
         if decision.rationale:
             state.scratchpad.append(f"Thought: {decision.rationale}")
         if decision.actions:

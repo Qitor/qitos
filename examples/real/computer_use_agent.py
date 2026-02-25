@@ -115,20 +115,11 @@ class ComputerUseReActAgent(AgentModule[ComputerUseState, Dict[str, Any], Action
             report_file=str(kwargs.get("report_file", "report.md")),
         )
 
-    def observe(self, state: ComputerUseState, env_view: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "task": state.task,
-            "target_url": state.target_url,
-            "report_file": state.report_file,
-            "scratchpad": list(state.scratchpad[-16:]),
-            "memory": env_view.get("memory", {}),
-        }
-
     def build_system_prompt(self, state: ComputerUseState) -> str | None:
         schema = self.tool_registry.get_tool_descriptions() if self.tool_registry else ""
         return render_prompt(SYSTEM_PROMPT, {"tool_schema": schema})
 
-    def prepare(self, state: ComputerUseState, observation: Dict[str, Any]) -> str:
+    def prepare(self, state: ComputerUseState) -> str:
         lines = [
             f"Task: {state.task}",
             f"Target URL: {state.target_url}",
@@ -149,8 +140,8 @@ class ComputerUseReActAgent(AgentModule[ComputerUseState, Dict[str, Any], Action
         state: ComputerUseState,
         observation: Dict[str, Any],
         decision: Decision[Action],
-        action_results: List[Any],
-    ) -> ComputerUseState:
+            ) -> ComputerUseState:
+        action_results = observation.get("action_results", []) if isinstance(observation, dict) else []
         if decision.rationale:
             state.scratchpad.append(f"Thought: {decision.rationale}")
         if decision.actions:

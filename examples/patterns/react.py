@@ -54,13 +54,10 @@ class ReactAgent(AgentModule[ReactState, Dict[str, Any], Action]):
     def init_state(self, task: str, **kwargs: Any) -> ReactState:
         return ReactState(task=task, max_steps=int(kwargs.get("max_steps", 8)))
 
-    def observe(self, state: ReactState, env_view: Dict[str, Any]) -> Dict[str, Any]:
-        return {"task": state.task, "scratchpad": state.scratchpad[-8:]}
-
     def build_system_prompt(self, state: ReactState) -> str | None:
         return render_prompt(SYSTEM_PROMPT, {"tool_schema": self.tool_registry.get_tool_descriptions()})
 
-    def prepare(self, state: ReactState, observation: Dict[str, Any]) -> str:
+    def prepare(self, state: ReactState) -> str:
         parts = [f"Task: {state.task}", f"Step: {state.current_step}/{state.max_steps}"]
         rationales = recent_rationales_from_scratchpad(state.scratchpad, max_items=4)
         if rationales:
@@ -70,7 +67,8 @@ class ReactAgent(AgentModule[ReactState, Dict[str, Any], Action]):
             parts.extend(["Recent:", *state.scratchpad[-6:]])
         return "\n".join(parts)
 
-    def reduce(self, state: ReactState, observation: Dict[str, Any], decision: Decision[Action], action_results: List[Any]) -> ReactState:
+    def reduce(self, state: ReactState, observation: Dict[str, Any], decision: Decision[Action]) -> ReactState:
+        action_results = observation.get("action_results", []) if isinstance(observation, dict) else []
         if decision.rationale:
             state.scratchpad.append(f"Thought: {decision.rationale}")
         if decision.actions:

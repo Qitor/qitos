@@ -5,7 +5,7 @@
 QitOS is a research-first **agentic kernel** for modular and reproducible agent workflows.
 
 - One mainline: `AgentModule + Engine`
-- Explicit loop: `observe -> decide -> act -> reduce -> check_stop`
+- Explicit loop: `prepare -> decide -> act -> reduce -> check_stop`
 - Reproducible: hooks + trace as first-class contracts
 
 <div class="qitos-actions">

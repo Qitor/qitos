@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Generic, List, Optional, TypeVar
 
 from .decision import Decision
+from .memory import Memory
 from .task import Task
 
 
@@ -19,10 +20,18 @@ class AgentModule(ABC, Generic[StateT, ObservationT, ActionT]):
 
     name: str = "agent"
 
-    def __init__(self, tool_registry: Any = None, llm: Any = None, model_parser: Any = None, **config: Any):
+    def __init__(
+        self,
+        tool_registry: Any = None,
+        llm: Any = None,
+        model_parser: Any = None,
+        memory: Memory | None = None,
+        **config: Any,
+    ):
         self.tool_registry = tool_registry
         self.llm = llm
         self.model_parser = model_parser
+        self.memory = memory
         self.config = config
 
     @abstractmethod
@@ -33,17 +42,13 @@ class AgentModule(ABC, Generic[StateT, ObservationT, ActionT]):
         """Optional dynamic system prompt hook."""
         return None
 
-    def prepare(self, state: StateT, observation: ObservationT) -> str:
-        """Convert observation into model-ready text."""
-        return str(observation)
+    def prepare(self, state: StateT) -> str:
+        """Convert current state into model-ready text."""
+        return str(state)
 
-    def build_memory_query(self, state: StateT, env_view: Dict[str, Any]) -> Dict[str, Any] | None:
+    def build_memory_query(self, state: StateT, runtime_view: Dict[str, Any]) -> Dict[str, Any] | None:
         """Optional hook to customize memory retrieval query per step."""
         return {"format": "records", "max_items": 8}
-
-    @abstractmethod
-    def observe(self, state: StateT, env_view: Dict[str, Any]) -> ObservationT:
-        """Build observation for current step from state and runtime env view."""
 
     def decide(self, state: StateT, observation: ObservationT) -> Optional[Decision[ActionT]]:
         """Optional custom decision hook. Return None to use Engine model decision."""
@@ -55,9 +60,8 @@ class AgentModule(ABC, Generic[StateT, ObservationT, ActionT]):
         state: StateT,
         observation: ObservationT,
         decision: Decision[ActionT],
-        action_results: List[Any],
     ) -> StateT:
-        """Reduce observation + action results into next state."""
+        """Reduce observation (including action/env outputs) into next state."""
 
     def should_stop(self, state: StateT) -> bool:
         """Optional additional stop condition."""

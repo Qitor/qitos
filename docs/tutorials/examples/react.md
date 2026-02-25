@@ -10,9 +10,9 @@
 
 ## Core idea
 
-ReAct is “think-act-observe” in a loop. In QitOS terms:
+ReAct is “think-act-reduce” in a loop. In QitOS terms:
 
-- `observe` selects the minimal context for this step
+- `prepare` selects the minimal context for this step
 - `decide` delegates to Engine’s model path
 - `reduce` writes the trajectory back into state (for future steps and for trace)
 
@@ -40,7 +40,7 @@ What the example does:
 - stores `scratchpad` for the last N steps
 - sets `max_steps` for reproducibility
 
-### `observe`: give the model only what it needs
+### `prepare`: give the model only what it needs
 
 Design principle:
 

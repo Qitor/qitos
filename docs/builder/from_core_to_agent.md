@@ -7,7 +7,7 @@ Build a practical agent by inheriting core contracts, with clear implementation 
 ## Milestone 1: define state and agent shell
 
 1. create a `StateSchema` subclass with only essential fields
-2. implement `init_state`, `observe`, `reduce`
+2. implement `init_state`, `prepare`, `reduce`
 3. return `Decision.final(...)` first to verify loop plumbing
 
 ## Milestone 2: wire tools and parser

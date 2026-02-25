@@ -23,7 +23,7 @@ It is designed for researchers and advanced builders who need:
 ## Why QitOS
 
 1. **One execution mainline, zero architecture ambiguity**
-- `observe -> decide -> act -> reduce -> check_stop`
+- `prepare -> decide -> act -> reduce -> check_stop`
 - no Runtime-vs-Engine split
 - no hidden policy layer competing with `AgentModule`
 
@@ -51,7 +51,7 @@ It is designed for researchers and advanced builders who need:
 
 ```text
 Task -> Engine.run(...)
-      -> observe -> decide -> act -> reduce -> check_stop -> ...
+      -> prepare -> decide -> act -> reduce -> check_stop -> ...
       -> hooks + trace + qita replay
 ```
 
@@ -190,15 +190,12 @@ class MyAgent(AgentModule[MyState, dict, Action]):
     def init_state(self, task: str, **kwargs):
         return MyState(task=task, max_steps=3)
 
-    def observe(self, state, env_view):
-        return {"task": state.task, "step": state.current_step}
-
     def decide(self, state, observation):
         if state.current_step == 0:
             return Decision.act(actions=[Action(name="add", args={"a": 19, "b": 23})])
         return Decision.final("done")
 
-    def reduce(self, state, observation, decision, action_results):
+    def reduce(self, state, observation, decision):
         return state
 
 result = Engine(agent=MyAgent()).run("compute 19+23")

@@ -2,49 +2,37 @@
 
 ## Role
 
-`AgentModule` is the only place you implement *policy semantics*:
+`AgentModule` defines policy semantics. `Engine` owns orchestration.
 
-- what to observe
-- how to decide
-- how state updates after actions
-
-Everything else (loop order, budgets, hooks, trace) is owned by the Engine.
-
-## Two ways to run
-
-QitOS supports both entry points:
-
-1. `Engine(agent=...).run(task)` for explicit orchestration control
-2. `agent.run(task, ...)` as a convenience wrapper around Engine
-
-`agent.run(...)` returns `final_result` by default, and returns `EngineResult` when `return_state=True`.
+You implement how state is initialized, how model input is prepared, how decisions are made, and how state is reduced.
 
 ## Required methods
 
-You must implement:
-
 - `init_state(task: str, **kwargs) -> State`
-- `observe(state, env_view) -> Observation`
-- `reduce(state, observation, decision, action_results) -> State`
+- `reduce(state, observation, decision) -> State`
 
 ## Optional methods
 
-You may override:
-
 - `build_system_prompt(state) -> str | None`
-- `prepare(state, observation) -> str`
+- `prepare(state) -> str`
 - `decide(state, observation) -> Decision | None`
-- `build_memory_query(state, env_view) -> dict | None`
+- `build_memory_query(state, runtime_view) -> dict | None`
 - `should_stop(state) -> bool`
 
-## Decide semantics (critical)
+## Decision semantics
 
-- Return a `Decision` when you want full control (deterministic policies).
-- Return `None` when you want Engine to call `llm(messages)` and parse output.
+- Return `Decision`: fully custom policy path.
+- Return `None`: Engine model path (`prepare` -> messages -> llm -> parser -> `Decision`).
 
-## Canonical skeleton (LLM-driven)
+## Memory semantics
 
-This is the smallest useful shape most research agents converge to:
+Memory is on the agent (`self.memory`).
+
+- You can pass memory when constructing the agent (`super().__init__(..., memory=...)`).
+- In `prepare`, you can retrieve memory via `self.memory.retrieve(...)` or `self.memory.retrieve_messages(...)`.
+- Engine may also use `self.memory` in default model path when `decide` returns `None`.
+
+## Minimal skeleton
 
 ```python
 from dataclasses import dataclass, field
@@ -70,33 +58,25 @@ class A(AgentModule[S, dict[str, Any], Action]):
     def init_state(self, task: str, **kwargs: Any) -> S:
         return S(task=task, max_steps=6)
 
-    def observe(self, state: S, env_view: dict[str, Any]) -> dict[str, Any]:
-        return {"task": state.task, "recent": state.scratchpad[-6:]}
-
     def build_system_prompt(self, state: S) -> str | None:
-        return "Use ReAct. Call add(a=..., b=...) or output Final Answer: ..."
+        return "Use ReAct. Return Action(...) or Final Answer: ..."
 
-    def prepare(self, state: S, observation: dict[str, Any]) -> str:
-        return f"Task: {observation['task']}\nRecent: {observation['recent']}"
+    def prepare(self, state: S) -> str:
+        return f"Task: {state.task}\nRecent: {state.scratchpad[-6:]}"
 
     def decide(self, state: S, observation: dict[str, Any]):
-        return None  # delegate to Engine model path
+        return None
 
-    def reduce(self, state: S, observation: dict[str, Any], decision: Decision[Action], action_results: list[Any]) -> S:
+    def reduce(self, state: S, observation: dict[str, Any], decision: Decision[Action]) -> S:
         if decision.rationale:
             state.scratchpad.append(f"Thought: {decision.rationale}")
         if decision.actions:
             state.scratchpad.append(f"Action: {decision.actions[0]}")
-        if action_results:
-            state.scratchpad.append(f"Observation: {action_results[0]}")
+        results = observation.get("action_results", [])
+        if results:
+            state.scratchpad.append(f"Observation: {results[0]}")
         return state
 ```
-
-## Minimal implementation checklist
-
-1. State fields are initialized in `init_state`.
-2. `observe` returns bounded context (no unbounded histories).
-3. `reduce` records enough information for debugging.
 
 ## Source Index
 

@@ -126,21 +126,6 @@ class RenderStreamHook(RenderHook):
     def on_before_step(self, ctx: HookContext, engine: "Engine") -> None:
         self._emit("lifecycle", "step_start", step_id=ctx.step_id, payload={"phase": ctx.phase.value})
 
-    def on_after_observe(self, ctx: HookContext, engine: "Engine") -> None:
-        observation = ctx.observation
-        self._emit("observation", "observation", step_id=ctx.step_id, payload={"observation": observation})
-        if isinstance(ctx.env_view, dict):
-            mem = ctx.env_view.get("memory")
-            if isinstance(mem, dict):
-                self._emit("memory", "memory_context", step_id=ctx.step_id, payload=mem)
-        if isinstance(observation, dict) and "plan_steps" in observation:
-            self._emit(
-                "plan",
-                "plan",
-                step_id=ctx.step_id,
-                payload={"plan_steps": observation.get("plan_steps"), "plan_cursor": observation.get("plan_cursor")},
-            )
-
     def on_after_decide(self, ctx: HookContext, engine: "Engine") -> None:
         decision = ctx.decision
         if decision is None:
@@ -193,7 +178,18 @@ class RenderStreamHook(RenderHook):
         # Promote key model I/O events to first-class render nodes.
         if event.phase.value.lower() == "decide" and isinstance(event.payload, dict):
             stage = str(event.payload.get("stage", ""))
-            if stage == "model_input":
+            if stage == "state_ready":
+                observation = event.payload.get("observation")
+                self._emit("observation", "state", step_id=event.step_id, payload={"observation": observation})
+                if isinstance(observation, dict):
+                    if "plan_steps" in observation:
+                        self._emit(
+                            "plan",
+                            "plan",
+                            step_id=event.step_id,
+                            payload={"plan_steps": observation.get("plan_steps"), "plan_cursor": observation.get("plan_cursor")},
+                        )
+            elif stage == "model_input":
                 self._emit(
                     "thinking",
                     "model_input",
@@ -261,9 +257,6 @@ class ClaudeStyleHook(RenderStreamHook):
         self._print_agent_composition(engine)
         self._start_status("[dim]Agent is warming up...[/dim]")
 
-    def on_before_observe(self, ctx: HookContext, engine: "Engine") -> None:
-        self._update_status("[dim]Agent is gathering observations...[/dim]")
-
     def on_before_decide(self, ctx: HookContext, engine: "Engine") -> None:
         self._update_status("[dim]Agent is brainstorming...[/dim]")
 
@@ -322,7 +315,7 @@ class ClaudeStyleHook(RenderStreamHook):
             return
 
         if event.channel == "observation":
-            if event.node == "observation":
+            if event.node in {"state", "observation"}:
                 if event.step_id in self._state_steps:
                     return
                 stats = self._renderer.state_summary(event)
@@ -431,7 +424,7 @@ class ClaudeStyleHook(RenderStreamHook):
         self.console.print()
 
     def _memory_name(self, engine: "Engine") -> str:
-        mem = getattr(engine, "memory", None)
+        mem = getattr(engine.agent, "memory", None)
         if mem is None:
             return "none"
         return mem.__class__.__name__

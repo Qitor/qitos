@@ -90,13 +90,10 @@ class ReactAgent(AgentModule[ReactState, dict, Action]):
     def init_state(self, task: str, **kwargs):
         return ReactState(task=task, max_steps=int(kwargs.get("max_steps", 8)))
 
-    def observe(self, state: ReactState, env_view: dict):
-        return {"task": state.task, "scratchpad": state.scratchpad[-8:]}
-
     def build_system_prompt(self, state: ReactState):
         return SYSTEM_PROMPT
 
-    def prepare(self, state: ReactState, observation: dict) -> str:
+    def prepare(self, state: ReactState) -> str:
         parts = [f"Task: {state.task}", f"Step: {state.current_step}/{state.max_steps}"]
         if state.scratchpad:
             parts.extend(["Recent:", *state.scratchpad[-6:]])
@@ -105,13 +102,13 @@ class ReactAgent(AgentModule[ReactState, dict, Action]):
     def decide(self, state: ReactState, observation: dict):
         return None  # Engine will call llm + parser
 
-    def reduce(self, state: ReactState, observation: dict, decision: Decision[Action], action_results: list):
+    def reduce(self, state: ReactState, observation: dict, decision: Decision[Action]):
         if decision.rationale:
             state.scratchpad.append(f"Thought: {decision.rationale}")
         if decision.actions:
             state.scratchpad.append(f"Action: {format_action(decision.actions[0])}")
-        if action_results:
-            state.scratchpad.append(f"Observation: {action_results[0]}")
+        if observation['action_results']:
+            state.scratchpad.append(f"Observation: {observation['action_results'][0]}")
         state.scratchpad = state.scratchpad[-30:]
         return state
 ```

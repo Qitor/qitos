@@ -7,14 +7,14 @@
 ## Milestone 1：先打通最小闭环
 
 1. 定义 `StateSchema` 子类
-2. 实现 `init_state/observe/reduce`
+2. 实现 `init_state/prepare/reduce`
 3. 先返回 `Decision.final` 验证循环可跑
 
 ## Milestone 2：接入工具与动作
 
 1. 注册一个简单工具
 2. 让 `decide` 返回 `Decision.act`
-3. 在 `reduce` 里消费 `action_results`
+3. 在 `reduce` 里消费 `observation['action_results']`
 
 ## Milestone 3：切到模型决策
 

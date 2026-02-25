@@ -35,7 +35,7 @@ What the example does:
 - stores `plan_steps` and `cursor`
 - uses `scratchpad` to log the plan and step outcomes
 
-### `observe`: expose plan cursor + current step
+### `prepare`: expose plan cursor + current step
 
 Design principle:
 

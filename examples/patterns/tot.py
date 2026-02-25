@@ -47,9 +47,6 @@ class ToTAgent(AgentModule[ToTState, Dict[str, Any], Action]):
             question=str(kwargs.get("question", "")),
         )
 
-    def observe(self, state: ToTState, env_view: Dict[str, Any]) -> Dict[str, Any]:
-        return {"question": state.question, "epub_path": state.epub_path, "evidence": state.evidence[-8:]}
-
     def decide(self, state: ToTState, observation: Dict[str, Any]) -> Optional[Decision[Action]]:
         if state.current_step == 0:
             return Decision.act([Action(name="epub.list_chapters", args={"path": state.epub_path})], rationale="bootstrap_catalog")
@@ -85,7 +82,8 @@ class ToTAgent(AgentModule[ToTState, Dict[str, Any], Action]):
             return Decision.act([Action(name="epub.search", args={"path": state.epub_path, "query": state.question, "top_k": 3})], rationale="fallback_search")
         return Decision.branch(candidates=candidates, rationale="tot_branch")
 
-    def reduce(self, state: ToTState, observation: Dict[str, Any], decision: Decision[Action], action_results: List[Any]) -> ToTState:
+    def reduce(self, state: ToTState, observation: Dict[str, Any], decision: Decision[Action]) -> ToTState:
+        action_results = observation.get("action_results", []) if isinstance(observation, dict) else []
         if not action_results:
             return state
         result = action_results[0]

@@ -129,15 +129,6 @@ class TauBenchAgent(AgentModule[TauState, Dict[str, Any], Action]):
         self._initial_obs = obs
         return TauState(task=task, max_steps=int(kwargs.get("max_steps", 30)), current_observation=obs)
 
-    def observe(self, state: TauState, env_view: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "task": state.task,
-            "observation": state.current_observation,
-            "reward": state.reward,
-            "done": state.done,
-            "scratchpad": list(state.scratchpad[-10:]),
-        }
-
     def build_system_prompt(self, state: TauState) -> str | None:
         wiki = str(getattr(self.tau_env, "wiki", ""))
         rules = "\n".join([f"- {r}" for r in list(getattr(self.tau_env, "rules", []) or [])])
@@ -150,19 +141,20 @@ class TauBenchAgent(AgentModule[TauState, Dict[str, Any], Action]):
             },
         )
 
-    def prepare(self, state: TauState, observation: Dict[str, Any]) -> str:
+    def prepare(self, state: TauState) -> str:
         lines = [
             f"Task: {state.task}",
             f"Step: {state.current_step}/{state.max_steps}",
-            f"Current observation: {observation.get('observation', '')}",
-            f"Reward so far: {observation.get('reward', 0.0)}",
+            f"Current observation: {state.current_observation}",
+            f"Reward so far: {state.reward}",
         ]
         if state.scratchpad:
             lines.append("Recent trajectory:")
             lines.extend(state.scratchpad[-8:])
         return "\n".join(lines)
 
-    def reduce(self, state: TauState, observation: Dict[str, Any], decision: Decision[Action], action_results: List[Any]) -> TauState:
+    def reduce(self, state: TauState, observation: Dict[str, Any], decision: Decision[Action]) -> TauState:
+        action_results = observation.get("action_results", []) if isinstance(observation, dict) else []
         if decision.rationale:
             state.scratchpad.append(f"Thought: {decision.rationale}")
         if decision.actions:

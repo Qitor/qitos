@@ -47,13 +47,6 @@ class EngineHook:
     def on_after_step(self, ctx: HookContext, engine: "Engine") -> None:
         pass
 
-    # Observe
-    def on_before_observe(self, ctx: HookContext, engine: "Engine") -> None:
-        pass
-
-    def on_after_observe(self, ctx: HookContext, engine: "Engine") -> None:
-        pass
-
     # Decide
     def on_before_decide(self, ctx: HookContext, engine: "Engine") -> None:
         pass

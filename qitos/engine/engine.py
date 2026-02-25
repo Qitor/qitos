@@ -80,7 +80,8 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self.recovery_handler = recovery_handler
         self.recovery_policy = recovery_policy or RecoveryPolicy()
         self.trace_writer = trace_writer
-        self.memory = memory
+        if memory is not None:
+            self.agent.memory = memory
         self.parser = parser
         self.branch_selector = branch_selector or FirstCandidateSelector()
         self.search = search
@@ -124,9 +125,10 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self.records = []
         self._last_env_observation = None
         self._last_env_result = None
-        if self.memory is not None:
+        memory = self._memory()
+        if memory is not None:
             try:
-                self.memory.reset()
+                memory.reset()
             except Exception:
                 pass
         if hasattr(self.recovery_policy, "reset"):
@@ -195,34 +197,42 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             return result
 
         step_id = 0
+        current_observation = self._build_initial_observation(state, step_id, started_at)
         try:
             while True:
                 if self._budget_exhausted(step_id, started_at, state):
                     self._emit(step_id, RuntimePhase.END, ok=False, payload={"stop_reason": state.stop_reason})
                     break
 
-                self.validation_gate.before_phase(state, RuntimePhase.OBSERVE.value)
+                self.validation_gate.before_phase(state, RuntimePhase.DECIDE.value)
 
                 record = StepRecord(step_id=step_id)
                 self.records.append(record)
 
-                env_view = self._build_env_view(state, step_id, started_at)
                 self._dispatch_hook(
                     "on_before_step",
                     HookContext(
                         task=task_text,
                         step_id=step_id,
-                        phase=RuntimePhase.OBSERVE,
+                        phase=RuntimePhase.DECIDE,
                         state=state,
-                        env_view=env_view,
+                        observation=current_observation,
                         record=record,
                     ),
                 )
                 try:
-                    observation = self._run_observe(state, env_view, record)
-                    decision = self._run_decide(state, observation, record)
+                    decision = self._run_decide(state, current_observation, record)
                     action_results = self._run_act(state, decision, record)
-                    self._run_reduce(state, observation, decision, action_results, record)
+                    observation = self._build_observation_after_action(
+                        state=state,
+                        step_id=step_id,
+                        started_at=started_at,
+                        decision=decision,
+                        action_results=action_results,
+                    )
+                    record.observation = observation
+                    self._memory_append("observation", observation, record.step_id)
+                    self._run_reduce(state, observation, decision, record)
                 except Exception as exc:
                     failed_phase = self._infer_failed_phase(record)
                     if not self._recover(state, failed_phase, exc):
@@ -241,6 +251,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                             stop_reason=state.stop_reason,
                         ),
                     )
+                    current_observation = self._build_initial_observation(state, step_id + 1, started_at)
                     state.advance_step()
                     step_id += 1
                     continue
@@ -274,6 +285,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                             record=record,
                         ),
                     )
+                    current_observation = observation
                     state.advance_step()
                     step_id += 1
                     continue
@@ -298,6 +310,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                     self._emit(step_id, RuntimePhase.END, payload={"stop_reason": state.stop_reason})
                     break
 
+                current_observation = observation
                 state.advance_step()
                 step_id += 1
         finally:
@@ -356,7 +369,6 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
 
     def _build_env_view(self, state: StateT, step_id: int, started_at: float) -> Dict[str, Any]:
         elapsed = time.monotonic() - started_at
-        memory_context = self._build_memory_context(state, step_id, elapsed)
         env_payload = self._env_payload()
         return {
             "step_id": step_id,
@@ -368,50 +380,47 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                 "consumed_tokens": self._token_usage,
             },
             "metadata": state.metadata,
-            "memory": memory_context,
             "env": env_payload,
             "task": self._active_task_obj.to_dict() if self._active_task_obj is not None else {"objective": self._active_task},
         }
 
-    def _run_observe(self, state: StateT, env_view: Dict[str, Any], record: StepRecord) -> ObservationT:
-        self._dispatch_hook(
-            "on_before_observe",
-            HookContext(
-                task=self._active_task,
-                step_id=record.step_id,
-                phase=RuntimePhase.OBSERVE,
-                state=state,
-                env_view=env_view,
-                record=record,
-            ),
-        )
-        self._emit(record.step_id, RuntimePhase.OBSERVE, payload={"stage": "start"})
-        observation = self.agent.observe(state, env_view)
-        record.observation = observation
-        self._memory_append("observation", observation, record.step_id)
+    def _build_initial_observation(self, state: StateT, step_id: int, started_at: float) -> ObservationT:
+        env_view = self._build_env_view(state, step_id, started_at)
+        obs = {
+            "task": self._active_task,
+            "step": step_id,
+            "state": state.to_dict(),
+            "env": env_view.get("env", {}),
+            "action_results": [],
+        }
+        return obs  # type: ignore[return-value]
+
+    def _build_observation_after_action(
+        self,
+        state: StateT,
+        step_id: int,
+        started_at: float,
+        decision: Decision[ActionT],
+        action_results: List[Any],
+    ) -> ObservationT:
+        env_view = self._build_env_view(state, step_id, started_at)
+        obs = {
+            "task": self._active_task,
+            "step": step_id,
+            "state": state.to_dict(),
+            "decision": decision.to_dict() if hasattr(decision, "to_dict") else decision,
+            "action_results": list(action_results),
+            "env": env_view.get("env", {}),
+        }
         self._emit(
-            record.step_id,
-            RuntimePhase.OBSERVE,
+            step_id,
+            RuntimePhase.ACT,
             payload={
                 "stage": "observation_ready",
-                "observation": observation,
-                "memory": env_view.get("memory", {}),
-                "env": env_view.get("env", {}),
+                "observation": obs,
             },
         )
-        self._dispatch_hook(
-            "on_after_observe",
-            HookContext(
-                task=self._active_task,
-                step_id=record.step_id,
-                phase=RuntimePhase.OBSERVE,
-                state=state,
-                env_view=env_view,
-                observation=observation,
-                record=record,
-            ),
-        )
-        return observation
+        return obs  # type: ignore[return-value]
 
     def _run_decide(self, state: StateT, observation: ObservationT, record: StepRecord) -> Decision[ActionT]:
         self._dispatch_hook(
@@ -425,23 +434,40 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                 record=record,
             ),
         )
+        self._emit(
+            record.step_id,
+            RuntimePhase.DECIDE,
+            payload={"stage": "state_ready", "observation": observation},
+        )
         self._emit(record.step_id, RuntimePhase.DECIDE, payload={"stage": "start"})
         raw_decision = self.agent.decide(state, observation)
         if raw_decision is None:
             if self.agent.llm is None:
                 raise ValueError("No llm configured and Agent.decide returned None")
-            prepared = self.agent.prepare(state, observation)
+            prepared = self.agent.prepare(state)
             system_prompt = self.agent.build_system_prompt(state)
             messages: List[Dict[str, str]] = []
             if isinstance(system_prompt, str) and system_prompt.strip():
                 messages.append({"role": "system", "content": system_prompt})
             history: List[Dict[str, str]] = []
-            if self.memory is not None:
+            memory = self._memory()
+            if memory is not None:
+                runtime_view = {
+                    "step_id": record.step_id,
+                    "elapsed_seconds": 0.0,
+                    "metadata": state.metadata,
+                    "env": self._env_payload(),
+                    "task": self._active_task_obj.to_dict() if self._active_task_obj is not None else {"objective": self._active_task},
+                }
                 try:
-                    retrieved = self.memory.retrieve_messages(
+                    query = self.agent.build_memory_query(state, runtime_view) or {}
+                except Exception:
+                    query = {}
+                try:
+                    retrieved = memory.retrieve_messages(
                         state=state,
                         observation=observation,
-                        query={},
+                        query=query if isinstance(query, dict) else {},
                     )
                     if isinstance(retrieved, list):
                         for item in retrieved:
@@ -617,7 +643,6 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         state: StateT,
         observation: ObservationT,
         decision: Decision[ActionT],
-        action_results: List[Any],
         record: StepRecord,
     ) -> None:
         self._dispatch_hook(
@@ -629,13 +654,13 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                 state=state,
                 observation=observation,
                 decision=decision,
-                action_results=action_results,
+                action_results=(record.action_results if record is not None else []),
                 record=record,
             ),
         )
         self._emit(record.step_id, RuntimePhase.REDUCE, payload={"stage": "start"})
         before = state.to_dict()
-        new_state = self.agent.reduce(state, observation, decision, action_results)
+        new_state = self.agent.reduce(state, observation, decision)
         if new_state is not state:
             state.__dict__.update(new_state.__dict__)
         after = state.to_dict()
@@ -654,7 +679,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                 state=state,
                 observation=observation,
                 decision=decision,
-                action_results=action_results,
+                action_results=(record.action_results if record is not None else []),
                 record=record,
                 payload={"state_diff": record.state_diff},
             ),
@@ -1003,53 +1028,14 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         step_id: int,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
-        if self.memory is None:
+        memory = self._memory()
+        if memory is None:
             return
-        self.memory.append(MemoryRecord(role=role, content=content, step_id=step_id, metadata=metadata or {}))
+        memory.append(MemoryRecord(role=role, content=content, step_id=step_id, metadata=metadata or {}))
 
-    def _build_memory_context(self, state: StateT, step_id: int, elapsed_seconds: float) -> Dict[str, Any]:
-        if self.memory is None:
-            return {"enabled": False, "records": [], "summary": ""}
-
-        env_view = {
-            "step_id": step_id,
-            "elapsed_seconds": elapsed_seconds,
-            "metadata": state.metadata,
-        }
-        try:
-            query = self.agent.build_memory_query(state, env_view)
-        except Exception:
-            query = {"format": "records", "max_items": 8}
-        if query is None:
-            query = {"format": "records", "max_items": 8}
-        if isinstance(query, dict) and "format" not in query:
-            query = dict(query)
-            query["format"] = "records"
-
-        try:
-            records = self.memory.retrieve(query=query, state=state, observation=None)
-        except Exception:
-            records = []
-        max_items = int(query.get("max_items", 8)) if isinstance(query, dict) else 8
-        try:
-            summary = self.memory.summarize(max_items=max(1, max_items))
-        except Exception:
-            summary = ""
-
-        return {
-            "enabled": True,
-            "query": query,
-            "records": [self._memory_record_to_dict(r) for r in records if isinstance(r, MemoryRecord)],
-            "summary": summary,
-        }
-
-    def _memory_record_to_dict(self, record: MemoryRecord) -> Dict[str, Any]:
-        return {
-            "role": record.role,
-            "content": record.content,
-            "step_id": record.step_id,
-            "metadata": record.metadata,
-        }
+    def _memory(self) -> Optional[Memory]:
+        mem = getattr(self.agent, "memory", None)
+        return mem if isinstance(mem, Memory) else None
 
     def _infer_failed_phase(self, record: StepRecord) -> RuntimePhase:
         if not record.phase_events:

@@ -64,14 +64,13 @@ class _DemoAgent(AgentModule[_DemoState, Dict[str, Any], Action]):
     def init_state(self, task: str, **kwargs: Any) -> _DemoState:
         return _DemoState(task=task, max_steps=int(kwargs.get("max_steps", 4)))
 
-    def observe(self, state: _DemoState, env_view: Dict[str, Any]) -> Dict[str, Any]:
-        state.logs.append(f"env_enabled={env_view.get('env', {}).get('enabled')}")
-        return {"task": state.task, "env": env_view.get("env", {})}
-
     def decide(self, state: _DemoState, observation: Dict[str, Any]):
+        env_enabled = bool(((observation or {}).get("env") or {}).get("enabled"))
+        state.logs.append(f"env_enabled={env_enabled}")
         return Decision.act(actions=[Action(name="noop")])
 
-    def reduce(self, state: _DemoState, observation: Dict[str, Any], decision: Decision[Action], action_results: List[Any]) -> _DemoState:
+    def reduce(self, state: _DemoState, observation: Dict[str, Any], decision: Decision[Action]) -> _DemoState:
+        action_results = observation.get("action_results", []) if isinstance(observation, dict) else []
         state.logs.append(f"results={len(action_results)}")
         return state
 
@@ -163,15 +162,12 @@ def test_engine_respects_max_tokens_budget():
         def init_state(self, task: str, **kwargs: Any) -> _LLMState:
             return _LLMState(task=task, max_steps=10)
 
-        def observe(self, state: _LLMState, env_view: Dict[str, Any]) -> Dict[str, Any]:
-            return {"task": state.task}
-
         def decide(self, state: _LLMState, observation: Dict[str, Any]):
             if state.current_step < 3:
                 return None
             return Decision.final("done")
 
-        def reduce(self, state: _LLMState, observation: Dict[str, Any], decision: Decision[Action], action_results: List[Any]) -> _LLMState:
+        def reduce(self, state: _LLMState, observation: Dict[str, Any], decision: Decision[Action]) -> _LLMState:
             return state
 
     task = Task(id="t_token", objective="token limited", budget=TaskBudget(max_steps=10, max_tokens=5))

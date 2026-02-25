@@ -23,11 +23,8 @@ class _LLMAgent(AgentModule[_S, dict[str, Any], Action]):
     def init_state(self, task: str, **kwargs: Any) -> _S:
         return _S(task=task, max_steps=2)
 
-    def observe(self, state: _S, env_view: dict[str, Any]) -> dict[str, Any]:
-        return {"task": state.task, "step": state.current_step, "memory": env_view.get("memory", {})}
-
-    def prepare(self, state: _S, observation: dict[str, Any]) -> str:
-        return f"task={observation['task']} step={observation['step']}"
+    def prepare(self, state: _S) -> str:
+        return f"task={state.task} step={state.current_step}"
 
     def decide(self, state: _S, observation: dict[str, Any]):
         return None
@@ -37,7 +34,6 @@ class _LLMAgent(AgentModule[_S, dict[str, Any], Action]):
         state: _S,
         observation: dict[str, Any],
         decision: Decision[Action],
-        action_results: list[Any],
     ) -> _S:
         return state
 
@@ -69,13 +65,12 @@ def test_engine_hook_register_unregister():
     assert hook.run_end == 1
 
     phases = {p for p, _ in hook.events}
-    assert "OBSERVE" in phases
     assert "DECIDE" in phases
     assert "CRITIC" in phases
     assert "CHECK_STOP" in phases
 
     stages = {s for _, s in hook.events}
-    assert "observation_ready" in stages
+    assert "state_ready" in stages
     assert "model_input" in stages
     assert "model_output" in stages
     assert "decision_ready" in stages
@@ -90,12 +85,6 @@ def test_phase_hooks_are_triggered():
     marks: list[str] = []
 
     class _PhaseHook(EngineHook):
-        def on_before_observe(self, ctx, engine):
-            marks.append("before_observe")
-
-        def on_after_observe(self, ctx, engine):
-            marks.append("after_observe")
-
         def on_before_decide(self, ctx, engine):
             marks.append("before_decide")
 
@@ -123,7 +112,7 @@ def test_phase_hooks_are_triggered():
     engine = Engine(agent=_LLMAgent(), budget=RuntimeBudget(max_steps=2), hooks=[_PhaseHook()])
     result = engine.run("x")
     assert result.state.final_result == "ok"
-    assert "before_observe" in marks
+    assert "before_decide" in marks
     assert "after_decide" in marks
     assert "before_check_stop" in marks
     assert "after_check_stop" in marks
@@ -138,7 +127,7 @@ def test_render_stream_hook_outputs_structured_events(tmp_path):
     assert len(hook.events) > 0
     nodes = {evt.node for evt in hook.events}
     assert "run_start" in nodes
-    assert "observation" in nodes
+    assert "state" in nodes
     assert "decision" in nodes
     assert "done" in nodes
 
@@ -147,9 +136,6 @@ def test_hook_context_payload_has_canonical_fields():
     seen_payloads: list[dict[str, Any]] = []
 
     class _PayloadHook(EngineHook):
-        def on_after_observe(self, ctx, engine):
-            seen_payloads.append(dict(ctx.payload))
-
         def on_after_decide(self, ctx, engine):
             seen_payloads.append(dict(ctx.payload))
 

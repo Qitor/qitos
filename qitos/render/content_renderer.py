@@ -113,8 +113,8 @@ class ContentFirstRenderer:
         }
 
     def state_summary(self, event: RenderEvent) -> Optional[Dict[str, Any]]:
-        """Extract compact state stats from observe-phase payload."""
-        if event.node != "observation":
+        """Extract compact state stats from state snapshot payload."""
+        if event.node not in {"state", "observation"}:
             return None
         payload = event.payload or {}
         obs = payload.get("observation")

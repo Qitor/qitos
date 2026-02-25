@@ -2,9 +2,16 @@
 
 ## Goal
 
-Understand how memory interacts with the Engine model-input build.
+Clarify memory ownership and usage in QitOS.
 
-## Contract
+## Ownership
+
+Memory belongs to `AgentModule` (`self.memory`).
+
+- Prefer passing memory at agent construction.
+- `Engine(memory=...)` is a convenience that binds memory to `agent.memory`.
+
+## Memory contract
 
 `Memory` provides:
 
@@ -14,43 +21,28 @@ Understand how memory interacts with the Engine model-input build.
 - `summarize(max_items)`
 - `reset(run_id)`
 
-## Where memory lives (important)
+## How memory is used
 
-Memory is a runtime component owned by `Engine`, not by the agent.
+1. During runtime, Engine appends relevant records to `agent.memory`.
+2. In Engine default model path (`decide -> None`), history can be retrieved from `agent.memory.retrieve_messages(...)`.
+3. In custom agents, you can read memory directly in `prepare(state)`.
 
-The agent influences memory usage via:
+## Important boundary
 
-- `AgentModule.build_memory_query(state, env_view)` (per-step retrieval query)
+`observation` should not embed memory by default.
 
-Engine uses:
+- `observation` is for world/action/env outputs of the step.
+- memory should be consumed explicitly from `self.memory`.
 
-1. `memory.append(...)` to record messages/events
-2. `memory.retrieve_messages(state, observation, query)` to build chat history for the model
-
-## Where memory shows up
-
-- In `env_view["memory"]` (observation-time context)
-- In Engine message build (history injection)
-
-## Minimal: attach a window memory
-
-```python
-from qitos import Engine
-from qitos.kit.env import HostEnv
-from qitos.kit.memory import WindowMemory
-
-engine = Engine(agent=my_agent, env=HostEnv(workspace_root="./playground"), memory=WindowMemory(window_size=20))
-result = engine.run("do something")
-```
-
-## Custom retrieval query from the agent
-
-Use `build_memory_query` to bound or shape context:
+## Example
 
 ```python
 class MyAgent(...):
-    def build_memory_query(self, state, env_view):
-        return {"format": "messages", "max_items": 12, "roles": ["message"]}
+    def prepare(self, state):
+        history = []
+        if self.memory is not None:
+            history = self.memory.retrieve_messages(state=state, observation=None, query={"max_items": 8})
+        return f"Task: {state.task}\nHistory: {history[-4:]}"
 ```
 
 ## Source Index

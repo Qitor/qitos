@@ -85,18 +85,6 @@ class EpubTreeOfThoughtAgent(AgentModule[EpubToTState, Dict[str, Any], Action]):
             question=str(kwargs.get("question", "")),
         )
 
-    def observe(self, state: EpubToTState, env_view: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "task": state.task,
-            "question": state.question,
-            "epub_path": state.epub_path,
-            "chapter_count": state.chapter_count,
-            "evidence": list(state.evidence[-8:]),
-            "thoughts": list(state.thoughts[-8:]),
-            "scratchpad": list(state.scratchpad[-8:]),
-            "memory": env_view.get("memory", {}),
-        }
-
     def decide(self, state: EpubToTState, observation: Dict[str, Any]) -> Optional[Decision[Action]]:
         # Bootstrap with deterministic exploration.
         if state.current_step == 0:
@@ -175,8 +163,8 @@ class EpubTreeOfThoughtAgent(AgentModule[EpubToTState, Dict[str, Any], Action]):
         state: EpubToTState,
         observation: Dict[str, Any],
         decision: Decision[Action],
-        action_results: List[Any],
-    ) -> EpubToTState:
+            ) -> EpubToTState:
+        action_results = observation.get("action_results", []) if isinstance(observation, dict) else []
         if decision.rationale:
             state.thoughts.append(decision.rationale)
             state.scratchpad.append(f"Thought: {decision.rationale}")

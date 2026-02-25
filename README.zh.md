@@ -22,7 +22,7 @@
 ## 为什么是 QitOS
 
 1. **执行主线唯一且清晰**
-- 生命周期固定为：`observe -> decide -> act -> reduce -> check_stop`
+- 生命周期固定为：`prepare -> decide -> act -> reduce -> check_stop`
 - 不存在 Runtime/Engine 双线并存
 - 不引入与 `AgentModule` 冲突的隐式策略层
 
@@ -50,7 +50,7 @@
 
 ```text
 Task -> Engine.run(...)
-      -> observe -> decide -> act -> reduce -> check_stop -> ...
+      -> prepare -> decide -> act -> reduce -> check_stop -> ...
       -> hooks + trace + qita replay
 ```
 
@@ -189,15 +189,12 @@ class MyAgent(AgentModule[MyState, dict, Action]):
     def init_state(self, task: str, **kwargs):
         return MyState(task=task, max_steps=3)
 
-    def observe(self, state, env_view):
-        return {"task": state.task, "step": state.current_step}
-
     def decide(self, state, observation):
         if state.current_step == 0:
             return Decision.act(actions=[Action(name="add", args={"a": 19, "b": 23})])
         return Decision.final("done")
 
-    def reduce(self, state, observation, decision, action_results):
+    def reduce(self, state, observation, decision):
         return state
 
 result = Engine(agent=MyAgent()).run("compute 19+23")

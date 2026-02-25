@@ -17,13 +17,10 @@ class _FinalAgent(AgentModule[_S, Dict[str, Any], Action]):
     def init_state(self, task: str, **kwargs: Any) -> _S:
         return _S(task=task, max_steps=3)
 
-    def observe(self, state: _S, env_view: Dict[str, Any]) -> Dict[str, Any]:
-        return {"task": state.task, "step": state.current_step}
-
     def decide(self, state: _S, observation: Dict[str, Any]):
         return Decision.final(f"done:{observation['task']}")
 
-    def reduce(self, state: _S, observation: Dict[str, Any], decision: Decision[Action], action_results: List[Any]) -> _S:
+    def reduce(self, state: _S, observation: Dict[str, Any], decision: Decision[Action]) -> _S:
         return state
 
 

@@ -40,9 +40,6 @@ class _EnvOnlyAgent(AgentModule[_State, Dict[str, Any], Action]):
     def init_state(self, task: str, **kwargs: Any) -> _State:
         return _State(task=task, max_steps=2)
 
-    def observe(self, state: _State, env_view: Dict[str, Any]) -> Dict[str, Any]:
-        return {"task": state.task, "env": env_view.get("env", {})}
-
     def decide(self, state: _State, observation: Dict[str, Any]):
         if state.current_step == 0:
             return Decision.act(
@@ -55,7 +52,7 @@ class _EnvOnlyAgent(AgentModule[_State, Dict[str, Any], Action]):
             )
         return Decision.final("done")
 
-    def reduce(self, state: _State, observation: Dict[str, Any], decision: Decision[Action], action_results: List[Any]) -> _State:
+    def reduce(self, state: _State, observation: Dict[str, Any], decision: Decision[Action]) -> _State:
         if decision.mode == "final":
             state.done = True
         return state

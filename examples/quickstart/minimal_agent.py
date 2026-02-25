@@ -32,9 +32,6 @@ class MinimalAgent(AgentModule[CalcState, dict[str, Any], Action]):
     def init_state(self, task: str, **kwargs: Any) -> CalcState:
         return CalcState(task=task, max_steps=int(kwargs.get("max_steps", 2)))
 
-    def observe(self, state: CalcState, env_view: dict[str, Any]) -> dict[str, Any]:
-        return {"task": state.task, "step": state.current_step}
-
     def decide(self, state: CalcState, observation: dict[str, Any]) -> Decision[Action]:
         if state.current_step == 0:
             return Decision.act([Action(name="add", args={"a": 40, "b": 2})], rationale="compute_answer")
@@ -45,8 +42,8 @@ class MinimalAgent(AgentModule[CalcState, dict[str, Any], Action]):
         state: CalcState,
         observation: dict[str, Any],
         decision: Decision[Action],
-        action_results: list[Any],
-    ) -> CalcState:
+            ) -> CalcState:
+        action_results = observation.get("action_results", []) if isinstance(observation, dict) else []
         if action_results:
             state.final_result = str(action_results[0])
         return state
