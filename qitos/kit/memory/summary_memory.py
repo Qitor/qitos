@@ -21,21 +21,10 @@ class SummaryMemory(Memory):
         query: Optional[Dict[str, Any]] = None,
         state: Any = None,
         observation: Any = None,
-    ) -> List[MemoryRecord] | List[Dict[str, str]]:
+    ) -> List[MemoryRecord]:
         query = query or {}
-        fmt = str(query.get("format", "records"))
         max_items = int(query.get("max_items", self.keep_last))
         items = self._records[-max_items:]
-        if fmt == "messages":
-            messages: List[Dict[str, str]] = []
-            for item in items:
-                if item.role != "message" or not isinstance(item.content, dict):
-                    continue
-                role = str(item.content.get("role", "")).strip()
-                content = str(item.content.get("content", ""))
-                if role and content:
-                    messages.append({"role": role, "content": content})
-            return messages
         return items
 
     def summarize(self, max_items: int = 5) -> str:

@@ -7,20 +7,14 @@
 
 - [Classes](#classes)
 - [Functions](#functions)
-- [Class: `GaiaAdapter`](#class-gaiaadapter)
-- [Function: `load_gaia_tasks`](#function-load-gaia-tasks)
 
 ## Classes
 
-<a id="class-gaiaadapter"></a>
-???+ note "Class: `GaiaAdapter(self, dataset_name: 'str' = 'gaia-benchmark/GAIA', annotated_dataset_name: 'str' = 'smolagents/GAIA-annotated', local_dir: 'str' = 'data/gaia', config_name: 'str' = '2023_all', default_subset: 'Optional[str]' = None, task_prefix: 'str' = 'gaia', include_raw_record: 'bool' = True, default_max_steps: 'int' = 24, default_env_spec: 'EnvSpec' = <factory>) -> None`"
-    Convert GAIA dataset rows to canonical QitOS Task objects.
+- _None_
 
 ## Functions
 
-<a id="function-load-gaia-tasks"></a>
-???+ note "Function: `load_gaia_tasks(split: 'str' = 'validation', subset: 'Optional[str]' = None, limit: 'Optional[int]' = None, cache_dir: 'Optional[str]' = None) -> 'list[Task]'`"
-    Convenience loader: Hugging Face GAIA -> list[Task].
+- _None_
 
 ## Source Index
 

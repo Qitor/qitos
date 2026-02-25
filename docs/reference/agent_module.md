@@ -16,7 +16,6 @@ You implement how state is initialized, how model input is prepared, how decisio
 - `build_system_prompt(state) -> str | None`
 - `prepare(state) -> str`
 - `decide(state, observation) -> Decision | None`
-- `build_memory_query(state, runtime_view) -> dict | None`
 - `should_stop(state) -> bool`
 
 ## Decision semantics
@@ -27,10 +26,11 @@ You implement how state is initialized, how model input is prepared, how decisio
 ## Memory semantics
 
 Memory is on the agent (`self.memory`).
+History is on the agent (`self.history`).
 
 - You can pass memory when constructing the agent (`super().__init__(..., memory=...)`).
-- In `prepare`, you can retrieve memory via `self.memory.retrieve(...)` or `self.memory.retrieve_messages(...)`.
-- Engine may also use `self.memory` in default model path when `decide` returns `None`.
+- In `prepare`, you can retrieve memory via `self.memory.retrieve(...)`.
+- Engine uses `self.history.retrieve(...)` with engine-side `HistoryPolicy` when `decide` returns `None`.
 
 ## Minimal skeleton
 

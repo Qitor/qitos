@@ -27,7 +27,7 @@
 1. `agent.decide(...)` 返回 `Decision`
 2. 返回 `None` 走默认模型路径：
 - `prepare(state)`
-- 组装 messages（system + memory history + user）
+- 组装 messages（system + history + user）
 - `llm(messages)`
 - parser -> `Decision`
 
@@ -51,11 +51,12 @@
 - env terminal
 - budget / criteria
 
-## Memory 语义
+## Memory 与 History 语义
 
-- Memory 归属 agent（`agent.memory`）。
-- Engine 在默认模型路径中可从 `agent.memory` 读取历史。
-- `observation` 默认不包含 memory。
+- Memory 归属 agent（`agent.memory`），用于存储运行工件（`task/decision/action/observation/...`）。
+- History 仅用于模型消息（`agent.history` 或 engine 运行时 history）。
+- Engine 使用 `history_policy` 组装模型输入消息。
+- `observation` 默认不包含 memory/history。
 
 ## Hook 体系
 

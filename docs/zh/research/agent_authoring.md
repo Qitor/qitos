@@ -14,8 +14,7 @@
 1. `build_system_prompt(state)`
 2. `prepare(state)`
 3. `decide(state, observation)`
-4. `build_memory_query(state, runtime_view)`
-5. `should_stop(state)`
+4. `should_stop(state)`
 
 ## 模板
 

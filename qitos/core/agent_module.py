@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Generic, List, Optional, TypeVar
 
 from .decision import Decision
+from .history import History
 from .memory import Memory
 from .task import Task
 
@@ -26,12 +27,14 @@ class AgentModule(ABC, Generic[StateT, ObservationT, ActionT]):
         llm: Any = None,
         model_parser: Any = None,
         memory: Memory | None = None,
+        history: History | None = None,
         **config: Any,
     ):
         self.tool_registry = tool_registry
         self.llm = llm
         self.model_parser = model_parser
         self.memory = memory
+        self.history = history
         self.config = config
 
     @abstractmethod
@@ -45,10 +48,6 @@ class AgentModule(ABC, Generic[StateT, ObservationT, ActionT]):
     def prepare(self, state: StateT) -> str:
         """Convert current state into model-ready text."""
         return str(state)
-
-    def build_memory_query(self, state: StateT, runtime_view: Dict[str, Any]) -> Dict[str, Any] | None:
-        """Optional hook to customize memory retrieval query per step."""
-        return {"format": "records", "max_items": 8}
 
     def decide(self, state: StateT, observation: ObservationT) -> Optional[Decision[ActionT]]:
         """Optional custom decision hook. Return None to use Engine model decision."""

@@ -83,6 +83,7 @@ nav:
           - Actions & Decisions: reference/decision_action.md
           - Tools & ToolRegistry: reference/tools.md
           - Env & Ops Capabilities: reference/env.md
+          - History: reference/history.md
           - Memory: reference/memory.md
           - Hooks & Trace: reference/trace_and_hooks.md
           - Evaluate & Metric: reference/evaluate_metric.md
@@ -132,6 +133,7 @@ nav:
           - Decision 与 Action: zh/reference/decision_action.md
           - Tool 与 ToolRegistry: zh/reference/tools.md
           - Env 与能力组: zh/reference/env.md
+          - History: zh/reference/history.md
           - Memory: zh/reference/memory.md
           - Hooks 与 Trace: zh/reference/trace_and_hooks.md
           - Evaluate 与 Metric: zh/reference/evaluate_metric.md

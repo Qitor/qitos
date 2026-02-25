@@ -27,7 +27,7 @@ Two paths:
 1. `agent.decide(...)` returns `Decision`
 2. returns `None` -> Engine model path:
 - `prepare(state)`
-- build messages (`system + memory history + user`)
+- build messages (`system + history + user`)
 - `llm(messages)`
 - parser -> `Decision`
 
@@ -51,11 +51,12 @@ Stop sources include:
 - env terminal
 - budget/criteria
 
-## Memory semantics
+## Memory vs History semantics
 
-- Memory is agent-owned (`agent.memory`).
-- Engine appends runtime records and can retrieve history from `agent.memory` in default model path.
-- Observation should not include memory by default.
+- Memory is agent-owned (`agent.memory`) for runtime artifacts (`task/decision/action/observation/...`).
+- History is for model messages only (`agent.history` or engine runtime history).
+- Engine builds model input from History with `history_policy`.
+- Observation should not include memory/history by default.
 
 ## Hook model
 

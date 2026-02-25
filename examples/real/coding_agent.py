@@ -10,7 +10,7 @@ from pathlib import Path
 import tempfile
 from typing import Any, Dict, List, Optional
 
-from qitos import Action, AgentModule, Decision, EnvSpec, StateSchema, Task, TaskBudget, ToolRegistry
+from qitos import Action, AgentModule, Decision, EnvSpec, HistoryPolicy, StateSchema, Task, TaskBudget, ToolRegistry
 from qitos.kit.critic import ReActSelfReflectionCritic
 from qitos.kit.env import HostEnv
 from qitos.kit.memory import MarkdownFileMemory
@@ -76,11 +76,11 @@ class CodingState(StateSchema):
 
 
 class CodingMemoryReactAgent(AgentModule[CodingState, Dict[str, Any], Action]):
-    def __init__(self, llm: Any, workspace_root: str):
+    def __init__(self, llm: Any, workspace_root: str, memory: MarkdownFileMemory | None = None):
         registry = ToolRegistry()
         registry.include(EditorToolSet(workspace_root=workspace_root))
         registry.register(RunCommand(cwd=workspace_root))
-        super().__init__(tool_registry=registry, llm=llm, model_parser=ReActTextParser())
+        super().__init__(tool_registry=registry, llm=llm, model_parser=ReActTextParser(), memory=memory)
 
     def init_state(self, task: str, **kwargs: Any) -> CodingState:
         return CodingState(
@@ -90,9 +90,6 @@ class CodingMemoryReactAgent(AgentModule[CodingState, Dict[str, Any], Action]):
             test_command=str(kwargs.get("test_command", "")),
             expected_snippet=str(kwargs.get("expected_snippet", "")),
         )
-
-    def build_memory_query(self, state: CodingState, env_view: Dict[str, Any]) -> Dict[str, Any] | None:
-        return {"format": "records", "max_items": 12}
 
     def build_system_prompt(self, state: CodingState) -> str | None:
         schema = self.tool_registry.get_tool_descriptions() if self.tool_registry else ""
@@ -204,7 +201,11 @@ def main() -> None:
         output_jsonl = str(root / "render_events.jsonl")
         hooks.append(ClaudeStyleHook(output_jsonl=output_jsonl, theme=str(args.theme)))
 
-    agent = CodingMemoryReactAgent(llm=model, workspace_root=str(root))
+    agent = CodingMemoryReactAgent(
+        llm=model,
+        workspace_root=str(root),
+        memory=MarkdownFileMemory(path=str(memory_path)),
+    )
     trace_writer = None
     if not args.disable_trace:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
@@ -222,9 +223,9 @@ def main() -> None:
         budget=TaskBudget(max_steps=int(args.max_steps)),
     )
     engine_kwargs = {
-        "memory": MarkdownFileMemory(path=str(memory_path)),
         "critics": [ReActSelfReflectionCritic(max_retries=2)],
         "env": HostEnv(workspace_root=str(root)),
+        "history_policy": HistoryPolicy(max_messages=12),
     }
     if trace_writer is not None:
         engine_kwargs["trace_writer"] = trace_writer

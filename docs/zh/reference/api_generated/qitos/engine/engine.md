@@ -13,7 +13,7 @@
 ## Classes
 
 <a id="class-engine"></a>
-???+ note "Class: `Engine(self, agent: 'AgentModule[StateT, ObservationT, ActionT]', budget: 'Optional[RuntimeBudget]' = None, validation_gate: 'Optional[StateValidationGate]' = None, recovery_handler: 'Optional[RecoveryHandler]' = None, recovery_policy: 'Optional[RecoveryPolicy]' = None, trace_writer: 'Optional[TraceWriter]' = None, memory: 'Optional[Memory]' = None, parser: 'Optional[Parser[ActionT]]' = None, stop_criteria: 'Optional[List[StopCriteria]]' = None, branch_selector: 'Optional[BranchSelector[StateT, ObservationT, ActionT]]' = None, search: 'Optional[Search[StateT, ObservationT, ActionT]]' = None, critics: 'Optional[List[Critic]]' = None, env: 'Optional[Env]' = None, hooks: 'Optional[List[EngineHook]]' = None, render_hooks: 'Optional[List[Any]]' = None)`"
+???+ note "Class: `Engine(self, agent: 'AgentModule[StateT, ObservationT, ActionT]', budget: 'Optional[RuntimeBudget]' = None, validation_gate: 'Optional[StateValidationGate]' = None, recovery_handler: 'Optional[RecoveryHandler]' = None, recovery_policy: 'Optional[RecoveryPolicy]' = None, trace_writer: 'Optional[TraceWriter]' = None, parser: 'Optional[Parser[ActionT]]' = None, stop_criteria: 'Optional[List[StopCriteria]]' = None, branch_selector: 'Optional[BranchSelector[StateT, ObservationT, ActionT]]' = None, search: 'Optional[Search[StateT, ObservationT, ActionT]]' = None, critics: 'Optional[List[Critic]]' = None, env: 'Optional[Env]' = None, history_policy: 'Optional[HistoryPolicy]' = None, hooks: 'Optional[List[EngineHook]]' = None, render_hooks: 'Optional[List[Any]]' = None)`"
     Single execution kernel for all AgentModule workflows.
 
 <a id="class-engineresult"></a>

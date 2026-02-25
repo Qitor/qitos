@@ -48,7 +48,9 @@ class _CountingMemory(Memory):
 
 def test_engine_resets_runtime_state_between_runs():
     memory = _CountingMemory()
-    engine = Engine(agent=_FinalAgent(), budget=RuntimeBudget(max_steps=3), memory=memory)
+    agent = _FinalAgent()
+    agent.memory = memory
+    engine = Engine(agent=agent, budget=RuntimeBudget(max_steps=3))
 
     r1 = engine.run("a")
     r2 = engine.run("b")

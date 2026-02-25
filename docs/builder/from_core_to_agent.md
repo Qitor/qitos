@@ -23,10 +23,11 @@ Build a practical agent by inheriting core contracts, with clear implementation 
 3. set `decide` to return `None`
 4. verify model output can be parsed to valid `Decision`
 
-## Milestone 4: add env + memory
+## Milestone 4: add env + memory/history
 
 1. choose Env backend (`HostEnv` first)
-2. set `build_memory_query` for bounded context
+2. set `Engine(history_policy=...)` for bounded model history
+3. keep memory retrieval inside `prepare(state)`
 3. verify trace includes memory and env payload
 
 ## Milestone 5: harden runtime

@@ -9,7 +9,6 @@ Clarify memory ownership and usage in QitOS.
 Memory belongs to `AgentModule` (`self.memory`).
 
 - Prefer passing memory at agent construction.
-- `Engine(memory=...)` is a convenience that binds memory to `agent.memory`.
 
 ## Memory contract
 
@@ -17,15 +16,23 @@ Memory belongs to `AgentModule` (`self.memory`).
 
 - `append(record)`
 - `retrieve(query, state, observation)`
-- `retrieve_messages(state, observation, query)`
 - `summarize(max_items)`
 - `reset(run_id)`
 
 ## How memory is used
 
 1. During runtime, Engine appends relevant records to `agent.memory`.
-2. In Engine default model path (`decide -> None`), history can be retrieved from `agent.memory.retrieve_messages(...)`.
-3. In custom agents, you can read memory directly in `prepare(state)`.
+2. In custom agents, you can read memory directly in `prepare(state)`.
+
+Typical memory stream:
+
+- `task`
+- `state`
+- `decision`
+- `action`
+- `observation`
+- `next_state`
+- ...
 
 ## Important boundary
 
@@ -39,10 +46,10 @@ Memory belongs to `AgentModule` (`self.memory`).
 ```python
 class MyAgent(...):
     def prepare(self, state):
-        history = []
+        records = []
         if self.memory is not None:
-            history = self.memory.retrieve_messages(state=state, observation=None, query={"max_items": 8})
-        return f"Task: {state.task}\nHistory: {history[-4:]}"
+            records = self.memory.retrieve(state=state, observation=None, query={"roles": ["observation"], "max_items": 8})
+        return f"Task: {state.task}\nRecords: {records[-4:]}"
 ```
 
 ## Source Index

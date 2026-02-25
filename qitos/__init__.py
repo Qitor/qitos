@@ -13,6 +13,7 @@ from .core.decision import Decision
 from .core.env import CommandCapability, Env, EnvObservation, EnvSpec, EnvStepResult, FileSystemCapability
 from .core.errors import ErrorCategory, QitosRuntimeError, RuntimeErrorInfo, StopReason
 from .core.memory import Memory, MemoryRecord
+from .core.history import History, HistoryMessage, HistoryPolicy
 from .core.state import PlanState, StateSchema
 from .core.task import (
     Task,
@@ -63,6 +64,9 @@ __all__ = [
     "ActionExecutionPolicy",
     "Memory",
     "MemoryRecord",
+    "History",
+    "HistoryMessage",
+    "HistoryPolicy",
     "Env",
     "EnvSpec",
     "EnvObservation",

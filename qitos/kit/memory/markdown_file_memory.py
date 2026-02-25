@@ -29,9 +29,8 @@ class MarkdownFileMemory(Memory):
         query: Optional[Dict[str, object]] = None,
         state: object = None,
         observation: object = None,
-    ) -> List[MemoryRecord] | List[Dict[str, str]]:
+    ) -> List[MemoryRecord]:
         query = query or {}
-        fmt = str(query.get("format", "records"))
         roles = set(query.get("roles", [])) if isinstance(query.get("roles"), list) else None
         step_min = query.get("step_min")
         max_items = int(query.get("max_items", 50))
@@ -42,16 +41,6 @@ class MarkdownFileMemory(Memory):
         if isinstance(step_min, int):
             items = [r for r in items if r.step_id >= step_min]
         items = items[-max_items:]
-        if fmt == "messages":
-            messages: List[Dict[str, str]] = []
-            for item in items:
-                if item.role != "message" or not isinstance(item.content, dict):
-                    continue
-                role = str(item.content.get("role", "")).strip()
-                content = str(item.content.get("content", ""))
-                if role and content:
-                    messages.append({"role": role, "content": content})
-            return messages
         return items
 
     def summarize(self, max_items: int = 5) -> str:

@@ -16,7 +16,6 @@
 - `build_system_prompt(state) -> str | None`
 - `prepare(state) -> str`
 - `decide(state, observation) -> Decision | None`
-- `build_memory_query(state, runtime_view) -> dict | None`
 - `should_stop(state) -> bool`
 
 ## 决策语义
@@ -24,13 +23,14 @@
 - 返回 `Decision`：完全自定义策略路径。
 - 返回 `None`：使用 Engine 默认模型路径（`prepare -> messages -> llm -> parser`）。
 
-## Memory 语义
+## Memory 与 History 语义
 
-Memory 在 agent 上（`self.memory`）。
+Memory 在 agent 上（`self.memory`），用于任务相关运行工件。
+History 在 agent 上（`self.history`），用于模型消息上下文。
 
 - 建议在 agent 构造时传入 memory。
 - 在 `prepare` 中可直接通过 `self.memory` 检索上下文。
-- 当 `decide` 返回 `None` 时，Engine 也会用 `self.memory` 构建历史消息。
+- 当 `decide` 返回 `None` 时，Engine 会用 `self.history` + `history_policy` 组装消息。
 
 ## 最小骨架
 

@@ -1,8 +1,10 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from qitos import Action, AgentModule, Decision, Engine, RuntimeBudget, StateSchema, ToolRegistry, tool
+from qitos import Action, AgentModule, Decision, Engine, HistoryPolicy, RuntimeBudget, StateSchema, ToolRegistry, tool
+from qitos.core.history import History, HistoryMessage
 from qitos.kit.memory import WindowMemory
+from qitos.kit.history import WindowHistory
 from qitos.kit.parser import ReActTextParser
 from qitos.core.memory import Memory, MemoryRecord
 
@@ -25,9 +27,6 @@ class DemoAgent(AgentModule[DemoState, dict[str, Any], Action]):
 
     def init_state(self, task: str, **kwargs: Any) -> DemoState:
         return DemoState(task=task, max_steps=3)
-
-    def build_memory_query(self, state: DemoState, runtime_view: dict[str, Any]) -> dict[str, Any] | None:
-        return {"max_items": 4}
 
     def decide(self, state: DemoState, observation: dict[str, Any]) -> Decision[Action]:
         if state.current_step == 0:
@@ -60,7 +59,8 @@ def test_agent_run_shortcut():
 
 def test_engine_injects_memory_context_into_env_view():
     agent = DemoAgent()
-    result = Engine(agent=agent, budget=RuntimeBudget(max_steps=3), memory=WindowMemory(window_size=20)).run("compute")
+    agent.memory = WindowMemory(window_size=20)
+    result = Engine(agent=agent, budget=RuntimeBudget(max_steps=3)).run("compute")
     assert result.state.final_result == "42"
     assert hasattr(agent, "memory")
     assert agent.memory is not None
@@ -98,7 +98,7 @@ def test_engine_default_model_decide_with_prepare():
     assert seen_messages[1]["role"] == "user"
 
 
-def test_engine_uses_memory_retrieved_messages_for_next_llm_call():
+def test_engine_uses_history_messages_for_next_llm_call():
     calls: list[list[dict[str, str]]] = []
 
     class _DummyModel:
@@ -123,36 +123,56 @@ def test_engine_uses_memory_retrieved_messages_for_next_llm_call():
                 return None
             return Decision.final("42")
 
+    agent = MultiTurnLLMDemo()
+    agent.history = WindowHistory(window_size=50)
     result = Engine(
-        agent=MultiTurnLLMDemo(),
+        agent=agent,
         budget=RuntimeBudget(max_steps=4),
-        memory=WindowMemory(window_size=50),
+        history_policy=HistoryPolicy(max_messages=4),
     ).run("compute")
     assert result.state.final_result == "42"
     assert len(calls) == 2
     assert calls[0][0]["role"] == "system"
     assert calls[0][-1]["role"] == "user"
-    # second call should include history from memory (previous user+assistant)
+    # second call should include history (previous user+assistant)
     assert len(calls[1]) >= 4
     assert calls[1][1]["role"] == "user"
     assert calls[1][2]["role"] == "assistant"
 
 
-def test_engine_uses_memory_retrieve_messages_contract():
+def test_engine_uses_history_retrieve_contract():
+    class ContractHistory(History):
+        def __init__(self):
+            self._messages: list[HistoryMessage] = []
+            self.retrieve_called = 0
+
+        def append(self, message: HistoryMessage) -> None:
+            self._messages.append(message)
+
+        def retrieve(self, query=None, state=None, observation=None):
+            self.retrieve_called += 1
+            return [{"role": "assistant", "content": "history_hint"}]
+
+        def summarize(self, max_items: int = 5) -> str:
+            return ""
+
+        def evict(self) -> int:
+            return 0
+
+        def reset(self, run_id=None) -> None:
+            self._messages = []
+
     class ContractMemory(Memory):
         def __init__(self):
             self._records: list[MemoryRecord] = []
-            self.retrieve_messages_called = 0
+            self.retrieve_called = 0
 
         def append(self, record: MemoryRecord) -> None:
             self._records.append(record)
 
         def retrieve(self, query=None, state=None, observation=None):
+            self.retrieve_called += 1
             return []
-
-        def retrieve_messages(self, state=None, observation=None, query=None):
-            self.retrieve_messages_called += 1
-            return [{"role": "assistant", "content": "history_hint"}]
 
         def summarize(self, max_items: int = 5) -> str:
             return ""
@@ -186,7 +206,87 @@ def test_engine_uses_memory_retrieve_messages_contract():
             return None
 
     mem = ContractMemory()
-    result = Engine(agent=LLMOnceAgent(), budget=RuntimeBudget(max_steps=2), memory=mem).run("compute")
+    hist = ContractHistory()
+    agent = LLMOnceAgent()
+    agent.memory = mem
+    agent.history = hist
+    result = Engine(agent=agent, budget=RuntimeBudget(max_steps=2)).run("compute")
     assert result.state.final_result == "42"
-    assert mem.retrieve_messages_called >= 1
+    assert hist.retrieve_called >= 1
+    assert mem.retrieve_called == 0
     assert any(m.get("content") == "history_hint" for m in seen_messages)
+
+
+def test_memory_and_history_streams_are_strictly_separated():
+    class CaptureMemory(Memory):
+        def __init__(self):
+            self.records: list[MemoryRecord] = []
+
+        def append(self, record: MemoryRecord) -> None:
+            self.records.append(record)
+
+        def retrieve(self, query=None, state=None, observation=None):
+            return list(self.records)
+
+        def summarize(self, max_items: int = 5) -> str:
+            return ""
+
+        def evict(self) -> int:
+            return 0
+
+        def reset(self, run_id=None) -> None:
+            self.records = []
+
+    class CaptureHistory(History):
+        def __init__(self):
+            self.messages: list[HistoryMessage] = []
+
+        def append(self, message: HistoryMessage) -> None:
+            self.messages.append(message)
+
+        def retrieve(self, query=None, state=None, observation=None):
+            return list(self.messages)
+
+        def summarize(self, max_items: int = 5) -> str:
+            return ""
+
+        def evict(self) -> int:
+            return 0
+
+        def reset(self, run_id=None) -> None:
+            self.messages = []
+
+    class _DummyModel:
+        def __call__(self, messages):
+            return "Final Answer: ok"
+
+    class OneShotLLMAgent(DemoAgent):
+        def __init__(self):
+            super().__init__()
+            self.llm = _DummyModel()
+            self.model_parser = ReActTextParser()
+
+        def build_system_prompt(self, state: DemoState) -> str | None:
+            return "System prompt"
+
+        def prepare(self, state: DemoState) -> str:
+            return "solve"
+
+        def decide(self, state: DemoState, observation: dict[str, Any]):
+            return None
+
+    mem = CaptureMemory()
+    hist = CaptureHistory()
+    agent = OneShotLLMAgent()
+    agent.memory = mem
+    agent.history = hist
+    result = Engine(agent=agent, budget=RuntimeBudget(max_steps=2)).run("compute")
+    assert result.state.stop_reason == "final"
+
+    mem_roles = {r.role for r in mem.records}
+    assert {"task", "state", "decision", "next_state", "observation"}.issubset(mem_roles)
+    assert "message" not in mem_roles
+
+    hist_roles = [m.role for m in hist.messages]
+    assert "user" in hist_roles
+    assert "assistant" in hist_roles

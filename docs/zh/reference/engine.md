@@ -26,16 +26,16 @@
 当 `decide` 返回 `None`，Engine 会：
 
 1. `prepared = agent.prepare(state)`
-2. 组装 messages（system + memory history + 当前 user 输入）
+2. 组装 messages（system + history + 当前 user 输入）
 3. `raw = agent.llm(messages)`
 4. parser 解析成 `Decision`
 
 ## 常用参数
 
 - `env`
+- `history_policy`
 - `hooks`
 - `trace_writer`
-- `memory`（便捷注入到 `agent.memory`）
 
 ## 返回结果
 

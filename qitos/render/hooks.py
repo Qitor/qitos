@@ -407,6 +407,7 @@ class ClaudeStyleHook(RenderStreamHook):
     def _print_agent_composition(self, engine: "Engine") -> None:
         self.console.print(Rule("[dim]AGENT COMPOSITION[/dim]", style="gray23"))
         memory_name = self._memory_name(engine)
+        history_name = self._history_name(engine)
         model_name = self._model_name(engine)
         planning_name = self._planning_name(engine)
         tools = self._tool_list(engine)
@@ -415,6 +416,7 @@ class ClaudeStyleHook(RenderStreamHook):
             tools_desc += ", ..."
         rows = [
             ("memory", memory_name),
+            ("history", history_name),
             ("base_model", model_name),
             ("planning", planning_name),
             ("tools", f"{tools_desc} ({len(tools)})"),
@@ -428,6 +430,14 @@ class ClaudeStyleHook(RenderStreamHook):
         if mem is None:
             return "none"
         return mem.__class__.__name__
+
+    def _history_name(self, engine: "Engine") -> str:
+        hist = getattr(engine.agent, "history", None)
+        if hist is not None:
+            return hist.__class__.__name__
+        policy = getattr(engine, "history_policy", None)
+        policy_name = policy.__class__.__name__ if policy is not None else "none"
+        return f"EngineRuntimeHistory ({policy_name})"
 
     def _model_name(self, engine: "Engine") -> str:
         llm = getattr(getattr(engine, "agent", None), "llm", None)

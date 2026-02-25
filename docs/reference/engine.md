@@ -26,16 +26,16 @@ Per step:
 When `decide` returns `None`, Engine does:
 
 1. `prepared = agent.prepare(state)`
-2. build messages (`system` + memory history + current user input)
+2. build messages (`system` + history + current user input)
 3. `raw = agent.llm(messages)`
 4. parser -> `Decision`
 
 ## Common runtime knobs
 
 - `env`
+- `history_policy`
 - `hooks`
 - `trace_writer`
-- `memory` (convenience injection into `agent.memory`)
 
 ## EngineResult
 

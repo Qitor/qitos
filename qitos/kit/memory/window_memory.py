@@ -20,9 +20,8 @@ class WindowMemory(Memory):
         query: Optional[Dict[str, Any]] = None,
         state: Any = None,
         observation: Any = None,
-    ) -> List[MemoryRecord] | List[Dict[str, str]]:
+    ) -> List[MemoryRecord]:
         query = query or {}
-        fmt = str(query.get("format", "records"))
         roles = query.get("roles")
         step_min = query.get("step_min")
 
@@ -32,16 +31,6 @@ class WindowMemory(Memory):
             items = [r for r in items if r.role in role_set]
         if step_min is not None:
             items = [r for r in items if r.step_id >= step_min]
-        if fmt == "messages":
-            messages: List[Dict[str, str]] = []
-            for item in items:
-                if item.role != "message" or not isinstance(item.content, dict):
-                    continue
-                role = str(item.content.get("role", "")).strip()
-                content = str(item.content.get("content", ""))
-                if role and content:
-                    messages.append({"role": role, "content": content})
-            return messages
         return items
 
     def summarize(self, max_items: int = 5) -> str:

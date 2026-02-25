@@ -72,7 +72,7 @@ This reducer:
 2. Add a “done” check:
    - stop only when `report.md` exists and has > N chars
 3. Add memory:
-   - attach `WindowMemory` or `MarkdownFileMemory` in Engine kwargs
+   - set memory on `AgentModule` (`super().__init__(..., memory=...)`)
 
 ## Source Index
 

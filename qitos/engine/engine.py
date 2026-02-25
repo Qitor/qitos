@@ -15,6 +15,7 @@ from ..core.agent_module import AgentModule
 from ..core.decision import Decision
 from ..core.errors import ErrorCategory, ParseExecutionError, RuntimeErrorInfo, StopReason
 from ..core.env import Env, EnvObservation, EnvStepResult
+from ..core.history import History, HistoryMessage, HistoryPolicy
 from ..core.memory import Memory, MemoryRecord
 from ..core.state import StateSchema
 from ..core.task import Task, TaskCriterionResult, TaskResult, TaskValidationIssue
@@ -38,6 +39,50 @@ ActionT = TypeVar("ActionT")
 RecoveryHandler = Callable[[StateT, RuntimePhase, Exception], None]
 
 
+class _EngineWindowHistory(History):
+    def __init__(self, window_size: int = 24):
+        self.window_size = int(window_size)
+        self._items: List[HistoryMessage] = []
+
+    def append(self, message: HistoryMessage) -> None:
+        self._items.append(message)
+        self.evict()
+
+    def retrieve(self, query: Optional[Dict[str, Any]] = None, state: Any = None, observation: Any = None) -> Any:
+        query = query or {}
+        max_items = int(query.get("max_items", self.window_size if self.window_size > 0 else len(self._items)))
+        roles = query.get("roles")
+        step_min = query.get("step_min")
+        step_max = query.get("step_max")
+        items = list(self._items)
+        if roles:
+            role_set = set(roles)
+            items = [x for x in items if x.role in role_set]
+        if step_min is not None:
+            items = [x for x in items if x.step_id >= int(step_min)]
+        if step_max is not None:
+            items = [x for x in items if x.step_id <= int(step_max)]
+        if max_items > 0:
+            items = items[-max_items:]
+        return items
+
+    def summarize(self, max_items: int = 5) -> str:
+        items = self.retrieve(query={"max_items": max_items})
+        if not isinstance(items, list):
+            return ""
+        return "\n".join(f"[{x.step_id}] {x.role}: {x.content[:120]}" for x in items if isinstance(x, HistoryMessage))
+
+    def evict(self) -> int:
+        if self.window_size <= 0 or len(self._items) <= self.window_size:
+            return 0
+        removed = len(self._items) - self.window_size
+        self._items = self._items[-self.window_size :]
+        return removed
+
+    def reset(self, run_id: Optional[str] = None) -> None:
+        self._items = []
+
+
 @dataclass
 class EngineResult(Generic[StateT]):
     state: StateT
@@ -58,13 +103,13 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         recovery_handler: Optional[RecoveryHandler] = None,
         recovery_policy: Optional[RecoveryPolicy] = None,
         trace_writer: Optional[TraceWriter] = None,
-        memory: Optional[Memory] = None,
         parser: Optional[Parser[ActionT]] = None,
         stop_criteria: Optional[List[StopCriteria]] = None,
         branch_selector: Optional[BranchSelector[StateT, ObservationT, ActionT]] = None,
         search: Optional[Search[StateT, ObservationT, ActionT]] = None,
         critics: Optional[List[Critic]] = None,
         env: Optional[Env] = None,
+        history_policy: Optional[HistoryPolicy] = None,
         hooks: Optional[List[EngineHook]] = None,
         render_hooks: Optional[List[Any]] = None,
     ):
@@ -80,13 +125,12 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self.recovery_handler = recovery_handler
         self.recovery_policy = recovery_policy or RecoveryPolicy()
         self.trace_writer = trace_writer
-        if memory is not None:
-            self.agent.memory = memory
         self.parser = parser
         self.branch_selector = branch_selector or FirstCandidateSelector()
         self.search = search
         self.critics = critics or []
         self.env = env
+        self.history_policy = history_policy or HistoryPolicy()
         self.hooks: List[Any] = list(hooks or [])
         if render_hooks:
             self.hooks.extend(render_hooks)
@@ -107,6 +151,8 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self._last_env_result: Optional[EnvStepResult] = None
         self._token_usage: int = 0
         self._active_run_id: str = ""
+        self._runtime_history: History = _EngineWindowHistory(window_size=24)
+        self._last_system_prompt: str = ""
 
     def register_hook(self, hook: Any) -> None:
         """Register one runtime hook instance."""
@@ -131,6 +177,10 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                 memory.reset()
             except Exception:
                 pass
+        try:
+            self._history().reset()
+        except Exception:
+            pass
         if hasattr(self.recovery_policy, "reset"):
             try:
                 self.recovery_policy.reset()
@@ -139,10 +189,19 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self._active_run_id = (
             str(getattr(self.trace_writer, "run_id", "")).strip() if self.trace_writer is not None else ""
         ) or f"run_{uuid4().hex[:12]}"
+        self._last_system_prompt = ""
         task_obj, task_text = self._normalize_task(task)
         self._apply_task_budget(task_obj)
         self._token_usage = 0
         state = self.agent.init_state(task_text, **kwargs)
+        self._memory_append(
+            "task",
+            {
+                "objective": task_text,
+                "task_id": task_obj.id if task_obj is not None else None,
+            },
+            0,
+        )
         self._active_task = task_text
         self._active_task_obj = task_obj
         self._active_state = state
@@ -347,6 +406,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self._last_env_observation = None
         self._last_env_result = None
         self._active_run_id = ""
+        self._last_system_prompt = ""
         return result
 
     def _apply_task_budget(self, task_obj: Optional[Task]) -> None:
@@ -439,6 +499,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             RuntimePhase.DECIDE,
             payload={"stage": "state_ready", "observation": observation},
         )
+        self._memory_append("state", state.to_dict(), record.step_id)
         self._emit(record.step_id, RuntimePhase.DECIDE, payload={"stage": "start"})
         raw_decision = self.agent.decide(state, observation)
         if raw_decision is None:
@@ -448,35 +509,18 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             system_prompt = self.agent.build_system_prompt(state)
             messages: List[Dict[str, str]] = []
             if isinstance(system_prompt, str) and system_prompt.strip():
-                messages.append({"role": "system", "content": system_prompt})
+                system = system_prompt.strip()
+                messages.append({"role": "system", "content": system})
+                if system != self._last_system_prompt:
+                    self._history_append("system", system, record.step_id, metadata={"source": "engine"})
+                    self._last_system_prompt = system
             history: List[Dict[str, str]] = []
-            memory = self._memory()
-            if memory is not None:
-                runtime_view = {
-                    "step_id": record.step_id,
-                    "elapsed_seconds": 0.0,
-                    "metadata": state.metadata,
-                    "env": self._env_payload(),
-                    "task": self._active_task_obj.to_dict() if self._active_task_obj is not None else {"objective": self._active_task},
-                }
+            history_store = self._history()
+            if history_store is not None:
+                query = self.history_policy.build_query(step_id=record.step_id)
                 try:
-                    query = self.agent.build_memory_query(state, runtime_view) or {}
-                except Exception:
-                    query = {}
-                try:
-                    retrieved = memory.retrieve_messages(
-                        state=state,
-                        observation=observation,
-                        query=query if isinstance(query, dict) else {},
-                    )
-                    if isinstance(retrieved, list):
-                        for item in retrieved:
-                            if not isinstance(item, dict):
-                                continue
-                            role = str(item.get("role", "")).strip()
-                            content = str(item.get("content", ""))
-                            if role and content:
-                                history.append({"role": role, "content": content})
+                    retrieved = history_store.retrieve(state=state, observation=observation, query=query)
+                    history = self._normalize_history_messages(retrieved)
                 except Exception:
                     history = []
             current_user = {"role": "user", "content": str(prepared)}
@@ -492,8 +536,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                     "messages": messages,
                 },
             )
-            self._memory_append("message", current_user, record.step_id, metadata={"source": "engine"})
-            self._memory_append("model_input", {"messages": messages}, record.step_id)
+            self._history_append("user", str(prepared), record.step_id, metadata={"source": "engine"})
             raw_decision = self.agent.llm(messages)
             self._token_usage += self._estimate_tokens(messages) + self._estimate_tokens(str(raw_decision))
             self._emit(
@@ -501,13 +544,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                 RuntimePhase.DECIDE,
                 payload={"stage": "model_output", "raw_output": str(raw_decision)},
             )
-            self._memory_append(
-                "message",
-                {"role": "assistant", "content": str(raw_decision)},
-                record.step_id,
-                metadata={"source": "engine"},
-            )
-            self._memory_append("model_output", raw_decision, record.step_id)
+            self._history_append("assistant", str(raw_decision), record.step_id, metadata={"source": "engine"})
         decision = self._normalize_decision(raw_decision, step=record.step_id)
 
         if decision.mode == "branch":
@@ -591,6 +628,8 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         if self.executor is None:
             raise RuntimeError("No tool registry configured for action execution")
         actions = [action if isinstance(action, Action) else Action.from_dict(action) for action in decision.actions]
+        for action in actions:
+            self._memory_append("action", action, record.step_id)
         execution = self.executor.execute(actions, env=self.env, state=state)
 
         record.tool_invocations = [
@@ -664,6 +703,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         if new_state is not state:
             state.__dict__.update(new_state.__dict__)
         after = state.to_dict()
+        self._memory_append("next_state", after, record.step_id)
         record.state_diff = self._compute_state_diff(before, after)
         self._emit(
             record.step_id,
@@ -1036,6 +1076,40 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
     def _memory(self) -> Optional[Memory]:
         mem = getattr(self.agent, "memory", None)
         return mem if isinstance(mem, Memory) else None
+
+    def _history(self) -> History:
+        hist = getattr(self.agent, "history", None)
+        if isinstance(hist, History):
+            return hist
+        return self._runtime_history
+
+    def _history_append(
+        self,
+        role: str,
+        content: str,
+        step_id: int,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        history = self._history()
+        history.append(HistoryMessage(role=role, content=content, step_id=step_id, metadata=metadata or {}))
+
+    def _normalize_history_messages(self, payload: Any) -> List[Dict[str, str]]:
+        messages: List[Dict[str, str]] = []
+        if not isinstance(payload, list):
+            return messages
+        for item in payload:
+            if isinstance(item, HistoryMessage):
+                role = str(item.role).strip()
+                content = str(item.content)
+                if role and content:
+                    messages.append({"role": role, "content": content})
+                continue
+            if isinstance(item, dict):
+                role = str(item.get("role", "")).strip()
+                content = str(item.get("content", ""))
+                if role and content:
+                    messages.append({"role": role, "content": content})
+        return messages
 
     def _infer_failed_phase(self, record: StepRecord) -> RuntimePhase:
         if not record.phase_events:

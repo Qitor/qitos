@@ -9,7 +9,6 @@
 Memory 归属于 `AgentModule`（`self.memory`）。
 
 - 推荐在 agent 构造时传入。
-- `Engine(memory=...)` 只是便捷方式，会绑定到 `agent.memory`。
 
 ## 契约
 
@@ -17,15 +16,23 @@ Memory 归属于 `AgentModule`（`self.memory`）。
 
 - `append(record)`
 - `retrieve(query, state, observation)`
-- `retrieve_messages(state, observation, query)`
 - `summarize(max_items)`
 - `reset(run_id)`
 
 ## 使用方式
 
 1. 运行中，Engine 会把记录写入 `agent.memory`。
-2. 默认模型路径下，Engine 可从 `agent.memory.retrieve_messages(...)` 取历史消息。
-3. 自定义 agent 时，可在 `prepare(state)` 里直接读取 `self.memory`。
+2. 自定义 agent 时，可在 `prepare(state)` 里直接读取 `self.memory`。
+
+典型 memory 序列：
+
+- `task`
+- `state`
+- `decision`
+- `action`
+- `observation`
+- `next_state`
+- ...
 
 ## 关键边界
 

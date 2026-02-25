@@ -23,9 +23,8 @@ class VectorMemory(Memory):
         query: Optional[Dict[str, Any]] = None,
         state: Any = None,
         observation: Any = None,
-    ) -> List[MemoryRecord] | List[Dict[str, str]]:
+    ) -> List[MemoryRecord]:
         query = query or {}
-        fmt = str(query.get("format", "records"))
         text = str(query.get("text", ""))
         k = int(query.get("top_k", self.top_k))
 
@@ -33,16 +32,6 @@ class VectorMemory(Memory):
             return []
         if not text:
             items = self._records[-k:]
-            if fmt == "messages":
-                messages: List[Dict[str, str]] = []
-                for item in items:
-                    if item.role != "message" or not isinstance(item.content, dict):
-                        continue
-                    role = str(item.content.get("role", "")).strip()
-                    content = str(item.content.get("content", ""))
-                    if role and content:
-                        messages.append({"role": role, "content": content})
-                return messages
             return items
 
         qv = self.embedder(text)
@@ -51,16 +40,6 @@ class VectorMemory(Memory):
             scored.append((self._dot(qv, vec), idx))
         scored.sort(key=lambda x: x[0], reverse=True)
         items = [self._records[idx] for _, idx in scored[:k]]
-        if fmt == "messages":
-            messages: List[Dict[str, str]] = []
-            for item in items:
-                if item.role != "message" or not isinstance(item.content, dict):
-                    continue
-                role = str(item.content.get("role", "")).strip()
-                content = str(item.content.get("content", ""))
-                if role and content:
-                    messages.append({"role": role, "content": content})
-            return messages
         return items
 
     def summarize(self, max_items: int = 5) -> str:

@@ -10,6 +10,7 @@ from .errors import (
 )
 from .state import StateSchema, PlanState, StateMigrationRegistry, StateValidationError, StateMigrationError
 from .memory import Memory, MemoryRecord
+from .history import History, HistoryMessage, HistoryPolicy
 from .env import Env, EnvSpec, EnvObservation, EnvStepResult, FileSystemCapability, CommandCapability
 from .task import (
     Task,
@@ -42,6 +43,9 @@ __all__ = [
     "StateMigrationError",
     "Memory",
     "MemoryRecord",
+    "History",
+    "HistoryMessage",
+    "HistoryPolicy",
     "Env",
     "EnvSpec",
     "EnvObservation",

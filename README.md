@@ -166,40 +166,112 @@ python examples/real/cybench_eval.py \
   --run-all --max-workers 2 --resume
 ```
 
-## Minimal Authoring Example
+## Minimal SWE-Agent Definition
 
 ```python
-from dataclasses import dataclass
-from qitos import AgentModule, StateSchema, Decision, Action, Engine, ToolRegistry, tool
+from dataclasses import dataclass, field
+from typing import Any
+
+from qitos import Action, AgentModule, Decision, Engine, EnvSpec, HistoryPolicy, StateSchema, Task, TaskBudget, ToolRegistry
+from qitos.kit.env import HostEnv
+from qitos.kit.history import WindowHistory
+from qitos.kit.memory import MarkdownFileMemory
+from qitos.kit.parser import ReActTextParser
+from qitos.kit.tool.editor import EditorToolSet
+from qitos.kit.tool.shell import RunCommand
+
+SWE_REACT_SYSTEM_PROMPT = """
+You are an expert software engineering agent.
+
+Mission:
+- Implement new requirements in the repository with minimal, correct, maintainable changes.
+- Produce PR-ready results: what changed, why, and validation evidence.
+
+Operating rules:
+1. Use ReAct loop strictly: Think -> one Action -> observe -> repeat.
+2. Do exactly one tool call per step.
+3. Always inspect relevant code before editing.
+4. Prefer small, reversible patches over broad rewrites.
+5. Validate with tests or executable checks before finalizing.
+6. If a check fails, diagnose and iterate; do not claim success.
+7. Never fabricate command output, file content, or test results.
+
+Output protocol (strict):
+- Thought: concise reasoning and next intent.
+- Action: tool_name(arg=value, ...)
+- Final Answer: PR-ready result including:
+  - Requirement implemented
+  - Files changed + key diffs
+  - Validation commands + outcomes
+  - Remaining risks / follow-ups
+"""
 
 @dataclass
-class MyState(StateSchema):
-    pass
+class SWEState(StateSchema):
+    scratchpad: list[str] = field(default_factory=list)
+    target_file: str = "buggy_module.py"
+    test_command: str = 'python -c "import buggy_module; assert buggy_module.add(20, 22) == 42"'
 
-class MyAgent(AgentModule[MyState, dict, Action]):
-    def __init__(self):
+class MinimalSWEAgent(AgentModule[SWEState, dict[str, Any], Action]):
+    def __init__(self, llm: Any, workspace_root: str):
         reg = ToolRegistry()
+        reg.include(EditorToolSet(workspace_root=workspace_root))
+        reg.register(RunCommand(cwd=workspace_root))
+        super().__init__(
+            tool_registry=reg,
+            llm=llm,
+            model_parser=ReActTextParser(),
+            memory=MarkdownFileMemory(path=f"{workspace_root}/memory.md"),
+            history=WindowHistory(window_size=24),
+        )
 
-        @tool(name="add")
-        def add(a: int, b: int) -> int:
-            return a + b
+    def init_state(self, task: str, **kwargs: Any) -> SWEState:
+        return SWEState(task=task, max_steps=int(kwargs.get("max_steps", 12)))
 
-        reg.register(add)
-        super().__init__(tool_registry=reg)
+    def build_system_prompt(self, state: SWEState) -> str | None:
+        tool_schema = self.tool_registry.get_tool_descriptions() if self.tool_registry else ""
+        return f"{SWE_REACT_SYSTEM_PROMPT}\n\nAvailable tools:\n{tool_schema}"
 
-    def init_state(self, task: str, **kwargs):
-        return MyState(task=task, max_steps=3)
+    def decide(self, state: SWEState, observation: dict[str, Any]):
+        return None  # use Engine model path: prepare -> llm -> parser
 
-    def decide(self, state, observation):
-        if state.current_step == 0:
-            return Decision.act(actions=[Action(name="add", args={"a": 19, "b": 23})])
-        return Decision.final("done")
+    def prepare(self, state: SWEState) -> str:
+        mem = self.memory.retrieve(query={"max_items": 8}) if self.memory else []
+        return (
+            f"Task: {state.task}\n"
+            f"Target file: {state.target_file}\n"
+            f"Test command: {state.test_command}\n"
+            f"Step: {state.current_step}/{state.max_steps}\n"
+            f"Recent memory: {mem[-3:]}"
+        )
 
-    def reduce(self, state, observation, decision):
+    def reduce(self, state: SWEState, observation: dict[str, Any], decision: Decision[Action]) -> SWEState:
+        if decision.rationale:
+            state.scratchpad.append(f"Thought: {decision.rationale}")
+        if decision.actions:
+            state.scratchpad.append(f"Action: {decision.actions[0]}")
+        results = observation.get("action_results", [])
+        if results:
+            state.scratchpad.append(f"Observation: {results[0]}")
+            if isinstance(results[0], dict) and int(results[0].get("returncode", 1)) == 0:
+                state.final_result = "Patch validated by test command."
+        state.scratchpad = state.scratchpad[-40:]
         return state
 
-result = Engine(agent=MyAgent()).run("compute 19+23")
-print(result.state.final_result)
+# llm = ...  # your model adapter
+# agent = MinimalSWEAgent(llm=llm, workspace_root="./playground")
+# task = Task(
+#     id="swe_minimal",
+#     objective="Fix buggy_module.py and make the test pass.",
+#     env_spec=EnvSpec(type="host", config={"workspace_root": "./playground"}),
+#     budget=TaskBudget(max_steps=12),
+# )
+# result = Engine(
+#     agent=agent,
+#     env=HostEnv(workspace_root="./playground"),
+#     history_policy=HistoryPolicy(max_messages=20),
+# ).run(task)
+# print(result.state.final_result, result.state.stop_reason)
 ```
 
 ## Real Examples

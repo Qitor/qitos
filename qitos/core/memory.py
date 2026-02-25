@@ -29,32 +29,9 @@ class Memory(ABC):
     ) -> Any:
         """Retrieve memory payload by strategy.
 
-        Common formats:
-        - query["format"] == "records": List[MemoryRecord]
-        - query["format"] == "messages": List[{"role": str, "content": str}]
+        Common format:
+        - List[MemoryRecord]
         """
-
-    def retrieve_messages(
-        self,
-        state: Any = None,
-        observation: Any = None,
-        query: Optional[Dict[str, Any]] = None,
-    ) -> List[Dict[str, str]]:
-        """Retrieve conversation history in chat message format."""
-        merged = dict(query or {})
-        merged["format"] = "messages"
-        payload = self.retrieve(query=merged, state=state, observation=observation)
-        messages: List[Dict[str, str]] = []
-        if not isinstance(payload, list):
-            return messages
-        for item in payload:
-            if not isinstance(item, dict):
-                continue
-            role = str(item.get("role", "")).strip()
-            content = str(item.get("content", ""))
-            if role and content:
-                messages.append({"role": role, "content": content})
-        return messages
 
     @abstractmethod
     def summarize(self, max_items: int = 5) -> str:

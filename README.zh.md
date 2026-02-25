@@ -165,40 +165,112 @@ python examples/real/cybench_eval.py \
   --run-all --max-workers 2 --resume
 ```
 
-## 最小可改的 Agent 编写示例
+## 最小 SWE-Agent 定义示例
 
 ```python
-from dataclasses import dataclass
-from qitos import AgentModule, StateSchema, Decision, Action, Engine, ToolRegistry, tool
+from dataclasses import dataclass, field
+from typing import Any
+
+from qitos import Action, AgentModule, Decision, Engine, EnvSpec, HistoryPolicy, StateSchema, Task, TaskBudget, ToolRegistry
+from qitos.kit.env import HostEnv
+from qitos.kit.history import WindowHistory
+from qitos.kit.memory import MarkdownFileMemory
+from qitos.kit.parser import ReActTextParser
+from qitos.kit.tool.editor import EditorToolSet
+from qitos.kit.tool.shell import RunCommand
+
+SWE_REACT_SYSTEM_PROMPT = """
+你是一个顶级软件工程智能体。
+
+目标：
+- 在仓库中实现新的需求，代码改动应正确、最小、可维护。
+- 产出可直接用于 PR 的结果：改了什么、为什么改、如何验证。
+
+执行规则：
+1. 严格遵循 ReAct：Think -> 一次 Action -> 观察 -> 继续。
+2. 每一步只允许一个工具调用。
+3. 修改前先阅读相关代码。
+4. 优先做可回滚的小补丁，不做大范围重写。
+5. 最终结论必须有测试或可执行命令支撑。
+6. 若验证失败，先诊断再迭代，不得宣称完成。
+7. 不得捏造命令输出、文件内容、测试结果。
+
+输出格式（严格）：
+- Thought: 简明推理与下一步意图。
+- Action: tool_name(arg=value, ...)
+- Final Answer: 面向 PR 的总结，必须包含：
+  - 已实现需求
+  - 修改文件与关键变更
+  - 验证命令与结果
+  - 剩余风险/后续建议
+"""
 
 @dataclass
-class MyState(StateSchema):
-    pass
+class SWEState(StateSchema):
+    scratchpad: list[str] = field(default_factory=list)
+    target_file: str = "buggy_module.py"
+    test_command: str = 'python -c "import buggy_module; assert buggy_module.add(20, 22) == 42"'
 
-class MyAgent(AgentModule[MyState, dict, Action]):
-    def __init__(self):
+class MinimalSWEAgent(AgentModule[SWEState, dict[str, Any], Action]):
+    def __init__(self, llm: Any, workspace_root: str):
         reg = ToolRegistry()
+        reg.include(EditorToolSet(workspace_root=workspace_root))
+        reg.register(RunCommand(cwd=workspace_root))
+        super().__init__(
+            tool_registry=reg,
+            llm=llm,
+            model_parser=ReActTextParser(),
+            memory=MarkdownFileMemory(path=f"{workspace_root}/memory.md"),
+            history=WindowHistory(window_size=24),
+        )
 
-        @tool(name="add")
-        def add(a: int, b: int) -> int:
-            return a + b
+    def init_state(self, task: str, **kwargs: Any) -> SWEState:
+        return SWEState(task=task, max_steps=int(kwargs.get("max_steps", 12)))
 
-        reg.register(add)
-        super().__init__(tool_registry=reg)
+    def build_system_prompt(self, state: SWEState) -> str | None:
+        tool_schema = self.tool_registry.get_tool_descriptions() if self.tool_registry else ""
+        return f"{SWE_REACT_SYSTEM_PROMPT}\n\n可用工具：\n{tool_schema}"
 
-    def init_state(self, task: str, **kwargs):
-        return MyState(task=task, max_steps=3)
+    def decide(self, state: SWEState, observation: dict[str, Any]):
+        return None  # 走 Engine 默认模型路径：prepare -> llm -> parser
 
-    def decide(self, state, observation):
-        if state.current_step == 0:
-            return Decision.act(actions=[Action(name="add", args={"a": 19, "b": 23})])
-        return Decision.final("done")
+    def prepare(self, state: SWEState) -> str:
+        mem = self.memory.retrieve(query={"max_items": 8}) if self.memory else []
+        return (
+            f"Task: {state.task}\n"
+            f"Target file: {state.target_file}\n"
+            f"Test command: {state.test_command}\n"
+            f"Step: {state.current_step}/{state.max_steps}\n"
+            f"Recent memory: {mem[-3:]}"
+        )
 
-    def reduce(self, state, observation, decision):
+    def reduce(self, state: SWEState, observation: dict[str, Any], decision: Decision[Action]) -> SWEState:
+        if decision.rationale:
+            state.scratchpad.append(f"Thought: {decision.rationale}")
+        if decision.actions:
+            state.scratchpad.append(f"Action: {decision.actions[0]}")
+        results = observation.get("action_results", [])
+        if results:
+            state.scratchpad.append(f"Observation: {results[0]}")
+            if isinstance(results[0], dict) and int(results[0].get("returncode", 1)) == 0:
+                state.final_result = "需求已实现，且验证命令通过。"
+        state.scratchpad = state.scratchpad[-40:]
         return state
 
-result = Engine(agent=MyAgent()).run("compute 19+23")
-print(result.state.final_result)
+# llm = ...  # 你的模型适配器
+# agent = MinimalSWEAgent(llm=llm, workspace_root="./playground")
+# task = Task(
+#     id="swe_minimal",
+#     objective="实现新需求并让测试通过。",
+#     env_spec=EnvSpec(type="host", config={"workspace_root": "./playground"}),
+#     budget=TaskBudget(max_steps=12),
+# )
+# result = Engine(
+#     agent=agent,
+#     env=HostEnv(workspace_root="./playground"),
+#     history_policy=HistoryPolicy(max_messages=20),
+# ).run(task)
+# print(result.state.final_result, result.state.stop_reason)
 ```
 
 ## 实战示例

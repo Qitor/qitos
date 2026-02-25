@@ -1,0 +1,8 @@
+include README.md
+include README.zh.md
+include LICENSE
+
+recursive-include qitos/benchmark/tau_bench/port/envs/retail/data *.json *.md
+recursive-include qitos/benchmark/tau_bench/port/envs/airline/data *.json
+recursive-include qitos/benchmark/tau_bench/port/envs/retail *.md
+recursive-include qitos/benchmark/tau_bench/port/envs/airline *.md

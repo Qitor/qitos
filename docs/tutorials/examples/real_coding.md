@@ -40,21 +40,17 @@ What it wires:
 - `RunCommand` (verification)
 - `ReActTextParser` for text-protocol decisions
 
-### `build_memory_query`: control retrieval policy for `self.memory`
+### `history_policy`: control model-facing history in Engine
 
-This example returns:
+This example sets:
 
 ```python
-{"format": "records", "max_items": 12}
+HistoryPolicy(max_messages=12)
 ```
 
 Design principle:
 
-- the agent should not see unbounded memory; keep it bounded and inspectable.
-
-Important nuance:
-
-- keep retrieval bounded and stable for reproducibility.
+- keep LLM history bounded and reproducible at engine level.
 
 ### `prepare`: publish task + constraints, and optionally inject memory context
 
@@ -101,9 +97,10 @@ Design principle:
 
 This example passes into `Engine(...)`:
 
-- `memory=MarkdownFileMemory(path=".../memory.md")`
+- `super().__init__(..., memory=MarkdownFileMemory(path=".../memory.md"))`
 - `critics=[ReActSelfReflectionCritic(max_retries=2)]`
 - `env=HostEnv(workspace_root=...)`
+- `history_policy=HistoryPolicy(max_messages=12)`
 - `trace_writer=...` (optional)
 
 That’s the core “builder stack” in QitOS:
