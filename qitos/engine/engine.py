@@ -167,10 +167,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self.hooks = []
 
     def run(self, task: str | Task, **kwargs: Any) -> EngineResult[StateT]:
-        self.events = []
-        self.records = []
-        self._last_env_observation = None
-        self._last_env_result = None
+        self._reset_run_state()
         memory = self._memory()
         if memory is not None:
             try:
@@ -246,11 +243,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                 task_result=self._build_task_result(state, task_obj=task_obj, started_at=started_at),
             )
             self._notify_run_end(result)
-            self._active_state = None
-            self._active_task = ""
-            self._active_task_obj = None
-            self._last_env_observation = None
-            self._last_env_result = None
+            self._clear_active_context()
             self._teardown_env()
             self._teardown_toolsets({"state": state, "trace_writer": self.trace_writer, "task": task_obj or task_text})
             return result
@@ -400,30 +393,21 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             task_result=self._build_task_result(state, task_obj=task_obj, started_at=started_at),
         )
         self._notify_run_end(result)
-        self._active_state = None
-        self._active_task = ""
-        self._active_task_obj = None
-        self._last_env_observation = None
-        self._last_env_result = None
-        self._active_run_id = ""
-        self._last_system_prompt = ""
+        self._clear_active_context()
         return result
 
     def _apply_task_budget(self, task_obj: Optional[Task]) -> None:
         self.budget.max_steps = self._base_budget.max_steps
         self.budget.max_runtime_seconds = self._base_budget.max_runtime_seconds
         self.budget.max_tokens = self._base_budget.max_tokens
-        if task_obj is None:
-            if self._uses_default_stop_criteria:
-                self.stop_criteria = [FinalResultCriteria()]
-            return
-        budget = task_obj.budget
-        if budget.max_steps is not None:
-            self.budget.max_steps = int(budget.max_steps)
-        if budget.max_runtime_seconds is not None:
-            self.budget.max_runtime_seconds = float(budget.max_runtime_seconds)
-        if budget.max_tokens is not None:
-            self.budget.max_tokens = int(budget.max_tokens)
+        if task_obj is not None:
+            budget = task_obj.budget
+            if budget.max_steps is not None:
+                self.budget.max_steps = int(budget.max_steps)
+            if budget.max_runtime_seconds is not None:
+                self.budget.max_runtime_seconds = float(budget.max_runtime_seconds)
+            if budget.max_tokens is not None:
+                self.budget.max_tokens = int(budget.max_tokens)
         if self._uses_default_stop_criteria:
             self.stop_criteria = [FinalResultCriteria()]
 
@@ -515,14 +499,12 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                     self._history_append("system", system, record.step_id, metadata={"source": "engine"})
                     self._last_system_prompt = system
             history: List[Dict[str, str]] = []
-            history_store = self._history()
-            if history_store is not None:
-                query = self.history_policy.build_query(step_id=record.step_id)
-                try:
-                    retrieved = history_store.retrieve(state=state, observation=observation, query=query)
-                    history = self._normalize_history_messages(retrieved)
-                except Exception:
-                    history = []
+            query = self.history_policy.build_query(step_id=record.step_id)
+            try:
+                retrieved = self._history().retrieve(state=state, observation=observation, query=query)
+                history = self._normalize_history_messages(retrieved)
+            except Exception:
+                history = []
             current_user = {"role": "user", "content": str(prepared)}
             messages.extend(history)
             messages.append(current_user)
@@ -812,71 +794,24 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
 
         if decision.mode == "final":
             state.set_stop(StopReason.FINAL, decision.final_answer)
-            self._emit(
-                state.current_step,
-                RuntimePhase.CHECK_STOP,
-                payload={"stage": "stop", "stop_reason": state.stop_reason, "final_result": state.final_result},
-            )
-            self._dispatch_hook(
-                "on_after_check_stop",
-                HookContext(
-                    task=self._active_task,
-                    step_id=step_id,
-                    phase=RuntimePhase.CHECK_STOP,
-                    state=state,
-                    decision=decision,
-                    stop_reason=state.stop_reason,
-                    payload={"result": "stop"},
-                ),
-            )
+            self._finish_check_stop(step_id=step_id, state=state, decision=decision, stop=True)
             return True
 
         if self.agent.should_stop(state):
             if state.stop_reason is None:
                 state.set_stop(StopReason.AGENT_CONDITION)
-            self._emit(
-                state.current_step,
-                RuntimePhase.CHECK_STOP,
-                payload={"stage": "stop", "stop_reason": state.stop_reason, "final_result": state.final_result},
-            )
-            self._dispatch_hook(
-                "on_after_check_stop",
-                HookContext(
-                    task=self._active_task,
-                    step_id=step_id,
-                    phase=RuntimePhase.CHECK_STOP,
-                    state=state,
-                    decision=decision,
-                    stop_reason=state.stop_reason,
-                    payload={"result": "stop"},
-                ),
-            )
+            self._finish_check_stop(step_id=step_id, state=state, decision=decision, stop=True)
             return True
 
         if self.env is not None and self.env.is_terminal(state=state, last_result=self._last_env_result):
             if state.stop_reason is None:
                 state.set_stop(StopReason.ENV_TERMINAL)
-            self._emit(
-                state.current_step,
-                RuntimePhase.CHECK_STOP,
-                payload={
-                    "stage": "stop",
-                    "stop_reason": state.stop_reason,
-                    "final_result": state.final_result,
-                    "env_terminal": True,
-                },
-            )
-            self._dispatch_hook(
-                "on_after_check_stop",
-                HookContext(
-                    task=self._active_task,
-                    step_id=step_id,
-                    phase=RuntimePhase.CHECK_STOP,
-                    state=state,
-                    decision=decision,
-                    stop_reason=state.stop_reason,
-                    payload={"result": "stop"},
-                ),
+            self._finish_check_stop(
+                step_id=step_id,
+                state=state,
+                decision=decision,
+                stop=True,
+                extra_payload={"env_terminal": True},
             )
             return True
 
@@ -885,31 +820,37 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         if should_stop:
             if state.stop_reason is None:
                 state.set_stop(reason or StopReason.UNRECOVERABLE_ERROR)
-            self._emit(
-                state.current_step,
-                RuntimePhase.CHECK_STOP,
-                payload={
-                    "stage": "stop",
-                    "stop_reason": state.stop_reason,
-                    "final_result": state.final_result,
-                    "stop_detail": detail,
-                },
-            )
-            self._dispatch_hook(
-                "on_after_check_stop",
-                HookContext(
-                    task=self._active_task,
-                    step_id=step_id,
-                    phase=RuntimePhase.CHECK_STOP,
-                    state=state,
-                    decision=decision,
-                    stop_reason=state.stop_reason,
-                    payload={"result": "stop"},
-                ),
+            self._finish_check_stop(
+                step_id=step_id,
+                state=state,
+                decision=decision,
+                stop=True,
+                extra_payload={"stop_detail": detail},
             )
             return True
 
-        self._emit(state.current_step, RuntimePhase.CHECK_STOP, payload={"stage": "continue"})
+        self._finish_check_stop(step_id=step_id, state=state, decision=decision, stop=False)
+        return False
+
+    def _finish_check_stop(
+        self,
+        step_id: int,
+        state: StateT,
+        decision: Decision[ActionT],
+        stop: bool,
+        extra_payload: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        if stop:
+            payload: Dict[str, Any] = {
+                "stage": "stop",
+                "stop_reason": state.stop_reason,
+                "final_result": state.final_result,
+            }
+            if extra_payload:
+                payload.update(extra_payload)
+            self._emit(state.current_step, RuntimePhase.CHECK_STOP, payload=payload)
+        else:
+            self._emit(state.current_step, RuntimePhase.CHECK_STOP, payload={"stage": "continue"})
         self._dispatch_hook(
             "on_after_check_stop",
             HookContext(
@@ -918,10 +859,10 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                 phase=RuntimePhase.CHECK_STOP,
                 state=state,
                 decision=decision,
-                payload={"result": "continue"},
+                stop_reason=state.stop_reason if stop else None,
+                payload={"result": "stop" if stop else "continue"},
             ),
         )
-        return False
 
     def _should_stop_by_criteria(self, state: StateT, step_id: int, elapsed_seconds: float) -> tuple[bool, Optional[StopReason], Optional[str]]:
         for criteria in self.stop_criteria:
@@ -1286,7 +1227,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         try:
             self.env.teardown()
         except Exception:
-            return
+            pass
 
     def _run_env_step(self, decision: Decision[ActionT], action_results: List[Any]) -> Optional[EnvStepResult]:
         if self.env is None:
@@ -1616,6 +1557,21 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         )
         payload.setdefault("error", str(ctx.error) if ctx.error is not None else None)
         ctx.payload = payload
+
+    def _reset_run_state(self) -> None:
+        self.events = []
+        self.records = []
+        self._last_env_observation = None
+        self._last_env_result = None
+
+    def _clear_active_context(self) -> None:
+        self._active_state = None
+        self._active_task = ""
+        self._active_task_obj = None
+        self._last_env_observation = None
+        self._last_env_result = None
+        self._active_run_id = ""
+        self._last_system_prompt = ""
 
 
 __all__ = ["Engine", "EngineResult"]
