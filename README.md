@@ -3,69 +3,91 @@
 ![QitOS Logo](assets/logo.png)
 
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB)](https://www.python.org/)
-[![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/Qitor/qitos)
-[![Docs](https://img.shields.io/badge/docs-online-0A66C2)](https://qitor.github.io/qitos/)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-qitor.github.io/qitos-0A66C2)](https://qitor.github.io/qitos/)
+[![PyPI](https://img.shields.io/pypi/v/qitos.svg)](https://pypi.org/project/qitos/)
 [![Repo](https://img.shields.io/badge/github-Qitor%2Fqitos-black)](https://github.com/Qitor/qitos)
 
-**QitOS is a research-first agentic framework with one canonical kernel:**
-`AgentModule + Engine`.
+QitOS is a **research-first agent framework** built around one canonical kernel:
 
-It is designed for researchers and advanced builders who need:
-- full control of agent scaffolding,
-- fast iteration on new agent designs,
-- reproducible experiments with clear traces.
-- benchmark-ready evaluation loops (GAIA/Tau-Bench/CyBench adapted).
+> **AgentModule + Engine**
+
+It is designed for researchers and advanced builders who need to:
+- design new agentic scaffolding quickly,
+- control every important runtime detail,
+- run reproducible benchmark experiments,
+- inspect trajectories with production-grade observability.
 
 - Chinese README: [README.zh.md](README.zh.md)
-- Docs: [https://qitor.github.io/qitos/](https://qitor.github.io/qitos/)
-- Repository: [https://github.com/Qitor/qitos](https://github.com/Qitor/qitos)
+- Documentation: [https://qitor.github.io/qitos/](https://qitor.github.io/qitos/)
+
+---
 
 ## Why QitOS
 
-1. **One execution mainline, zero architecture ambiguity**
-- `prepare -> decide -> act -> reduce -> check_stop`
-- no Runtime-vs-Engine split
-- no hidden policy layer competing with `AgentModule`
+### 1) One Mainline, No Ambiguity
+QitOS enforces one runtime lifecycle:
 
-2. **Modular without fragmentation**
+`prepare -> decide -> act -> reduce -> check_stop`
+
+No parallel architecture tracks. No hidden policy layer competing with your agent code.
+
+### 2) Explicit Separation of Concerns
+QitOS treats **Memory** and **History** as different primitives:
+- `memory`: trajectory artifacts (`task/state/decision/action/observation/next_state/...`)
+- `history`: model-facing messages (`system/user/assistant/...`)
+
+This keeps agent research clean and avoids context coupling mistakes.
+
+### 3) Modular, Not Fragmented
 - `qitos.core`: contracts
-- `qitos.engine`: runtime kernel
-- `qitos.kit`: concrete reusable implementations
-- `qitos.benchmark`: external benchmark adapters -> canonical `Task`
+- `qitos.engine`: execution kernel
+- `qitos.kit`: reusable implementations
+- `qitos.benchmark`: benchmark adapters to canonical `Task`
+- `qitos.evaluate` + `qitos.metric`: evaluation and reporting
 
-3. **Research velocity**
-- quickly implement ReAct, PlanAct, ToT, Reflexion, SWE-style loops
-- benchmark adapters (e.g., GAIA) integrate through `Task` conversion
-
-4. **Serious observability**
+### 4) Observability as a First-Class Feature
 - standardized run traces
-- hook system across lifecycle phases
-- `qita` for board/view/replay/export
+- full hook system across lifecycle phases
+- `qita` for board / view / replay / export
 
-5. **Evaluation-native benchmark workflow**
-- `qitos.benchmark` adapters for GAIA, Tau-Bench, and CyBench
-- `qitos.evaluate` for trajectory success judgement
-- `qitos.metric` for benchmark-level reporting (success rate, pass@k, etc.)
+### 5) Benchmark-Native by Design
+Integrated adapters for:
+- GAIA
+- Tau-Bench
+- CyBench
+
+---
 
 ## Architecture Snapshot
 
 ```text
 Task -> Engine.run(...)
-      -> prepare -> decide -> act -> reduce -> check_stop -> ...
-      -> hooks + trace + qita replay
+     -> prepare -> decide -> act -> reduce -> check_stop -> ...
+     -> hooks + trace + qita replay
 ```
 
-## Install
+---
+
+## Installation
+
+```bash
+pip install qitos
+```
+
+Development mode:
 
 ```bash
 pip install -e .
 ```
 
-Optional extras (if needed):
+Optional extras:
 
 ```bash
-pip install -e ".[models,yaml]"
+pip install -e ".[models,yaml,benchmarks]"
 ```
+
+---
 
 ## Quick Start
 
@@ -75,7 +97,7 @@ pip install -e ".[models,yaml]"
 python examples/quickstart/minimal_agent.py
 ```
 
-### 2) Run an LLM-backed ReAct agent
+### 2) Run an LLM-backed ReAct pattern
 
 ```bash
 export OPENAI_BASE_URL="https://api.siliconflow.cn/v1/"
@@ -84,89 +106,15 @@ export OPENAI_API_KEY="<your_api_key>"
 python examples/patterns/react.py --workspace ./playground
 ```
 
-### 3) Inspect runs with qita
+### 3) Inspect trajectories with qita
 
 ```bash
 qita board --logdir runs
 ```
 
-## Product UI Snapshots
+---
 
-### QitOS CLI render
-
-![QitOS CLI](assets/qitos_cli_snapshot.png)
-
-### qita board
-
-![qita board](assets/qita_board_snapshot.png)
-
-### qita trajectory view
-
-![qita trajectory view](assets/qita_traj_snapshot.png)
-
-### 4) Run GAIA with the QitOS benchmark adapter
-
-Single sample:
-
-```bash
-python examples/real/open_deep_research_gaia_agent.py \
-  --workspace ./qitos_gaia_workspace \
-  --gaia-download-snapshot \
-  --gaia-split validation \
-  --gaia-index 0
-```
-
-Full split (with resume):
-
-```bash
-python examples/real/open_deep_research_gaia_agent.py \
-  --workspace ./qitos_gaia_workspace \
-  --gaia-download-snapshot \
-  --gaia-split validation \
-  --run-all --concurrency 2 --resume
-```
-
-### 5) Run Tau-Bench eval (single or full)
-
-Single task:
-
-```bash
-python examples/real/tau_bench_eval.py \
-  --workspace ./qitos_tau_workspace \
-  --tau-env retail --tau-split test \
-  --task-index 0
-```
-
-Full eval:
-
-```bash
-python examples/real/tau_bench_eval.py \
-  --workspace ./qitos_tau_workspace \
-  --tau-env retail --tau-split test \
-  --run-all --num-trials 1 --concurrency 4 --resume
-```
-
-### 6) Run CyBench eval (single or full)
-
-Single task (guided mode):
-
-```bash
-python examples/real/cybench_eval.py \
-  --workspace ./qitos_cybench_workspace \
-  --cybench-root ./references/cybench \
-  --task-index 0
-```
-
-Full eval:
-
-```bash
-python examples/real/cybench_eval.py \
-  --workspace ./qitos_cybench_workspace \
-  --cybench-root ./references/cybench \
-  --run-all --max-workers 2 --resume
-```
-
-## Minimal SWE-Agent Definition
+## Minimal SWE Agent (Requirement-to-PR style)
 
 ```python
 from dataclasses import dataclass, field
@@ -185,25 +133,19 @@ You are an expert software engineering agent.
 
 Mission:
 - Implement new requirements in the repository with minimal, correct, maintainable changes.
-- Produce PR-ready results: what changed, why, and validation evidence.
+- Produce PR-ready results with concrete validation evidence.
 
-Operating rules:
-1. Use ReAct loop strictly: Think -> one Action -> observe -> repeat.
-2. Do exactly one tool call per step.
-3. Always inspect relevant code before editing.
-4. Prefer small, reversible patches over broad rewrites.
-5. Validate with tests or executable checks before finalizing.
-6. If a check fails, diagnose and iterate; do not claim success.
-7. Never fabricate command output, file content, or test results.
+Rules:
+1. Follow ReAct strictly: Thought -> one Action -> observe -> iterate.
+2. Exactly one tool call per step.
+3. Read relevant code before editing.
+4. Prefer small, reversible patches.
+5. Do not claim success without test/command evidence.
 
-Output protocol (strict):
-- Thought: concise reasoning and next intent.
-- Action: tool_name(arg=value, ...)
-- Final Answer: PR-ready result including:
-  - Requirement implemented
-  - Files changed + key diffs
-  - Validation commands + outcomes
-  - Remaining risks / follow-ups
+Output format:
+Thought: <reasoning>
+Action: <tool_name>(...)
+Final Answer: <requirement coverage + changed files + validation + remaining risks>
 """
 
 @dataclass
@@ -211,6 +153,7 @@ class SWEState(StateSchema):
     scratchpad: list[str] = field(default_factory=list)
     target_file: str = "buggy_module.py"
     test_command: str = 'python -c "import buggy_module; assert buggy_module.add(20, 22) == 42"'
+
 
 class MinimalSWEAgent(AgentModule[SWEState, dict[str, Any], Action]):
     def __init__(self, llm: Any, workspace_root: str):
@@ -233,16 +176,16 @@ class MinimalSWEAgent(AgentModule[SWEState, dict[str, Any], Action]):
         return f"{SWE_REACT_SYSTEM_PROMPT}\n\nAvailable tools:\n{tool_schema}"
 
     def decide(self, state: SWEState, observation: dict[str, Any]):
-        return None  # use Engine model path: prepare -> llm -> parser
+        return None  # Engine model path: prepare -> llm -> parser
 
     def prepare(self, state: SWEState) -> str:
-        mem = self.memory.retrieve(query={"max_items": 8}) if self.memory else []
+        records = self.memory.retrieve(query={"max_items": 8}) if self.memory else []
         return (
             f"Task: {state.task}\n"
             f"Target file: {state.target_file}\n"
             f"Test command: {state.test_command}\n"
             f"Step: {state.current_step}/{state.max_steps}\n"
-            f"Recent memory: {mem[-3:]}"
+            f"Recent memory: {records[-3:]}"
         )
 
     def reduce(self, state: SWEState, observation: dict[str, Any], decision: Decision[Action]) -> SWEState:
@@ -254,15 +197,16 @@ class MinimalSWEAgent(AgentModule[SWEState, dict[str, Any], Action]):
         if results:
             state.scratchpad.append(f"Observation: {results[0]}")
             if isinstance(results[0], dict) and int(results[0].get("returncode", 1)) == 0:
-                state.final_result = "Patch validated by test command."
+                state.final_result = "Requirement implemented and validation command passed."
         state.scratchpad = state.scratchpad[-40:]
         return state
 
-# llm = ...  # your model adapter
+
+# llm = ...
 # agent = MinimalSWEAgent(llm=llm, workspace_root="./playground")
 # task = Task(
 #     id="swe_minimal",
-#     objective="Fix buggy_module.py and make the test pass.",
+#     objective="Implement the new requirement and make checks pass.",
 #     env_spec=EnvSpec(type="host", config={"workspace_root": "./playground"}),
 #     budget=TaskBudget(max_steps=12),
 # )
@@ -274,153 +218,87 @@ class MinimalSWEAgent(AgentModule[SWEState, dict[str, Any], Action]):
 # print(result.state.final_result, result.state.stop_reason)
 ```
 
+---
+
 ## Real Examples
 
-- Pattern agents:
-  - `python examples/patterns/react.py --workspace /tmp/qitos_react`
-  - `python examples/patterns/planact.py --workspace /tmp/qitos_planact`
-  - `python examples/patterns/tot.py --workspace /tmp/qitos_tot`
-  - `python examples/patterns/reflexion.py --workspace /tmp/qitos_reflexion`
-- Practical agents:
-  - `python examples/real/coding_agent.py --workspace /tmp/qitos_coding`
-  - `python examples/real/swe_agent.py --workspace /tmp/qitos_swe`
-  - `python examples/real/computer_use_agent.py --workspace /tmp/qitos_computer`
-  - `python examples/real/epub_reader_agent.py --workspace /tmp/qitos_epub`
-  - `python examples/real/open_deep_research_gaia_agent.py --workspace /tmp/qitos_gaia --gaia-from-local`
+Pattern examples:
+- `python examples/patterns/react.py --workspace /tmp/qitos_react`
+- `python examples/patterns/planact.py --workspace /tmp/qitos_planact`
+- `python examples/patterns/tot.py --workspace /tmp/qitos_tot`
+- `python examples/patterns/reflexion.py --workspace /tmp/qitos_reflexion`
 
-## Benchmark Integration
+Practical examples:
+- `python examples/real/coding_agent.py --workspace /tmp/qitos_coding`
+- `python examples/real/swe_agent.py --workspace /tmp/qitos_swe`
+- `python examples/real/computer_use_agent.py --workspace /tmp/qitos_computer`
+- `python examples/real/epub_reader_agent.py --workspace /tmp/qitos_epub`
+- `python examples/real/open_deep_research_gaia_agent.py --workspace /tmp/qitos_gaia --gaia-from-local`
 
-QitOS uses a clean benchmark adapter path:
+---
 
-- External dataset row
-- `qitos.benchmark.*Adapter`
-- Canonical `Task`
-- Standard `Engine` run loop
+## Benchmarks
 
-Current GAIA integration:
-- adapter: `qitos/benchmark/gaia/adapter.py`
-- runnable example: `examples/real/open_deep_research_gaia_agent.py`
+QitOS benchmark path is standardized:
 
-Current Tau-Bench integration:
-- adapter: `qitos/benchmark/tau_bench/adapter.py`
-- self-contained runtime: `qitos/benchmark/tau_bench/runtime.py` + `qitos/benchmark/tau_bench/port/*`
-- runnable example: `examples/real/tau_bench_eval.py`
+`dataset row -> adapter -> Task -> Engine`
 
-Current CyBench integration:
-- adapter: `qitos/benchmark/cybench/adapter.py`
-- runtime + scoring: `qitos/benchmark/cybench/runtime.py`
-- runnable example: `examples/real/cybench_eval.py`
+Implemented adapters:
+- `qitos.benchmark.gaia`
+- `qitos.benchmark.tau_bench` (self-contained port)
+- `qitos.benchmark.cybench`
 
-## Evaluate + Metric Architecture
+Examples:
+- `examples/real/open_deep_research_gaia_agent.py`
+- `examples/real/tau_bench_eval.py`
+- `examples/real/cybench_eval.py`
 
-QitOS separates success judgement from aggregate metrics:
+---
 
-- `qitos.evaluate`:
-  - evaluates one trajectory against one task
-  - returns structured `EvaluationResult` with evidence/reasons
-- `qitos.metric`:
-  - aggregates many task runs
-  - returns benchmark reports (`success_rate`, `avg_reward`, `pass@k`, etc.)
+## Evaluation & Metrics
 
-Predefined implementations:
-- evaluators in `qitos.kit.evaluate`:
-  - `RuleBasedEvaluator`, `DSLEvaluator`, `ModelBasedEvaluator`
-- metrics in `qitos.kit.metric`:
-  - `SuccessRateMetric`, `AverageRewardMetric`, `PassAtKMetric`, `MeanStepsMetric`, `StopReasonDistributionMetric`
+QitOS separates:
+- **trajectory evaluation** (`qitos.evaluate`) for per-task success judgement
+- **metric aggregation** (`qitos.metric`) for benchmark-level reporting
 
-## Predefined Kit Catalog (Torch-style)
+Pre-implemented in `qitos.kit`:
+- evaluators: rule-based, DSL-based, model-based
+- metrics: success rate, average reward, pass@k, mean steps, stop-reason distribution
 
-QitOS ships reusable building blocks in `qitos.kit`, so users can compose instead of rewriting.
+---
 
-### `qitos.kit.tool` (predefined tool packages)
+## qita Observability
 
-- Editor bundle:
-  - `EditorToolSet` (`view`, `create`, `str_replace`, `insert`, `search`, `list_tree`, `replace_lines`)
-- EPUB bundle:
-  - `EpubToolSet` (`list_chapters`, `read_chapter`, `search`)
-- File tools:
-  - `WriteFile`, `ReadFile`, `ListFiles`
-- Process tool:
-  - `RunCommand`
-- HTTP/Web tools:
-  - `HTTPRequest`, `HTTPGet`, `HTTPPost`, `HTMLExtractText`
-- Text-browser tools (for GAIA/OpenDeepResearch-style loops):
-  - `WebSearch`, `VisitURL`, `PageDown`, `PageUp`, `FindInPage`, `FindNext`, `ArchiveSearch`
-- Thinking toolset:
-  - `ThinkingToolSet`, `ThoughtData`
-- Tool library:
-  - `InMemoryToolLibrary`, `ToolArtifact`, `BaseToolLibrary`
-- Registry builders:
-  - `math_tools()`, `editor_tools(workspace_root)`
+QitOS includes `qita` to inspect run quality quickly:
+- board: run discovery + summary stats
+- view: structured trajectory page
+- replay: browser replay of agent execution
+- export: raw JSON / rendered HTML
 
-### `qitos.kit.planning` (predefined planning primitives)
-
-- LLM orchestration blocks:
-  - `ToolAwareMessageBuilder`, `LLMDecisionBlock`
-- Plan utilities:
-  - `PlanCursor`, `parse_numbered_plan`
-- Search strategies:
-  - `GreedySearch`, `DynamicTreeSearch`
-- State ops helpers:
-  - `append_log`, `format_action`, `set_final`, `set_if_empty`
-
-Quick import:
-
-```python
-from qitos.kit.tool import EditorToolSet, RunCommand, HTTPGet, ThinkingToolSet
-from qitos.kit.planning import DynamicTreeSearch, PlanCursor, LLMDecisionBlock
+```bash
+qita board --logdir runs
 ```
 
-## Core Package Map
+---
 
-- Contracts:
-  - `qitos/core/agent_module.py`
-  - `qitos/core/task.py`
-  - `qitos/core/env.py`
-  - `qitos/core/memory.py`
-  - `qitos/core/tool.py`
-  - `qitos/core/tool_registry.py`
-- Runtime:
-  - `qitos/engine/engine.py`
-  - `qitos/engine/action_executor.py`
-  - `qitos/engine/hooks.py`
-- Reusable implementations:
-  - `qitos/kit/*`
-- Benchmarks:
-  - `qitos/benchmark/*`
+## Project Layout
+
+- `qitos/core/`: contracts (`AgentModule`, `Task`, `Env`, `Memory`, `History`, `ToolRegistry`)
+- `qitos/engine/`: canonical runtime kernel
+- `qitos/kit/`: reusable tool/memory/parser/planning/eval implementations
+- `qitos/benchmark/`: benchmark adapters
+- `qitos/qita/`: trace UI tooling
+
+---
 
 ## Documentation
 
-- Docs home: [https://qitor.github.io/qitos/](https://qitor.github.io/qitos/)
-- Kernel architecture:
-  - [English](https://qitor.github.io/qitos/research/kernel/)
-  - [中文](https://qitor.github.io/qitos/zh/research/kernel/)
-- 30-min labs:
-  - [English](https://qitor.github.io/qitos/research/labs/)
-  - [中文](https://qitor.github.io/qitos/zh/research/labs/)
-- API reference (auto-generated from `qitos/*`):
-  - [English](https://qitor.github.io/qitos/reference/api_generated/)
-  - [中文](https://qitor.github.io/qitos/zh/reference/api_generated/)
+- Main docs: [https://qitor.github.io/qitos/](https://qitor.github.io/qitos/)
+- API reference: [https://qitor.github.io/qitos/reference/api_generated/](https://qitor.github.io/qitos/reference/api_generated/)
+- Chinese docs: [https://qitor.github.io/qitos/zh/](https://qitor.github.io/qitos/zh/)
 
-## Local Docs
+---
 
-```bash
-pip install -r docs/requirements.txt
-mkdocs serve
-```
+## License
 
-Docs generation note:
-- API pages are generated by `docs/hooks.py` into:
-  - `docs/reference/api_generated/`
-  - `docs/zh/reference/api_generated/`
-
-## Contributing Direction
-
-QitOS is optimized for one long-term objective:
-- become a world-class open-source agentic Python framework for researchers and super-developers.
-
-Before adding new abstractions, ensure they improve:
-- composability,
-- lifecycle clarity,
-- reproducibility,
-- developer ergonomics.
+MIT. See [LICENSE](LICENSE).
