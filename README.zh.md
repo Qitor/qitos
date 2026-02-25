@@ -68,6 +68,91 @@ python examples/patterns/react.py --workspace ./playground
 qita board --logdir runs
 ```
 
+## AgentModule + Engine 思维方式
+
+QitOS 将职责拆分得非常清晰：
+
+- `AgentModule`：策略层。定义状态、提示词、决策策略与 reduce 逻辑。
+- `Engine`：执行层。统一驱动生命周期、工具调用、停止判定、trace 与 hooks。
+
+这种分层让你可以专注提升 agent 智能，而不需要反复重造 runtime 基础设施。
+
+## 最小 SWE Agent（需求到 PR）
+
+```python
+from dataclasses import dataclass, field
+from typing import Any
+
+from qitos import Action, AgentModule, Decision, Engine, EnvSpec, HistoryPolicy, StateSchema, Task, TaskBudget, ToolRegistry
+from qitos.kit.env import HostEnv
+from qitos.kit.memory import MarkdownFileMemory
+from qitos.kit.parser import ReActTextParser
+from qitos.kit.tool import EditorToolSet, RunCommand
+
+
+@dataclass
+class SWEState(StateSchema):
+    scratchpad: list[str] = field(default_factory=list)
+    target_file: str = "buggy_module.py"
+    test_command: str = 'python -c "import buggy_module; assert buggy_module.add(20, 22) == 42"'
+
+
+class MinimalSWEAgent(AgentModule[SWEState, dict[str, Any], Action]):
+    def __init__(self, llm: Any, workspace_root: str):
+        reg = ToolRegistry()
+        reg.include(EditorToolSet(workspace_root=workspace_root))
+        reg.register(RunCommand(cwd=workspace_root))
+        super().__init__(
+            tool_registry=reg,
+            llm=llm,
+            model_parser=ReActTextParser(),
+            memory=MarkdownFileMemory(path=f"{workspace_root}/memory.md"),
+        )
+
+    def init_state(self, task: str, **kwargs: Any) -> SWEState:
+        return SWEState(task=task, max_steps=int(kwargs.get("max_steps", 12)))
+
+    def prepare(self, state: SWEState) -> str:
+        return (
+            f"Task: {state.task}\n"
+            f"Target file: {state.target_file}\n"
+            f"Test command: {state.test_command}\n"
+            f"Step: {state.current_step}/{state.max_steps}"
+        )
+
+    def decide(self, state: SWEState, observation: dict[str, Any]):
+        return None  # Engine 默认模型路径：prepare -> llm -> parser
+
+    def reduce(self, state: SWEState, observation: dict[str, Any], decision: Decision[Action]) -> SWEState:
+        results = observation.get("action_results", [])
+        if decision.rationale:
+            state.scratchpad.append(f"Thought: {decision.rationale}")
+        if decision.actions:
+            state.scratchpad.append(f"Action: {decision.actions[0]}")
+        if results:
+            state.scratchpad.append(f"Observation: {results[0]}")
+            if isinstance(results[0], dict) and int(results[0].get("returncode", 1)) == 0:
+                state.final_result = "需求已实现，且验证通过。"
+        state.scratchpad = state.scratchpad[-40:]
+        return state
+
+
+# llm = ...
+# agent = MinimalSWEAgent(llm=llm, workspace_root="./playground")
+# task = Task(
+#     id="swe_minimal",
+#     objective="实现需求并让检查通过。",
+#     env_spec=EnvSpec(type="host", config={"workspace_root": "./playground"}),
+#     budget=TaskBudget(max_steps=12),
+# )
+# result = Engine(
+#     agent=agent,
+#     env=HostEnv(workspace_root="./playground"),
+#     history_policy=HistoryPolicy(max_messages=20),
+# ).run(task)
+# print(result.state.final_result, result.state.stop_reason)
+```
+
 ## 你可以构建什么
 
 模式示例：
