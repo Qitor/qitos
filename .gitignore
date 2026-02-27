@@ -103,7 +103,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-
+!qitos/kit/env/
+!qitos/kit/env/**
 # Spyder project settings
 .spyderproject
 .spyproject
