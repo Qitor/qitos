@@ -14,6 +14,20 @@
 - English README: [README.md](README.md)
 - 文档站点: [https://qitor.github.io/qitos/](https://qitor.github.io/qitos/)
 
+## 界面预览
+
+### QiTOS CLI
+
+![QiTOS CLI](assets/qitos_cli_snapshot.png)
+
+### qita Board
+
+![qita Board](assets/qita_board_snapshot.png)
+
+### qita 轨迹视图
+
+![qita Trajectory View](assets/qita_traj_snapshot.png)
+
 ## 为什么团队选择 QitOS
 
 - **研究优先**：天然适配 ReAct、Plan-Act、ToT、Reflexion 及自定义 scaffolding 快速迭代。
@@ -89,6 +103,25 @@ from qitos.kit.memory import MarkdownFileMemory
 from qitos.kit.parser import ReActTextParser
 from qitos.kit.tool import EditorToolSet, RunCommand
 
+SWE_REACT_SYSTEM_PROMPT = """
+你是资深软件工程师 Agent，目标是产出可直接提交 PR 的、满足需求的补丁。
+
+每一步都必须使用 ReAct 格式：
+Thought: 简洁说明下一步推理
+Action: 仅输出一个可执行的工具调用
+
+输出契约（必须严格遵守）：
+Thought: <你的推理>
+Action: <tool_name>(arg1="...", arg2="...")
+
+规则：
+- 修改前先阅读代码与上下文；
+- 优先小步、可验证的改动；
+- 每次修改后执行检查/测试；
+- 如果失败，先定位根因再修复并复测；
+- 所有动作必须基于当前 Observation，不得臆测。
+""".strip()
+
 
 @dataclass
 class SWEState(StateSchema):
@@ -111,6 +144,9 @@ class MinimalSWEAgent(AgentModule[SWEState, dict[str, Any], Action]):
 
     def init_state(self, task: str, **kwargs: Any) -> SWEState:
         return SWEState(task=task, max_steps=int(kwargs.get("max_steps", 12)))
+
+    def build_system_prompt(self, state: SWEState) -> str | None:
+        return SWE_REACT_SYSTEM_PROMPT
 
     def prepare(self, state: SWEState) -> str:
         return (
@@ -152,6 +188,21 @@ class MinimalSWEAgent(AgentModule[SWEState, dict[str, Any], Action]):
 # ).run(task)
 # print(result.state.final_result, result.state.stop_reason)
 ```
+
+## 提示词-解析器契约（关键）
+
+提示词输出格式与 parser 必须一一对应。这不是风格问题，而是运行正确性的前提。
+
+- `ReActTextParser` 期望模型输出 `Thought:` 与 `Action:` 文本格式。
+- 如果改成 XML 输出，必须同时切换到 XML parser，并在系统提示词中强制 XML 标签。
+- 如果改成 JSON 输出，必须切换 JSON parser，并在提示词中约束 JSON 结构。
+- 只改提示词或只改 parser 都会导致解析不稳定。
+
+快速映射：
+
+- ReAct 文本提示词 -> `ReActTextParser`
+- XML 提示词（`<think>...</think><action>...</action>`）-> `XML parser`
+- JSON 提示词（`{"thought":"...","action":{...}}`）-> `JSON parser`
 
 ## 你可以构建什么
 

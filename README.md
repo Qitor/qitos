@@ -14,6 +14,20 @@ It gives you one clean execution kernel, composable modules, and benchmark-ready
 - 中文 README: [README.zh.md](README.zh.md)
 - Documentation: [https://qitor.github.io/qitos/](https://qitor.github.io/qitos/)
 
+## Preview
+
+### QiTOS CLI
+
+![QiTOS CLI](assets/qitos_cli_snapshot.png)
+
+### qita Board
+
+![qita Board](assets/qita_board_snapshot.png)
+
+### qita Trajectory View
+
+![qita Trajectory View](assets/qita_traj_snapshot.png)
+
 ## Why Teams Choose QitOS
 
 - **Research-first by design**: built for rapid iteration on ReAct, Plan-Act, ToT, Reflexion, and custom scaffolds.
@@ -89,6 +103,26 @@ from qitos.kit.memory import MarkdownFileMemory
 from qitos.kit.parser import ReActTextParser
 from qitos.kit.tool import EditorToolSet, RunCommand
 
+SWE_REACT_SYSTEM_PROMPT = """
+You are a senior software engineer agent that delivers requirement-complete, PR-ready patches.
+
+Follow ReAct format on every step:
+Thought: concise reasoning about the next best move.
+Action: exactly one tool call with concrete arguments.
+
+Output contract (MUST follow exactly):
+Thought: <your reasoning>
+Action: <tool_name>(arg1="...", arg2="...")
+
+Rules:
+- Always inspect code before editing.
+- Make small, verifiable changes.
+- Run checks/tests after edits.
+- If a check fails, diagnose and fix, then re-run.
+- Keep actions grounded in observed outputs.
+- Prefer deterministic edits over speculative rewrites.
+""".strip()
+
 
 @dataclass
 class SWEState(StateSchema):
@@ -111,6 +145,9 @@ class MinimalSWEAgent(AgentModule[SWEState, dict[str, Any], Action]):
 
     def init_state(self, task: str, **kwargs: Any) -> SWEState:
         return SWEState(task=task, max_steps=int(kwargs.get("max_steps", 12)))
+
+    def build_system_prompt(self, state: SWEState) -> str | None:
+        return SWE_REACT_SYSTEM_PROMPT
 
     def prepare(self, state: SWEState) -> str:
         return (
@@ -152,6 +189,21 @@ class MinimalSWEAgent(AgentModule[SWEState, dict[str, Any], Action]):
 # ).run(task)
 # print(result.state.final_result, result.state.stop_reason)
 ```
+
+## Prompt-Parser Contract (Critical)
+
+Your prompt format and parser must match. This is a hard contract, not a style preference.
+
+- `ReActTextParser` expects `Thought:` + `Action:` style plain text output.
+- If you switch to XML output, use an XML parser and enforce XML tags in the system prompt.
+- If you switch to JSON output, use a JSON parser and enforce strict JSON schema in the prompt.
+- Do not change output format without changing parser.
+
+Quick mapping:
+
+- ReAct text prompt -> `ReActTextParser`
+- XML prompt (`<think>...</think><action>...</action>`) -> `XML parser`
+- JSON prompt (`{"thought": "...", "action": {...}}`) -> `JSON parser`
 
 ## What You Can Build
 
