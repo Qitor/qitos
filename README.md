@@ -16,17 +16,30 @@ It gives you one clean execution kernel, composable modules, and benchmark-ready
 
 ## Preview
 
-### QiTOS CLI
-
-![QiTOS CLI](assets/qitos_cli_snapshot.png)
-
-### qita Board
-
-![qita Board](assets/qita_board_snapshot.png)
-
-### qita Trajectory View
-
-![qita Trajectory View](assets/qita_traj_snapshot.png)
+<table>
+  <tr>
+    <td align="center"><strong>QiTOS CLI</strong></td>
+    <td align="center"><strong>qita Board</strong></td>
+    <td align="center"><strong>qita Trajectory View</strong></td>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="assets/qitos_cli_snapshot.png">
+        <img src="assets/qitos_cli_snapshot.png" alt="QiTOS CLI" width="100%" />
+      </a>
+    </td>
+    <td align="center">
+      <a href="assets/qita_board_snapshot.png">
+        <img src="assets/qita_board_snapshot.png" alt="qita Board" width="100%" />
+      </a>
+    </td>
+    <td align="center">
+      <a href="assets/qita_traj_snapshot.png">
+        <img src="assets/qita_traj_snapshot.png" alt="qita Trajectory View" width="100%" />
+      </a>
+    </td>
+  </tr>
+</table>
 
 ## Why Teams Choose QitOS
 
