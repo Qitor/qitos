@@ -314,6 +314,8 @@ class RenderStreamHook(RenderHook):
                     payload={
                         "raw_output": event.payload.get("raw_output"),
                         "reasoning_content": event.payload.get("reasoning_content"),
+                        "reasoning_fields": event.payload.get("reasoning_fields"),
+                        "reasoning_source": event.payload.get("reasoning_source"),
                         "model_response": event.payload.get("model_response"),
                         "context": event.payload.get("context"),
                     },

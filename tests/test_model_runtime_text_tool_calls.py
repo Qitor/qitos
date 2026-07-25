@@ -136,6 +136,65 @@ def test_extract_response_text_uses_reasoning_content_when_content_is_empty():
     assert text == "Conclusion: the checksum logic is the trigger. Next: write a candidate."
 
 
+def test_extract_reasoning_alias_and_fallback_when_content_is_empty():
+    engine = Engine(agent=_ToolCallAgent(llm=None), budget=RuntimeBudget(max_steps=1))
+    runtime = engine._model_runtime
+    raw = {
+        "choices": [
+            {
+                "message": {
+                    "content": None,
+                    "reasoning": "The parser expects a byte count, so inspect the header first.",
+                    "tool_calls": [],
+                }
+            }
+        ]
+    }
+
+    response = runtime._normalize_model_response(raw)
+
+    assert response.text == "The parser expects a byte count, so inspect the header first."
+    assert response.reasoning_content == response.text
+    assert response.reasoning_fields == {"reasoning": response.text}
+    assert response.reasoning_source == "reasoning"
+
+
+def test_reasoning_content_takes_priority_while_both_native_fields_are_preserved():
+    engine = Engine(agent=_ToolCallAgent(llm=None), budget=RuntimeBudget(max_steps=1))
+    runtime = engine._model_runtime
+    raw = SimpleNamespace(
+        message=SimpleNamespace(
+            content="Use READ first.",
+            reasoning_content="Canonical provider reasoning.",
+            reasoning="Provider alias reasoning.",
+        )
+    )
+
+    response = runtime._normalize_model_response(raw)
+
+    assert response.text == "Use READ first."
+    assert response.reasoning_content == "Canonical provider reasoning."
+    assert response.reasoning_source == "reasoning_content"
+    assert response.reasoning_fields == {
+        "reasoning_content": "Canonical provider reasoning.",
+        "reasoning": "Provider alias reasoning.",
+    }
+    summary = response.to_summary_dict()
+    assert summary["reasoning_source"] == "reasoning_content"
+    assert summary["reasoning_fields"] == response.reasoning_fields
+
+
+def test_agent_thought_text_is_not_native_reasoning():
+    engine = Engine(agent=_ToolCallAgent(llm=None), budget=RuntimeBudget(max_steps=1))
+    runtime = engine._model_runtime
+    response = runtime._normalize_model_response(
+        {"content": '{"thought":"inspect repo-vul"}'}
+    )
+
+    assert response.reasoning_content is None
+    assert response.reasoning_fields == {}
+
+
 def test_extract_response_text_empty_for_tool_calls_without_content_or_reasoning():
     engine = Engine(agent=_ToolCallAgent(llm=None), budget=RuntimeBudget(max_steps=1))
     runtime = engine._model_runtime

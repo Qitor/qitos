@@ -29,7 +29,12 @@ class ModelResponse:
     model_name: Optional[str] = None
     provider: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
+    # ``reasoning_content`` is the compatibility-facing primary native
+    # reasoning channel.  OpenAI-compatible providers also commonly use the
+    # ``reasoning`` field, which is preserved verbatim in ``reasoning_fields``.
     reasoning_content: Optional[str] = None
+    reasoning_fields: Dict[str, str] = field(default_factory=dict)
+    reasoning_source: Optional[str] = None
 
     def to_summary_dict(self) -> Dict[str, Any]:
         d: Dict[str, Any] = {
@@ -51,6 +56,14 @@ class ModelResponse:
         }
         if self.reasoning_content:
             d["reasoning_content"] = self.reasoning_content
+        if self.reasoning_fields:
+            d["reasoning_fields"] = {
+                str(key): str(value)
+                for key, value in self.reasoning_fields.items()
+                if isinstance(value, str) and value.strip()
+            }
+        if self.reasoning_source:
+            d["reasoning_source"] = str(self.reasoning_source)
         return d
 
 

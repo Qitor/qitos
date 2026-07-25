@@ -435,6 +435,25 @@ def test_renderer_suppresses_choice_repr_thought() -> None:
     assert thought is None
 
 
+def test_renderer_labels_native_reasoning_and_deduplicates_matching_content() -> None:
+    renderer = ContentFirstRenderer(max_preview_chars=200)
+    thought = renderer.thought_text(
+        RenderEvent(
+            channel="thinking",
+            node="model_output",
+            step_id=0,
+            payload={
+                "reasoning_content": "Inspect the length field before mutating bytes.",
+                "reasoning_fields": {"reasoning": "Inspect the length field before mutating bytes."},
+                "reasoning_source": "reasoning",
+                "raw_output": "Inspect the length field before mutating bytes.",
+            },
+        )
+    )
+
+    assert thought == "[native reasoning: reasoning]\nInspect the length field before mutating bytes."
+
+
 def test_model_runtime_digest_matches_actual_messages(tmp_path) -> None:
     runtime = _ModelRuntime(SimpleNamespace())
     state = SimpleNamespace(metadata={"trace_run_dir": str(tmp_path)})

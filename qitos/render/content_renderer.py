@@ -54,8 +54,8 @@ class ContentFirstRenderer:
     def thought_text(self, event: RenderEvent) -> Optional[str]:
         """Return the model's reasoning / non-tool-call text for display.
 
-        For ``model_output`` events this combines ``reasoning_content``
-        (API-level, e.g. DeepSeek/QwQ) and ``raw_output`` (content text
+        For ``model_output`` events this combines native reasoning
+        (API-level, e.g. ``reasoning_content`` or ``reasoning``) and ``raw_output`` (content text
         that is not a tool call).  Both are shown when present so the
         operator sees everything the model "thought" before acting.
         """
@@ -67,10 +67,12 @@ class ContentFirstRenderer:
             return None
         if event.node == "model_output":
             segments: List[str] = []
-            # API-level reasoning_content (DeepSeek, QwQ, etc.)
+            # API-level native reasoning (provider protocol, never agent text).
             reasoning = payload.get("reasoning_content")
             if isinstance(reasoning, str) and reasoning.strip():
-                segments.append(reasoning.strip())
+                source = payload.get("reasoning_source")
+                prefix = f"[native reasoning: {source}]\n" if source else ""
+                segments.append(prefix + reasoning.strip())
             # Content text (non-tool-call output the model produced)
             raw = payload.get("raw_output")
             if isinstance(raw, str) and raw.strip():
@@ -81,7 +83,12 @@ class ContentFirstRenderer:
                 m = _THOUGHT_RE.search(raw)
                 extracted = m.group(1).strip() if m else raw.strip()
                 # Deduplicate: skip raw_output if it duplicates reasoning_content
-                if not any(s == extracted for s in segments):
+                reasoning_values = [
+                    value.strip()
+                    for value in dict(payload.get("reasoning_fields") or {}).values()
+                    if isinstance(value, str) and value.strip()
+                ]
+                if extracted not in reasoning_values and not any(s == extracted for s in segments):
                     segments.append(extracted)
             if not segments:
                 return None
