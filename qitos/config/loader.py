@@ -23,6 +23,7 @@ class ModelConfig:
     temperature: float = 0.7
     max_tokens: int = 2048
     context_window: Optional[int] = None
+    api_mode: str = "chat_completions"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -34,6 +35,7 @@ class ModelConfig:
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
             "context_window": self.context_window,
+            "api_mode": self.api_mode,
         }
 
 
@@ -132,6 +134,7 @@ def _parse_agent_config(raw: Dict[str, Any]) -> AgentConfig:
             temperature=float(model_raw.get("temperature", 0.7)),
             max_tokens=int(model_raw.get("max_tokens", 2048)),
             context_window=model_raw.get("context_window"),
+            api_mode=str(model_raw.get("api_mode", "chat_completions")),
         )
     else:
         model_config = ModelConfig()

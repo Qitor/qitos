@@ -19,10 +19,12 @@ How to update:
 
 ### Added
 
+- Added opt-in OpenAI Responses API support for synchronous, asynchronous, and typed streaming calls, including structured output-item preservation, `call_id` tool-result correlation, stateless tool-round replay, and privacy-safe trace summaries. Chat Completions remains the default.
 - Added `AgentSpec.tool_name` so delegate workers can expose task-oriented model-facing tool names while keeping the registry agent name stable.
 
 ### Changed
 
+- Raised the optional OpenAI SDK floor to `openai>=1.66.0` and taught compact history to preserve active Responses function-call rounds atomically.
 - Strengthened the CyberGym PoC agent's task bootstrap with lightweight structured task-spec extraction and more relevant repo evidence ranking.
 - Clarified candidate provenance and lightweight failure taxonomy handling in the CyberGym agent without changing its single-agent runtime architecture.
 

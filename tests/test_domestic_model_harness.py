@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import pytest
 
+from qitos.harness import build_model_for_preset
 from qitos.protocols import (
     get_protocol,
     list_protocols,
@@ -238,3 +239,16 @@ class TestDomesticContextPolicy:
 
     def test_minimax_native_tool_call(self):
         assert MINIMAX_PRESET.tool_policy.native_tool_call_preferred is True
+
+
+def test_openai_compatible_harness_propagates_responses_api_mode():
+    model = build_model_for_preset(
+        model_name="qwen-plus",
+        family_id="qwen",
+        api_key="test-key",
+        base_url="https://example.test/v1",
+        api_mode="responses",
+    )
+
+    assert model.api_mode == "responses"
+    assert model.qitos_harness_metadata["api_mode"] == "responses"

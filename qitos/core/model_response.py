@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import dataclasses
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 
 def _sanitize(value: Any) -> Any:
     if value is not None and dataclasses.is_dataclass(value):
-        return {str(k): _sanitize(v) for k, v in asdict(value).items()}
+        return {
+            str(k): _sanitize(v)
+            for k, v in asdict(cast(Any, value)).items()
+        }
     if isinstance(value, dict):
         return {str(k): _sanitize(v) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
@@ -17,6 +20,21 @@ def _sanitize(value: Any) -> Any:
     if isinstance(value, (str, int, float, bool)) or value is None:
         return value
     return repr(value)
+
+
+def _sanitize_native_item(value: Any) -> Any:
+    """Sanitize provider items while omitting opaque reasoning continuation data."""
+    if value is not None and dataclasses.is_dataclass(value):
+        value = asdict(cast(Any, value))
+    if isinstance(value, dict):
+        return {
+            str(key): _sanitize_native_item(item)
+            for key, item in value.items()
+            if str(key) != "encrypted_content"
+        }
+    if isinstance(value, (list, tuple)):
+        return [_sanitize_native_item(item) for item in value]
+    return _sanitize(value)
 
 
 @dataclass
@@ -29,6 +47,7 @@ class ModelResponse:
     model_name: Optional[str] = None
     provider: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
+    native_items: Optional[List[Dict[str, Any]]] = None
 
     def to_summary_dict(self) -> Dict[str, Any]:
         return {
@@ -46,6 +65,11 @@ class ModelResponse:
             "provider": str(self.provider) if self.provider is not None else None,
             "metadata": (
                 _sanitize(self.metadata) if isinstance(self.metadata, dict) else {}
+            ),
+            "native_items": (
+                _sanitize_native_item(self.native_items)
+                if isinstance(self.native_items, list)
+                else None
             ),
         }
 

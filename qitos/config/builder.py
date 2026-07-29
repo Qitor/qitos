@@ -50,6 +50,13 @@ def build_model(config: ModelConfig) -> Any:
         params["base_url"] = config.base_url
     params["temperature"] = config.temperature
     params["max_tokens"] = config.max_tokens
+    if provider_key in {
+        "openai",
+        "openai-compatible",
+        "async-openai",
+        "async-openai-compatible",
+    }:
+        params["api_mode"] = config.api_mode
     if config.context_window is not None:
         params["context_window"] = config.context_window
 

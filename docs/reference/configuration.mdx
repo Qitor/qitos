@@ -11,6 +11,55 @@ QitOS is configured through three overlapping layers:
 
 ---
 
+## OpenAI transport mode
+
+`OpenAIModel`, `OpenAICompatibleModel`, and their async variants support two
+explicit transport modes:
+
+| `api_mode` | Behavior |
+|---|---|
+| `chat_completions` | Default. Uses `/v1/chat/completions` and preserves existing QitOS behavior |
+| `responses` | Opt-in. Uses `/v1/responses`, preserves ordered native output items, and correlates function calls and outputs with `call_id` |
+
+Configure the mode in YAML:
+
+```yaml
+model:
+  provider: openai
+  model: gpt-5
+  api_mode: responses
+```
+
+Or construct a model directly:
+
+```python
+from qitos.models import OpenAIModel
+
+llm = OpenAIModel(
+    model="gpt-5",
+    api_mode="responses",
+)
+```
+
+Responses mode supports synchronous, asynchronous, and typed streaming calls.
+QitOS replays the provider's ordered output items and
+`function_call_output` items during a tool loop, so no mutable
+`previous_response_id` state is required. Active native tool rounds remain
+atomic during history compaction.
+
+<Warning>
+OpenAI-compatible providers may implement only part of `/v1/responses`.
+QitOS never silently falls back to Chat Completions after a Responses request
+fails. Select `chat_completions` explicitly for endpoints that do not support
+Responses.
+</Warning>
+
+Reasoning items are treated as opaque continuation state. Trace summaries keep
+safe item descriptors and provider-authorized summaries, but omit encrypted
+reasoning continuation payloads.
+
+---
+
 ## AgentModule.run() arguments
 
 All of the following can be passed to `agent.run(task, ...)`. This is the canonical user-facing configuration surface for QitOS runs.

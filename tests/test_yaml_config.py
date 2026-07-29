@@ -11,6 +11,7 @@ from qitos.config import (
     DatasetItem,
     load_agent_config,
     resolve_env_vars,
+    build_model,
     build_run_spec,
     build_tool_registry,
 )
@@ -143,6 +144,36 @@ name: minimal
         assert config.dataset == []
         assert config.tools == []
         os.unlink(f.name)
+
+    def test_load_responses_api_mode(self):
+        yaml_content = """
+model:
+  provider: openai
+  model: gpt-5
+  api_mode: responses
+"""
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".yaml", delete=False
+        ) as f:
+            f.write(yaml_content)
+            f.flush()
+            config = load_agent_config(f.name)
+
+        assert config.model.api_mode == "responses"
+        assert config.to_dict()["model"]["api_mode"] == "responses"
+        os.unlink(f.name)
+
+    def test_build_model_propagates_responses_api_mode(self, monkeypatch):
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+        model = build_model(
+            ModelConfig(
+                provider="openai",
+                model="gpt-5",
+                api_mode="responses",
+            )
+        )
+
+        assert model.api_mode == "responses"
 
     def test_string_dataset_items(self):
         yaml_content = """

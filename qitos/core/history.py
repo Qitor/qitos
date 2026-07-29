@@ -16,6 +16,7 @@ class HistoryMessage:
     tool_call_id: Optional[str] = None
     name: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
+    native_items: List[Dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass

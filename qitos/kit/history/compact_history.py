@@ -121,6 +121,7 @@ class MicroCompactor:
             tool_call_id=message.tool_call_id,
             name=message.name,
             metadata=metadata,
+            native_items=[dict(x) for x in list(message.native_items or [])],
         )
 
     def _infer_blob_kind(self, message: HistoryMessage, text: str) -> str:
@@ -494,8 +495,13 @@ class CompactionController:
             summary_head = [trimmed[0]]
             trimmed = trimmed[1:]
         keep_tail = max(1, int(self.config.keep_last_messages))
+        active_round_start = self._active_native_tool_round_start(trimmed)
         if len(trimmed) > keep_tail:
-            trimmed = trimmed[-keep_tail:]
+            tail_start = len(trimmed) - keep_tail
+            if active_round_start is not None:
+                tail_start = min(tail_start, active_round_start)
+            trimmed = trimmed[tail_start:]
+        protected_start = self._active_native_tool_round_start(trimmed)
         candidate = [*summary_head, *trimmed]
         while (
             len(trimmed) > 1
@@ -503,9 +509,28 @@ class CompactionController:
             + self._estimate_text_tokens(pending_content)
             > budget
         ):
+            if protected_start == 0:
+                break
             trimmed.pop(0)
+            if protected_start is not None:
+                protected_start -= 1
             candidate = [*summary_head, *trimmed]
         return [*summary_head, *trimmed]
+
+    def _active_native_tool_round_start(
+        self, messages: List[HistoryMessage]
+    ) -> Optional[int]:
+        for index in range(len(messages) - 1, -1, -1):
+            message = messages[index]
+            if message.role != "assistant":
+                continue
+            if any(
+                isinstance(item, dict) and item.get("type") == "function_call"
+                for item in list(message.native_items or [])
+            ):
+                return index
+            return None
+        return None
 
     def _metadata_for_message(self, message: HistoryMessage) -> Dict[str, Any]:
         meta = dict(message.metadata or {})
@@ -521,7 +546,11 @@ class CompactionController:
         return meta
 
     def _estimate_tokens(self, messages: Iterable[HistoryMessage]) -> int:
-        return sum(self._estimate_text_tokens(m.content) for m in messages)
+        return sum(
+            self._estimate_text_tokens(m.content)
+            + self._estimate_text_tokens(m.native_items)
+            for m in messages
+        )
 
     def _estimate_text_tokens(self, text: Any) -> int:
         s = str(text or "")

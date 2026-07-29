@@ -9,6 +9,43 @@ QitOS 的配置主要分三层：
 2. **`Engine` 构造函数参数**：更底层的运行时控制
 3. **环境变量**：供应商凭证与模型默认值
 
+## OpenAI 传输模式
+
+`OpenAIModel`、`OpenAICompatibleModel` 及其异步版本支持两种显式传输模式：
+
+| `api_mode` | 行为 |
+|---|---|
+| `chat_completions` | 默认值。使用 `/v1/chat/completions`，保持现有 QitOS 行为 |
+| `responses` | 可选启用。使用 `/v1/responses`，保留有序原生输出项，并通过 `call_id` 关联函数调用与工具结果 |
+
+YAML 配置示例：
+
+```yaml
+model:
+  provider: openai
+  model: gpt-5
+  api_mode: responses
+```
+
+也可以直接构造模型：
+
+```python
+from qitos.models import OpenAIModel
+
+llm = OpenAIModel(
+    model="gpt-5",
+    api_mode="responses",
+)
+```
+
+Responses 模式支持同步、异步和类型化流式调用。工具循环期间，QitOS 会重放供应商返回的有序输出项以及 `function_call_output`，无需在模型适配器中维护可变的 `previous_response_id`。历史压缩不会拆散仍在执行的原生工具调用轮次。
+
+<Warning>
+不同 OpenAI 兼容端点可能只实现 `/v1/responses` 的一部分。Responses 请求失败后，QitOS 不会静默回退到 Chat Completions；不支持 Responses 的端点应显式使用 `chat_completions`。
+</Warning>
+
+Reasoning item 被视为不透明的续接状态。追踪摘要只保留安全的 item 描述与供应商允许的摘要，并排除加密 reasoning 续接内容。
+
 ## AgentModule.run() 参数
 
 这些参数都可以直接传给 `agent.run(task, ...)`：

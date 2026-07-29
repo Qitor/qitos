@@ -27,6 +27,9 @@ class ModelStreamChunk:
     done: bool = False
     usage: Optional[Dict[str, Any]] = field(default=None)
     tool_calls: Optional[List[Dict[str, Any]]] = field(default=None)
+    native_items: Optional[List[Dict[str, Any]]] = field(default=None)
+    event_type: Optional[str] = None
+    event_metadata: Dict[str, Any] = field(default_factory=dict)
 
     @property
     def is_final(self) -> bool:

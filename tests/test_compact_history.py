@@ -37,6 +37,45 @@ def test_message_grouper_prefers_step_rounds() -> None:
     assert [msg.step_id for msg in groups[-1]] == [1, 1]
 
 
+def test_compact_history_keeps_active_native_tool_round_atomic() -> None:
+    from qitos.core.history import HistoryMessage
+
+    history = CompactHistory(
+        max_tokens=1,
+        keep_last_messages=1,
+        auto_compact=True,
+    )
+    history.append(HistoryMessage(role="user", content="old", step_id=0))
+    history.append(
+        HistoryMessage(
+            role="assistant",
+            content=None,
+            step_id=1,
+            native_items=[
+                {
+                    "type": "function_call",
+                    "call_id": "call_1",
+                    "name": "lookup",
+                    "arguments": "{}",
+                }
+            ],
+        )
+    )
+    history.append(
+        HistoryMessage(
+            role="tool",
+            content="result",
+            step_id=1,
+            tool_call_id="call_1",
+        )
+    )
+
+    retrieved = history.retrieve({"max_tokens": 1, "auto_compact": True})
+
+    assert [message.role for message in retrieved[-2:]] == ["assistant", "tool"]
+    assert retrieved[-2].native_items[0]["call_id"] == "call_1"
+
+
 def test_compact_history_emits_microcompact_and_summary_events() -> None:
     from qitos.core.history import HistoryMessage
 

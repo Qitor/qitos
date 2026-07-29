@@ -1821,6 +1821,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         tool_calls: Optional[List[Dict[str, Any]]] = None,
         tool_call_id: Optional[str] = None,
         name: Optional[str] = None,
+        native_items: Optional[List[Dict[str, Any]]] = None,
     ) -> None:
         history = self._history()
         history.append(
@@ -1832,6 +1833,9 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                 tool_calls=[dict(x) for x in list(tool_calls or []) if isinstance(x, dict)],
                 tool_call_id=tool_call_id,
                 name=name,
+                native_items=[
+                    dict(x) for x in list(native_items or []) if isinstance(x, dict)
+                ],
             )
         )
 
@@ -1852,6 +1856,8 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                     message["tool_call_id"] = str(item.tool_call_id)
                 if item.name:
                     message["name"] = str(item.name)
+                if item.native_items:
+                    message["native_items"] = [dict(x) for x in item.native_items]
 
                 if role not in {"assistant", "tool"}:
                     content = str(item.content or "")
@@ -1862,6 +1868,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                     message.get("content") in (None, "")
                     and not message.get("tool_calls")
                     and not message.get("tool_call_id")
+                    and not message.get("native_items")
                 ):
                     continue
                 messages.append(message)
@@ -1889,6 +1896,11 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                     payload_message["tool_call_id"] = str(item.get("tool_call_id"))
                 if item.get("name") not in (None, ""):
                     payload_message["name"] = str(item.get("name"))
+                native_items = item.get("native_items")
+                if isinstance(native_items, list):
+                    payload_message["native_items"] = [
+                        dict(x) for x in native_items if isinstance(x, dict)
+                    ]
 
                 if role not in {"assistant", "tool"}:
                     content = str(payload_message.get("content") or "")
@@ -1899,6 +1911,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                     payload_message.get("content") in (None, "")
                     and not payload_message.get("tool_calls")
                     and not payload_message.get("tool_call_id")
+                    and not payload_message.get("native_items")
                 ):
                     continue
                 messages.append(payload_message)

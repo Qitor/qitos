@@ -388,6 +388,7 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             record.step_id,
             metadata={"source": "engine"},
             tool_calls=assistant_tool_calls,
+            native_items=response.native_items,
         )
 
         return response
@@ -491,6 +492,7 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
         accumulated_text: List[str] = []
         final_usage: Optional[Dict[str, Any]] = None
         final_tool_calls: Optional[List[Dict[str, Any]]] = None
+        final_native_items: Optional[List[Dict[str, Any]]] = None
         started = False
 
         if not request_options:
@@ -508,6 +510,7 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                 done = getattr(chunk, "done", False)
                 usage = getattr(chunk, "usage", None)
                 tool_calls = getattr(chunk, "tool_calls", None)
+                native_items = getattr(chunk, "native_items", None)
 
                 if text:
                     if not started:
@@ -529,6 +532,8 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                         final_usage = usage
                     if tool_calls is not None and isinstance(tool_calls, list):
                         final_tool_calls = tool_calls
+                    if native_items is not None and isinstance(native_items, list):
+                        final_native_items = native_items
         finally:
             if handler is not None and started:
                 try:
@@ -549,6 +554,8 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
         }
         if final_tool_calls:
             result["tool_calls"] = final_tool_calls
+        if final_native_items:
+            result["native_items"] = final_native_items
         return result
 
     def _build_current_user_message(
@@ -1173,6 +1180,7 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                 usage=self._extract_response_usage(raw_output),
                 finish_reason=self._extract_finish_reason(raw_output),
                 tool_calls=self._extract_tool_calls(raw_output),
+                native_items=self._extract_native_items(raw_output),
                 model_name=self._extract_model_name(raw_output),
                 provider=self._extract_provider(raw_output),
                 metadata=self._extract_response_metadata(raw_output),
@@ -1220,7 +1228,21 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             model_name=str(model_name) if model_name is not None else None,
             provider=str(provider) if provider is not None else None,
             metadata=metadata,
+            native_items=response.native_items,
         )
+
+    def _extract_native_items(
+        self, raw_output: Any
+    ) -> List[Dict[str, Any]] | None:
+        native_items = (
+            raw_output.get("native_items")
+            if isinstance(raw_output, dict)
+            else getattr(raw_output, "native_items", None)
+        )
+        if not isinstance(native_items, list):
+            return None
+        normalized = [dict(item) for item in native_items if isinstance(item, dict)]
+        return normalized or None
 
     def _extract_text_tool_call_markup(self, text: str) -> List[Dict[str, Any]] | None:
         """Salvage GLM-style textual tool-call markup into native tool calls."""

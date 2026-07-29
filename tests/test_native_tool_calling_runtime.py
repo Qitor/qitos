@@ -2,8 +2,10 @@ from dataclasses import dataclass
 from typing import Any
 
 from qitos import Action, AgentModule, Decision, Engine, Observation, StateSchema, ToolRegistry, tool
+from qitos.core.model_response import ModelResponse
 from qitos.engine import RuntimeBudget
 from qitos.kit import ReActTextParser
+from qitos.models._openai_responses import _to_responses_input
 
 
 @dataclass
@@ -122,6 +124,63 @@ def test_native_tool_chain_preserves_tool_call_history_and_non_json_result() -> 
     assert tool_msgs[-1].get("tool_call_id") == "call_native_1"
     tool_content = str(tool_msgs[-1].get("content", ""))
     assert "1" in tool_content and "2" in tool_content
+
+
+def test_responses_native_items_survive_engine_tool_round() -> None:
+    class _ResponsesNativeModel(_NativeToolModel):
+        def call_raw(
+            self, messages: list[dict[str, Any]], **kwargs: Any
+        ) -> ModelResponse:
+            _ = kwargs
+            self.seen_messages.append(list(messages))
+            if self.calls == 0:
+                self.calls += 1
+                return ModelResponse(
+                    text="",
+                    tool_calls=[
+                        {
+                            "id": "call_native_1",
+                            "type": "function",
+                            "function": {
+                                "name": "weird_tool",
+                                "arguments": "{}",
+                            },
+                        }
+                    ],
+                    native_items=[
+                        {
+                            "type": "reasoning",
+                            "id": "reasoning_1",
+                            "summary": [],
+                        },
+                        {
+                            "type": "function_call",
+                            "id": "function_1",
+                            "call_id": "call_native_1",
+                            "name": "weird_tool",
+                            "arguments": "{}",
+                        },
+                    ],
+                )
+            self.calls += 1
+            return ModelResponse(text="Final Answer: done")
+
+    llm = _ResponsesNativeModel()
+    result = Engine(
+        agent=_NativeToolAgent(llm=llm),
+        budget=RuntimeBudget(max_steps=3),
+    ).run("native responses")
+
+    assert result.state.final_result == "done"
+    replay_items = _to_responses_input(llm.seen_messages[1])
+    replay_types = [item.get("type") for item in replay_items]
+    reasoning_index = replay_types.index("reasoning")
+    assert replay_types[reasoning_index : reasoning_index + 3] == [
+        "reasoning",
+        "function_call",
+        "function_call_output",
+    ]
+    assert replay_items[reasoning_index + 2]["call_id"] == "call_native_1"
 
 
 def test_agent_run_auto_applies_harness_parser_defaults() -> None:
