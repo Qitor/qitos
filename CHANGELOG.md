@@ -30,6 +30,7 @@ How to update:
 
 ### Fixed
 
+- Fixed direct `Engine(agent=...)` construction so models created with `build_model_for_preset(...)` retain their declared protocol and native API tool-schema delivery, including provider aliases such as Kimi K3 that cannot be inferred from the model name alone.
 - Fixed empty model responses with neither usable text nor tool calls being misclassified as parser `wait` decisions. The Engine now records them as `model_error`, retries once through bounded recovery, and stops with `unrecoverable_error` if the empty response repeats while preserving response diagnostics in traces.
 - Fixed native response text extraction so OpenAI-compatible messages with null content no longer become repr-string final answers.
 - Fixed OpenAI-compatible forced tool-call requests so conflicting thinking options are disabled, and repaired JSON/tool-call parsing for bare control characters inside string values.

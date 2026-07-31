@@ -60,6 +60,19 @@ engine = Engine(
   Prefer calling `agent.run()` for single-run workflows. Use `Engine` directly when you need to reuse an Engine across multiple runs or configure hooks dynamically between runs.
 </Tip>
 
+## Protocol resolution
+
+`Engine` resolves the model protocol once per run using the following precedence:
+
+1. The `protocol` passed directly to `Engine`.
+2. `agent.model_protocol`.
+3. A protocol inferred from the Engine or Agent parser.
+4. `agent.llm.qitos_protocol`, then `agent.llm.qitos_harness_metadata["protocol"]`.
+5. A protocol inferred from the model name.
+6. The framework default, `react_text_v1`.
+
+The model-level declarations in step 4 are attached by `build_model_for_preset(...)`. This means direct construction such as `Engine(agent=agent)` preserves an explicitly selected family preset even when the provider model name is an alias that QitOS cannot infer. Unknown model-level protocol identifiers are ignored so the existing model-name and framework fallbacks remain available. Traces record `model_qitos_protocol` or `model_harness_metadata` as the resolution source when either declaration is selected.
+
 ## Empty model responses
 
 After a model call, the Engine records the normalized response and gives `AgentModule.interpret_model_response()` the first opportunity to turn it into a decision. If the hook returns `None` and the response contains neither non-whitespace text nor tool calls, the Engine classifies the result as a `model_error` before it reaches the parser. The default recovery path retries once; a second consecutive empty response stops the run with `unrecoverable_error` instead of consuming the remaining step budget as parser `wait` decisions.

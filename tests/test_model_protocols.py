@@ -6,6 +6,7 @@ from typing import Any
 from qitos import AgentModule, Decision, StateSchema, ToolRegistry
 from qitos.core.tool import tool
 from qitos.engine import Engine
+from qitos.harness import build_model_for_preset
 from qitos.kit import MiniMaxToolCallParser
 from qitos.kit.parser import ReActTextParser
 from qitos.models.profile_registry import infer_default_protocol, infer_model_profile
@@ -115,6 +116,149 @@ class _ProtocolAgent(AgentModule[_ProtocolState, dict[str, Any], dict[str, Any]]
             state.stop_reason = "success"
         state.last_rationale = decision.rationale or ""
         return state
+
+
+def _build_kimi_k3_model() -> Any:
+    return build_model_for_preset(
+        family_id="kimi",
+        model_name="k3",
+        api_key="test-key",
+        base_url="https://example.invalid/v1",
+    )
+
+
+def test_engine_direct_construction_uses_preset_model_protocol() -> None:
+    engine = Engine(agent=_ProtocolAgent(llm=_build_kimi_k3_model()))
+
+    protocol = engine.resolve_protocol()
+
+    assert protocol.id == "json_decision_v1"
+    assert engine._resolved_protocol_source == "model_qitos_protocol"
+
+
+def test_engine_direct_construction_uses_harness_metadata_protocol() -> None:
+    llm = _DummyModel(
+        model="provider-alias",
+        output='{"thought":"done","final_answer":"ok"}',
+    )
+    llm.qitos_harness_metadata = {"protocol": "json_decision_v1"}
+    engine = Engine(agent=_ProtocolAgent(llm=llm))
+
+    protocol = engine.resolve_protocol()
+
+    assert protocol.id == "json_decision_v1"
+    assert engine._resolved_protocol_source == "model_harness_metadata"
+
+
+def test_model_qitos_protocol_precedes_conflicting_harness_metadata() -> None:
+    llm = _build_kimi_k3_model()
+    llm.qitos_harness_metadata["protocol"] = "react_text_v1"
+    engine = Engine(agent=_ProtocolAgent(llm=llm))
+
+    protocol = engine.resolve_protocol()
+
+    assert protocol.id == "json_decision_v1"
+    assert engine._resolved_protocol_source == "model_qitos_protocol"
+
+
+def test_valid_model_protocol_ignores_malformed_harness_metadata() -> None:
+    llm = _build_kimi_k3_model()
+    llm.qitos_harness_metadata = "malformed"
+    engine = Engine(agent=_ProtocolAgent(llm=llm))
+
+    protocol = engine.resolve_protocol()
+
+    assert protocol.id == "json_decision_v1"
+    assert engine._resolved_protocol_source == "model_qitos_protocol"
+
+
+def test_model_protocol_keeps_existing_protocol_precedence() -> None:
+    engine_protocol = Engine(
+        agent=_ProtocolAgent(llm=_build_kimi_k3_model()),
+        protocol="react_text_v1",
+    )
+    assert engine_protocol.resolve_protocol().id == "react_text_v1"
+    assert engine_protocol._resolved_protocol_source == "run_protocol"
+
+    agent = _ProtocolAgent(llm=_build_kimi_k3_model())
+    agent.model_protocol = "react_text_v1"
+    agent_protocol = Engine(agent=agent)
+    assert agent_protocol.resolve_protocol().id == "react_text_v1"
+    assert agent_protocol._resolved_protocol_source == "agent_model_protocol"
+
+    parser_protocol = Engine(
+        agent=_ProtocolAgent(llm=_build_kimi_k3_model()),
+        parser=ReActTextParser(),
+    )
+    assert parser_protocol.resolve_protocol().id == "react_text_v1"
+    assert parser_protocol._resolved_protocol_source == "parser_inferred"
+
+
+def test_unknown_model_declared_protocol_falls_back_to_existing_inference() -> None:
+    llm = _DummyModel(
+        model="provider-alias",
+        output="Final Answer: ok",
+    )
+    llm.qitos_protocol = "unknown_protocol"
+    llm.qitos_harness_metadata = {"protocol": "also_unknown"}
+    engine = Engine(agent=_ProtocolAgent(llm=llm))
+
+    protocol = engine.resolve_protocol()
+
+    assert protocol.id == "react_text_v1"
+    assert engine._resolved_protocol_source == "framework_default"
+
+
+def test_unknown_model_declared_protocol_falls_back_to_model_profile() -> None:
+    llm = _DummyModel(
+        model="qwen-plus",
+        output='{"thought":"done","final_answer":"ok"}',
+    )
+    llm.qitos_protocol = "unknown_protocol"
+    llm.qitos_harness_metadata = {"protocol": "also_unknown"}
+    engine = Engine(agent=_ProtocolAgent(llm=llm))
+
+    protocol = engine.resolve_protocol()
+
+    assert protocol.id == "json_decision_v1"
+    assert engine._resolved_protocol_source == "model_profile"
+
+
+def test_preset_model_protocol_delivers_tools_to_direct_engine_model_call() -> None:
+    llm = _build_kimi_k3_model()
+    calls: list[dict[str, Any]] = []
+
+    def call_raw(messages: list[dict[str, Any]], **kwargs: Any) -> dict[str, Any]:
+        _ = messages
+        calls.append(dict(kwargs))
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": '{"thought":"done","final_answer":"ok"}',
+                        "tool_calls": None,
+                    },
+                    "finish_reason": "stop",
+                }
+            ]
+        }
+
+    llm.call_raw = call_raw
+    agent = _ProtocolAgent(llm=llm)
+
+    @tool(name="lookup")
+    def lookup(query: str) -> dict[str, Any]:
+        """Look up a query."""
+
+        return {"query": query}
+
+    agent.tool_registry.register(lookup)
+
+    result = Engine(agent=agent).run("answer with the lookup tool available")
+
+    assert result.state.final_result == "ok"
+    assert calls
+    assert calls[0]["tools"][0]["function"]["name"] == "lookup"
 
 
 def test_engine_uses_protocol_fallback_chain() -> None:
