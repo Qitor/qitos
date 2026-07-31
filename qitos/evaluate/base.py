@@ -99,6 +99,15 @@ def load_run_artifacts(run_dir: str | Path) -> Dict[str, Any]:
 
         out["manifest"] = json.loads(manifest_path.read_text(encoding="utf-8"))
 
+    canonical_path = run_path / "trajectory.jsonl"
+    if canonical_path.exists():
+        from qitos.trace import CanonicalTraceReader
+
+        projected = CanonicalTraceReader(canonical_path).to_legacy_artifacts()
+        out.update(projected)
+        out["trajectory_path"] = str(canonical_path)
+        return out
+
     for key, filename in (("events", "events.jsonl"), ("steps", "steps.jsonl")):
         p = run_path / filename
         if not p.exists():

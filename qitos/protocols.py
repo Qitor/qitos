@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
+from .core.decision import Decision
+
 
 ToolSchemaRenderer = Callable[[Any], str]
 ContractRenderer = Callable[[Any], str]
@@ -28,6 +30,7 @@ class ModelProtocol:
     contract_version: str = "v1"
     supports_multi_action: bool = False
     supports_native_tool_call_markup: bool = False
+    strict_tool_schema_delivery: bool = False
     diagnostic_style: str = "structured"
     fallback_protocols: tuple[str, ...] = field(default_factory=tuple)
 
@@ -159,6 +162,31 @@ def render_minimax_tool_schema(tool_registry: Any) -> str:
 
 def _render_simple_contract(contract: str) -> str:
     return str(contract or "").strip()
+
+
+def _render_no_tool_schema(_tool_registry: Any) -> str:
+    """Native provider tools are deliberately absent from prompt text."""
+    return ""
+
+
+def _native_tool_calls_prompt(base_prompt: str, _tool_registry: Any) -> str:
+    """Keep the agent-authored system prompt byte-for-byte intact."""
+    return str(base_prompt or "").strip()
+
+
+class _NativeToolCallsOnlyParser:
+    """Refuse textual JSON/XML/ReAct tool-call fallbacks."""
+
+    contract_id = "native_tool_calls_v1"
+
+    def parse(
+        self, _raw_output: Any, context: Optional[Dict[str, Any]] = None
+    ) -> Decision[Any]:
+        del context
+        return Decision.wait(
+            rationale="native tool call required",
+            meta={"native_tool_protocol_error": True},
+        )
 
 
 def _render_repair_message(feedback: str) -> str:
@@ -498,6 +526,18 @@ def _protocol_table() -> Dict[str, ModelProtocol]:
     from qitos.kit.parser.tool_use_parser import ToolUseXmlParser
 
     return {
+        "native_tool_calls_v1": ModelProtocol(
+            id="native_tool_calls_v1",
+            display_name="Native Provider Tool Calls",
+            parser_factory=_NativeToolCallsOnlyParser,
+            prompt_renderer=_native_tool_calls_prompt,
+            contract_renderer=lambda _protocol: "",
+            tool_schema_renderer=_render_no_tool_schema,
+            tool_schema_delivery="api_parameter",
+            supports_native_tool_call_markup=True,
+            strict_tool_schema_delivery=True,
+            contract_version="native-provider-v1",
+        ),
         "react_text_v1": ModelProtocol(
             id="react_text_v1",
             display_name="ReAct Text",

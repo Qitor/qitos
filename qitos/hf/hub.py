@@ -71,8 +71,9 @@ def push_run(
     if revision:
         upload_kwargs["revision"] = revision
 
-    # Upload each artifact file
-    for filename in ("manifest.json", "events.jsonl", "steps.jsonl"):
+    # Canonical traces are the default.  Historical event/step traces remain
+    # uploadable when a run predates the compact writer.
+    for filename in ("manifest.json", "trajectory.jsonl", "events.jsonl", "steps.jsonl"):
         filepath = run_path / filename
         if not filepath.exists():
             continue
@@ -103,7 +104,7 @@ def push_run(
 
     # Upload any additional files (visual assets etc.)
     for extra in sorted(run_path.iterdir()):
-        if extra.name in ("manifest.json", "events.jsonl", "steps.jsonl"):
+        if extra.name in ("manifest.json", "trajectory.jsonl", "events.jsonl", "steps.jsonl"):
             continue
         if extra.is_file():
             hf.upload_file(

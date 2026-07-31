@@ -4,7 +4,7 @@ from qitos.engine.engine import Engine
 from qitos.engine.states import RuntimePhase
 
 
-def test_report_runtime_exception_writes_stderr_file_and_event(
+def test_report_runtime_exception_emits_safe_diagnostic_and_writes_private_file(
     tmp_path, monkeypatch, capsys
 ) -> None:
     error_log = tmp_path / "qitos-errors.log"
@@ -22,7 +22,8 @@ def test_report_runtime_exception_writes_stderr_file_and_event(
 
     stderr = capsys.readouterr().err
     assert "[QitOS] runtime exception phase=DECIDE step=1" in stderr
-    assert "NameError: phase_local_steps is not defined" in stderr
+    assert "NameError" in stderr
+    assert "phase_local_steps is not defined" not in stderr
 
     persisted = error_log.read_text()
     assert "QitOS RUNTIME EXCEPTION phase=DECIDE step=1" in persisted
@@ -30,9 +31,13 @@ def test_report_runtime_exception_writes_stderr_file_and_event(
 
     assert engine._last_runtime_error["error_type"] == "NameError"
     assert engine._last_runtime_error["phase"] == "DECIDE"
+    assert engine._last_runtime_error["error_message_sha256"]
+    assert engine._last_runtime_error["traceback_sha256"]
+    assert engine._last_runtime_error["recoverable"] is False
     assert emitted[0][0][:2] == (1, RuntimePhase.RECOVER)
     assert emitted[0][1]["ok"] is False
-    assert emitted[0][1]["payload"]["traceback"].startswith("Traceback")
+    assert "traceback" not in emitted[0][1]["payload"]
+    assert "error_message" not in emitted[0][1]["payload"]
 
 
 def test_report_runtime_exception_uses_trace_directory_fallback(

@@ -448,17 +448,69 @@ def _build_handler(root: Path):
                 fork_run_id = f"{run_id}_fork_s{step_id}"
                 fork_dir = run_dir.parent / fork_run_id
                 fork_dir.mkdir(parents=True, exist_ok=True)
-                if "manifest" in forked:
-                    (fork_dir / "manifest.json").write_text(
-                        json.dumps(forked["manifest"], ensure_ascii=False, indent=2),
-                        encoding="utf-8",
+                # A fork is a new trace too: retain the compact canonical
+                # storage contract rather than resurrecting events/steps.
+                from qitos.trace import CanonicalTrajectoryWriter
+
+                writer = CanonicalTrajectoryWriter(
+                    fork_dir / "trajectory.jsonl", run_id=fork_run_id,
+                    metadata={"replay_mode": True, "parent_run_id": run_id},
+                )
+                for event in list(forked.get("events") or []):
+                    if not isinstance(event, dict):
+                        continue
+                    step_id = int(event.get("step_id") or 0)
+                    payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
+                    stage = str(payload.get("stage") or "")
+                    if stage == "model_input" and isinstance(payload.get("messages"), list):
+                        writer.record_model_request(
+                            step_id=step_id,
+                            messages=payload["messages"],
+                            tools=payload.get("tool_schema") or payload.get("tools") or [],
+                            protocol="replay_projection",
+                        )
+                    elif stage == "model_output":
+                        assistant = payload.get("assistant_message")
+                        if not isinstance(assistant, dict):
+                            assistant = {"role": "assistant", "content": payload.get("raw_output")}
+                        response = payload.get("model_response") if isinstance(payload.get("model_response"), dict) else {}
+                        writer.record_model_response(
+                            step_id=step_id, assistant_message=assistant,
+                            finish_reason=response.get("finish_reason"), usage=response.get("usage"),
+                            reasoning_content=payload.get("reasoning_content"),
+                            reasoning_fields=payload.get("reasoning_fields"),
+                            reasoning_source=payload.get("reasoning_source"),
+                        )
+                    elif stage == "action_results":
+                        for index, result in enumerate(payload.get("action_results") or []):
+                            if not isinstance(result, dict):
+                                continue
+                            writer.record_tool_result(
+                                step_id=step_id,
+                                tool_call_id=str(result.get("tool_call_id") or f"replay-{step_id}-{index}"),
+                                tool_name=str(result.get("tool_name") or result.get("name") or "tool"),
+                                content=result.get("model_visible_output", result.get("output")),
+                                status=str(result.get("status") or "unknown"),
+                                error=result.get("error"),
+                            )
+                writer.finalize({"stop_reason": "replay_fork"})
+                (fork_dir / "manifest.json").write_text(
+                    json.dumps(
+                        {
+                            "run_id": fork_run_id,
+                            "schema_version": "qitos.trajectory.v1",
+                            "status": "forked",
+                            "trajectory_file": "trajectory.jsonl",
+                            "parent_run_id": run_id,
+                            "fork_step_id": step_id,
+                            "summary": {"stop_reason": "replay_fork"},
+                        },
+                        ensure_ascii=False,
+                        indent=2,
                     )
-                if "events" in forked:
-                    lines = [json.dumps(e, ensure_ascii=False) for e in forked["events"]]
-                    (fork_dir / "events.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
-                if "steps" in forked:
-                    lines = [json.dumps(s, ensure_ascii=False) for s in forked["steps"]]
-                    (fork_dir / "steps.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+                    + "\n",
+                    encoding="utf-8",
+                )
 
                 self._send_json({
                     "fork_run_id": fork_run_id,
@@ -575,7 +627,7 @@ def _build_handler(root: Path):
                 pass
 
         def _send_live_sse(self, run_dir: Path) -> None:
-            """Tail events.jsonl for a running run and push new lines as SSE events."""
+            """Tail canonical JSONL (or legacy events) and push SSE updates."""
             import struct
             import time as _time
 
@@ -586,9 +638,31 @@ def _build_handler(root: Path):
             self.send_header("X-Accel-Buffering", "no")
             self.end_headers()
 
-            events_path = run_dir / "events.jsonl"
+            canonical_path = run_dir / "trajectory.jsonl"
+            events_path = canonical_path if canonical_path.exists() else run_dir / "events.jsonl"
             sent = 0
             max_poll = 300  # 5 minutes at 1s intervals
+
+            def decode(line: str) -> tuple[str, dict[str, Any]] | None:
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    return None
+                if events_path == canonical_path:
+                    record_type = str(event.get("record_type") or "diagnostic")
+                    if record_type in {"turn", "model_response", "tool_result"}:
+                        return "phase", event
+                    if record_type == "footer":
+                        return "run_end", event
+                    return "diagnostic", event
+                phase = str(event.get("phase", "unknown")).upper()
+                if "HANDOFF" in phase:
+                    return "handoff", event
+                if "DELEGATE" in phase:
+                    return "delegate", event
+                if "FANOUT" in phase:
+                    return "fanout", event
+                return "phase", event
 
             # First, emit any existing events
             if events_path.exists():
@@ -596,19 +670,10 @@ def _build_handler(root: Path):
                     line = line.strip()
                     if not line:
                         continue
-                    try:
-                        event = json.loads(line)
-                    except json.JSONDecodeError:
+                    decoded = decode(line)
+                    if decoded is None:
                         continue
-                    phase = str(event.get("phase", "unknown")).upper()
-                    event_type = "phase"
-                    if "HANDOFF" in phase:
-                        event_type = "handoff"
-                    elif "DELEGATE" in phase:
-                        event_type = "delegate"
-                    elif "FANOUT" in phase:
-                        event_type = "fanout"
-                    self._sse_write(event_type, event)
+                    self._sse_write(*decoded)
                     sent += 1
 
             # Now tail for new events
@@ -626,20 +691,9 @@ def _build_handler(root: Path):
                     if not line:
                         sent += 1
                         continue
-                    try:
-                        event = json.loads(line)
-                    except json.JSONDecodeError:
-                        sent += 1
-                        continue
-                    phase = str(event.get("phase", "unknown")).upper()
-                    event_type = "phase"
-                    if "HANDOFF" in phase:
-                        event_type = "handoff"
-                    elif "DELEGATE" in phase:
-                        event_type = "delegate"
-                    elif "FANOUT" in phase:
-                        event_type = "fanout"
-                    self._sse_write(event_type, event)
+                    decoded = decode(line)
+                    if decoded is not None:
+                        self._sse_write(*decoded)
                     sent += 1
 
                 # Check if run is completed
@@ -687,8 +741,9 @@ def _discover_runs(logdir: Path) -> List[Dict[str, Any]]:
         if not manifest_path.exists():
             continue
         manifest = _load_json(manifest_path)
-        events = _load_jsonl(p / "events.jsonl")
-        steps = _load_jsonl(p / "steps.jsonl")
+        artifacts = _load_trace_artifacts(p)
+        events = artifacts["events"]
+        steps = artifacts["steps"]
         grouped_events = _group_events_by_step(events)
         step_summaries = _build_step_summaries(steps, grouped_events)
         tool_stats = _build_tool_stats(steps)
@@ -765,8 +820,9 @@ def _discover_runs(logdir: Path) -> List[Dict[str, Any]]:
 
 def _load_run_payload(run_dir: Path) -> Dict[str, Any]:
     manifest = _load_json(run_dir / "manifest.json")
-    events = _load_jsonl(run_dir / "events.jsonl")
-    steps = _load_jsonl(run_dir / "steps.jsonl")
+    artifacts = _load_trace_artifacts(run_dir)
+    events = artifacts["events"]
+    steps = artifacts["steps"]
     grouped_events = _group_events_by_step(events)
     step_interactions = _build_step_interactions(steps, grouped_events)
     step_summaries = _build_step_summaries(steps, grouped_events)
@@ -797,6 +853,17 @@ def _load_run_payload(run_dir: Path) -> Dict[str, Any]:
         "step_focus": step_focus,
         "cybergym_focus": cybergym_focus,
         "visual_timeline": _build_visual_timeline(steps),
+    }
+
+
+def _load_trace_artifacts(run_dir: Path) -> Dict[str, List[Dict[str, Any]]]:
+    """Prefer compact canonical traces while retaining historical replay."""
+    from qitos.evaluate import load_run_artifacts
+
+    payload = load_run_artifacts(run_dir)
+    return {
+        "events": list(payload.get("events") or []),
+        "steps": list(payload.get("steps") or []),
     }
 
 

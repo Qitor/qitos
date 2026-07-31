@@ -74,15 +74,25 @@ class _TraceRuntime(Generic[StateT]):
             self.notify_event(event, state)
 
     def write_trace_event(self, event: RuntimeEvent) -> None:
-        # Route through TracingProvider if available
+        writer = self.engine.trace_writer
+        if writer is not None and (
+            not event.ok
+            or str(getattr(event.phase, "value", event.phase))
+            in {"END", "DECIDE_ERROR", "ACT_ERROR", "RECOVER", "INTERRUPT"}
+        ):
+            writer.record_diagnostic(
+                step_id=event.step_id,
+                code=str(getattr(event.phase, "value", event.phase)),
+                detail={"ok": event.ok, "error": event.error, "payload": event.payload},
+            )
+        # External tracing is additive.  It must not suppress canonical
+        # trajectory persistence merely because a span processor is present.
         provider = getattr(self.engine, "_tracing_provider", None)
         if provider is not None:
-            # The LegacyTraceWriterProcessor handles the bridge,
-            # so we don't need to also write directly.
             return
-        if self.engine.trace_writer is None:
+        if writer is None:
             return
-        self.engine.trace_writer.write_event(
+        writer.write_event(
             runtime_event_to_trace(self.engine.trace_writer.run_id, event)
         )
 

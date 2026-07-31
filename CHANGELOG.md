@@ -19,6 +19,13 @@ How to update:
 
 ### Added
 
+- Added the default `qitos.trajectory.v1` canonical trace: one append-only
+  `trajectory.jsonl` with de-duplicated messages/tool schemas and a compact
+  `manifest.json`. It records native tool-call transactions, reasoning,
+  usage, diagnostics and terminal state without provider transport data.
+- Added canonical OpenAI, ms-swift and audit projections, plus reader
+  fallback so qita, replay, evaluation and Hub utilities can consume either
+  new canonical traces or historical `events.jsonl` / `steps.jsonl` runs.
 - Added generic `model_summary` projection for native tool-call history and
   model-visible observations. Tools can now retain full structured evidence
   for reducers and replay while supplying a bounded readable result to models.
@@ -32,6 +39,9 @@ How to update:
 
 ### Changed
 
+- `TraceWriter` now defaults to canonical JSONL. Set
+  `TraceStorageConfig(capture_debug_artifacts=True)` to additionally retain
+  legacy event/step files and per-step debug artifacts.
 - Strengthened the CyberGym PoC agent's task bootstrap with lightweight structured task-spec extraction and more relevant repo evidence ranking.
 - Clarified candidate provenance and lightweight failure taxonomy handling in the CyberGym agent without changing its single-agent runtime architecture.
 - Improved qita diagnostics for CyberGym-style traces so budget stops are marked as review-needed, `submit_poc` verification failures are promoted as critical inspection steps, and low-frequency metadata stays out of the default attention path.

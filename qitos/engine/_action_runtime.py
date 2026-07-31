@@ -112,12 +112,15 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                 engine._memory_append("action_result", blocked_result, record.step_id)
                 if self._history_tool_calls_enabled(record):
                     tool_call_id = normalized_action.action_id or f"call_{record.step_id}_{i}"
+                    visible_content = self._serialize_for_tool_message(
+                        self._model_visible_tool_output(
+                            normalized_action.name, blocked_result.output
+                        ),
+                        blocked_result.error,
+                    )
                     engine._history_append(
                         "tool",
-                        self._serialize_for_tool_message(
-                            blocked_result.output,
-                            blocked_result.error,
-                        ),
+                        visible_content,
                         record.step_id,
                         metadata={
                             "source": "engine",
@@ -125,6 +128,13 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                         },
                         tool_call_id=tool_call_id,
                         name=normalized_action.name,
+                    )
+                    self._record_canonical_tool_result(
+                        record=record,
+                        tool_call_id=tool_call_id,
+                        tool_name=normalized_action.name,
+                        content=visible_content,
+                        result=blocked_result,
                     )
                 else:
                     # When a custom MessageBuilder is active, avoid injecting
@@ -195,13 +205,26 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                     }))
                     if self._history_tool_calls_enabled(record):
                         tool_call_id = normalized_action.action_id or f"call_{record.step_id}_{i}"
+                        visible_content = self._serialize_for_tool_message(
+                            self._model_visible_tool_output(
+                                normalized_action.name, loop_tool_result.output
+                            ),
+                            loop_tool_result.error,
+                        )
                         engine._history_append(
                             "tool",
-                            self._serialize_for_tool_message(loop_tool_result.output, loop_tool_result.error),
+                            visible_content,
                             record.step_id,
                             metadata={"source": "loop_detector", "tool_name": normalized_action.name},
                             tool_call_id=tool_call_id,
                             name=normalized_action.name,
+                        )
+                        self._record_canonical_tool_result(
+                            record=record,
+                            tool_call_id=tool_call_id,
+                            tool_name=normalized_action.name,
+                            content=visible_content,
+                            result=loop_tool_result,
                         )
                     engine._emit(
                         record.step_id,
@@ -424,15 +447,23 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                     tool_call_id = f"call_{record.step_id}_{idx}"
                 model_payload = self._model_visible_tool_output(tool_name, payload)
                 serialized = self._serialize_for_tool_message(model_payload, result.error)
+                visible_content = serialized[
+                    : max(256, int(getattr(engine.context_config, "tool_result_max_chars", 4000)))
+                ]
                 engine._history_append(
                     "tool",
-                    serialized[
-                        : max(256, int(getattr(engine.context_config, "tool_result_max_chars", 4000)))
-                    ],
+                    visible_content,
                     record.step_id,
                     metadata={"source": "engine", "tool_name": tool_name},
                     tool_call_id=tool_call_id,
                     name=(tool_name or None),
+                )
+                self._record_canonical_tool_result(
+                    record=record,
+                    tool_call_id=tool_call_id,
+                    tool_name=tool_name,
+                    content=visible_content,
+                    result=result,
                 )
         engine._emit(
             record.step_id,
@@ -497,6 +528,30 @@ class _ActionRuntime(Generic[StateT, ActionT]):
             return json.dumps(payload, ensure_ascii=False, default=str)
         except Exception:
             return str(payload)
+
+    def _record_canonical_tool_result(
+        self,
+        *,
+        record: StepRecord,
+        tool_call_id: str,
+        tool_name: str,
+        content: Any,
+        result: ToolResult,
+    ) -> None:
+        writer = getattr(self.engine, "trace_writer", None)
+        if writer is None:
+            return
+        metadata = dict(result.metadata or {})
+        writer.record_tool_result(
+            step_id=record.step_id,
+            tool_call_id=tool_call_id,
+            tool_name=tool_name,
+            content=content,
+            status=result.status,
+            latency_ms=metadata.get("latency_ms"),
+            attempts=metadata.get("attempts"),
+            error=result.error,
+        )
 
     @staticmethod
     def _history_tool_calls_enabled(record: Any) -> bool:

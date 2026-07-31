@@ -23,8 +23,16 @@ class ReplaySession:
 
     def __init__(self, run_dir: str):
         self.run_dir = Path(run_dir)
-        self.events = self._load_jsonl(self.run_dir / "events.jsonl")
-        self.steps = self._load_jsonl(self.run_dir / "steps.jsonl")
+        canonical = self.run_dir / "trajectory.jsonl"
+        if canonical.is_file():
+            from qitos.trace import CanonicalTraceReader
+
+            projected = CanonicalTraceReader(canonical).to_legacy_artifacts()
+            self.events = projected["events"]
+            self.steps = projected["steps"]
+        else:
+            self.events = self._load_jsonl(self.run_dir / "events.jsonl")
+            self.steps = self._load_jsonl(self.run_dir / "steps.jsonl")
         self.manifest = self._load_json(self.run_dir / "manifest.json")
         self.cursor = 0
 

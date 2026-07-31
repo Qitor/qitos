@@ -11,6 +11,8 @@ from typing import Any, Dict, IO, List, Optional
 
 from qitos.tracing.config import _redact_dict
 
+from .canonical import CanonicalTrajectoryWriter, TraceStorageConfig, safe_projection
+
 from .events import TraceEvent, TraceStep
 from .schema import TraceSchemaValidator
 
@@ -58,43 +60,99 @@ class TraceWriter:
         schema_version: str = "v1",
         metadata: Optional[Dict[str, Any]] = None,
         strict_validate: bool = True,
+        storage: Optional[TraceStorageConfig] = None,
     ):
         self.output_dir = output_dir
         self.run_id = run_id
         self.schema_version = schema_version
         self.metadata = metadata or {}
         self.strict_validate = strict_validate
+        self.storage = storage or TraceStorageConfig()
         self.run_dir = os.path.join(output_dir, run_id)
         self.events_path = os.path.join(self.run_dir, "events.jsonl")
         self.steps_path = os.path.join(self.run_dir, "steps.jsonl")
         self.manifest_path = os.path.join(self.run_dir, "manifest.json")
+        self.trajectory_path = os.path.join(self.run_dir, "trajectory.jsonl")
         self._event_count = 0
         self._step_count = 0
 
         os.makedirs(self.run_dir, exist_ok=True)
         self._write_manifest(status="running")
 
-        # Buffered writers (Fix 2A)
-        self._events_writer = _BufferedJsonlWriter(self.events_path, flush_every=5)
-        self._steps_writer = _BufferedJsonlWriter(self.steps_path, flush_every=1)
+        self.canonical = CanonicalTrajectoryWriter(
+            self.trajectory_path,
+            run_id=run_id,
+            metadata=self.metadata,
+            flush_every=self.storage.flush_every,
+        )
+
+        # The former event/step layout is intentionally debug-only.  The
+        # canonical JSONL remains the source of truth in both modes.
+        self._events_writer = (
+            _BufferedJsonlWriter(self.events_path, flush_every=5)
+            if self.storage.capture_debug_artifacts else None
+        )
+        self._steps_writer = (
+            _BufferedJsonlWriter(self.steps_path, flush_every=1)
+            if self.storage.capture_debug_artifacts else None
+        )
 
     def write_event(self, event: TraceEvent) -> None:
+        if self._events_writer is None:
+            return
         line = json.dumps(_redact_dict(event.to_dict()), ensure_ascii=False) + "\n"
         self._events_writer.append(line)
         self._event_count += 1
 
     def write_step(self, step: TraceStep) -> None:
+        if self._steps_writer is None:
+            return
         line = json.dumps(_redact_dict(step.to_dict()), ensure_ascii=False) + "\n"
         self._steps_writer.append(line)
         self._step_count += 1
 
     def finalize(self, status: str, summary: Optional[Dict[str, Any]] = None) -> None:
         # Flush buffered writers before validation
-        self._events_writer.close()
-        self._steps_writer.close()
+        if self._events_writer is not None:
+            self._events_writer.close()
+        if self._steps_writer is not None:
+            self._steps_writer.close()
+        self.canonical.finalize(summary or {})
         self._write_manifest(status=status, summary=summary or {})
         if self.strict_validate and status != "running":
-            self._validate_artifacts()
+            from .canonical import CanonicalTraceReader
+
+            CanonicalTraceReader(self.trajectory_path).validate(require_footer=True)
+            if self.storage.capture_debug_artifacts:
+                self._validate_artifacts()
+
+    def record_model_request(
+        self,
+        *,
+        step_id: int,
+        messages: List[Dict[str, Any]],
+        tools: List[Dict[str, Any]] | None,
+        protocol: str = "",
+    ) -> str:
+        # Engine hydrates provenance after constructing the writer but before
+        # its first provider request.  Capture that final metadata snapshot in
+        # the canonical header without keeping a second heavy manifest copy.
+        self.canonical.metadata.update(self.metadata)
+        return self.canonical.record_model_request(
+            step_id=step_id, messages=messages, tools=tools, protocol=protocol
+        )
+
+    def record_model_response(self, **kwargs: Any) -> None:
+        self.canonical.record_model_response(**kwargs)
+
+    def record_model_tool_calls(self, **kwargs: Any) -> None:
+        self.canonical.record_model_tool_calls(**kwargs)
+
+    def record_tool_result(self, **kwargs: Any) -> None:
+        self.canonical.record_tool_result(**kwargs)
+
+    def record_diagnostic(self, **kwargs: Any) -> None:
+        self.canonical.record_diagnostic(**kwargs)
 
     def _write_manifest(
         self, status: str, summary: Optional[Dict[str, Any]] = None
@@ -107,6 +165,60 @@ class TraceWriter:
             "failure_report": {},
         }
         merged_summary.update(summary or {})
+        if not self.storage.capture_debug_artifacts:
+            run_spec = self.metadata.get("run_spec")
+            if not isinstance(run_spec, dict):
+                run_spec = {}
+            # Keep the small reproducibility index that existing benchmark
+            # tools consume, but never duplicate a tool manifest, full prompt
+            # or provider configuration in the compact manifest.
+            run_spec_index = {
+                key: safe_projection(run_spec.get(key), key)
+                for key in (
+                    "model_family", "model_name", "prompt_protocol",
+                    "parser_name", "toolset_name", "benchmark_name",
+                    "benchmark_split", "trace_schema_version",
+                )
+                if run_spec.get(key) not in (None, "", [], {})
+            }
+            experiment_spec = self.metadata.get("experiment_spec")
+            if not isinstance(experiment_spec, dict):
+                experiment_spec = {}
+            experiment_index = {
+                key: safe_projection(experiment_spec.get(key), key)
+                for key in ("name", "benchmark_name", "benchmark_split")
+                if experiment_spec.get(key) not in (None, "", [], {})
+            }
+            payload = {
+                "run_id": self.run_id,
+                "schema_version": "qitos.trajectory.v1",
+                "status": status,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "trajectory_file": "trajectory.jsonl",
+                "model_id": safe_projection(self.metadata.get("model_id", "unknown"), "model_id"),
+                "prompt_hash": safe_projection(self.metadata.get("prompt_hash", "unknown"), "prompt_hash"),
+                "git_sha": safe_projection(self.metadata.get("git_sha"), "git_sha"),
+                "package_version": safe_projection(self.metadata.get("package_version"), "package_version"),
+                "replay_mode": safe_projection(self.metadata.get("replay_mode"), "replay_mode"),
+                "replay_note": safe_projection(self.metadata.get("replay_note"), "replay_note"),
+                "agent_name": safe_projection(self.metadata.get("agent_name"), "agent_name"),
+                "model_family": safe_projection(self.metadata.get("model_family") or run_spec_index.get("model_family"), "model_family"),
+                "prompt_protocol": safe_projection(self.metadata.get("prompt_protocol") or run_spec_index.get("prompt_protocol"), "prompt_protocol"),
+                "parser_name": safe_projection(self.metadata.get("parser_name") or run_spec_index.get("parser_name"), "parser_name"),
+                "run_spec": run_spec_index,
+                "experiment_spec": experiment_index,
+                "summary": safe_projection(merged_summary),
+                "counts": {
+                    "canonical_records": getattr(getattr(self, "canonical", None), "record_count", 0),
+                    "turns": getattr(getattr(self, "canonical", None), "turn_count", 0),
+                },
+                "integrity": {
+                    "trajectory_sha256": getattr(getattr(self, "canonical", None), "sha256", ""),
+                },
+            }
+            with open(self.manifest_path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+            return
         payload = {
             "run_id": self.run_id,
             "schema_version": self.schema_version,

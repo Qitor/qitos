@@ -8,6 +8,7 @@ from qitos.benchmark.common import write_benchmark_results
 from qitos.core.spec import BenchmarkRunResult
 from qitos.render import ClaudeStyleHook
 from qitos.trace.events import TraceEvent
+from qitos.trace import TraceStorageConfig
 from qitos.trace.writer import TraceWriter
 from qitos.tracing.config import _REDACTED_FIELDS, _REDACTED_MARKER, _redact_dict
 
@@ -98,6 +99,7 @@ def test_trace_writer_redacts_sensitive_manifest_and_events(tmp_path):
             }
         },
         strict_validate=False,
+        storage=TraceStorageConfig(capture_debug_artifacts=True),
     )
     writer.write_event(
         TraceEvent(

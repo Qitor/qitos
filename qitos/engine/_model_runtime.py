@@ -851,6 +851,13 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
         model_input_digest = self._model_input_digest(state, record.step_id, llm_messages)
         tool_schema_digest = self._tool_schema_digest(request_options.get("tools"))
         model_input_digest["tool_schema"] = tool_schema_digest
+        if engine.trace_writer is not None:
+            engine.trace_writer.record_model_request(
+                step_id=record.step_id,
+                messages=llm_messages,
+                tools=list(request_options.get("tools") or []),
+                protocol=str(getattr(protocol, "id", "") or ""),
+            )
         self._write_assembled_messages_sidecar(state, record.step_id, llm_messages)
         self._write_model_input_bundle_sidecar(
             state,
@@ -936,6 +943,26 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             decision_context_recovery=decision_context_recovery,
         )
         record.model_response = response.to_summary_dict()
+        if engine.trace_writer is not None:
+            assistant_message: Dict[str, Any] = {
+                "role": "assistant",
+                "content": response.text if str(response.text or "").strip() else None,
+            }
+            if isinstance(response.tool_calls, list) and response.tool_calls:
+                assistant_message["tool_calls"] = [
+                    dict(item) for item in response.tool_calls if isinstance(item, dict)
+                ]
+            engine.trace_writer.record_model_response(
+                step_id=record.step_id,
+                assistant_message=assistant_message,
+                finish_reason=response.finish_reason,
+                usage=response.usage,
+                model_name=response.model_name,
+                provider=response.provider,
+                reasoning_content=response.reasoning_content,
+                reasoning_fields=response.reasoning_fields,
+                reasoning_source=response.reasoning_source,
+            )
         engine._last_context_telemetry = dict(record.context)
         engine._emit(
             record.step_id,
@@ -1022,6 +1049,11 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             metadata={"source": "engine", "decision_source": "parser"},
             tool_calls=calls,
         )
+        if self.engine.trace_writer is not None:
+            self.engine.trace_writer.record_model_tool_calls(
+                step_id=record.step_id,
+                tool_calls=calls,
+            )
         record.history_tool_calls_pending = True
 
     def _model_input_digest(
@@ -1111,6 +1143,8 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
         recovery: Dict[str, Any],
     ) -> None:
         """Persist a rejected packet only when Context normalization repairs it."""
+        if not self._capture_debug_artifacts():
+            return
         try:
             metadata = dict(getattr(state, "metadata", {}) or {})
             trace_root = str(
@@ -1148,6 +1182,8 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
         step_id: int,
         messages: List[Dict[str, Any]],
     ) -> None:
+        if not self._capture_debug_artifacts():
+            return
         try:
             metadata = dict(getattr(state, "metadata", {}) or {})
             trace_root = str(metadata.get("trace_run_dir") or "").strip()
@@ -1208,6 +1244,8 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
         context: Dict[str, Any] | None = None,
         decision_context_recovery: Dict[str, Any] | None = None,
     ) -> None:
+        if not self._capture_debug_artifacts():
+            return
         try:
             metadata = dict(getattr(state, "metadata", {}) or {})
             trace_root = str(metadata.get("trace_run_dir") or "").strip()
@@ -1256,6 +1294,11 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                 )
         except Exception:
             _logger.debug("model input bundle sidecar write failed", exc_info=True)
+
+    def _capture_debug_artifacts(self) -> bool:
+        writer = getattr(self.engine, "trace_writer", None)
+        storage = getattr(writer, "storage", None)
+        return bool(getattr(storage, "capture_debug_artifacts", False))
 
     @staticmethod
     def _decision_context_blocks(messages: List[Dict[str, Any]]) -> List[str]:

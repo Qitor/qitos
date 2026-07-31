@@ -147,9 +147,20 @@ By default, `AgentModule.run()` writes traces to `./runs/`. Each run creates one
 <trace_logdir>/
 └── <trace_prefix>_<YYYYMMDD_HHMMSS_ffffff>/
     ├── manifest.json    # Run metadata and final summary
-    ├── events.jsonl     # All runtime events (one JSON object per line)
-    └── steps.jsonl      # All step records (one JSON object per line)
+    ├── manifest.json       # Compact run status, counts and integrity hash
+    └── trajectory.jsonl    # Canonical append-only messages/tool transactions
 ```
+
+`trajectory.jsonl` is the default source for qita, replay, exports and
+training projections. It interns repeated provider messages and tool schemas,
+then records each request by ID reference together with the model response and
+model-visible tool results. It deliberately excludes provider transports,
+credentials, endpoint configuration and host control-plane paths.
+
+For framework debugging only, construct the writer with
+`TraceStorageConfig(capture_debug_artifacts=True)`. That additionally writes
+the historical `events.jsonl`, `steps.jsonl` and optional step artifacts;
+these are not produced by default.
 
 **Auto-generated run ID format**
 

@@ -200,6 +200,12 @@ class PromptBuilder:
 
     def _effective_delivery(self, requested: str, *, llm: Any, protocol: Any) -> str:
         delivery = str(requested or "prompt_injection")
+        # A strict native protocol must never silently reintroduce a textual
+        # schema when a transport capability probe is absent or inaccurate.
+        # The eventual provider call can then fail visibly instead of creating
+        # mixed-protocol training traces.
+        if bool(getattr(protocol, "strict_tool_schema_delivery", False)):
+            return delivery
         if delivery == "prompt_injection":
             return delivery
         supports = getattr(llm, "supports_tool_schema_delivery", None)

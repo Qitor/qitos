@@ -18,6 +18,11 @@ QitOS core is the small framework. Product-grade applications and showcase agent
 
 ## What's New
 
+- **Canonical training-ready trajectories**: new runs now write one compact,
+  append-only `trajectory.jsonl` plus a minimal manifest. Provider-facing
+  messages and tool schemas are stored once and referenced by turn, while
+  native tool calls, parallel tool-result batches, reasoning and usage remain
+  exactly reconstructable. Legacy debug files are opt-in.
 - **Readable tool evidence**: tools can now project a compact `model_summary`
   into native tool-call history without discarding their full structured result
   from reducers, traces, or replay.

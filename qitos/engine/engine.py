@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import hashlib
 import os
 import sys
 import time
@@ -160,6 +161,9 @@ class EngineResult(Generic[StateT]):
     run_id: str = ""
     critic_traces: List[CriticTrace] = field(default_factory=list)
     handoff_traces: List[HandoffTrace] = field(default_factory=list)
+    # Public-safe projection of the last handled runtime failure.  Raw error
+    # text belongs only in an explicitly configured private diagnostics file.
+    runtime_diagnostic: Optional[Dict[str, Any]] = None
     _cancel_token: Optional[CancelToken] = None
 
     def cancel(self, mode: str = "immediate") -> None:
@@ -249,6 +253,7 @@ class EngineResult(Generic[StateT]):
             "step_summaries": [item.to_dict() for item in self.step_summaries],
             "critic_traces": [ct.to_dict() for ct in self.critic_traces],
             "handoff_traces": [ht.to_dict() for ht in self.handoff_traces],
+            "runtime_diagnostic": self.runtime_diagnostic,
             "task_result": task_result_dict,
             "state": self.state.to_dict() if hasattr(self.state, "to_dict") else self.state,
         }
@@ -944,6 +949,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                 runtime_seconds=time.monotonic() - started_at,
                 total_tokens=int(self._token_usage),
                 run_id=self._active_run_id,
+                runtime_diagnostic=self._last_runtime_error,
                 _cancel_token=self._cancel_token,
             )
             self._notify_run_end(result)
@@ -1363,10 +1369,8 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                     "task_meta": self._task_meta(task_obj),
                     "task_result": task_result.to_dict(),
                     "run_meta": self._run_meta(),
-                    "failure_report": build_failure_report(
-                        self.recovery_policy, state.stop_reason
-                    ),
-                    "last_error": self._last_runtime_error,
+                    "failure_report": self._safe_failure_report(state.stop_reason),
+                    "runtime_diagnostic": self._last_runtime_error,
                 },
             )
 
@@ -1387,6 +1391,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             run_id=self._active_run_id,
             critic_traces=_critic_traces,
             handoff_traces=_handoff_traces,
+            runtime_diagnostic=self._last_runtime_error,
             _cancel_token=self._cancel_token,
         )
         self._notify_run_end(result)
@@ -1599,32 +1604,39 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         *,
         emit: bool = True,
     ) -> None:
-        """Make handled runtime exceptions visible in stderr, traces, and a file.
+        """Record a safe public diagnostic and optionally persist raw detail.
 
-        Python normally prints only uncaught exceptions. Recovery deliberately
-        catches exceptions, so without this explicit report a run can end with
-        ``unrecoverable_error`` and no useful diagnostics in redirected logs.
+        Recovery intentionally catches failures.  The public trace therefore
+        needs a stable diagnostic, but exception messages and tracebacks can
+        contain provider payloads, workspace paths, or private task material.
+        Only a hash-based projection is emitted; raw detail is opt-in through
+        ``QITOS_ERROR_LOG`` and is owned by the control plane.
         """
         phase_name = getattr(phase, "value", str(phase))
         traceback_text = "".join(
             traceback.format_exception(type(exc), exc, exc.__traceback__)
         )
+        from ..core.errors import classify_exception
+
+        info = classify_exception(exc, phase_name, int(step_id))
         payload = {
+            "schema_version": "qitos.runtime-diagnostic.v1",
             "phase": phase_name,
             "step_id": int(step_id),
             "error_type": type(exc).__name__,
-            "error_message": str(exc),
-            "traceback": traceback_text,
+            "error_message_sha256": hashlib.sha256(str(exc).encode("utf-8")).hexdigest(),
+            "traceback_sha256": hashlib.sha256(traceback_text.encode("utf-8")).hexdigest(),
+            "recovery_category": getattr(info.category, "value", str(info.category)),
+            "recoverable": bool(info.recoverable),
         }
         self._last_runtime_error = payload
 
         print(
             f"[QitOS] runtime exception phase={phase_name} step={step_id} "
-            f"type={type(exc).__name__}: {exc}",
+            f"type={type(exc).__name__} signature={payload['error_message_sha256'][:12]}",
             file=sys.stderr,
             flush=True,
         )
-        print(traceback_text, file=sys.stderr, end="", flush=True)
 
         error_log = os.environ.get("QITOS_ERROR_LOG", "").strip()
         if not error_log:
@@ -1638,6 +1650,11 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             try:
                 path = Path(error_log)
                 path.parent.mkdir(parents=True, exist_ok=True)
+                # The caller must select a control-plane-only location.  Make
+                # accidental broad permissions less likely even if it already
+                # exists from an interrupted attempt.
+                path.touch(exist_ok=True)
+                path.chmod(0o600)
                 with path.open("a", encoding="utf-8") as stream:
                     stream.write(
                         f"\n{'=' * 60}\nQitOS RUNTIME EXCEPTION "
@@ -1655,7 +1672,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                     RuntimePhase.RECOVER,
                     ok=False,
                     payload=payload,
-                    error=str(exc),
+                    error=f"{type(exc).__name__}:{payload['error_message_sha256'][:12]}",
                 )
             except Exception as emit_exc:
                 _logger.warning("Failed to emit QitOS recovery diagnostic: %s", emit_exc)
@@ -1664,6 +1681,20 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         step_id = int(getattr(state, "current_step", len(self.records) - 1) or 0)
         self._report_runtime_exception(phase, step_id, exc)
         return self._control_runtime.recover(state, phase, exc)
+
+    def _safe_failure_report(self, stop_reason: Optional[str]) -> Dict[str, Any]:
+        """Return aggregate recovery information without exception messages."""
+        tracker = getattr(self.recovery_policy, "tracker", None)
+        diagnostics = list(getattr(tracker, "diagnostics", []) or [])
+        categories: Dict[str, int] = {}
+        for diagnostic in diagnostics:
+            category = str(getattr(diagnostic, "category", "unknown") or "unknown")
+            categories[category] = categories.get(category, 0) + 1
+        return {
+            "failure_count": len(diagnostics),
+            "categories": categories,
+            "stop_reason": stop_reason,
+        }
 
     def _emit(
         self,
