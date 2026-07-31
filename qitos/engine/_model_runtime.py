@@ -15,7 +15,12 @@ from ..core.action import Action
 
 _logger = logging.getLogger("qitos.engine._model_runtime")
 from ..core.decision import Decision
-from ..core.errors import ErrorCategory, ParseExecutionError, RuntimeErrorInfo
+from ..core.errors import (
+    ErrorCategory,
+    ModelExecutionError,
+    ParseExecutionError,
+    RuntimeErrorInfo,
+)
 from ..core.model_response import ModelResponse
 from ..core.multimodal import (
     content_to_text,
@@ -86,6 +91,11 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                 response=model_response,
                 record=record,
             )
+            if interpreted is None:
+                self._raise_for_empty_model_response(
+                    response=model_response,
+                    step=record.step_id,
+                )
             raw_decision = interpreted if interpreted is not None else model_response
 
         decision = self.normalize_decision(
@@ -133,6 +143,33 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             ),
         )
         return cast(Decision[ActionT], decision)
+
+    def _raise_for_empty_model_response(
+        self, *, response: ModelResponse, step: int
+    ) -> None:
+        if str(response.text or "").strip() or response.tool_calls:
+            return
+        finish_reason = response.finish_reason
+        raise ModelExecutionError(
+            RuntimeErrorInfo(
+                category=ErrorCategory.MODEL,
+                message=(
+                    "Model returned no text or tool calls "
+                    f"(finish_reason={finish_reason!r})."
+                ),
+                phase=RuntimePhase.DECIDE.value,
+                step_id=step,
+                recoverable=True,
+                details={
+                    "code": "empty_model_response",
+                    "finish_reason": finish_reason,
+                    "usage": response.usage,
+                    "model_name": response.model_name,
+                    "provider": response.provider,
+                    "max_recoveries": 1,
+                },
+            )
+        )
 
     def _run_llm_decide(
         self, state: StateT, observation: ObservationT, record: StepRecord

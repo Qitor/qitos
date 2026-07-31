@@ -60,6 +60,12 @@ engine = Engine(
   Prefer calling `agent.run()` for single-run workflows. Use `Engine` directly when you need to reuse an Engine across multiple runs or configure hooks dynamically between runs.
 </Tip>
 
+## Empty model responses
+
+After a model call, the Engine records the normalized response and gives `AgentModule.interpret_model_response()` the first opportunity to turn it into a decision. If the hook returns `None` and the response contains neither non-whitespace text nor tool calls, the Engine classifies the result as a `model_error` before it reaches the parser. The default recovery path retries once; a second consecutive empty response stops the run with `unrecoverable_error` instead of consuming the remaining step budget as parser `wait` decisions.
+
+The `model_output` event and `StepRecord.model_response` still retain the response's `finish_reason`, usage, model, and provider fields. This guard does not change native tool-call responses, explicit `Decision.wait` values, or parser feedback for non-empty malformed model output.
+
 ## `Engine.run(task)`
 
 ```python

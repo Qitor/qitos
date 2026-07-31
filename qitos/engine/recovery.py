@@ -72,11 +72,15 @@ class RecoveryPolicy:
         # dies cleanly once the streak exceeds the cap (no fake-2h spin).
         self._recoveries = 0
         self._last_step_id: Optional[int] = None
+        self._scoped_recovery_key: Optional[str] = None
+        self._scoped_recoveries = 0
         self.tracker = RecoveryTracker()
 
     def reset(self) -> None:
         self._recoveries = 0
         self._last_step_id = None
+        self._scoped_recovery_key = None
+        self._scoped_recoveries = 0
         self.tracker = RecoveryTracker()
 
     def handle(
@@ -94,14 +98,43 @@ class RecoveryPolicy:
                 note="unrecoverable_stop",
             )
 
+        scoped_limit = info.details.get("max_recoveries")
+        has_scoped_limit = (
+            isinstance(scoped_limit, int)
+            and not isinstance(scoped_limit, bool)
+            and scoped_limit >= 0
+        )
+        scoped_key = info.details.get("code")
+        has_scoped_key = isinstance(scoped_key, str) and bool(scoped_key)
+
         # Update the consecutive-failure streak.
-        if self._last_step_id is not None and (step_id - self._last_step_id) <= 1:
+        is_consecutive = (
+            self._last_step_id is not None
+            and (step_id - self._last_step_id) <= 1
+        )
+        if is_consecutive:
             self._recoveries += 1
         else:
             self._recoveries = 1
+
+        if has_scoped_limit and has_scoped_key:
+            if is_consecutive and self._scoped_recovery_key == scoped_key:
+                self._scoped_recoveries += 1
+            else:
+                self._scoped_recoveries = 1
+            self._scoped_recovery_key = scoped_key
+        else:
+            self._scoped_recovery_key = None
+            self._scoped_recoveries = 0
         self._last_step_id = step_id
 
-        if self._recoveries > self.max_recoveries_per_run:
+        global_limit_exhausted = self._recoveries > self.max_recoveries_per_run
+        scoped_limit_exhausted = (
+            has_scoped_limit
+            and has_scoped_key
+            and self._scoped_recoveries > scoped_limit
+        )
+        if global_limit_exhausted or scoped_limit_exhausted:
             self.tracker.add(info, recommendation, decision="stop")
             return RecoveryDecision(
                 handled=True,

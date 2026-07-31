@@ -60,6 +60,12 @@ engine = Engine(
   单次运行的普通场景优先用 `agent.run()`。当你需要跨多次任务复用同一个 Engine，或在运行间动态调整钩子时，再直接使用 `Engine`。
 </Tip>
 
+## 空模型响应
+
+模型调用完成后，Engine 会先记录规范化响应，并优先让 `AgentModule.interpret_model_response()` 将其解释为决策。如果该钩子返回 `None`，且响应既没有非空白文本也没有工具调用，Engine 会在进入 parser 之前将其归类为 `model_error`。默认恢复路径会重试一次；若连续第二次仍为空，运行会以 `unrecoverable_error` 停止，而不是继续生成 parser `wait` 并消耗剩余步数预算。
+
+`model_output` 事件和 `StepRecord.model_response` 仍会保留响应的 `finish_reason`、usage、model 与 provider 字段。该防护不会改变原生工具调用响应、显式 `Decision.wait`，也不会改变对非空但格式错误输出的 parser feedback 行为。
+
 ## `Engine.run(task)`
 
 ```python

@@ -30,6 +30,7 @@ How to update:
 
 ### Fixed
 
+- Fixed empty model responses with neither usable text nor tool calls being misclassified as parser `wait` decisions. The Engine now records them as `model_error`, retries once through bounded recovery, and stops with `unrecoverable_error` if the empty response repeats while preserving response diagnostics in traces.
 - Fixed native response text extraction so OpenAI-compatible messages with null content no longer become repr-string final answers.
 - Fixed OpenAI-compatible forced tool-call requests so conflicting thinking options are disabled, and repaired JSON/tool-call parsing for bare control characters inside string values.
 - Fixed JSON-like object extraction so apostrophes in surrounding natural-language text no longer hide valid JSON payloads.
