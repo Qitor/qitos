@@ -333,6 +333,10 @@ Decision.branch(...)
 
 它们共同定义了一次运行的输入、状态与输出语义。
 
+当 Engine 已识别立即取消请求时，`StopReason.CANCELLED_IMMEDIATE` 会把
+`"cancelled_immediate"` 同步写入最终 State、任务/运行结果与 END event；对应的
+trace manifest 使用终态 `status="stopped"`，而不是正常完成状态。
+
 </Accordion>
 
 </AccordionGroup>

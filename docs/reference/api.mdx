@@ -861,6 +861,7 @@ class StopReason(str, Enum):
     TASK_VALIDATION_FAILED = "task_validation_failed"
     ENV_CAPABILITY_MISMATCH = "env_capability_mismatch"
     UNRECOVERABLE_ERROR = "unrecoverable_error"
+    CANCELLED_IMMEDIATE = "cancelled_immediate"
 ```
 
 | Value | When set |
@@ -878,6 +879,7 @@ class StopReason(str, Enum):
 | `task_validation_failed` | `Task.validate_structured()` produced issues |
 | `env_capability_mismatch` | Environment missing required ops |
 | `unrecoverable_error` | Fatal error with no recovery path |
+| `cancelled_immediate` | The Engine observed an immediate cancellation request; the trace manifest uses terminal status `stopped` |
 
 </Accordion>
 

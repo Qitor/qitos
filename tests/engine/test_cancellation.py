@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import threading
 import time
 from dataclasses import dataclass
@@ -16,6 +17,7 @@ from qitos.core.state import StateSchema
 from qitos.engine.cancellation import CancelMode, CancelToken
 from qitos.engine.engine import Engine, EngineResult
 from qitos.engine.states import RuntimeBudget, RuntimePhase
+from qitos.trace.writer import TraceWriter
 from qitos.checkpoint.store import (
     Checkpoint,
     CheckpointConfig,
@@ -252,6 +254,47 @@ class TestCancelInEngine:
             if e.phase == RuntimePhase.END
         )
         assert stopped_early or has_cancel_event
+
+    def test_immediate_cancel_propagates_to_state_result_and_trace(self, tmp_path):
+        """An observed immediate cancel is consistent across terminal outputs."""
+
+        class _WaitAgent(_CountingAgent):
+            def decide(self, state, observation):
+                return Decision.wait(rationale="continue until cancelled")
+
+        class _CancelAfterFirstStep:
+            requested = False
+
+            def on_after_step(self, ctx, engine):
+                if not self.requested:
+                    self.requested = True
+                    engine._cancel_token.request_cancel("immediate")
+
+        writer = TraceWriter(str(tmp_path), "issue-34-immediate-cancel")
+        engine = Engine(
+            _WaitAgent(),
+            budget=RuntimeBudget(max_steps=3),
+            trace_writer=writer,
+            hooks=[_CancelAfterFirstStep()],
+        )
+
+        result = engine.run("count")
+        with open(writer.manifest_path, encoding="utf-8") as f:
+            manifest = json.load(f)
+
+        end_reasons = [
+            event.payload.get("stop_reason")
+            for event in result.events
+            if event.phase == RuntimePhase.END
+        ]
+        assert end_reasons == ["cancelled_immediate"]
+        assert result.state.stop_reason == "cancelled_immediate"
+        assert result.state.final_result is None
+        assert result.task_result is not None
+        assert result.task_result.stop_reason == "cancelled_immediate"
+        assert result.task_result.success is False
+        assert manifest["status"] == "stopped"
+        assert manifest["summary"]["stop_reason"] == "cancelled_immediate"
 
     def test_after_step_cancel_stops_after_step(self):
         """Cancel with after_step mode waits for current step to finish."""

@@ -955,11 +955,12 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                 # -- Cancellation check --
                 if self._cancel_token.is_cancel_requested:
                     if self._cancel_token.mode == CancelMode.IMMEDIATE:
+                        state.set_stop(StopReason.CANCELLED_IMMEDIATE)
                         self._emit(
                             step_id,
                             RuntimePhase.END,
                             ok=False,
-                            payload={"stop_reason": "cancelled_immediate"},
+                            payload={"stop_reason": state.stop_reason},
                         )
                         break
                     # after_step: break after this iteration's step completes
@@ -1331,11 +1332,12 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             self._cleanup_mcp_servers()
 
         if self.trace_writer is not None:
-            status = (
-                "failed"
-                if state.stop_reason == StopReason.UNRECOVERABLE_ERROR.value
-                else "completed"
-            )
+            if state.stop_reason == StopReason.UNRECOVERABLE_ERROR.value:
+                status = "failed"
+            elif state.stop_reason == StopReason.CANCELLED_IMMEDIATE.value:
+                status = "stopped"
+            else:
+                status = "completed"
             task_result = self._build_task_result(state, task_obj=task_obj, started_at=started_at)
             self.trace_writer.finalize(
                 status=status,
