@@ -8,7 +8,7 @@ QitOS separates two distinct concerns:
 - **History** — the conversation context sent to the LLM each step. It is ephemeral, message-scoped, and controlled by `HistoryPolicy`.
 - **Memory** — a semantic record store that accumulates observations across steps and can be queried by strategy (window, summary, vector, or file).
 
-Both are optional. If you pass neither, the Engine uses an internal 24-message window history and no memory adapter.
+Both are optional. If you pass neither, the Engine uses an internal history with the default 24-message `HistoryPolicy` limit and no memory adapter. With context management enabled (the default), the internal store is upgraded to `CompactHistory`; disabling context management keeps the lightweight Engine window store.
 
 ## The mental model
 
@@ -52,11 +52,15 @@ result = agent.run(
 )
 ```
 
-`HistoryPolicy.build_query()` produces the retrieval query sent to the `History` adapter each step. The default Engine history implementation (`_EngineWindowHistory`) satisfies this query with a sliding window.
+`HistoryPolicy.build_query()` produces the retrieval query sent to the active `History` adapter each step. The default context-managed Engine uses `CompactHistory`; the lightweight `_EngineWindowHistory` fallback satisfies the same query when context management is disabled.
 
 <Tip>
 Tighten `max_messages` when your model has a small context window, or set `step_window=4` to keep only the four most recent steps visible to the model.
 </Tip>
+
+### Native tool-call chain integrity
+
+Message limits still count individual history messages, so a window boundary can fall inside a native tool-call round. Before dispatching a model request, the Engine correlates assistant tool calls and tool results by `tool_call_id`. It removes a tool result when the declaring assistant call is no longer present and keeps the existing interrupted-call placeholder for an assistant call whose result is missing. Valid complete chains keep their original order and content, and the configured message limit does not change.
 
 ## Built-in history strategies
 

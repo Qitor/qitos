@@ -343,6 +343,9 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             record=record,
         )
         messages.append(current_user)
+        # Repair native tool-call chains before tracing or provider dispatch so
+        # observability artifacts match the exact canonical request history.
+        messages = self._ensure_chain_consistency(messages)
         prepared_full = content_to_text(current_user.get("content"))
         self._write_assembled_messages_sidecar(state, record.step_id, messages)
         record.prompt_metadata = dict(prompt_metadata)
@@ -377,10 +380,6 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             prompt_bundle=prompt_bundle,
             protocol=protocol,
         )
-        # Ensure chain consistency: every assistant tool_call must have
-        # a corresponding tool response. Add placeholder responses for
-        # any dangling tool calls (e.g., after error recovery).
-        messages = self._ensure_chain_consistency(messages)
         llm_messages = self._strip_internal_message_keys(messages)
         raw_decision = self._call_llm(engine.agent.llm, llm_messages, request_options)
         response = self._normalize_model_response(raw_decision)
@@ -1634,12 +1633,13 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
     def _ensure_chain_consistency(
         self, messages: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
-        """Ensure every assistant tool_call has a corresponding tool response.
+        """Ensure assistant tool calls and tool responses form a valid chain.
 
-        After errors or crashes, the message chain can have dangling tool
-        calls (assistant messages with tool_calls that never got a response).
-        The LLM API rejects such chains. This method adds placeholder tool
-        responses for any missing ones.
+        Window trimming can retain a tool response after its declaring
+        assistant message has been evicted. Errors or crashes can leave the
+        opposite shape: an assistant tool call without a response. LLM APIs
+        reject both forms. Remove orphan responses, then preserve the existing
+        recovery behavior by adding placeholder responses for missing ones.
         """
         if not messages:
             return messages
@@ -1657,12 +1657,20 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                 if tc_id:
                     expected_tool_ids.append(tc_id)
 
+        expected_tool_id_set = set(expected_tool_ids)
+        result = [
+            msg
+            for msg in messages
+            if msg.get("role") != "tool"
+            or msg.get("tool_call_id") in expected_tool_id_set
+        ]
+
         if not expected_tool_ids:
-            return messages
+            return result
 
         # Collect all tool_call_ids that already have responses
         responded_ids: set = set()
-        for msg in messages:
+        for msg in result:
             if msg.get("role") == "tool":
                 tc_id = msg.get("tool_call_id")
                 if tc_id:
@@ -1671,10 +1679,9 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
         # Find dangling tool calls and add placeholder responses
         missing_ids = [tid for tid in expected_tool_ids if tid not in responded_ids]
         if not missing_ids:
-            return messages
+            return result
 
         # Insert placeholder tool responses after the last message
-        result = list(messages)
         for tid in missing_ids:
             result.append({
                 "role": "tool",

@@ -308,3 +308,79 @@ def test_native_tool_call_history_keeps_assistant_text_and_tool_calls():
     assert first.content == "Conclusion: likely 1-byte trigger. Next: use add."
     assert first.tool_calls
     assert first.tool_calls[0]["function"]["name"] == "add"
+
+
+def test_native_tool_chain_removes_tool_results_without_retained_assistant_call():
+    engine = Engine(agent=_ToolCallAgent(llm=None), budget=RuntimeBudget(max_steps=1))
+    messages = [
+        {"role": "system", "content": "System prompt"},
+        {
+            "role": "tool",
+            "content": "stale result",
+            "tool_call_id": "call_evicted",
+        },
+        {"role": "user", "content": "continue"},
+    ]
+    original_messages = [dict(message) for message in messages]
+
+    repaired = engine._model_runtime._ensure_chain_consistency(messages)
+
+    assert messages == original_messages
+    assert repaired == [
+        {"role": "system", "content": "System prompt"},
+        {"role": "user", "content": "continue"},
+    ]
+
+
+def test_native_tool_chain_preserves_complete_call_and_result_pair():
+    engine = Engine(agent=_ToolCallAgent(llm=None), budget=RuntimeBudget(max_steps=1))
+    messages = [
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": "call_complete",
+                    "type": "function",
+                    "function": {"name": "add", "arguments": '{"a": 20, "b": 22}'},
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "content": "42",
+            "tool_call_id": "call_complete",
+        },
+    ]
+
+    repaired = engine._model_runtime._ensure_chain_consistency(messages)
+
+    assert repaired == messages
+
+
+def test_native_tool_chain_keeps_existing_missing_result_placeholder_recovery():
+    engine = Engine(agent=_ToolCallAgent(llm=None), budget=RuntimeBudget(max_steps=1))
+    messages = [
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": "call_interrupted",
+                    "type": "function",
+                    "function": {"name": "add", "arguments": '{"a": 20, "b": 22}'},
+                }
+            ],
+        }
+    ]
+
+    repaired = engine._model_runtime._ensure_chain_consistency(messages)
+
+    assert repaired == [
+        messages[0],
+        {
+            "role": "tool",
+            "tool_call_id": "call_interrupted",
+            "content": "[Tool execution was interrupted. No result available.]",
+        },
+    ]

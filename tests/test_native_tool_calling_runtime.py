@@ -126,6 +126,142 @@ def test_native_tool_chain_preserves_tool_call_history_and_non_json_result() -> 
     assert "1" in tool_content and "2" in tool_content
 
 
+def test_default_history_window_never_sends_orphan_parallel_tool_results() -> None:
+    class _VariableNativeToolModel:
+        model = "test-variable-native"
+        max_tokens = 256
+        context_window = 8192
+        qitos_harness_metadata = {
+            "tool_policy": {"native_tool_call_preferred": True},
+            "parser": "ReActTextParser",
+            "protocol": "react_text_v1",
+        }
+
+        def __init__(self) -> None:
+            self.calls = 0
+            self.orphan_ids_by_call: list[list[str]] = []
+
+        def call_raw(
+            self, messages: list[dict[str, Any]], **kwargs: Any
+        ) -> dict[str, Any]:
+            _ = kwargs
+            assistant_ids = {
+                str(tool_call["id"])
+                for message in messages
+                if message.get("role") == "assistant"
+                for tool_call in message.get("tool_calls", [])
+                if isinstance(tool_call, dict) and tool_call.get("id")
+            }
+            tool_result_ids = {
+                str(message["tool_call_id"])
+                for message in messages
+                if message.get("role") == "tool" and message.get("tool_call_id")
+            }
+            self.orphan_ids_by_call.append(sorted(tool_result_ids - assistant_ids))
+
+            call_index = self.calls
+            self.calls += 1
+            if call_index >= 8:
+                return {
+                    "choices": [
+                        {"message": {"content": "Final Answer: done"}}
+                    ]
+                }
+
+            tool_call_count = 3 if call_index == 0 else 1
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": None,
+                            "tool_calls": [
+                                {
+                                    "id": f"call_{call_index}_{offset}",
+                                    "type": "function",
+                                    "function": {
+                                        "name": "probe",
+                                        "arguments": (
+                                            '{"value": %d}'
+                                            % (call_index * 10 + offset)
+                                        ),
+                                    },
+                                }
+                                for offset in range(tool_call_count)
+                            ],
+                        },
+                        "finish_reason": "tool_calls",
+                    }
+                ]
+            }
+
+    class _VariableNativeToolAgent(AgentModule[_State, Observation, Action]):
+        def __init__(self, llm: Any):
+            registry = ToolRegistry()
+
+            @tool(name="probe")
+            def probe(value: int) -> dict[str, int]:
+                return {"value": value}
+
+            registry.register(probe)
+            super().__init__(
+                tool_registry=registry,
+                llm=llm,
+                model_parser=ReActTextParser(),
+            )
+
+        def init_state(self, task: str, **kwargs: Any) -> _State:
+            _ = kwargs
+            return _State(task=task, max_steps=12)
+
+        def prepare(self, state: _State) -> str:
+            return f"continue step {state.current_step}"
+
+        def decide(
+            self, state: _State, observation: Observation
+        ) -> Decision[Action] | None:
+            _ = state, observation
+            return None
+
+        def reduce(
+            self,
+            state: _State,
+            observation: Observation,
+            decision: Decision[Action],
+        ) -> _State:
+            _ = observation, decision
+            return state
+
+    llm = _VariableNativeToolModel()
+    result = Engine(
+        agent=_VariableNativeToolAgent(llm),
+        budget=RuntimeBudget(max_steps=12),
+    ).run("exercise variable native tool rounds")
+
+    assert result.state.final_result == "done"
+    assert llm.calls == 9
+    assert llm.orphan_ids_by_call == [[] for _ in range(9)]
+    model_input_messages = [
+        event.payload["messages"]
+        for event in result.events
+        if event.payload.get("stage") == "model_input"
+    ]
+    assert len(model_input_messages) == 9
+    for messages in model_input_messages:
+        assistant_ids = {
+            str(tool_call["id"])
+            for message in messages
+            if message.get("role") == "assistant"
+            for tool_call in message.get("tool_calls", [])
+            if isinstance(tool_call, dict) and tool_call.get("id")
+        }
+        tool_result_ids = {
+            str(message["tool_call_id"])
+            for message in messages
+            if message.get("role") == "tool" and message.get("tool_call_id")
+        }
+        assert tool_result_ids <= assistant_ids
+
+
 def test_responses_native_items_survive_engine_tool_round() -> None:
     class _ResponsesNativeModel(_NativeToolModel):
         def call_raw(
