@@ -34,6 +34,13 @@ QitOS will prefer the native lane when all of these are true:
 
 If any of those conditions fail, QitOS falls back to the normal parser (raw-output-to-Decision converter) chain.
 
+When the endpoint returns text without `tool_calls`, QitOS distinguishes two
+outcomes. Ordinary natural-language conclusions become final answers. Text that
+contains structured action fields but fails parsing stays on the parser recovery
+path, so an intended tool action cannot be reported as successful completion.
+The trace retains the raw response, parser diagnostics, and
+`decision_source: parser` for that recovery step.
+
 ## Why QitOS does not copy the Qwen-Agent sentinel prompt
 
 The official Qwen-Agent project includes a Qwen-specific function-calling prompt format for chat interfaces that do not provide a native tool channel.

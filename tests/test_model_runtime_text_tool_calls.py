@@ -1,11 +1,21 @@
 from types import SimpleNamespace
 
+import pytest
+
 from qitos import Action, AgentModule, Decision, Engine, ToolRegistry, tool
 from qitos.core.history import History, HistoryMessage
+from qitos.core.model_response import ModelResponse
 from qitos.core.state import StateSchema
 from qitos.engine import RuntimeBudget
 from qitos.engine.recovery import RecoveryPolicy, build_failure_report
-from qitos.kit.parser import JsonDecisionParser, ReActTextParser
+from qitos.engine.states import StepRecord
+from qitos.kit.parser import (
+    JsonDecisionParser,
+    MiniMaxToolCallParser,
+    ReActTextParser,
+    ToolUseXmlParser,
+    XmlDecisionParser,
+)
 
 
 class _HistoryCapture(History):
@@ -384,3 +394,321 @@ def test_native_tool_chain_keeps_existing_missing_result_placeholder_recovery():
             "content": "[Tool execution was interrupted. No result available.]",
         },
     ]
+
+
+def _native_text_engine(*, parser=None, protocol="react_text_v1"):
+    llm = SimpleNamespace(
+        qitos_harness_metadata={
+            "tool_policy": {"native_tool_call_preferred": True},
+            "protocol": protocol,
+        }
+    )
+    agent = _ToolCallAgent(llm=llm)
+    if parser is not None:
+        agent.model_parser = parser
+    return Engine(agent=agent, budget=RuntimeBudget(max_steps=2))
+
+
+@pytest.mark.parametrize(
+    "response_text",
+    [
+        (
+            "thought: inspect the workspace\n"
+            "action:\n"
+            "name: add\n"
+            "args:\n"
+            "command: pwd"
+        ),
+        '{"thought":"inspect","action":{"name":"add","args":{"a":1',
+        "{thought: inspect, action: {name: add, args: {a: 1",
+        '{"tool":"add"',
+        '{"call":"add"',
+        '{"command":"pwd"',
+    ],
+)
+def test_native_text_structured_action_parse_error_stays_in_recovery(response_text):
+    engine = _native_text_engine()
+    record = StepRecord(step_id=0)
+
+    decision = engine._model_runtime.normalize_decision(
+        ModelResponse(text=response_text, finish_reason="stop", tool_calls=None),
+        step=0,
+        record=record,
+    )
+
+    assert decision.mode == "wait"
+    assert decision.final_answer is None
+    assert decision.meta["parser_error"] is True
+    assert record.decision_source == "parser"
+    assert record.parser_diagnostics["severity"] == "error"
+    assert any(
+        event.payload.get("stage") == "native_text_final_rejected"
+        and event.payload.get("reason") == "structured_action_parse_error"
+        for event in engine.events
+    )
+
+
+def test_native_text_plain_natural_language_still_becomes_final():
+    engine = _native_text_engine()
+    record = StepRecord(step_id=0)
+    response_text = (
+        "The requested action is complete; the tool named add returned 42."
+    )
+
+    decision = engine._model_runtime.normalize_decision(
+        ModelResponse(
+            text=response_text,
+            finish_reason="stop",
+            tool_calls=None,
+        ),
+        step=0,
+        record=record,
+    )
+
+    assert decision.mode == "final"
+    assert decision.final_answer == response_text
+    assert decision.meta["decision_source"] == "native_text_final"
+    assert record.decision_source == "native_text_final"
+
+
+@pytest.mark.parametrize(
+    "response_text",
+    [
+        "Command: pytest -q",
+        "Call: +1 (555) 010-2000 for support.",
+        "Tools: Python and pytest were used to verify the result.",
+    ],
+)
+def test_native_text_ambiguous_labels_still_become_final(response_text):
+    engine = _native_text_engine()
+    record = StepRecord(step_id=0)
+
+    decision = engine._model_runtime.normalize_decision(
+        ModelResponse(text=response_text, finish_reason="stop", tool_calls=None),
+        step=0,
+        record=record,
+    )
+
+    assert decision.mode == "final"
+    assert decision.final_answer == response_text
+    assert record.decision_source == "native_text_final"
+
+
+def test_native_text_tool_use_parser_heuristic_wait_keeps_legacy_final_fallback():
+    engine = _native_text_engine(
+        parser=ToolUseXmlParser(), protocol="tool_use_xml_v1"
+    )
+    record = StepRecord(step_id=0)
+    response_text = "All requested checks passed successfully."
+
+    decision = engine._model_runtime.normalize_decision(
+        ModelResponse(text=response_text, finish_reason="stop", tool_calls=None),
+        step=0,
+        record=record,
+    )
+
+    assert decision.mode == "final"
+    assert decision.final_answer == response_text
+    assert record.decision_source == "native_text_final"
+
+
+def test_native_text_valid_react_action_still_uses_parser():
+    engine = _native_text_engine()
+    record = StepRecord(step_id=0)
+
+    decision = engine._model_runtime.normalize_decision(
+        ModelResponse(
+            text="Thought: calculate\nAction: add(a=20, b=22)",
+            finish_reason="stop",
+            tool_calls=None,
+        ),
+        step=0,
+        record=record,
+    )
+
+    assert decision.mode == "act"
+    assert decision.actions == [{"name": "add", "args": {"a": 20, "b": 22}}]
+    assert record.decision_source == "parser"
+
+
+def test_native_text_valid_react_final_still_uses_parser():
+    engine = _native_text_engine()
+    record = StepRecord(step_id=0)
+
+    decision = engine._model_runtime.normalize_decision(
+        ModelResponse(
+            text="Thought: finished\nFinal Answer: 42",
+            finish_reason="stop",
+            tool_calls=None,
+        ),
+        step=0,
+        record=record,
+    )
+
+    assert decision.mode == "final"
+    assert decision.final_answer == "42"
+    assert record.decision_source == "parser"
+
+
+@pytest.mark.parametrize(
+    ("parser", "protocol", "response_text"),
+    [
+        (
+            JsonDecisionParser(),
+            "json_decision_v1",
+            '{"mode":"wait","thought":"Need another observation."}',
+        ),
+        (
+            XmlDecisionParser(),
+            "xml_decision_v1",
+            '<decision mode="wait"><thought>Need another observation.</thought></decision>',
+        ),
+    ],
+)
+def test_native_text_explicit_parser_wait_stays_wait(
+    parser, protocol, response_text
+):
+    engine = _native_text_engine(parser=parser, protocol=protocol)
+    record = StepRecord(step_id=0)
+
+    decision = engine._model_runtime.normalize_decision(
+        ModelResponse(
+            text=response_text,
+            finish_reason="stop",
+            tool_calls=None,
+        ),
+        step=0,
+        record=record,
+    )
+
+    assert decision.mode == "wait"
+    assert decision.meta.get("parser_error") is not True
+    assert record.decision_source == "parser"
+
+
+@pytest.mark.parametrize(
+    ("parser", "protocol", "response_text"),
+    [
+        (
+            MiniMaxToolCallParser(),
+            "minimax_tool_call_v1",
+            '<minimax:tool_call><invoke name="add"><parameter name="a">1',
+        ),
+        (
+            ToolUseXmlParser(),
+            "tool_use_xml_v1",
+            "<tool_use><tool_name>add</tool_name><arguments>{\"a\": 1}",
+        ),
+    ],
+)
+def test_native_text_malformed_protocol_action_stays_in_recovery(
+    parser, protocol, response_text
+):
+    engine = _native_text_engine(parser=parser, protocol=protocol)
+    record = StepRecord(step_id=0)
+
+    decision = engine._model_runtime.normalize_decision(
+        ModelResponse(text=response_text, finish_reason="stop", tool_calls=None),
+        step=0,
+        record=record,
+    )
+
+    assert decision.mode == "wait"
+    assert decision.meta["parser_error"] is True
+    assert record.decision_source == "parser"
+
+
+@pytest.mark.parametrize(
+    "response_text",
+    [
+        '<minimax:tool_call><invoke name="add">',
+        "<tool_use><tool_name>add</tool_name>",
+        (
+            "<|tool_calls_section_begin|><|tool_call_begin|> functions.add:0 "
+            '<|tool_call_argument_begin|> {"a": 1'
+        ),
+        "Action add(",
+    ],
+)
+def test_structured_action_intent_recognizes_native_protocol_markers(response_text):
+    assert _native_text_engine()._model_runtime._looks_like_structured_action_intent(
+        response_text
+    )
+
+
+def test_native_text_parse_recovery_runs_tool_then_finishes():
+    malformed = (
+        "thought: inspect the workspace\n"
+        "action:\n"
+        "name: add\n"
+        "args:\n"
+        "a: 20\n"
+        "b: 22"
+    )
+
+    class _RecoveryModel:
+        model = "native-text-recovery-model"
+        qitos_harness_metadata = {
+            "tool_policy": {"native_tool_call_preferred": True},
+            "protocol": "react_text_v1",
+        }
+
+        def __init__(self):
+            self.calls = 0
+
+        def call_raw(self, messages):
+            _ = messages
+            self.calls += 1
+            if self.calls == 1:
+                return ModelResponse(
+                    text=malformed, finish_reason="stop", tool_calls=None
+                )
+            if self.calls == 2:
+                return ModelResponse(
+                    text="",
+                    finish_reason="tool_calls",
+                    tool_calls=[
+                        {
+                            "id": "call_add",
+                            "type": "function",
+                            "function": {
+                                "name": "add",
+                                "arguments": '{"a": 20, "b": 22}',
+                            },
+                        }
+                    ],
+                )
+            return ModelResponse(
+                text="Final Answer: done",
+                finish_reason="stop",
+                tool_calls=None,
+            )
+
+    class _RecoveryAgent(_ToolCallAgent):
+        def init_state(self, task: str, **kwargs):
+            _ = kwargs
+            return _State(task=task, max_steps=4)
+
+        def decide(self, state: _State, observation: dict):
+            _ = state, observation
+            return None
+
+    model = _RecoveryModel()
+    result = Engine(
+        agent=_RecoveryAgent(llm=model), budget=RuntimeBudget(max_steps=4)
+    ).run("recover malformed action")
+
+    assert model.calls == 3
+    assert result.state.stop_reason == "final"
+    assert result.state.final_result == "done"
+    assert [record.decision.mode for record in result.records] == [
+        "wait",
+        "act",
+        "final",
+    ]
+    assert [record.decision_source for record in result.records] == [
+        "parser",
+        "native_tool_calls",
+        "parser",
+    ]
+    assert sum(len(record.tool_invocations) for record in result.records) == 1

@@ -897,12 +897,33 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                 step=step,
                 record=record,
             )
-            # If the parser produced a *productive* decision (act or final),
-            # honour it. But if the parser could only produce wait() — which
-            # is the default fallback when natural language can't be parsed as
-            # JSON — override it with native_text_final.
-            if parse_outcome is not None and parse_outcome.mode != "wait":
-                return parse_outcome
+            if parse_outcome is not None:
+                if parse_outcome.mode != "wait":
+                    return parse_outcome
+
+                # Some protocol parsers use an unmarked wait as an early-step
+                # heuristic for plain text. Preserve the historical final
+                # fallback unless parsing actually failed on action-shaped text.
+                parser_error = bool(parse_outcome.meta.get("parser_error"))
+                if not parser_error and self._looks_like_explicit_wait(
+                    parser_input
+                ):
+                    return parse_outcome
+                if parser_error and self._looks_like_structured_action_intent(
+                    parser_input
+                ):
+                    self.engine._emit(
+                        step,
+                        RuntimePhase.DECIDE,
+                        payload={
+                            "stage": "native_text_final_rejected",
+                            "reason": "structured_action_parse_error",
+                            "parser_diagnostics": parse_outcome.meta.get(
+                                "parser_diagnostics"
+                            ),
+                        },
+                    )
+                    return parse_outcome
 
             if record is not None:
                 record.decision_source = "native_text_final"
@@ -921,6 +942,93 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
 
         raise ValueError(
             "Agent.decide must return Decision when no parser is configured"
+        )
+
+    @staticmethod
+    def _looks_like_explicit_wait(text: Any) -> bool:
+        source = str(text or "").strip()
+        if not source:
+            return False
+        return bool(
+            re.search(
+                r"(?i)(?:[\"']mode[\"']|(?:^|[\{,])\s*mode)\s*[:=]\s*[\"']?wait[\"']?",
+                source,
+            )
+            or re.search(r"(?i)<[^>]+\bmode\s*=\s*[\"']wait[\"']", source)
+        )
+
+    @staticmethod
+    def _looks_like_structured_action_intent(text: Any) -> bool:
+        source = str(text or "").strip()
+        if not source:
+            return False
+
+        if re.search(
+            r"(?i)(?:"
+            r"<\s*(?:minimax:)?tool_call\b|"
+            r"<\s*(?:tool_use|tool_name|invoke)\b|"
+            r"<\|tool_calls?_section_begin\|>|"
+            r"<\|tool_call_(?:begin|argument_begin)\|>"
+            r")",
+            source,
+        ):
+            return True
+
+        if re.search(
+            r"(?im)^\s*(?:[-*]\s*)?action(?:s)?(?:\s*:|\s+[A-Za-z_][\w.-]*\s*\()",
+            source,
+        ):
+            return True
+
+        field_pattern = (
+            r"actions?|tools?|tool[_-]?calls?|calls?|commands?|name|args|arguments"
+        )
+        json_carrier_pattern = (
+            r"actions?|tools?|tool[_-]?calls?|calls?|commands?"
+        )
+        if re.search(
+            rf"(?i)[\"']({json_carrier_pattern})[\"']\s*:", source
+        ) or re.search(
+            rf"(?i)[{{,]\s*({json_carrier_pattern})\s*:", source
+        ):
+            return True
+
+        structured_fields: set[str] = set()
+        for pattern in (
+            rf"(?im)^\s*(?:[-*]\s*)?[\"']?({field_pattern})[\"']?\s*(?::|=)",
+            rf"(?i)[\"']({field_pattern})[\"']\s*:",
+            rf"(?i)(?:^|[{{,])\s*({field_pattern})\s*:",
+            rf"(?i)<\s*({field_pattern})\b",
+        ):
+            structured_fields.update(re.findall(pattern, source))
+
+        normalized_fields = {
+            re.sub(r"[_-]+", "", field).lower() for field in structured_fields
+        }
+        unambiguous_carriers = {
+            "action",
+            "actions",
+            "toolcall",
+            "toolcalls",
+        }
+        if normalized_fields & unambiguous_carriers:
+            return True
+
+        argument_fields = {"args", "arguments"}
+        if "name" in normalized_fields and normalized_fields & argument_fields:
+            return True
+
+        ambiguous_carriers = {
+            "tool",
+            "tools",
+            "call",
+            "calls",
+            "command",
+            "commands",
+        }
+        return bool(
+            normalized_fields & ambiguous_carriers
+            and normalized_fields & ({"name"} | argument_fields)
         )
 
     def _parse_with_protocol_chain(
