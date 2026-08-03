@@ -175,7 +175,6 @@ class _HandoffRuntime(Generic[StateT, ObservationT, ActionT]):
     ) -> HandoffResult:
         """Execute handoff: swap agent, rebuild dependencies, record trace."""
 
-        from .action_executor import ActionExecutor
         from ..core.agent_spec import ContextStrategy
 
         target_name = decision.meta.get("handoff_target")
@@ -231,15 +230,11 @@ class _HandoffRuntime(Generic[StateT, ObservationT, ActionT]):
         # 4b. Set up SharedMemoryManager namespace for the new agent
         self._setup_shared_memory_namespace(old_agent_name, target_name)
 
-        self.engine.executor = (
-            ActionExecutor(
-                tool_registry=self.engine.tool_registry,
-                trace_writer=self.engine.trace_writer,
-                delegate_depth=self.engine._delegate_depth,
-                shared_memory=self.engine._shared_memory,
-            )
-            if self.engine.tool_registry is not None
-            else None
+        # Rebuild via the Engine's shared builder so the execution policy,
+        # permission pipeline, interceptors and cancellation token survive
+        # the handoff instead of being silently dropped.
+        self.engine.executor = self.engine._build_action_executor(
+            self.engine.tool_registry
         )
 
         # 5. Reset protocol and prompt cache so the new agent builds fresh ones

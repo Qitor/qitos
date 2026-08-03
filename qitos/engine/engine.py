@@ -286,6 +286,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         tracing_provider: Optional[Any] = None,
         interceptors: Optional[List[ToolInterceptor]] = None,
         auto_approve: bool = False,
+        action_execution_policy: Optional[Any] = None,
     ):
         self.agent = agent
         self.agent_registry = agent_registry
@@ -347,22 +348,14 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             self._interceptor_chain = InterceptorChain(all_interceptors)
 
         self.auto_approve = auto_approve
-        self.executor = (
-            ActionExecutor(
-                tool_registry=self.tool_registry,
-                trace_writer=self.trace_writer,
-                delegate_depth=self._delegate_depth,
-                shared_memory=self._shared_memory,
-                engine=self,
-                permission_pipeline=resolved_pipeline,
-                read_before_write_enforcer=resolved_rbw,
-                permission_interaction_callback=permission_interaction_callback,
-                interceptor_chain=self._interceptor_chain,
-                auto_approve=auto_approve,
-            )
-            if self.tool_registry is not None
-            else None
-        )
+        # Action execution policy is public API and must survive executor
+        # rebuilds (handoff, resume). Stored alongside the other executor
+        # dependencies so _build_action_executor() is the single source of truth.
+        self._action_execution_policy = action_execution_policy
+        self._permission_pipeline = resolved_pipeline
+        self._rbw_enforcer = resolved_rbw
+        self._permission_interaction_callback = permission_interaction_callback
+        self.executor = self._build_action_executor(self.tool_registry)
         self.events: List[RuntimeEvent] = []
         self.records: List[StepRecord] = []
         self._active_state: Optional[StateT] = None
@@ -437,6 +430,44 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
 
         # Cancellation token — shared with EngineResult for external cancel
         self._cancel_token = CancelToken()
+
+    def _build_action_executor(self, tool_registry: Any) -> Optional[ActionExecutor]:
+        """Construct an ActionExecutor carrying every engine-level dependency.
+
+        Single source of truth for executor construction so that rebuilds
+        (handoff, resume) cannot silently drop the execution policy, the
+        permission pipeline, interceptors, or the cancellation token.
+        """
+        if tool_registry is None:
+            return None
+        return ActionExecutor(
+            tool_registry=tool_registry,
+            policy=self._action_execution_policy,
+            trace_writer=self.trace_writer,
+            delegate_depth=self._delegate_depth,
+            shared_memory=self._shared_memory,
+            engine=self,
+            permission_pipeline=self._permission_pipeline,
+            read_before_write_enforcer=self._rbw_enforcer,
+            permission_interaction_callback=self._permission_interaction_callback,
+            interceptor_chain=self._interceptor_chain,
+            auto_approve=self.auto_approve,
+        )
+
+    def cancel(self, mode: str = "immediate") -> None:
+        """Request cancellation of an in-flight run.
+
+        Thread-safe and idempotent, and usable once a run has already started
+        (unlike ``EngineResult.cancel()``, which is only reachable after the
+        run returns).
+
+        Parameters
+        ----------
+        mode : str
+            ``"immediate"`` — stop as soon as possible (may be mid-step).
+            ``"after_step"`` — wait for the current step to complete first.
+        """
+        self._cancel_token.request_cancel(mode)
 
     def resolve_protocol(self) -> Any:
         if self._resolved_protocol is not None:

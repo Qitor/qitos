@@ -189,6 +189,7 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                 )
 
         execution = engine.executor.execute(actions, env=engine.env, state=state)
+        exec_stats = dict(getattr(engine.executor, "last_execution_stats", {}) or {})
         record.tool_invocations = [
             {
                 "tool_name": item.name,
@@ -200,9 +201,20 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                 "status": item.status.value,
                 "error_category": item.metadata.get("error_category"),
                 "error": item.error,
+                # Issue #35: observable action lifecycle — ordering, terminal
+                # state and cancellation source.
+                "segment_index": item.metadata.get("segment_index"),
+                "started": item.metadata.get("started", True),
+                "started_at": item.metadata.get("started_at"),
+                "ended_at": item.metadata.get("ended_at"),
+                "cancel_source": item.metadata.get("cancel_source"),
+                "timeout_s": item.metadata.get("timeout_s"),
+                "timeout_source": item.metadata.get("timeout_source"),
             }
             for item in execution
         ]
+        if exec_stats:
+            record.action_execution = exec_stats
         results: List[ToolResult] = []
         max_chars = int(getattr(engine.context_config, "tool_result_max_chars", 0) or 0)
         per_message_max = int(getattr(engine.context_config, "tool_result_per_message_max_chars", 0) or 0)

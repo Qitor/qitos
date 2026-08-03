@@ -51,8 +51,28 @@ class AsyncEngine(Generic[StateT, ObservationT, ActionT]):
 
         This executes the sync Engine.run() in a thread pool to avoid
         blocking the event loop.
+
+        If the awaiting task is cancelled, the same cancellation signal is
+        propagated to the underlying Engine. Note that a sync tool already
+        executing inside the worker thread cannot be forcibly killed by
+        Python; it is asked to stop and drains on its own.
         """
-        return await asyncio.to_thread(self._engine.run, task, **kwargs)
+        run_task = asyncio.ensure_future(
+            asyncio.to_thread(self._engine.run, task, **kwargs)
+        )
+        try:
+            return await asyncio.shield(run_task)
+        except asyncio.CancelledError:
+            self.cancel("immediate")
+            raise
+
+    def cancel(self, mode: str = "immediate") -> None:
+        """Request cancellation of the in-flight run.
+
+        Thread-safe, idempotent, and usable after the run has started.
+        Delegates to the underlying Engine's cancellation token.
+        """
+        self._engine.cancel(mode)
 
     async def arun_stream(
         self,

@@ -15,6 +15,8 @@ class ActionStatus(str, Enum):
     SUCCESS = "success"
     ERROR = "error"
     SKIPPED = "skipped"
+    TIMED_OUT = "timed_out"
+    CANCELLED = "cancelled"
 
 
 @dataclass

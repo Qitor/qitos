@@ -114,6 +114,9 @@ class StepRecord:
     actions: List[Any] = field(default_factory=list)
     action_results: List[Any] = field(default_factory=list)
     tool_invocations: List[Any] = field(default_factory=list)
+    # Effective action-execution policy, concurrency peak and segment count
+    # for this step's action batch (issue #35).
+    action_execution: Dict[str, Any] = field(default_factory=dict)
     critic_outputs: List[Any] = field(default_factory=list)
     state_diff: Dict[str, Any] = field(default_factory=dict)
     context: Dict[str, Any] = field(default_factory=dict)
