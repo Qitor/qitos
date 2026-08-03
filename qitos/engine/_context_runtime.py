@@ -135,6 +135,25 @@ class _ContextRuntime:
         )
         return max(1, remaining)
 
+    def compact_trigger_budget(self, telemetry: ContextTelemetry) -> Optional[int]:
+        """Token budget handed to the history strategy as its compaction trigger.
+
+        `history_budget` is the hard ceiling one request may occupy; compacting
+        only at that point leaves no headroom before `strict_overflow` fires.
+        `ContextConfig.compact_ratio` pulls the trigger below the ceiling, which
+        is what makes the three thresholds ordered:
+        `warning_ratio` < `compact_ratio` < overflow (1.0).
+        """
+
+        base = self.history_budget(telemetry)
+        if base is None:
+            return None
+        ratio = float(self.config.compact_ratio)
+        if ratio <= 0.0:
+            return base
+        ratio = min(1.0, ratio)
+        return max(1, int(base * ratio))
+
     def finalize_input(
         self,
         *,

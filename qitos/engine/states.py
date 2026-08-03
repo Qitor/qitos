@@ -40,6 +40,23 @@ class RuntimeBudget:
 
 @dataclass
 class ContextConfig:
+    """Engine-side context-length policy.
+
+    Three thresholds act on one request, in this order:
+
+    * ``warning_ratio`` (0.80) — occupancy at which a ``warning`` context event
+      is emitted. Observability only; nothing is reduced.
+    * ``compact_ratio`` (0.85) — fraction of the per-request history budget at
+      which the history strategy is asked to compact. This is the knob that
+      controls *when* reduction starts; lowering it compacts earlier.
+    * overflow (1.0) — exceeding ``available_input_budget`` raises
+      ``ContextOverflowError`` when ``strict_overflow`` is set.
+
+    ``target_utilization`` is a different axis: it caps how much of the model
+    context window one request may ever occupy, and therefore sizes the budget
+    that ``compact_ratio`` is applied to.
+    """
+
     enabled: bool = True
     warning_ratio: float = 0.80
     compact_ratio: float = 0.85

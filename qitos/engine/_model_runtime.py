@@ -251,7 +251,7 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             query.setdefault(
                 "warning_ratio", float(engine.context_config.warning_ratio)
             )
-            history_budget = context_runtime.history_budget(pre_context)
+            history_budget = context_runtime.compact_trigger_budget(pre_context)
             if history_budget is not None:
                 current_max = query.get("max_tokens")
                 if current_max is None:

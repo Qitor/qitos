@@ -21,6 +21,8 @@ class CompactConfig:
     compact_long_messages_over_chars: int = 900
     microcompact_preview_chars: int = 220
     summary_max_chars: int = 1400
+    # Number of most recent messages kept verbatim in the summary request; older
+    # messages are elided to `microcompact_preview_chars` but never dropped.
     summary_input_message_limit: int = 28
     summary_metadata_source: str = "compact_history"
     emit_skipped_events: bool = True
@@ -150,12 +152,17 @@ class SummaryCompactor:
         self.config = config
         self.llm = llm
 
-    def summarize(self, messages: Iterable[HistoryMessage]) -> str:
+    def summarize(
+        self,
+        messages: Iterable[HistoryMessage],
+        *,
+        prior_summary: str | None = None,
+    ) -> str:
         items = list(messages)
         if not items:
             return ""
 
-        prompt = self._summary_prompt(items)
+        prompt = self._summary_prompt(items, prior_summary=prior_summary)
         if self.llm is not None:
             try:
                 response = self.llm(
@@ -184,11 +191,42 @@ class SummaryCompactor:
             except Exception:
                 pass
 
-        return self._heuristic_summary(items)
+        return self._heuristic_summary(items, prior_summary=prior_summary)
 
-    def _summary_prompt(self, messages: List[HistoryMessage]) -> str:
-        body_items = messages[-int(self.config.summary_input_message_limit) :]
-        body = "\n".join(f"[{m.step_id}] {m.role}: {m.content}" for m in body_items)
+    def render_body(self, messages: List[HistoryMessage]) -> str:
+        """Render every message for the summary request, eliding instead of dropping.
+
+        The most recent `summary_input_message_limit` messages keep their full
+        text; older ones are shortened to a preview so the earliest turns are
+        still represented. No message is ever removed from the request.
+        """
+
+        verbatim = max(1, int(self.config.summary_input_message_limit))
+        elide_before = max(0, len(messages) - verbatim)
+        preview = max(60, int(self.config.microcompact_preview_chars))
+        lines: List[str] = []
+        for index, message in enumerate(messages):
+            text = str(message.content or "")
+            if index < elide_before and len(text) > preview:
+                dropped = len(text) - preview
+                text = f"{text[:preview].rstrip()} ...[elided {dropped} chars]"
+            lines.append(f"[{message.step_id}] {message.role}: {text}")
+        return "\n".join(lines)
+
+    def _summary_prompt(
+        self, messages: List[HistoryMessage], *, prior_summary: str | None = None
+    ) -> str:
+        body = self.render_body(messages)
+        prior_block = ""
+        if prior_summary and str(prior_summary).strip():
+            prior_block = (
+                "An earlier continuation summary already covers context before the "
+                "conversation below. Consolidate it with the new material instead of "
+                "discarding it.\n\n"
+                "<previous_summary>\n"
+                f"{str(prior_summary).strip()}\n"
+                "</previous_summary>\n\n"
+            )
         return (
             "Create a compact continuation summary of the earlier conversation.\n\n"
             "Before providing your final summary, wrap your analysis in <analysis> tags "
@@ -204,10 +242,13 @@ class SummaryCompactor:
             "8. Current Work: Precisely what was being worked on immediately before this summary request\n"
             "9. Optional Next Step: The next step directly in line with the most recent work\n\n"
             "REMINDER: Do NOT call any tools. Respond with plain text only — an <analysis> block followed by a <summary> block.\n\n"
+            f"{prior_block}"
             f"{body}"
         )
 
-    def _heuristic_summary(self, messages: List[HistoryMessage]) -> str:
+    def _heuristic_summary(
+        self, messages: List[HistoryMessage], *, prior_summary: str | None = None
+    ) -> str:
         user_goal = ""
         assistant_notes: List[str] = []
         for msg in messages:
@@ -221,6 +262,9 @@ class SummaryCompactor:
                 assistant_notes.append(snippet)
 
         lines = ["Continuation summary of earlier context:"]
+        if prior_summary and str(prior_summary).strip():
+            carried = str(prior_summary).strip().replace("\n", " ")[:400]
+            lines.append(f"- Earlier summary: {carried}")
         if user_goal:
             lines.append(f"- Goal: {user_goal}")
         if assistant_notes:
@@ -258,6 +302,7 @@ class CompactionController:
         budget: int,
         pending_content: str,
         auto_compact: bool,
+        prior_summary: str | None = None,
     ) -> tuple[List[HistoryMessage], List[Dict[str, Any]], List[Dict[str, Any]]]:
         events: List[Dict[str, Any]] = []
         before_tokens = self._estimate_tokens(items) + self._estimate_text_tokens(
@@ -382,7 +427,26 @@ class CompactionController:
             summary_input = (
                 older if self._estimate_tokens(older) <= budget else compacted_older
             )
-            summary_text = self.summary.summarize(summary_input)
+            summary_input_mode = "full" if summary_input is older else "microcompacted"
+            carried_summary = self._carried_summary(older, prior_summary)
+            summary_text = self.summary.summarize(
+                summary_input, prior_summary=carried_summary
+            )
+            summary_trace = {
+                "summarized_message_count": len(older),
+                "summary_input_message_count": len(summary_input),
+                "summary_input_mode": summary_input_mode,
+                "summary_dropped_message_count": max(
+                    0, len(older) - len(summary_input)
+                ),
+                "summarized_step_range": [older[0].step_id, older[-1].step_id],
+                "summary_input_step_range": [
+                    summary_input[0].step_id,
+                    summary_input[-1].step_id,
+                ],
+                "summary_input_chars": len(self.summary.render_body(summary_input)),
+                "built_on_prior_summary": bool(carried_summary),
+            }
             summary_message = HistoryMessage(
                 role="system",
                 content=summary_text,
@@ -390,8 +454,8 @@ class CompactionController:
                 metadata={
                     "summary": True,
                     "source": self.config.summary_metadata_source,
-                    "summarized_message_count": len(older),
                     "summarized_through_step": older[-1].step_id,
+                    **summary_trace,
                 },
             )
             summary_candidate = [summary_message, *preserved]
@@ -412,8 +476,10 @@ class CompactionController:
                         "messages_after": len(summary_candidate),
                         "strategy": "compact_history",
                         "warning_ratio": float(self.config.warning_ratio),
-                        "summarized_message_count": len(older),
                         "preserved_round_count": len(preserved_groups),
+                        "preserved_message_count": len(preserved),
+                        "summary_chars": len(str(summary_text or "")),
+                        **summary_trace,
                     },
                 }
             )
@@ -532,6 +598,22 @@ class CompactionController:
             return None
         return None
 
+    def _carried_summary(
+        self, older: List[HistoryMessage], prior_summary: str | None
+    ) -> Optional[str]:
+        """Return the earlier summary to consolidate, if it is not already inline."""
+
+        text = str(prior_summary or "").strip()
+        if not text:
+            return None
+        for message in older:
+            if (
+                message.metadata.get("summary")
+                and str(message.content or "").strip() == text
+            ):
+                return None
+        return text
+
     def _metadata_for_message(self, message: HistoryMessage) -> Dict[str, Any]:
         meta = dict(message.metadata or {})
         meta.setdefault("role", message.role)
@@ -591,6 +673,7 @@ class CompactHistory(History):
         self._controller = CompactionController(cfg, llm=llm)
         self._pending_runtime_events: List[Dict[str, Any]] = []
         self._last_message_metadata: List[Dict[str, Any]] = []
+        self._last_summary: Optional[str] = None
 
     def append(self, message: HistoryMessage) -> None:
         self._messages.append(message)
@@ -618,9 +701,11 @@ class CompactHistory(History):
             budget=budget,
             pending_content=pending,
             auto_compact=auto_compact,
+            prior_summary=self._last_summary,
         )
         self._pending_runtime_events = list(events)
         self._last_message_metadata = list(metadata)
+        self._remember_summary(result)
         return result
 
     def summarize(self, max_items: int = 5) -> str:
@@ -639,6 +724,27 @@ class CompactHistory(History):
         self._messages = []
         self._pending_runtime_events = []
         self._last_message_metadata = []
+        self._last_summary = None
+
+    def _remember_summary(self, result: List[HistoryMessage]) -> None:
+        """Keep the newest continuation summary so later passes can build on it.
+
+        This does not mutate the stored history: `retrieve()` stays side-effect
+        free for callers that read `messages`.
+        """
+
+        if not result:
+            return
+        head = result[0]
+        if not head.metadata.get("summary"):
+            return
+        text = str(head.content or "").strip()
+        if text:
+            self._last_summary = text
+
+    @property
+    def last_summary(self) -> Optional[str]:
+        return self._last_summary
 
     def consume_runtime_events(self) -> List[Dict[str, Any]]:
         events = list(self._pending_runtime_events)
