@@ -2761,56 +2761,83 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
 
         After errors or crashes, the message chain can have dangling tool
         calls (assistant messages with tool_calls that never got a response).
-        The LLM API rejects such chains. This method adds placeholder tool
-        responses for any missing ones.
+        The LLM API rejects such chains. OpenAI-compatible providers require
+        tool responses to immediately follow the assistant message that
+        declared the ``tool_calls``; appending them at the end of the history
+        is still rejected with "insufficient tool messages following
+        tool_calls message".  This method therefore inserts placeholder tool
+        responses immediately after each assistant's contiguous tool-response
+        block, and drops any later misplaced responses for the same call ids
+        (for example placeholders appended by an older repair pass).
         """
         if not messages:
             return messages
 
-        # Collect all tool_call_ids from assistant messages
-        expected_tool_ids: List[str] = []
-        for msg in messages:
-            if msg.get("role") != "assistant":
-                continue
-            tool_calls = msg.get("tool_calls", [])
-            if not tool_calls:
-                continue
-            for tc in tool_calls:
-                tc_id = tc.get("id") if isinstance(tc, dict) else None
-                if tc_id:
-                    expected_tool_ids.append(tc_id)
-
-        if not expected_tool_ids:
-            return messages
-
-        # Collect all tool_call_ids that already have responses
-        responded_ids: set = set()
-        for msg in messages:
-            if msg.get("role") == "tool":
-                tc_id = msg.get("tool_call_id")
-                if tc_id:
-                    responded_ids.add(tc_id)
-
-        # Find dangling tool calls and add placeholder responses
-        missing_ids = [tid for tid in expected_tool_ids if tid not in responded_ids]
-        if not missing_ids:
-            return messages
-
-        # This is a last-resort provider parity guard for a genuinely current
-        # interrupted batch. Historical incomplete transactions are removed by
-        # _trim_native_tool_history and never receive synthetic prose.
         result = list(messages)
-        for tid in missing_ids:
-            result.append({
-                "role": "tool",
-                "tool_call_id": tid,
-                "content": json.dumps({
-                    "status": "error",
-                    "code": "tool_call_not_completed",
-                    "reason": "The tool call did not produce a result in this transaction.",
-                    "next_action": "Retry the call if it is still relevant.",
-                }, sort_keys=True),
-            })
+        answered_ids: set = set()
+        index = 0
+        while index < len(result):
+            message = result[index]
+            # Drop a tool response that arrives after its assistant block was
+            # already satisfied (e.g. a placeholder appended by an older pass).
+            if message.get("role") == "tool":
+                tool_call_id = str(message.get("tool_call_id") or "")
+                if tool_call_id and tool_call_id in answered_ids:
+                    del result[index]
+                    continue
+            index += 1
+            if message.get("role") != "assistant" or not message.get("tool_calls"):
+                continue
+            expected_ids = [
+                str(tool_call.get("id"))
+                for tool_call in message.get("tool_calls", [])
+                if isinstance(tool_call, dict) and tool_call.get("id")
+            ]
+            if not expected_ids:
+                continue
+            # Consume the contiguous tool responses that directly follow this
+            # assistant message (the only placement OpenAI accepts).
+            responded_ids: set = set()
+            while index < len(result):
+                following = result[index]
+                if (
+                    following.get("role") == "tool"
+                    and str(following.get("tool_call_id")) in expected_ids
+                ):
+                    responded_ids.add(str(following.get("tool_call_id")))
+                    index += 1
+                    continue
+                break
+            missing_ids = [
+                tool_call_id
+                for tool_call_id in expected_ids
+                if tool_call_id not in responded_ids
+            ]
+            for tool_call_id in missing_ids:
+                result.insert(
+                    index,
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call_id,
+                        "content": json.dumps(
+                            {
+                                "status": "error",
+                                "code": "tool_call_not_completed",
+                                "reason": (
+                                    "The tool call did not produce a result in "
+                                    "this transaction."
+                                ),
+                                "next_action": (
+                                    "Retry the call if it is still relevant."
+                                ),
+                            },
+                            sort_keys=True,
+                        ),
+                    },
+                )
+                index += 1
+            answered_ids.update(responded_ids)
+            answered_ids.update(missing_ids)
         return result
 
     def _strip_internal_message_keys(
