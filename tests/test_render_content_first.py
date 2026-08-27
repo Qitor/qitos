@@ -286,3 +286,38 @@ def test_claude_style_hook_prints_agent_composition() -> None:
     assert "AGENT COMPOSITION" in text
     assert "Qwen/Qwen3-8B" in text
     assert "web_search" in text
+
+def test_claude_style_hook_preserves_recoverable_tool_error_card() -> None:
+    """A failed tool must show its recovery card instead of only an Error title."""
+    from qitos.core.tool_result import ToolResult
+
+    hook = ClaudeStyleHook(max_preview_chars=400)
+    hook.console = Console(record=True, width=140)
+    hook.on_render_event(
+        RenderEvent(
+            channel="observation",
+            node="action_results",
+            step_id=2,
+            payload={
+                "action_results": [
+                    ToolResult(
+                        status="error",
+                        error="The cursor does not match this query or its snapshot is unavailable.",
+                        output=(
+                            "[GREP:invalid_cursor]\n\n"
+                            "Code: `INVALID_CURSOR`\n"
+                            "The cursor does not match this query or its snapshot is unavailable.\n\n"
+                            'Retry: GREP(pattern="parse_record", path="repo-vul/src")'
+                        ),
+                        metadata={"tool_name": "GREP"},
+                    ).to_dict()
+                ]
+            },
+        )
+    )
+
+    text = hook.console.export_text()
+    assert "Error: The cursor does not match" in text
+    assert "[GREP:invalid_cursor]" in text
+    assert "INVALID_CURSOR" in text
+    assert "Retry: GREP" in text

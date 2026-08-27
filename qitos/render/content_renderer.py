@@ -511,11 +511,17 @@ class ContentFirstRenderer:
         )
         err = cleaned.get("error")
         if err:
+            # A failed tool call is still an observation: surface the tool's
+            # own output text (a recovery card) as the body so the TUI and
+            # provider history show the same actionable content.
+            body_text = self._to_text(cleaned.get("content", "")) or self._to_text(
+                cleaned.get("output", "")
+            )
             return {
                 "status": "error",
                 "title": self._truncate(str(err), 120),
                 "url": self._short_url(url) if url else "",
-                "body": self._truncate(self._to_text(cleaned.get("content", "")), 180),
+                "body": self._truncate(body_text, 180),
                 "primary_kind": "error",
                 "secondary_only": secondary,
             }

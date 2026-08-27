@@ -708,6 +708,17 @@ class ClaudeStyleHook(RenderStreamHook):
 
         if status == "error":
             self._rail("red", f"{prefix} [red][✘] Error: {title}[/red]")
+            # A failed tool call is still an observation. Tools may return a
+            # model-facing recovery card (for example a retry instruction) in
+            # ``body``; returning immediately used to hide that actionable
+            # card in the TUI while provider history retained it, creating
+            # two incompatible views of the same result.
+            body = str(obs.get("body", "")).strip()
+            if body:
+                self._rail("red", f"[red]{body}[/red]")
+            url = str(obs.get("url", "")).strip()
+            if url:
+                self._rail("red", f"[dim]URL: {url}[/dim]")
             return
 
         self._rail(
