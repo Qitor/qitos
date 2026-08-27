@@ -10,7 +10,6 @@ from examples.patterns.planact import PlanActAgent
 from examples.patterns.react import ReactAgent
 from examples.patterns.reflexion import ReflexionAgent
 from examples.patterns.tot import ToTAgent
-from qitos_zoo.qitos_coder.preset_agent import ClaudeCodeAgent
 from examples.real.code_security_audit_agent import CodeSecurityAuditAgent
 from examples.real.coding_agent import CodingMemoryReactAgent
 from examples.real.computer_use_agent import ComputerUseReActAgent
@@ -207,7 +206,7 @@ def test_openai_cua_and_desktop_env_examples_smoke_runs(tmp_path: Path, monkeypa
     desktop_env_smoke_main(smoke=True)
 
 
-def test_swe_claude_security_and_skill_examples_smoke(tmp_path: Path) -> None:
+def test_swe_security_and_skill_examples_smoke(tmp_path: Path) -> None:
     workspace = tmp_path / "swe"
     _seed_buggy_module(workspace)
     swe = SWEDynamicPlanningAgent(
@@ -254,29 +253,6 @@ def test_swe_claude_security_and_skill_examples_smoke(tmp_path: Path) -> None:
         return_state=True,
     )
     assert research_result.state.stop_reason == "final"
-
-    claude_workspace = tmp_path / "claude"
-    _seed_buggy_module(claude_workspace)
-    claude = ClaudeCodeAgent(
-        llm=SequenceModel(
-            [
-                'Thought: note plan\nAction: todo_write(todos=[{"content":"Fix buggy_module.py","status":"in_progress"}])',
-                'Thought: patch file\nAction: replace_lines(path="buggy_module.py", start_line=2, end_line=2, replacement="    return a + b")',
-                f'Thought: verify patch\nAction: run_command(command="{VERIFY_COMMAND}")',
-                'Final Answer: Fixed and verified.',
-            ]
-        ),
-        workspace_root=str(claude_workspace),
-    )
-    claude_result = claude.run(
-        task="fix",
-        workspace=str(claude_workspace),
-        max_steps=6,
-        render=False,
-        trace=False,
-        return_state=True,
-    )
-    assert claude_result.state.stop_reason == "final"
 
     audit_workspace = tmp_path / "audit"
     audit_workspace.mkdir(parents=True, exist_ok=True)

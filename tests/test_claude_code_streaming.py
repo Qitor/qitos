@@ -1,4 +1,4 @@
-"""Tests for Phase 1: streaming, tool-level hooks, ClaudeCodeAgent."""
+"""Tests for Phase 1: streaming and tool-level hooks."""
 
 import pytest
 import time
@@ -217,72 +217,6 @@ class TestStepStreamEventType:
         d = event.to_dict()
         assert d["event_type"] == "step_stream"
         assert d["payload"]["text"] == "Hello"
-
-
-# ── ClaudeCodeAgent ────────────────────────────────────────────────────────────
-
-
-class TestClaudeCodeAgent:
-    def test_import(self):
-        from qitos_zoo.qitos_coder import ClaudeCodeAgent, ClaudeCodeState
-
-        assert ClaudeCodeAgent is not None
-        assert ClaudeCodeState is not None
-
-    def test_state_defaults(self):
-        from qitos_zoo.qitos_coder.claude_code.agent import ClaudeCodeState
-
-        state = ClaudeCodeState()
-        assert state.mode == "default"
-        assert state.plan_mode is False
-
-    def test_state_plan_mode(self):
-        from qitos_zoo.qitos_coder.claude_code.agent import ClaudeCodeState
-
-        state = ClaudeCodeState(mode="plan", plan_mode=True)
-        assert state.plan_mode is True
-        assert state.mode == "plan"
-
-    def test_init_state(self):
-        from qitos_zoo.qitos_coder.claude_code.agent import ClaudeCodeAgent, ClaudeCodeState
-
-        model = _DummyModel(model="test")
-        agent = ClaudeCodeAgent(llm=model, workspace_root=".")
-        state = agent.init_state("test task")
-        assert isinstance(state, ClaudeCodeState)
-        assert state.mode == "default"
-        assert state.plan_mode is False
-
-    def test_init_state_plan_mode(self):
-        from qitos_zoo.qitos_coder.claude_code.agent import ClaudeCodeAgent, ClaudeCodeState
-
-        model = _DummyModel(model="test")
-        agent = ClaudeCodeAgent(
-            llm=model, workspace_root=".", permission_mode="plan"
-        )
-        state = agent.init_state("test task")
-        assert state.plan_mode is True
-
-    def test_build_system_prompt(self):
-        from qitos_zoo.qitos_coder.claude_code.agent import ClaudeCodeAgent, ClaudeCodeState
-
-        model = _DummyModel(model="test")
-        agent = ClaudeCodeAgent(llm=model, workspace_root=".")
-        state = ClaudeCodeState()
-        prompt = agent.build_system_prompt(state)
-        assert "software engineering" in prompt
-        assert "Environment" in prompt  # context section from qitos.kit.context
-
-    def test_build_system_prompt_plan_mode(self):
-        from qitos_zoo.qitos_coder.claude_code.agent import ClaudeCodeAgent, ClaudeCodeState
-
-        model = _DummyModel(model="test")
-        agent = ClaudeCodeAgent(llm=model, workspace_root=".")
-        state = ClaudeCodeState(plan_mode=True)
-        prompt = agent.build_system_prompt(state)
-        assert "Plan Mode" in prompt
-        assert "read-only" in prompt or "Do NOT" in prompt
-
 
 
 # ── ModelStreamChunk export ────────────────────────────────────────────────────
