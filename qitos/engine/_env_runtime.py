@@ -117,8 +117,20 @@ class _EnvRuntime(Generic[StateT, ObservationT, ActionT]):
     def _model_visible_tool_result_dict(self, item: Any) -> Any:
         result = ToolResult.from_value(item)
         tool_name = str(result.metadata.get("tool_name") or result.metadata.get("name") or "")
-        if tool_name.rsplit(".", 1)[-1] != "submit_poc":
+        output = result.output
+        has_summary = isinstance(output, dict) and bool(
+            str(output.get("model_summary") or "").strip()
+        )
+        if tool_name.rsplit(".", 1)[-1] != "submit_poc" and not has_summary:
             return item
+        if has_summary and tool_name.rsplit(".", 1)[-1] != "submit_poc":
+            visible = ToolResult(
+                status=result.status,
+                output=str(output["model_summary"]).strip(),
+                error=result.error,
+                metadata={**dict(result.metadata), "model_visible": True},
+            )
+            return visible.to_dict()
         output = result.output
         if not isinstance(output, dict):
             return result.to_dict()

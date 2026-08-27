@@ -20,6 +20,15 @@ class _ActionRuntime(Generic[StateT, ActionT]):
     def __init__(self, engine: _EngineProtocol):
         self.engine = engine
 
+    @staticmethod
+    def _tool_output_for_budget(output: Any) -> tuple[Any, bool]:
+        has_summary = (
+            isinstance(output, dict)
+            and isinstance(output.get("model_summary"), str)
+            and bool(output["model_summary"].strip())
+        )
+        return (output["model_summary"].strip(), True) if has_summary else (output, False)
+
     def run_act(
         self, state: StateT, decision: Decision[ActionT], record: StepRecord
     ) -> List[Any]:
@@ -271,16 +280,25 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                         )
                     )
                     continue
-                # Truncate large tool results to prevent context overflow
+                # Truncate large tool results to prevent context overflow.
+                # Artifact-heavy tools may expose a bounded, human-readable
+                # model projection while retaining their canonical structured
+                # result for reducers and trace replay; budget that projection
+                # instead of converting the raw dict to a truncated string.
                 if max_chars > 0 and output is not None:
-                    output_str = output if isinstance(output, str) else json.dumps(output, ensure_ascii=False, default=str)
+                    visible_for_budget, has_model_summary = self._tool_output_for_budget(output)
+                    output_str = (
+                        visible_for_budget
+                        if isinstance(visible_for_budget, str)
+                        else json.dumps(visible_for_budget, ensure_ascii=False, default=str)
+                    )
                     # Per-message aggregate budget: if total exceeds limit, apply stricter per-tool truncation
                     effective_max = max_chars
                     if per_message_max > 0 and message_total_chars + len(output_str) > per_message_max:
                         # Reduce per-tool limit to fit within aggregate budget
                         remaining = max(0, per_message_max - message_total_chars)
                         effective_max = min(max_chars, remaining)
-                    if len(output_str) > effective_max:
+                    if len(output_str) > effective_max and not has_model_summary:
                         head = int(effective_max * 0.7)
                         tail = effective_max - head
                         truncated = output_str[:head] + f"\n... [truncated, {len(output_str)} chars total] ...\n" + output_str[-tail:]
@@ -406,6 +424,9 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                 ],
             },
         )
+        # Keep every human-visible surface on the exact same projection as
+        # native provider history; record.action_results remains canonical so
+        # reducers and trace replay retain the structured machine contract.
         engine._dispatch_hook(
             "on_after_act",
             engine._hook_context(
@@ -413,7 +434,13 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                 phase=RuntimePhase.ACT,
                 state=state,
                 decision=decision,
-                action_results=[item.to_dict() for item in results],
+                action_results=[
+                    self._model_visible_tool_result_dict(
+                        item,
+                        actions[idx].name if idx < len(actions) else "",
+                    )
+                    for idx, item in enumerate(results)
+                ],
                 record=record,
             ),
         )
@@ -455,8 +482,22 @@ class _ActionRuntime(Generic[StateT, ActionT]):
         return str(reason or "").strip()
 
     def _model_visible_tool_output(self, tool_name: str, output: Any) -> Any:
-        """Hide benchmark-private verifier fields from native tool-call history."""
-        if str(tool_name).rsplit(".", 1)[-1] != "submit_poc":
+        """Project a bounded tool summary into native tool-call history.
+
+        Reducers and trace writers retain the canonical structured result. A
+        tool may additionally provide ``model_summary`` when the raw result is
+        an artifact-heavy machine contract whose useful facts need a compact
+        model-facing representation. This is intentionally generic: it is not
+        a benchmark-specific rendering path.
+        """
+        short_name = str(tool_name).rsplit(".", 1)[-1]
+        if short_name != "submit_poc":
+            # Generic projection: a tool-provided model_summary is the exact
+            # model-facing text for this result.
+            if isinstance(output, dict) and isinstance(output.get("model_summary"), str):
+                summary = output["model_summary"].strip()
+                if summary:
+                    return summary
             return output
         if not isinstance(output, dict):
             return output
@@ -482,7 +523,10 @@ class _ActionRuntime(Generic[StateT, ActionT]):
         tool_name: str,
     ) -> Dict[str, Any]:
         payload = result.to_dict()
-        if str(tool_name).rsplit(".", 1)[-1] != "submit_poc":
+        has_summary = isinstance(result.output, dict) and bool(
+            str(result.output.get("model_summary") or "").strip()
+        )
+        if str(tool_name).rsplit(".", 1)[-1] != "submit_poc" and not has_summary:
             return payload
         visible_output = self._model_visible_tool_output(tool_name, result.output)
         visible = ToolResult(
