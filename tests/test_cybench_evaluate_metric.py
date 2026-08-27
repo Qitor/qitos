@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from qitos import Task
 from qitos.evaluate import EvaluationContext, EvaluationSuite
-from qitos.kit.evaluate import CyBenchEvaluator
-from qitos.kit.metric import (
+from qitos.recipes.benchmarks.cybench import CyBenchEvaluator
+from qitos.recipes.benchmarks.cybench import (
     CyBenchGuidedFinalScoreMetric,
     CyBenchGuidedSubtaskScoreMetric,
     CyBenchPartialMatchRateMetric,

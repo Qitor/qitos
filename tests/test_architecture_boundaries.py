@@ -66,7 +66,6 @@ ALLOWED_MODULE_DEPS: dict[str, frozenset[str] | None] = {
 
 # Known violations (architecture-debt.md). Keys: (src_pkg, dst_pkg) -> offending files.
 LEGACY_MODULE_EDGES: dict[tuple[str, str], frozenset[str]] = {
-    ("kit", "benchmark"): frozenset({"kit/evaluate/cybench.py"}),  # D6 / V5
     ("benchmark", "recipes"): frozenset(  # D1 / V2 migration-era cycle
         {
             "benchmark/cybench/runner.py",
@@ -88,9 +87,10 @@ LEGACY_MODULE_EDGES: dict[tuple[str, str], frozenset[str]] = {
 }
 
 # Package-level import cycles tolerated today (each must have a debt entry + exit plan).
-# {benchmark, kit, recipes} is one SCC: benchmark <-> recipes (D1) joined by kit -> benchmark (D6).
+# {benchmark, recipes} is the remaining SCC (D1 migration-era cycle); the kit -> benchmark
+# edge is gone (D6/V5 fixed), so kit no longer participates in the cycle.
 TOLERATED_CYCLES: frozenset[frozenset[str]] = frozenset(
-    {frozenset({"benchmark", "kit", "recipes"})}
+    {frozenset({"benchmark", "recipes"})}
 )
 
 # Harness documents that must exist (AGENTS coverage for real architecture boundaries).

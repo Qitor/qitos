@@ -116,7 +116,6 @@ These are encoded in the legacy allowlist of `tests/test_architecture_boundaries
 | V2 | `benchmark <-> recipes` module-level cycle | `benchmark/*/runner.py` ↔ `recipes/benchmarks/*.py` (5 files each) | D1 |
 | V3 | engine → kit/mcp/cache/tracing via lazy imports | `engine/engine.py`, `_env_runtime.py`, `_control_runtime.py`, `_handoff_runtime.py` | D3 |
 | V4 | core → engine/kit/trace/render/harness lazy imports (convenience path) | `core/agent_module.py`, `core/agent_spec.py` | D2 |
-| V5 | kit → benchmark upward import | `kit/evaluate/cybench.py:9` | D6 |
 | V7 | protocols → kit lazy import | `protocols.py:431` | D3 |
 | V8 | trace → tracing module + tracing → trace lazy bridge | `trace/writer.py`, `tracing/legacy_processor.py` | D4 |
 | V9 | qita → deprecated debug | `qita/_cli_app.py` fork feature | D10 |

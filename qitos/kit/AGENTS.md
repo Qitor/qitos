@@ -9,7 +9,7 @@ Curated, swappable implementations over the kernel: tools (`tool/`), toolset pre
 ## Owns / Does Not Own
 
 - Owns: concrete behavior. Contracts live in `qitos.core` (+ `qitos.evaluate`/`qitos.metric`); runtime mechanics in `qitos.engine`.
-- Does NOT own: benchmark specifics (the three `cybench.py` files here are debt D6, migration target `recipes.benchmarks`), agent-execution semantics, trace artifact format.
+- Does NOT own: benchmark specifics (the cybench evaluator/metrics/tool now live in `qitos.recipes.benchmarks.cybench`), agent-execution semantics, trace artifact format.
 
 ## Public Surface
 
@@ -18,7 +18,7 @@ Three import layers (README contract): `qitos.kit` (curated top), `qitos.kit.too
 ## Allowed / Forbidden Dependencies
 
 - Allowed: `qitos.core`, `qitos.engine`, `qitos.models`, `qitos.protocols`, `qitos.prompting`, `qitos.evaluate`, `qitos.metric`, `qitos.trace` (tools that observe runs: delegate/fanout).
-- Forbidden: `qitos.benchmark` (current `kit/evaluate/cybench.py:9` import is debt V5 — port to recipes), `qitos.recipes`, periphery, and **`from qitos import ...`** root self-import (two files remain, debt V6 — import `qitos.core.x` directly).
+- Forbidden: `qitos.benchmark`, `qitos.recipes`, periphery, and **`from qitos import ...`** root self-import (import `qitos.core.x` directly).
 
 ## Invariants
 
@@ -39,6 +39,6 @@ New tool domain → `tool/<domain>/` + toolset builder in `toolset/`; new parser
 ## Common Mistakes
 
 - Re-implementing an abstraction that exists (check `qitos/kit/parser/parser_utils.py` for JSON salvage, `qitos/core/_json_repair.py` for control-char repair, `qitos/kit/critic/` before adding critics — `self_reflection.py` vs `react_self_reflection.py` near-duplicate is the cautionary tale).
-- Importing `qitos.benchmark` or `qitos.recipes` from kit.
+- Importing `qitos.benchmark` or `qitos.recipes` from kit (benchmark-specific evaluators/metrics/tools belong in `qitos.recipes.benchmarks`).
 - Skipping toolset registration (tool exists but isn't composable through `ToolRegistry`).
 - Moving experimental security tools into default exports or shims without warnings.

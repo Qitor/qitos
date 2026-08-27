@@ -27,7 +27,6 @@ from .notebook import (
 from .report import ReportToolSet
 from .terminal import SendTerminalKeys
 from .task import TaskToolSet, TaskBoardStore, TaskRecord, TaskNote
-from .cybench import SubmitAnswer
 from .thinking import ThinkingToolSet, ThoughtData
 from .web import HTTPRequest, HTTPGet, HTTPPost, HTMLExtractText
 from .browser import (
@@ -78,7 +77,6 @@ __all__ = [
     "TaskRecord",
     "TaskNote",
     "SendTerminalKeys",
-    "SubmitAnswer",
     "ThinkingToolSet",
     "ThoughtData",
     "HTTPRequest",

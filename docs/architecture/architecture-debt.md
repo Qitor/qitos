@@ -32,9 +32,8 @@ Legend: **P0** structural risk (blocks refactors / can break imports), **P1** im
 
 ## P1 — Important architecture debt
 
-### D6. Benchmark-specific code inside `kit`
-- Where: `kit/evaluate/cybench.py` (imports `qitos.benchmark.cybench.runtime` — the only kit→benchmark edge), `kit/metric/cybench.py`, `kit/tool/cybench.py`.
-- Fix: move all three into `qitos.recipes.benchmarks.cybench` (or benchmark cybergym-style) so kit stays domain-neutral.
+### D6. Benchmark-specific code inside `kit` — RESOLVED
+- Resolved: `kit/evaluate/cybench.py`, `kit/metric/cybench.py`, and `kit/tool/cybench.py` were folded into `qitos/recipes/benchmarks/cybench.py` (evaluator, guided/unguided metrics, and the `SubmitAnswer` tool). The kit→benchmark edge is gone and the {benchmark, kit, recipes} SCC shrank to {benchmark, recipes} (D1 remains).
 
 ### D7. `qitos.harness` naming collision
 - The package is kernel-level model family presets, but "harness" is a generic term (and collides with agent-harness usage in this repo's own tooling docs). Nothing exports it at root. Fix: rename to `model_presets` (or fold into `models`) during D5.
