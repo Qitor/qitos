@@ -303,7 +303,12 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                 results.append(
                     ToolResult(
                         status="error",
-                        output=None,
+                        # Executors may intentionally return a recoverable,
+                        # model-facing failure card together with a non-success
+                        # status (unknown tools and backend failures do this).
+                        # Preserve it through provider history rather than
+                        # replacing it with None and an opaque JSON error.
+                        output=item.output,
                         error=str(item.error or "tool execution failed"),
                         metadata={
                             "tool_name": item.name,

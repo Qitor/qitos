@@ -53,6 +53,34 @@ ObservationT = TypeVar("ObservationT")
 ActionT = TypeVar("ActionT")
 
 
+_DECISION_CONTEXT_PATTERN = re.compile(
+    r"<DECISION_CONTEXT\b[^>]*>.*?</DECISION_CONTEXT>", re.DOTALL
+)
+
+
+def _strip_decision_context_content(content: Any) -> Any:
+    """Remove transient Decision Context blocks without changing other content."""
+    if isinstance(content, str):
+        return _DECISION_CONTEXT_PATTERN.sub("", content).rstrip()
+    if isinstance(content, list):
+        cleaned: list[Any] = []
+        for block in content:
+            if isinstance(block, dict) and str(block.get("type") or "") == "text":
+                updated = dict(block)
+                updated["text"] = _DECISION_CONTEXT_PATTERN.sub(
+                    "", str(updated.get("text") or "")
+                ).rstrip()
+                cleaned.append(updated)
+                continue
+            cleaned.append(block)
+        return cleaned
+    return content
+
+
+class DecisionContextConfigurationError(RuntimeError):
+    """The stable controller failed to render one authoritative context."""
+
+
 class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
     def __init__(self, engine: _EngineProtocol):
         self.engine = engine
@@ -347,7 +375,30 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
         # observability artifacts match the exact canonical request history.
         messages = self._ensure_chain_consistency(messages)
         prepared_full = content_to_text(current_user.get("content"))
-        self._write_assembled_messages_sidecar(state, record.step_id, messages)
+        # Pre-rebuild sidecar: the dump above preserves the packet exactly as
+        # assembled, so a Decision Context rejection keeps its pre-rebuild state
+        # for forensics before normalization rewrites the provider packet.
+        decision_context_delivery: Dict[str, Any] = {"requested": "user"}
+        if _DECISION_CONTEXT_PATTERN.search(str(prepared or "")):
+            messages, decision_context_recovery = self._normalize_decision_context_packet(
+                messages=messages,
+                authoritative_source=str(prepared or ""),
+                delivery=decision_context_delivery,
+            )
+            if decision_context_recovery.get("rebuild_required"):
+                engine._emit(
+                    record.step_id,
+                    RuntimePhase.DECIDE,
+                    payload={
+                        "stage": "decision_context_recovery",
+                        **decision_context_recovery,
+                        "delivery": dict(decision_context_delivery),
+                    },
+                )
+            if len(self._decision_context_blocks(messages)) != 1:
+                raise DecisionContextConfigurationError(
+                    "packet normalization did not produce one current DECISION_CONTEXT"
+                )
         record.prompt_metadata = dict(prompt_metadata)
         record.prompt_metadata.update(
             {
@@ -1316,6 +1367,93 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                 (normalized or {}).get("salvage_applied")
             )
             record.decision_source = "parser"
+
+    @staticmethod
+    def _decision_context_blocks(messages: List[Dict[str, Any]]) -> List[str]:
+        """Return actual non-system Decision Context blocks in a packet."""
+        blocks: List[str] = []
+        for message in messages:
+            if not isinstance(message, dict) or message.get("role") == "system":
+                continue
+            blocks.extend(
+                _DECISION_CONTEXT_PATTERN.findall(
+                    content_to_text(message.get("content"))
+                )
+            )
+        return blocks
+
+    def _normalize_decision_context_packet(
+        self,
+        *,
+        messages: List[Dict[str, Any]],
+        authoritative_source: str,
+        delivery: Dict[str, Any],
+    ) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        """Ensure the actual provider packet has one current Decision Context.
+
+        Decision Context is reconstructed from controller state every turn and
+        is never durable conversation history.  Old traces, a partial merge,
+        or a retry must therefore not be allowed to turn a duplicate transient
+        block into a terminal agent failure.
+        """
+        source_blocks = _DECISION_CONTEXT_PATTERN.findall(
+            str(authoritative_source or "")
+        )
+        if len(source_blocks) != 1:
+            return messages, {
+                "rebuild_required": True,
+                "reason": "authoritative_invalid",
+                "before_count": len(self._decision_context_blocks(messages)),
+                "after_count": len(self._decision_context_blocks(messages)),
+                "authoritative_context": "",
+            }
+        authoritative = source_blocks[0]
+        before_blocks = self._decision_context_blocks(messages)
+        valid = len(before_blocks) == 1 and before_blocks[0] == authoritative
+        if valid:
+            return messages, {
+                "rebuild_required": False,
+                "reason": "",
+                "before_count": 1,
+                "after_count": 1,
+                "authoritative_context": authoritative,
+            }
+
+        if not before_blocks:
+            reason = "missing"
+        elif len(before_blocks) > 1:
+            reason = "duplicate"
+        else:
+            reason = "mismatch"
+        rebuilt: List[Dict[str, Any]] = []
+        for message in messages:
+            if not isinstance(message, dict):
+                continue
+            updated = dict(message)
+            # System prompt content is authored stable text.  Only transient
+            # non-system delivery is eligible for replacement.
+            if updated.get("role") != "system":
+                updated["content"] = _strip_decision_context_content(
+                    updated.get("content")
+                )
+            rebuilt.append(updated)
+
+        rebuilt.append({"role": "user", "content": authoritative})
+        delivery.update(
+            {
+                "effective": "user",
+                "target_tool_call_id": None,
+                "fallback_reason": None,
+            }
+        )
+        after_count = len(self._decision_context_blocks(rebuilt))
+        return rebuilt, {
+            "rebuild_required": True,
+            "reason": reason,
+            "before_count": len(before_blocks),
+            "after_count": after_count,
+            "authoritative_context": authoritative,
+        }
 
     def _provider_message(self, raw_output: Any) -> Any:
         """Return the provider-native assistant message when one is present."""
