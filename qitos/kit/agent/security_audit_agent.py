@@ -14,7 +14,12 @@ warnings.warn(
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
-from qitos import Action, AgentModule, Decision, Observation, StateSchema, ToolResult
+from qitos.core.action import Action
+from qitos.core.agent_module import AgentModule
+from qitos.core.decision import Decision
+from qitos.core.observation import Observation
+from qitos.core.state import StateSchema
+from qitos.core.tool_result import ToolResult
 from qitos.kit.planning import PhaseEngine, PhaseSpec, TransitionRule
 from qitos.kit.planning.state_ops import format_action
 from qitos.kit.prompts import SECURITY_AUDIT_SYSTEM_PROMPT, render_prompt

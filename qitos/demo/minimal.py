@@ -7,7 +7,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from qitos import Action, AgentModule, Decision, StateSchema
+from qitos.core.action import Action
+from qitos.core.agent_module import AgentModule
+from qitos.core.decision import Decision
+from qitos.core.state import StateSchema
 from qitos.kit import REACT_SYSTEM_PROMPT, ReActTextParser, format_action, render_prompt
 from qitos.kit.toolset import coding_tools
 from qitos.models import OpenAICompatibleModel

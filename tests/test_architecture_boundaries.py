@@ -58,7 +58,7 @@ ALLOWED_MODULE_DEPS: dict[str, frozenset[str] | None] = {
     "experiment": frozenset({"core", "engine", "config", "cache", "checkpoint"}),
     "leaderboard": frozenset({"benchmark", "core"}),
     "hf": frozenset(),
-    "demo": frozenset({"kit", "models"}),
+    "demo": frozenset({"core", "kit", "models"}),
     "qita": frozenset(),
     "debug": frozenset(),
     "func": frozenset({"core"}),
@@ -67,23 +67,6 @@ ALLOWED_MODULE_DEPS: dict[str, frozenset[str] | None] = {
 # Known violations (architecture-debt.md). Keys: (src_pkg, dst_pkg) -> offending files.
 LEGACY_MODULE_EDGES: dict[tuple[str, str], frozenset[str]] = {
     ("kit", "benchmark"): frozenset({"kit/evaluate/cybench.py"}),  # D6 / V5
-    ("kit", "(root)"): frozenset(  # D8 / V6 — root self-import
-        {"kit/agent/security_audit_agent.py", "kit/tool/internal/subagents.py"}
-    ),
-    ("recipes", "(root)"): frozenset(  # D8 / V6
-        {
-            "recipes/benchmarks/cybench.py",
-            "recipes/benchmarks/gaia.py",
-            "recipes/benchmarks/tau_bench.py",
-            "recipes/desktop/osworld_starter.py",
-            "recipes/lats/__init__.py",
-            "recipes/magentic_one/__init__.py",
-            "recipes/moa/__init__.py",
-            "recipes/reflexion/__init__.py",
-            "recipes/self_refine/__init__.py",
-        }
-    ),
-    ("demo", "(root)"): frozenset({"demo/minimal.py"}),  # D8 / V6
     ("benchmark", "recipes"): frozenset(  # D1 / V2 migration-era cycle
         {
             "benchmark/cybench/runner.py",

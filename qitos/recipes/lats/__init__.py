@@ -28,7 +28,9 @@ import math
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from qitos import AgentModule, Decision, StateSchema
+from qitos.core.agent_module import AgentModule
+from qitos.core.decision import Decision
+from qitos.core.state import StateSchema
 from qitos.core.decision import Decision as CoreDecision
 from qitos.engine.critic import Critic
 from qitos.engine.critic_result import CriticResult

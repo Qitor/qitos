@@ -39,9 +39,9 @@ Legend: **P0** structural risk (blocks refactors / can break imports), **P1** im
 ### D7. `qitos.harness` naming collision
 - The package is kernel-level model family presets, but "harness" is a generic term (and collides with agent-harness usage in this repo's own tooling docs). Nothing exports it at root. Fix: rename to `model_presets` (or fold into `models`) during D5.
 
-### D8. Root-package self-imports (latent cycle)
-- Where: `kit/agent/security_audit_agent.py`, `kit/tool/internal/subagents.py`, 9 `recipes/*` files, `demo/minimal.py`, `qita/_cli_app.py` use `from qitos import ...`.
-- Fix: import from `qitos.core[.x]` / `qitos.engine[.x]` directly. Guarded by the boundary test (V6).
+### D8. Root-package self-imports (latent cycle) — module-level cases RESOLVED
+- Resolved: the 13 module-level `from qitos import ...` sites (`kit/agent/security_audit_agent.py`, `kit/tool/internal/subagents.py`, 9 `recipes/*` files, `demo/minimal.py`) now import `qitos.core.*` / `qitos.engine.*` directly; V6 removed from the boundary allowlist. `demo`'s allowed set now includes `core` (edge aggregator, see the matrix prose).
+- Remaining (function-level, invisible to the boundary test): `cli.py` and `qita/_cli_app.py` lazily import `__version__` from the root package — the version string is root-owned, so these stay until version metadata moves to `importlib.metadata`.
 
 ### D9. `evaluate`/`metric` top-level contract packages with kit mirrors
 - ~310 lines of contracts at top level, implementations under `kit/evaluate/` and `kit/metric/` — three namespaces for one concern.

@@ -11,7 +11,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from qitos import AgentModule, Decision, StateSchema
+from qitos.core.agent_module import AgentModule
+from qitos.core.decision import Decision
+from qitos.core.state import StateSchema
 from qitos.kit import CodingToolSet
 
 
