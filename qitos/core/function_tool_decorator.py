@@ -18,7 +18,7 @@ def function_tool(
     retry_policy: Optional[RetryPolicy] = None,
     on_failure: Optional[Callable] = None,
     read_only: bool = False,
-    concurrency_safe: bool = False,
+    concurrency_safe: Optional[bool] = None,
     needs_approval: bool = False,
     **extra_meta: Any,
 ) -> Any:

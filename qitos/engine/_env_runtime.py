@@ -116,45 +116,15 @@ class _EnvRuntime(Generic[StateT, ObservationT, ActionT]):
 
     def _model_visible_tool_result_dict(self, item: Any) -> Any:
         result = ToolResult.from_value(item)
-        tool_name = str(result.metadata.get("tool_name") or result.metadata.get("name") or "")
         output = result.output
         has_summary = isinstance(output, dict) and bool(
             str(output.get("model_summary") or "").strip()
         )
-        if tool_name.rsplit(".", 1)[-1] != "submit_poc" and not has_summary:
+        if not has_summary:
             return item
-        if has_summary and tool_name.rsplit(".", 1)[-1] != "submit_poc":
-            visible = ToolResult(
-                status=result.status,
-                output=str(output["model_summary"]).strip(),
-                error=result.error,
-                metadata={**dict(result.metadata), "model_visible": True},
-            )
-            return visible.to_dict()
-        output = result.output
-        if not isinstance(output, dict):
-            return result.to_dict()
-        if output.get("status") == "error":
-            visible_output = {
-                "status": "error",
-                "error": output.get("error") or output.get("raw_output") or "submission failed",
-            }
-        else:
-            visible_output = {
-                "status": output.get("status"),
-                "poc_id": output.get("poc_id"),
-                "flag": output.get("flag"),
-                "exit_code": output.get("vul_exit_code", output.get("exit_code")),
-                "output": output.get("raw_output", ""),
-                "stderr": output.get("vul_stderr", ""),
-                "stdout": output.get("vul_stdout", ""),
-            }
-            visible_output = {
-                key: value for key, value in visible_output.items() if value not in (None, "")
-            }
         visible = ToolResult(
             status=result.status,
-            output=visible_output,
+            output=str(output["model_summary"]).strip(),
             error=result.error,
             metadata={**dict(result.metadata), "model_visible": True},
         )

@@ -67,11 +67,11 @@ class TestSpecDrivenClassification:
         executor = _make_executor({"danger": tool})
         assert not executor._is_concurrency_safe("danger")
 
-    def test_fallback_to_legacy_set(self):
-        """Unknown tool in legacy set is still considered safe."""
+    def test_unregistered_tool_is_not_safe(self):
+        """The legacy hardcoded name set is gone: only spec-driven classification applies."""
         executor = _make_executor()
-        assert executor._is_concurrency_safe("Read")  # In _CONCURRENCY_SAFE_TOOLS
-        assert executor._is_concurrency_safe("Glob")
+        assert not executor._is_concurrency_safe("Read")
+        assert not executor._is_concurrency_safe("Glob")
 
     def test_unknown_tool_not_safe(self):
         executor = _make_executor()
@@ -177,3 +177,80 @@ class TestResultOrdering:
         # All should have the right name
         for r in results:
             assert r.name == "read"
+
+
+class TestConcurrencyAdjudicationMatrix:
+    """Four-level adjudication (Batch X, 3f34a04).
+
+    1. policy parallel_tool_names allow-list
+    2. needs_approval veto
+    3. explicit ToolSpec.concurrency_safe authoritative (both directions)
+    4. read_only heuristic fallback
+    """
+
+    def _executor(self, tool=None, policy=None):
+        tools = {}
+        if tool is not None:
+            tools[tool.spec.name if hasattr(tool, "spec") else "t"] = tool
+        return _make_executor(tools or None, policy=policy)
+
+    def test_level1_allow_list_excludes_other_tools(self):
+        from qitos.core.action import ActionExecutionPolicy
+
+        spec = ToolSpec(name="fast_read", description="r", read_only=True)
+        tool = FakeTool("fast_read", spec=spec)
+        executor = _make_executor({"fast_read": tool},
+                                  policy=ActionExecutionPolicy(
+                                      mode="parallel",
+                                      parallel_tool_names=frozenset({"other"}),
+                                  ))
+        assert not executor._is_concurrency_safe("fast_read")
+
+    def test_level1_allow_list_included_tool_still_needs_positive_classification(self):
+        from qitos.core.action import ActionExecutionPolicy
+
+        spec = ToolSpec(name="fast_read", description="r", read_only=True)
+        tool = FakeTool("fast_read", spec=spec)
+        executor = _make_executor({"fast_read": tool},
+                                  policy=ActionExecutionPolicy(
+                                      mode="parallel",
+                                      parallel_tool_names=frozenset({"fast_read"}),
+                                  ))
+        assert executor._is_concurrency_safe("fast_read")
+
+    def test_level2_needs_approval_vetoes_even_concurrency_safe(self):
+        spec = ToolSpec(
+            name="danger",
+            description="d",
+            needs_approval=True,
+            concurrency_safe=True,
+        )
+        tool = FakeTool("danger", spec=spec)
+        executor = _make_executor({"danger": tool})
+        assert not executor._is_concurrency_safe("danger")
+
+    def test_level3_explicit_true_beats_read_only_false(self):
+        spec = ToolSpec(name="writer", description="w",
+                        concurrency_safe=True, read_only=False)
+        tool = FakeTool("writer", spec=spec)
+        executor = _make_executor({"writer": tool})
+        assert executor._is_concurrency_safe("writer")
+
+    def test_level3_explicit_false_beats_read_only_true(self):
+        spec = ToolSpec(name="picky_reader", description="r",
+                        concurrency_safe=False, read_only=True)
+        tool = FakeTool("picky_reader", spec=spec)
+        executor = _make_executor({"picky_reader": tool})
+        assert not executor._is_concurrency_safe("picky_reader")
+
+    def test_level4_unspecified_read_only_defaults_safe(self):
+        spec = ToolSpec(name="plain_reader", description="r", read_only=True)
+        tool = FakeTool("plain_reader", spec=spec)
+        executor = _make_executor({"plain_reader": tool})
+        assert executor._is_concurrency_safe("plain_reader")
+
+    def test_unspecified_and_not_read_only_is_exclusive(self):
+        spec = ToolSpec(name="mutator", description="m")
+        tool = FakeTool("mutator", spec=spec)
+        executor = _make_executor({"mutator": tool})
+        assert not executor._is_concurrency_safe("mutator")

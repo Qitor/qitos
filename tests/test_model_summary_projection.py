@@ -51,18 +51,20 @@ def test_env_observation_projects_model_summary() -> None:
     assert "artifact_path" not in str(visible)
 
 
-def test_submit_redaction_takes_precedence_over_model_summary() -> None:
+def test_projection_is_tool_agnostic_after_special_case_removal() -> None:
+    """The submit_poc special-case is gone; every tool owns its summary."""
     runtime = _ActionRuntime.__new__(_ActionRuntime)
     payload = {
-        "model_summary": "do not expose this",
+        "model_summary": "expose exactly this",
         "status": "success",
-        "raw_output": "safe visible result",
-        "fixed_side_verdict": "private",
+        "raw_output": "bulky raw payload",
+        "fixed_side_verdict": "private-to-the-tool",
     }
     visible = runtime._model_visible_tool_output("submit_poc", payload)
-    assert visible["output"] == "safe visible result"
-    assert "model_summary" not in visible
-    assert "fixed_side_verdict" not in visible
+    assert visible == "expose exactly this"
+
+    no_summary = {"status": "success", "raw_output": "passthrough"}
+    assert runtime._model_visible_tool_output("submit_poc", no_summary) is no_summary
 
 
 @dataclass

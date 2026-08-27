@@ -485,37 +485,18 @@ class _ActionRuntime(Generic[StateT, ActionT]):
         """Project a bounded tool summary into native tool-call history.
 
         Reducers and trace writers retain the canonical structured result. A
-        tool may additionally provide ``model_summary`` when the raw result is
-        an artifact-heavy machine contract whose useful facts need a compact
-        model-facing representation. This is intentionally generic: it is not
-        a benchmark-specific rendering path.
+        tool may provide ``model_summary`` when the raw result is an
+        artifact-heavy machine contract whose useful facts need a compact
+        model-facing representation; the tool owns its privacy boundary by
+        choosing what the summary exposes. This is intentionally generic: it
+        is not a benchmark-specific rendering path.
         """
-        short_name = str(tool_name).rsplit(".", 1)[-1]
-        if short_name != "submit_poc":
-            # Generic projection: a tool-provided model_summary is the exact
-            # model-facing text for this result.
-            if isinstance(output, dict) and isinstance(output.get("model_summary"), str):
-                summary = output["model_summary"].strip()
-                if summary:
-                    return summary
-            return output
-        if not isinstance(output, dict):
-            return output
-        if output.get("status") == "error":
-            return {
-                "status": "error",
-                "error": output.get("error") or output.get("raw_output") or "submission failed",
-            }
-        visible = {
-            "status": output.get("status"),
-            "poc_id": output.get("poc_id"),
-            "flag": output.get("flag"),
-            "exit_code": output.get("vul_exit_code", output.get("exit_code")),
-            "output": output.get("raw_output", ""),
-            "stderr": output.get("vul_stderr", ""),
-            "stdout": output.get("vul_stdout", ""),
-        }
-        return {key: value for key, value in visible.items() if value not in (None, "")}
+        _ = tool_name
+        if isinstance(output, dict) and isinstance(output.get("model_summary"), str):
+            summary = output["model_summary"].strip()
+            if summary:
+                return summary
+        return output
 
     def _model_visible_tool_result_dict(
         self,
@@ -526,7 +507,7 @@ class _ActionRuntime(Generic[StateT, ActionT]):
         has_summary = isinstance(result.output, dict) and bool(
             str(result.output.get("model_summary") or "").strip()
         )
-        if str(tool_name).rsplit(".", 1)[-1] != "submit_poc" and not has_summary:
+        if not has_summary:
             return payload
         visible_output = self._model_visible_tool_output(tool_name, result.output)
         visible = ToolResult(
