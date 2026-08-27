@@ -141,10 +141,13 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                     },
                 )
                 continue
-            loop_result = engine._tool_loop_detector.check_detailed(
-                normalized_action.name, normalized_action.args
+            loop_detector = engine._tool_loop_detector
+            loop_result = (
+                loop_detector.check_detailed(normalized_action.name, normalized_action.args)
+                if loop_detector is not None
+                else None
             )
-            if loop_result.level == "block":
+            if loop_result is not None and loop_result.level == "block":
                 loop_tool_result = ToolResult(
                     status="error",
                     output=None,
@@ -183,7 +186,7 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                     },
                 )
                 continue
-            elif loop_result.level == "warn":
+            elif loop_result is not None and loop_result.level == "warn":
                 # Soft warning: inject into the observation as guidance
                 engine._history_append(
                     "user",
@@ -355,9 +358,10 @@ class _ActionRuntime(Generic[StateT, ActionT]):
         for item in results:
             engine._memory_append("action_result", item, record.step_id)
         for normalized_action in executable_actions:
-            engine._tool_loop_detector.record(
-                normalized_action.name, dict(normalized_action.args or {})
-            )
+            if engine._tool_loop_detector is not None:
+                engine._tool_loop_detector.record(
+                    normalized_action.name, dict(normalized_action.args or {})
+                )
 
         if record.decision_source == "native_tool_calls" and record.native_tool_call_used:
             for idx, result in enumerate(results):
