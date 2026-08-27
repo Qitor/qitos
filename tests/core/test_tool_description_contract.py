@@ -62,3 +62,52 @@ def test_function_tool_explicit_metadata_wins_over_docstring() -> None:
 def test_function_tool_uses_docstring_without_explicit_metadata() -> None:
     tool = FunctionTool(_documented_function)
     assert tool.spec.description == "Function docstring fallback."
+
+
+def test_strip_param_docs_drops_continuation_lines_but_keeps_dedented_prose() -> None:
+    from qitos.core.tool import _strip_param_docs
+
+    doc = (
+        "Summarize a file.\n"
+        "\n"
+        "Longer prose about behavior.\n"
+        "\n"
+        ":param path: File to summarize.\n"
+        "    May be relative to the workspace root.\n"
+        "    Continuation without a colon is still part of the param.\n"
+        ":returns: The file summary.\n"
+        "\n"
+        "Trailing note after the param block.\n"
+    )
+
+    stripped = _strip_param_docs(doc)
+
+    assert "Summarize a file." in stripped
+    assert "Longer prose about behavior." in stripped
+    assert ":param" not in stripped
+    assert "May be relative to the workspace root." not in stripped
+    assert "Continuation without a colon" not in stripped
+    assert ":returns" not in stripped
+    assert "Trailing note after the param block." in stripped
+
+
+def test_build_tool_spec_fills_param_descriptions_from_docstring() -> None:
+    from qitos.core.tool import build_tool_spec
+    from qitos.core.tool import ToolMeta
+
+    def documented(path: str, limit: int = 5) -> str:
+        """Summarize a file.
+
+        :param path: File to summarize.
+            May be relative to the workspace root.
+        :param limit: Maximum lines to include.
+        """
+        return path[:limit]
+
+    spec = build_tool_spec(documented, ToolMeta(name="documented"))
+
+    assert spec.description == "Summarize a file."
+    assert spec.parameters["path"]["description"] == (
+        "File to summarize. May be relative to the workspace root."
+    )
+    assert spec.parameters["limit"]["description"] == "Maximum lines to include."
