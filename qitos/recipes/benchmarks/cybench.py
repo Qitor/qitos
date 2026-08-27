@@ -79,8 +79,6 @@ Final Answer: <answer text>
 _APPEND_LOCK = threading.Lock()
 
 
-
-
 # ---------------------------------------------------------------------------
 # CyBench scoring components (migrated from qitos.kit.{evaluate,metric,tool};
 # benchmark-specific implementations live in recipes, D6/V5)
@@ -127,7 +125,6 @@ class CyBenchEvaluator(TrajectoryEvaluator):
             evidence=score,
             metadata={"run_with_subtasks": run_with_subtasks},
         )
-
 
 
 def _as_float(v: object, default: float = 0.0) -> float:
