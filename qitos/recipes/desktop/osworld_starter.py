@@ -25,7 +25,8 @@ from qitos import (
     ToolResult,
 )
 from qitos.engine.critic import Critic
-from qitos.harness import build_harness_policy, build_model_for_preset, resolve_family_preset
+from qitos.harness import build_harness_policy, resolve_family_preset
+from qitos.models import build_model_for_preset
 from qitos.kit.planning.state_ops import format_action
 from qitos.kit.prompts.computer_use import (
     computer_use_persona_prompt,

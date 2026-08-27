@@ -6,7 +6,7 @@ from typing import Any
 from qitos import AgentModule, Decision, StateSchema, ToolRegistry
 from qitos.core.tool import tool
 from qitos.engine import Engine
-from qitos.harness import build_model_for_preset
+from qitos.models import build_model_for_preset
 from qitos.kit import MiniMaxToolCallParser
 from qitos.kit.parser import ReActTextParser
 from qitos.models.profile_registry import infer_default_protocol, infer_model_profile

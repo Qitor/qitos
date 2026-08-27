@@ -27,6 +27,11 @@ Usage:
 
 from .base import Model, AsyncModel, ModelFactory, ModelStreamChunk
 from .context_registry import infer_context_window
+from .harness_adapter import (
+    OpenAICompatibleAdapter,
+    adapter_for_kind,
+    build_model_for_preset,
+)
 from .profile_registry import (
     ModelProfile,
     infer_default_protocol,
@@ -56,6 +61,9 @@ __all__ = [
     "infer_model_profile",
     "infer_default_protocol",
     "known_model_profiles",
+    "OpenAICompatibleAdapter",
+    "adapter_for_kind",
+    "build_model_for_preset",
     # OpenAI
     "OpenAIModel",
     "OpenAICompatibleModel",

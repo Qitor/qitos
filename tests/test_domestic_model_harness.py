@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from qitos.harness import build_model_for_preset
+from qitos.models import build_model_for_preset
 from qitos.protocols import (
     get_protocol,
     list_protocols,

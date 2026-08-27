@@ -120,15 +120,26 @@ class ModelAdapter:
 
 @dataclass(frozen=True)
 class HarnessPolicy:
-    """Resolved harness policy for one concrete model run."""
+    """Resolved harness policy for one concrete model run.
+
+    ``adapter`` is optional: concrete transports are constructed on the
+    models side (``qitos.models.harness_adapter``); a policy built by
+    harness alone carries preset/protocol/parser state only.
+    """
 
     family_preset: FamilyPreset
-    adapter: ModelAdapter
+    adapter: Optional[ModelAdapter]
     protocol: ModelProtocol
     parser: Any
     tool_policy: ToolPolicy
     context_policy: ContextPolicy
     resolution_source: str = "family_preset"
+
+    @property
+    def adapter_kind(self) -> str:
+        if self.adapter is not None:
+            return self.adapter.kind
+        return self.family_preset.adapter_kind
 
     @property
     def parser_name(self) -> str:
@@ -144,7 +155,7 @@ class HarnessPolicy:
     def to_dict(self) -> dict[str, Any]:
         return {
             "family_preset": self.family_preset.id,
-            "adapter_kind": self.adapter.kind,
+            "adapter_kind": self.adapter_kind,
             "protocol": self.protocol.id,
             "fallback_protocols": list(self.protocol.fallback_protocols),
             "parser": self.parser_name,

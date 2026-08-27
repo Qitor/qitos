@@ -25,8 +25,8 @@ Dependencies may only point downward (or within the same layer where noted). "La
 | `qitos.protocols` | Model I/O protocol registry + renderers | `get_protocol`, `resolve_protocol_chain`, `render_protocol_prompt` | stdlib only | everything qitos (kit parser lazy import is legacy, see V7) |
 | `qitos.prompting` | Prompt spec/builder, framework-owned sections | `PromptSpec`, `build_prompt_spec` | stdlib only | everything qitos |
 | `qitos.engine` | Execution kernel: loop, hooks, stop, recovery, interrupts | `Engine`, `AsyncEngine`, `EngineResult`, `EngineHook`, stop criteria, `EngineEvent` | core, protocols, prompting, models, harness, checkpoint, trace, tracing | kit, benchmark, recipes, mcp, cache, render, evaluate, metric, func, periphery (current lazy kit/mcp/cache edges are legacy, see V3) |
-| `qitos.harness` | Model family presets + adapters | `FamilyPreset`, `resolve_family_preset`, `build_harness_policy` | protocols (models edge is a legacy cycle, V1) | engine, kit, core, benchmark, recipes |
-| `qitos.models` | Provider abstraction | `Model`/`AsyncModel`/`ModelFactory`, `OpenAICompatibleModel`, `LiteLLMModel`, profile registries | core, protocols, harness | engine, kit, benchmark, recipes, trace, render, periphery |
+| `qitos.harness` | Model family presets + policy types | `FamilyPreset`, `resolve_family_preset`, `build_harness_policy` | protocols | engine, kit, core, models, benchmark, recipes (concrete transports and `build_model_for_preset` live in `qitos.models.harness_adapter`) |
+| `qitos.models` | Provider abstraction | `Model`/`AsyncModel`/`ModelFactory`, `OpenAICompatibleModel`, `LiteLLMModel`, profile registries, `build_model_for_preset` | core, protocols, harness | engine, kit, benchmark, recipes, trace, render, periphery |
 | `qitos.kit` | Swappable implementations (tools, toolsets, parsers, memory, history, planning, critics, envs, permissions, REPL, skills) | `qitos.kit`, `qitos.kit.toolset` builders, `qitos.kit.tool.<domain>` | core, engine, models, protocols, prompting, evaluate, metric, trace | benchmark, recipes, periphery, root `qitos` package self-import |
 | `qitos.trace` | v1 artifact writer/validator (compatibility contract) | `TraceWriter`, `TraceEvent`, `TraceStep`, schema validator | tracing (redaction helper) | engine, kit, core, models, benchmark, recipes |
 | `qitos.tracing` | v2 span plane + processors | `create_trace`, `add_trace_processor`, `TracingProvider` | (leaf) — trace/engine only via lazy legacy bridge | engine, kit, models, benchmark, recipes at module level |
@@ -113,7 +113,6 @@ These are encoded in the legacy allowlist of `tests/test_architecture_boundaries
 
 | # | Violation | Where | Debt |
 | --- | --- | --- | --- |
-| V1 | `harness <-> models` module-level cycle | `harness/_adapters.py` ↔ `models/profile_registry.py` | D5 |
 | V2 | `benchmark <-> recipes` module-level cycle | `benchmark/*/runner.py` ↔ `recipes/benchmarks/*.py` (5 files each) | D1 |
 | V3 | engine → kit/mcp/cache/tracing via lazy imports | `engine/engine.py`, `_env_runtime.py`, `_control_runtime.py`, `_handoff_runtime.py` | D3 |
 | V4 | core → engine/kit/trace/render/harness lazy imports (convenience path) | `core/agent_module.py`, `core/agent_spec.py` | D2 |

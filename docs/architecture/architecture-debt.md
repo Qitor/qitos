@@ -26,10 +26,9 @@ Legend: **P0** structural risk (blocks refactors / can break imports), **P1** im
 - Why P0: qita (the product observability surface) reads only v1; tracing v2 is built, tested, and wired nowhere by default. Three writers duplicate state representation and drift risk is active.
 - Exit: `docs/v4/05-trajectory-data-plane.md` is the planned consolidation; until then, treat the v1 artifact format as frozen contract and route all new fields through it.
 
-### D5. `harness <-> models` module-level import cycle
-- Where: `harness/__init__ -> _adapters -> models.{context_registry,openai}`; `models/__init__ -> profile_registry -> harness._presets`.
-- Why P0: works only via Python's partially-initialized-package tolerance; any refactor touching either `__init__` can break `import qitos` outright.
-- Exit: invert one edge — presets should not depend on models (move `OpenAICompatibleAdapter` out of harness, or move preset data into models and keep harness as thin resolver).
+### D5. ~~`harness <-> models` module-level import cycle~~ (RESOLVED)
+- Resolved by moving the concrete adapter layer out of harness: `OpenAICompatibleAdapter`, `adapter_for_kind`, `resolve_context_window`, and `build_model_for_preset` now live in `qitos/models/harness_adapter.py`; harness keeps preset data, policy types, and `build_harness_policy` (transport-free). The only remaining edge is the target-direction `models -> harness`.
+- D7 (harness naming) remains open and can proceed independently.
 
 ## P1 — Important architecture debt
 

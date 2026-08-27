@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Mapping
 
 from qitos import AgentModule, Decision, RunSpec, StateSchema, StopReason, ToolRegistry
-from qitos.harness import build_harness_policy, build_model_for_preset, resolve_family_preset
+from qitos.harness import build_harness_policy, resolve_family_preset
+from qitos.models import build_model_for_preset
 from qitos.kit import (
     CompactHistory,
     CodingToolSet,

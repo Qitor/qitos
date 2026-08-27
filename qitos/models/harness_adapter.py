@@ -1,10 +1,16 @@
-"""Model transport adapters used by harness presets."""
+"""Preset-backed model transport adapters.
+
+Concrete adapters construct provider transports from family presets and
+therefore live on the models side of the harness/models boundary (D5):
+harness owns preset data and policy types, models owns transports.
+"""
 
 from __future__ import annotations
 
-from ..models.context_registry import infer_context_window
-from ..models.openai import OpenAICompatibleModel
-from ._types import ContextPolicy, FamilyPreset, ModelAdapter
+from ..harness import build_harness_policy
+from ..harness._types import ContextPolicy, FamilyPreset, ModelAdapter
+from .context_registry import infer_context_window
+from .openai import OpenAICompatibleModel
 
 
 def _coerce_float(value: object, default: float) -> float:
@@ -38,7 +44,7 @@ def resolve_context_window(
         or context_policy.fallback_context_window,
     )
     if isinstance(inferred, int) and inferred > 0:
-        return inferred
+        return int(inferred)
     return int(context_policy.fallback_context_window)
 
 
@@ -102,3 +108,66 @@ def adapter_for_kind(kind: str) -> ModelAdapter:
     if normalized == "openai-compatible":
         return OpenAICompatibleAdapter()
     raise ValueError(f"Unknown harness adapter kind: {kind}")
+
+
+def build_model_for_preset(
+    *,
+    model_name: str,
+    family_id: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    protocol: object | None = None,
+    tool_delivery: str | None = None,
+    temperature: float = 0.2,
+    max_tokens: int = 2048,
+    timeout: int = 120,
+    system_prompt: str | None = None,
+    context_window: int | None = None,
+    default_request_kwargs: dict[str, object] | None = None,
+    api_mode: str = "chat_completions",
+) -> object:
+    harness = build_harness_policy(
+        model_name=model_name,
+        family_id=family_id,
+        protocol=protocol,
+        tool_delivery=tool_delivery,
+    )
+    adapter = adapter_for_kind(harness.family_preset.adapter_kind)
+    llm = adapter.build_model(
+        preset=harness.family_preset,
+        model_name=model_name,
+        api_key=api_key,
+        base_url=base_url,
+        context_policy=harness.context_policy,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        timeout=timeout,
+        system_prompt=system_prompt,
+        context_window=context_window,
+        default_request_kwargs=default_request_kwargs,
+        api_mode=api_mode,
+    )
+    metadata = dict(getattr(llm, "qitos_harness_metadata", {}) or {})
+    metadata.update(harness.to_dict())
+    metadata.setdefault(
+        "decision_lane_preference",
+        "native_tool_calls"
+        if harness.tool_policy.native_tool_call_preferred
+        else "parser",
+    )
+    metadata.setdefault(
+        "native_tool_call_preferred", harness.tool_policy.native_tool_call_preferred
+    )
+    metadata.setdefault("effective_tool_delivery", harness.protocol.tool_schema_delivery)
+    setattr(llm, "qitos_harness_metadata", metadata)
+    setattr(llm, "qitos_family_preset", harness.family_preset.id)
+    setattr(llm, "qitos_protocol", harness.protocol.id)
+    return llm
+
+
+__all__ = [
+    "OpenAICompatibleAdapter",
+    "adapter_for_kind",
+    "build_model_for_preset",
+    "resolve_context_window",
+]

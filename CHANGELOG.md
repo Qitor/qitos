@@ -32,6 +32,7 @@ How to update:
 
 ### Changed
 
+- Broke the `harness <-> models` module-level import cycle (D5/V1): `OpenAICompatibleAdapter`, `adapter_for_kind`, `resolve_context_window`, and `build_model_for_preset` moved from `qitos/harness/_adapters.py` to `qitos/models/harness_adapter.py` and are re-exported from `qitos.models`. `qitos.harness` now depends only on `protocols` and keeps presets plus `build_harness_policy`; import `build_model_for_preset` from `qitos.models` (or `qitos.models.harness_adapter`) instead of `qitos.harness`. `HarnessPolicy.adapter` is now optional and `HarnessPolicy.adapter_kind` falls back to the family preset.
 - Raised the optional OpenAI SDK floor to `openai>=1.66.0` and taught compact history to preserve active Responses function-call rounds atomically.
 - Strengthened the CyberGym PoC agent's task bootstrap with lightweight structured task-spec extraction and more relevant repo evidence ranking.
 - Clarified candidate provenance and lightweight failure taxonomy handling in the CyberGym agent without changing its single-agent runtime architecture.

@@ -102,13 +102,12 @@ LEGACY_MODULE_EDGES: dict[tuple[str, str], frozenset[str]] = {
             "recipes/benchmarks/tau_bench.py",
         }
     ),
-    ("harness", "models"): frozenset({"harness/_adapters.py"}),  # D5 / V1 cycle
 }
 
 # Package-level import cycles tolerated today (each must have a debt entry + exit plan).
 # {benchmark, kit, recipes} is one SCC: benchmark <-> recipes (D1) joined by kit -> benchmark (D6).
 TOLERATED_CYCLES: frozenset[frozenset[str]] = frozenset(
-    {frozenset({"harness", "models"}), frozenset({"benchmark", "kit", "recipes"})}
+    {frozenset({"benchmark", "kit", "recipes"})}
 )
 
 # Harness documents that must exist (AGENTS coverage for real architecture boundaries).
