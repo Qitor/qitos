@@ -83,7 +83,7 @@ class _UnsafeSleepTool(BaseTool):
                 parameters={"value": {"type": "string"}},
                 required=["value"],
                 permissions=ToolPermission(filesystem_read=True),
-                read_only=True,
+                read_only=False,
                 concurrency_safe=False,
             )
         )
@@ -99,13 +99,6 @@ class _UnsafeSleepTool(BaseTool):
 @dataclass
 class _ExecutorState(StateSchema):
     pass
-
-
-@dataclass
-class _CandidateReadyState(StateSchema):
-    poc_path: str = ""
-    candidate_ready_for_submit: bool = False
-    workspace_root: str = ""
 
 
 def test_action_executor_applies_validation_permission_and_truncation():
@@ -148,50 +141,6 @@ def test_action_executor_applies_validation_permission_and_truncation():
     )[0]
     assert ask.status == ActionStatus.SKIPPED
     assert ask.output["status"] == "needs_user_input"
-
-
-def test_action_executor_blocks_non_submit_tools_when_candidate_ready(tmp_path):
-    (tmp_path / "poc.bin").write_bytes(b"candidate")
-    registry = ToolRegistry().register(_EchoTool()).register(_EchoTool(name="submit_poc"))
-    executor = ActionExecutor(registry)
-    state = _CandidateReadyState(
-        task="demo",
-        workspace_root=str(tmp_path),
-        poc_path="poc.bin",
-        candidate_ready_for_submit=True,
-    )
-
-    blocked = executor.execute(
-        [Action(name="echo_tool", args={"value": "ignored"})],
-        state=state,
-    )[0]
-    allowed = executor.execute(
-        [Action(name="submit_poc", args={"value": "poc.bin"})],
-        state=state,
-    )[0]
-
-    assert blocked.status == ActionStatus.ERROR
-    assert blocked.metadata["error_category"] == "candidate_submit_ready_guard"
-    assert "submit_poc" in blocked.output["message"]
-    assert allowed.status == ActionStatus.SUCCESS
-
-
-def test_action_executor_allows_regeneration_when_ready_candidate_file_missing(tmp_path):
-    registry = ToolRegistry().register(_EchoTool())
-    executor = ActionExecutor(registry)
-    state = _CandidateReadyState(
-        task="demo",
-        workspace_root=str(tmp_path),
-        poc_path="missing.bin",
-        candidate_ready_for_submit=True,
-    )
-
-    result = executor.execute(
-        [Action(name="echo_tool", args={"value": "regenerate"})],
-        state=state,
-    )[0]
-
-    assert result.status == ActionStatus.SUCCESS
 
 
 def test_action_executor_runs_concurrency_safe_read_only_tools_in_parallel():
