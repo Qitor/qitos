@@ -127,7 +127,7 @@ class CyBenchEvaluator(TrajectoryEvaluator):
         )
 
 
-def _as_float(v: object, default: float = 0.0) -> float:
+def _as_float(v: Any, default: float = 0.0) -> float:
     try:
         return float(v)
     except Exception:
