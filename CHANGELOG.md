@@ -52,6 +52,10 @@ How to update:
 - Fixed CyberGym PoC generation runs so benchmark-local Bash commands can run without interactive command review while the default coding toolset review guard remains intact.
 - Fixed tool registration with name overrides so CyberGym uppercase aliases do not mutate source tool specs shared with ordinary coding toolsets.
 
+### Removed
+
+- Removed test suites whose subject lives out of tree, restoring a green `pytest -q` baseline (0 failed / 0 collection errors): `qitos_zoo.qitos_auditor` (completeness, knowledge, package, multi-agent), `qitos_zoo.qitos_coder`/zoo package structure (package, terminal mode, zoo eval configs), `qitos_zoo.qitos_cyber.pentagi` (function-tool migration, handoff targets, critic migration), and the vendored `qitos.benchmark.cybergym.agent` tests (context retention, task spec, parallel-tools prompt, evidence selector, context snip, candidate failure records, agent PoC profile). Mixed files were split with their in-tree coverage kept (streaming/hooks, compact history, harness presets, examples smoke, cybergym recipe; the in-tree `CodingToolSet` review tests now live in `tests/test_coding_toolset_review.py`). Also pruned stale tests for behavior no longer present in the source: the OpenAI-compatible retry/120s-timeout pair and the executor `candidate_ready_for_submit` guard tests.
+
 ## v0.6.0 (2026-05-28)
 
 ### Added
