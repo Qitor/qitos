@@ -1,222 +1,123 @@
 # QitOS Architecture
 
-## High-Level Design
+High-level architecture map for the repository. Detailed material lives in `docs/architecture/`:
 
-QitOS is organized around one core execution narrative:
+- [architecture-audit.md](docs/architecture/architecture-audit.md) — how the system actually works today, module by module
+- [module-boundaries.md](docs/architecture/module-boundaries.md) — boundary matrix, target dependency graph, current violations
+- [change-guide.md](docs/architecture/change-guide.md) — where a given change belongs
+- [architecture-debt.md](docs/architecture/architecture-debt.md) — P0/P1/P2 debt inventory
 
-`AgentModule -> Engine -> Decision -> ActionExecutor -> Env/Tools -> Trace/qita`
+## System Purpose
 
-The project is intentionally kernel-first. Higher-level patterns, examples, and benchmark adapters are expected to build on the same runtime loop rather than bypass it.
+QitOS is a research-first agent framework ("the PyTorch of agents"): one canonical kernel for prototyping methods, running benchmarks, and inspecting long-horizon trajectories. The core run model is a `AgentModule + Engine` pair executing an explicit lifecycle `observe -> decide -> act -> reduce -> check_stop`, producing replayable trace artifacts consumed by `qita`.
 
-## Core Components
+## Major Components
 
-### `qitos.core`
-
-Defines the framework contracts:
-
-- `AgentModule`
-- `StateSchema`
-- `Decision`
-- `Action`
-- `BaseTool` and tool specs
-- task, memory, history, and error abstractions
-
-### `qitos.engine`
-
-Owns the runtime:
-
-- state initialization and control flow
-- decision normalization and parser integration
-- action execution
-- hook dispatch
-- env capability checks
-- trace and context telemetry
-
-### `qitos.kit`
-
-Provides curated building blocks on top of the core:
-
-- parsers
-- prompts
-- planning helpers
-- env implementations
-- memory/history implementations
-- canonical toolsets such as `CodingToolSet`
-
-### `qitos.trace` and `qitos.qita`
-
-Provide observability:
-
-- structured run artifacts
-- event and step records
-- replay and run inspection
-- browser-friendly trace views
-
-### `qitos.benchmark`
-
-Contains adapters and runtime support for benchmark-oriented workflows such as GAIA, Tau-Bench, and CyBench.
-
-## Key Design Decisions
-
-### Kernel First
-
-The stable surface is the execution kernel, not every convenience wrapper in `kit`.
-
-### Decision-Centric Runtime
-
-The engine executes `Decision` objects, even when the model output originates as text or provider-specific response payloads.
-
-### Canonical Tool Surface
-
-`CodingToolSet` is the standard file/shell/codebase tool bundle. Deprecated compatibility wrappers were removed to keep one primary authoring path.
-
-### Opt-In Experimental Security Research
-
-Higher-risk security research tools live under `qitos.kit.tool.experimental.security_research` and are not part of the default public surface.
-
-### Observability As A First-Class Feature
-
-Trace artifacts and qita views are part of the framework contract, not an afterthought.
-
-## Typical Flow
-
-1. An `AgentModule` produces or delegates a `Decision`.
-2. The `Engine` normalizes the decision and records observability.
-3. `ActionExecutor` validates and executes actions through tools and env ops.
-4. The agent reduces the observation into updated state.
-5. Trace artifacts and qita views expose the full run.
-
-## Repository Structure
-
-- `qitos/`: framework source
-- `tests/`: regression and behavior tests
-- `docs/`: Mintlify documentation content
-- `examples/`: canonical patterns and reference agents
-- `templates/`: starter agent layouts
-
-## Repository Layers
-
-### Stable Core Framework Surface
-
-The stable surface is:
-
-- `qitos.core`
-- `qitos.engine`
-- `qitos.trace`
-- `qitos.qita`
-- basic model/provider abstractions needed by the engine
-- public contracts such as `AgentModule`, `StateSchema`, `Decision`, `Action`, `BaseTool`, `ToolRegistry`, trace artifacts, run specs, and hook contracts
-
-Top-level `qitos` imports should stay limited to these kernel contracts and compatibility-critical public contracts.
-
-### Curated Framework Extensions
-
-The following may remain in this repository when they are generic, reusable, and not tied to one product agent:
-
-- `qitos.kit`
-- `qitos.kit.tool`
-- `qitos.kit.toolset`
-- `qitos.prompting`
-- `qitos.protocols`
-- `qitos.models`
-- `qitos.render`
-
-These APIs are useful framework extensions, but they are not all equally stable. They should avoid product naming, product workflows, and high-risk default exports.
-
-### Recipes And Benchmarks
-
-`qitos.recipes` may contain reusable research baselines or canonical benchmark methods. Recipes should be callable from thin examples instead of duplicated inside examples.
-
-`qitos.benchmark` (deprecated, migrating to `qitos.recipes.benchmarks` and Snowl-evals) may contain framework-level adapters, runners, scorers, and dataset-neutral glue. They must not vendor benchmark datasets, large external assets, or product-specific workflows.
-
-### Examples Policy
-
-`examples/` is a small canonical learning path, not an app gallery. Examples should:
-
-- teach one QitOS concept at a time
-- run locally or with one standard model-provider path
-- be short enough to read as documentation
-- demonstrate canonical authoring flow
-- avoid heavy hidden dependencies
-- avoid standalone product behavior
-
-Full applications live in `qitos-zoo`.
-
-### qitos-zoo
-
-Move or prepare to move examples and apps that:
-
-- reproduce mature agent products
-- require many files, configs, prompts, workflows, or assets
-- are showcase-grade instead of teaching-first
-- are cybersecurity/pentesting product agents
-- are Claude Code-style product agents
-- have their own roadmap, UI, CLI, benchmark harness, or workflow state
-
-Recommended names:
-
-- `qitos_coder`: Claude Code-inspired coding agent built with QitOS.
-- `qitos_cyber`: PentAGI-inspired cybersecurity agent built with QitOS.
-- `qitos_auditor`: DeepAudit-inspired code security audit agent built with QitOS.
-
-#### qitos_zoo structure
-
-```
-qitos_zoo/
-  __init__.py
-  qitos_coder/       — coding agent + tests/ + README.md
-  qitos_cyber/       — cyber agent + tests/ + README.md
-  qitos_auditor/     — audit agent + tests/ + README.md
-  experimental/      — product candidates needing hardening
-  docs/              — adding_a_new_agent.md, app_template.md, safety_and_scope.md
+```text
+qitos.core          framework contracts: AgentModule, StateSchema, Decision, Action,
+                    BaseTool/ToolRegistry, Task, Memory, History, Env, specs, errors
+qitos.protocols.py  model I/O protocol registry (react/json/xml/kimi/... renderers)   ← root-level leaf
+qitos.prompting.py  prompt spec/builder, framework-owned sections                     ← root-level leaf
+qitos.engine        execution kernel: Engine + runtime mixins + ActionExecutor,
+                    hooks, stop criteria, recovery, cancellation, interrupts, AsyncEngine
+qitos.harness       model family presets (FamilyPreset, adapters) — kernel-level defaults source
+qitos.models        provider abstraction: Model/AsyncModel/ModelFactory + OpenAI/
+                    OpenAI-compatible/LiteLLM/Anthropic/Gemini/local backends
+qitos.kit           concrete implementations: tools, toolsets, parsers, prompts, memory,
+                    history, planning, critics, envs, permissions, REPL, skills
+qitos.trace         v1 trace artifacts (runs/{run_id}/manifest+events+steps) — frozen contract
+qitos.tracing       v2 span plane + processors (console/JSON/W&B/MLflow); not default yet
+qitos.render        Rich terminal rendering + EngineHooks
+qitos.qita          trajectory CLI (board/replay/export); reads v1 artifacts
+qitos.checkpoint    v2 checkpoint stores (memory/SQLite, versioning, durability, fork)
+qitos.evaluate/metric  thin evaluation/metric contracts (implementations in kit)
+qitos.recipes       canonical recipes: method templates + benchmarks (migration target)
+qitos.benchmark     deprecated benchmark adapters, migrating to recipes.benchmarks
+qitos.mcp/func/cache/debug/…  integration & deprecated leaves (see audit)
+qitos.cli.py        `qit` CLI — thin dispatch over the packages above
 ```
 
-#### E2E test ownership
+Outside the package: `examples/` (canonical learning path), `templates/` (cookiecutter scaffold + 12 teaching templates), `tests/`, `docs/`, `qitos_zoo/` (planned out-of-tree apps, currently empty).
 
-Agent application e2e tests belong in `qitos_zoo/<app>/tests/`. The core `tests/` directory only contains framework-level tests. No agent-specific e2e tests should reside in the core repository.
+## Control Flow
 
-#### Zero duplication
+One agent execution, mapped to real modules:
 
-No file may exist in both `examples/` and `qitos_zoo/` with identical content. Once code is migrated to `qitos_zoo/`, the original must be removed from `examples/`.
+```text
+task in (Task/RunSpec, core/task.py, core/spec.py)
+→ AgentModule.init_state (core/state.py StateSchema)
+→ Engine.run loop (engine/engine.py)
+    observe  engine/_env_runtime.py      → Observation (core/observation.py)
+    decide   engine/_model_runtime.py    → agent.decide() or LLM call via qitos.models
+                                         → parser (kit/parser) or native tool calls
+                                         → Decision (core/decision.py), protocol via qitos.protocols
+    act      engine/_action_runtime.py + action_executor.py → tools (core/tool.py via ToolRegistry)
+                                         / env ops (kit/env) / handoff (engine/_handoff_runtime.py)
+    reduce   engine/_control_runtime.py  → agent.reduce → state.reduce_update
+    critic   engine/_control_runtime.py  → retry/stop modifications
+    check_stop stop_criteria.py          → StopReason (core/errors.py)
+    each phase: hooks (engine/hooks.py) dispatched via _trace_runtime
+    checkpoints (qitos/checkpoint) if configured
+→ EngineResult + trace artifacts (qitos/trace → runs/{run_id}/)
+→ qita board/replay/export; benchmark scorers (metric/evaluate contracts)
+```
+
+## Dependency Direction
+
+Layering (details and enforcement in [module-boundaries.md](docs/architecture/module-boundaries.md)):
+
+```text
+allowed (downward):
+  cli/demo/qita/experiment/…  → recipes → kit → engine → core → protocols/prompting
+  engine → models/harness/checkpoint/trace/tracing; kit → models/evaluate/metric/trace
+  render → engine/tracing;  recipes → kernel+kit+render
+
+forbidden:
+  core → engine/kit/models/benchmark/… (contracts stay leaf)
+  engine → kit/benchmark/recipes/mcp/cache (current lazy imports are legacy debt, not license)
+  kit → benchmark/recipes/periphery
+  benchmark ↔ recipes (module-level cycle tolerated only during migration)
+  anything → cli/qita/demo/experiment/leaderboard/hf/debug/cache
+  subpackages importing root `qitos` package (self-import)
+```
+
+`tests/test_architecture_boundaries.py` enforces these rules with a shrinking legacy allowlist.
+
+## Stable Boundaries
+
+- **Public contract**: root `qitos.__init__` export list (guarded by `tests/test_public_surface.py`); `qitos.core` data model; `Engine`/`AsyncEngine` semantics, `EngineHook` payloads, `StopReason` vocabulary.
+- **Extension points**: `BaseTool.execute(args, runtime_context)` + `ToolRegistry`; `Model`/`ModelFactory`; `FamilyPreset`; parser/protocol registry (`qitos.protocols._protocol_table`); `EngineHook`; critic and stop-criteria contracts; checkpoint `CheckpointStore`; tracing processors.
+- **Compatibility boundary**: the v1 trace artifact format (`manifest.json`/`events.jsonl`/`steps.jsonl`) consumed by qita, benchmark runners, evaluate, hf push/pull.
+- **Internal implementation** (free to change): engine mixins, `_model_runtime` assembly, kit internals, qita `_cli_app`.
+
+## Known Architecture Debt
+
+Headlines (full inventory with exit plans in [architecture-debt.md](docs/architecture/architecture-debt.md)):
+
+1. `benchmark ↔ recipes.benchmarks` dual implementations with a module-level cycle (deprecated adapters still alive).
+2. `core` mixes contracts with the `AgentModule.run()` convenience layer (lazy reverse imports).
+3. Engine reaches kit/mcp/cache via lazy imports — kernel knows implementations.
+4. Three event schemas / artifact paths (engine states, trace v1, tracing v2 + render jsonl); qita reads only v1.
+5. `harness ↔ models` module-level import cycle.
+6. `qitos.harness` name collision; `evaluate`/`metric` contract-vs-kit-mirror split; god objects in the kernel.
+
+Next architectural step is already planned: the v0.7 native agent kernel (`docs/internal/plans/v0.7_native_agent_kernel.md`, tasks in `docs/v4/`) — canonical message stack, native parallel tool calls, trajectory data plane.
+
+## Repository Layer Policy
+
+- **Stable framework surface**: `qitos.core`, `qitos.engine`, `qitos.trace`, `qitos.qita`, root-level model/provider abstractions. Top-level `qitos` imports stay limited to kernel contracts.
+- **Curated extensions**: `qitos.kit`, `qitos.kit.tool*`, `qitos.models`, `qitos.render`, `qitos.protocols` — generic, reusable, no product naming or workflows.
+- **Recipes and benchmarks**: `qitos.recipes` may hold reusable research baselines and canonical benchmark methods, callable from thin examples. `qitos.benchmark` (deprecated) must not vendor datasets or product workflows; the 22k-line vendored `tau_bench/port` is migration debt.
+- **Examples policy**: `examples/` is a small canonical learning path (one concept per example, runs locally); full applications belong in `qitos-zoo`.
+- **qitos-zoo**: product-grade apps (`qitos_coder`, `qitos_cyber`, `qitos_auditor`) live out-of-tree. Promotion into core requires: generic, tested, documented, needed by ≥2 independent apps. Agent-app e2e tests belong in the zoo, not core `tests/`.
+- **Domain neutrality test**: a change is framework material only if expressible in agent-execution vocabulary (state, observation, decision, action, tool, model, trace, budget, experiment, hook, protocol). Everything else stays in recipes, zoo, or user code.
 
 ## Security-Sensitive Rule
 
-Cybersecurity research tooling must never be part of the default public surface. It may exist only as explicit experimental modules with clear warnings, or as qitos-zoo applications with controlled documented use.
-
-Do not export offensive or high-risk tools from `qitos.__init__`, `qitos.kit` default imports, `qit demo`, or quickstart examples.
-
-## What Must Not Enter Core
-
-- Claude Code-style product agents
-- PentAGI-style cybersecurity agents
-- full SWE, desktop, EPUB, or SkillHub product workflows
-- offensive or high-risk security tools in default imports or demos
-- benchmark datasets, large generated artifacts, local absolute paths, or secrets
-- dependencies needed only by product apps
-
-## Promotion Rule
-
-Code may move from qitos-zoo into QitOS only if it is generic, tested, documented, and needed by at least two independent apps. Product-specific code stays in qitos-zoo.
-
-## Decision Table
-
-| Item | Belongs in core? | Decision |
-| --- | --- | --- |
-| Engine loop | Yes | Stable core |
-| Agent contracts | Yes | Stable core |
-| Trace/qita artifacts | Yes | Stable observability |
-| Generic tool protocol | Yes | Stable core or kit |
-| `CodingToolSet` | Maybe | Keep only if generic and minimal |
-| Claude Code-style agent | No | qitos-zoo |
-| PentAGI-style cyber agent | No | qitos-zoo |
-| SWE product workflow | No | qitos-zoo unless reduced to minimal recipe |
-| OpenAI CUA product clone | No | qitos-zoo unless reduced to minimal desktop smoke test |
-| Benchmark adapters | Yes | Only if thin and dataset-neutral |
-| Benchmark datasets/assets | No | External or qitos-zoo |
-| Experimental security tools | Opt-in only | Never default-exported |
+Cybersecurity/offensive research tooling must never be part of the default public surface: not exported from `qitos.__init__`, `qitos.kit` defaults, `qit demo`, or quickstart. It may exist only as explicit opt-in modules under `qitos.kit.tool.experimental.security_research` or as zoo applications with controlled, documented use.
 
 ## Non-Goals
 
-- hiding execution semantics behind opaque abstractions
-- maintaining multiple long-term public APIs for the same tool workflow
-- treating examples as production-only integrations detached from the kernel
+- No parallel architecture tracks, no `V1/V2/Legacy/Next` duplicates in core APIs (existing v1/v2 pairs — trace/tracing, checkpoint, benchmark — are migration states with exit plans, not long-term design).
+- No hiding execution semantics behind opaque abstractions.
+- No benchmark datasets, product dependencies, secrets, or local absolute paths in the framework.
