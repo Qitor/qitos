@@ -7,6 +7,9 @@ harness owns preset data and policy types, models owns transports.
 
 from __future__ import annotations
 
+from typing import Optional, cast
+
+from ..core.tool import RetryPolicy
 from ..harness import build_harness_policy
 from ..harness._types import ContextPolicy, FamilyPreset, ModelAdapter
 from .context_registry import infer_context_window
@@ -90,7 +93,7 @@ class OpenAICompatibleAdapter(ModelAdapter):
             ),
             default_request_kwargs=dict(default_request_kwargs) if isinstance(default_request_kwargs, dict) else None,
             api_mode=api_mode,
-            retry=retry if retry is None or hasattr(retry, "max_attempts") else None,
+            retry=cast(Optional[RetryPolicy], retry),
         )
         setattr(
             llm,
@@ -127,7 +130,7 @@ def build_model_for_preset(
     context_window: int | None = None,
     default_request_kwargs: dict[str, object] | None = None,
     api_mode: str = "chat_completions",
-    retry: object | None = None,
+    retry: RetryPolicy | None = None,
 ) -> object:
     harness = build_harness_policy(
         model_name=model_name,

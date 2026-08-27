@@ -540,9 +540,9 @@ def _parse_param_descriptions(docstring: str) -> Dict[str, str]:
         )
         if args_match:
             for line in args_match.group(1).splitlines():
-                m = re.match(r"\s+(\w+)\s*:\s*(.*)", line)
-                if m:
-                    param_descs[m.group(1)] = m.group(2).strip()
+                gm = re.match(r"\s+(\w+)\s*:\s*(.*)", line)
+                if gm:
+                    param_descs[gm.group(1)] = gm.group(2).strip()
     return param_descs
 
 
