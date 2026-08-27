@@ -397,6 +397,9 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             payload={
                 "stage": "model_output",
                 "raw_output": response.text,
+                "reasoning_content": response.reasoning_content,
+                "reasoning_fields": dict(response.reasoning_fields or {}),
+                "reasoning_source": response.reasoning_source,
                 "model_response": dict(record.model_response),
                 "context": dict(record.context),
                 "prompt": prompt_metadata,
@@ -1314,10 +1317,78 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             )
             record.decision_source = "parser"
 
+    def _provider_message(self, raw_output: Any) -> Any:
+        """Return the provider-native assistant message when one is present."""
+        message = None
+        if isinstance(raw_output, dict):
+            choices = raw_output.get("choices")
+            if isinstance(choices, list) and choices:
+                msg = choices[0].get("message") if isinstance(choices[0], dict) else None
+                if isinstance(msg, dict):
+                    message = msg
+            if message is None and isinstance(raw_output.get("message"), dict):
+                message = raw_output["message"]
+            if message is None and any(
+                key in raw_output
+                for key in ("content", "reasoning_content", "reasoning", "tool_calls")
+            ):
+                message = raw_output
+        if message is None:
+            choices = getattr(raw_output, "choices", None)
+            if isinstance(choices, list) and choices:
+                message = getattr(choices[0], "message", None)
+        if message is None:
+            message = getattr(raw_output, "message", None)
+        if message is None and any(
+            getattr(raw_output, key, None) is not None
+            for key in ("content", "reasoning_content", "reasoning", "tool_calls")
+        ):
+            message = raw_output
+        return message
+
+    @staticmethod
+    def _message_field(message: Any, key: str) -> Any:
+        if isinstance(message, dict):
+            return message.get(key)
+        return getattr(message, key, None)
+
+    def _extract_reasoning_fields(self, raw_output: Any) -> Dict[str, str]:
+        """Extract non-empty native reasoning fields without inferring them.
+
+        The field names are provider protocol data, not agent protocol text:
+        notably, a JSON ``thought`` emitted by an agent is never treated as
+        native reasoning here.
+        """
+        message = self._provider_message(raw_output)
+        if message is None:
+            return {}
+        fields: Dict[str, str] = {}
+        for key in ("reasoning_content", "reasoning"):
+            value = self._message_field(message, key)
+            if isinstance(value, str) and value.strip():
+                fields[key] = value
+        return fields
+
+    def _extract_reasoning_content(self, raw_output: Any) -> Optional[str]:
+        """Return the compatibility-facing primary native reasoning value."""
+        fields = self._extract_reasoning_fields(raw_output)
+        for key in ("reasoning_content", "reasoning"):
+            if key in fields:
+                return fields[key]
+        return None
+
+    def _extract_reasoning_source(self, raw_output: Any) -> Optional[str]:
+        fields = self._extract_reasoning_fields(raw_output)
+        for key in ("reasoning_content", "reasoning"):
+            if key in fields:
+                return key
+        return None
+
     def _normalize_model_response(self, raw_output: Any) -> ModelResponse:
         if isinstance(raw_output, ModelResponse):
             response = raw_output
         else:
+            reasoning_fields = self._extract_reasoning_fields(raw_output)
             response = ModelResponse(
                 text=self._extract_response_text(raw_output),
                 raw=raw_output,
@@ -1328,6 +1399,9 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                 model_name=self._extract_model_name(raw_output),
                 provider=self._extract_provider(raw_output),
                 metadata=self._extract_response_metadata(raw_output),
+                reasoning_content=self._extract_reasoning_content(raw_output),
+                reasoning_fields=reasoning_fields,
+                reasoning_source=self._extract_reasoning_source(raw_output),
             )
         llm = getattr(self.engine.agent, "llm", None)
         usage = response.usage
@@ -1350,6 +1424,28 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
         )
         metadata = dict(response.metadata or {})
         text = str(response.text or "")
+        reasoning_fields = {
+            str(key): str(value)
+            for key, value in dict(response.reasoning_fields or {}).items()
+            if isinstance(value, str) and value.strip()
+        }
+        if response.reasoning_content and not reasoning_fields:
+            reasoning_fields["reasoning_content"] = response.reasoning_content
+        reasoning_content = response.reasoning_content
+        reasoning_source = response.reasoning_source
+        if not reasoning_content:
+            for key in ("reasoning_content", "reasoning"):
+                if key in reasoning_fields:
+                    reasoning_content = reasoning_fields[key]
+                    reasoning_source = key
+                    break
+        if not reasoning_source:
+            for key in ("reasoning_content", "reasoning"):
+                if key in reasoning_fields:
+                    reasoning_source = key
+                    break
+        if not text and reasoning_content:
+            text = reasoning_content
         tool_calls = (
             [dict(item) for item in (response.tool_calls or [])]
             if isinstance(response.tool_calls, list)
@@ -1373,6 +1469,9 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             provider=str(provider) if provider is not None else None,
             metadata=metadata,
             native_items=response.native_items,
+            reasoning_content=reasoning_content,
+            reasoning_fields=reasoning_fields,
+            reasoning_source=reasoning_source,
         )
 
     def _extract_native_items(
@@ -1468,7 +1567,7 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                         parts.append(str(getattr(item, "text")))
                 if parts:
                     return "\n".join(parts)
-            reasoning = raw_output.get("reasoning_content")
+            reasoning = self._extract_reasoning_content(raw_output)
             if isinstance(reasoning, str):
                 return reasoning
             tool_calls = raw_output.get("tool_calls")
@@ -1507,7 +1606,7 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                         parts.append(str(getattr(item, "text")))
                 if parts:
                     return "\n".join(parts)
-            reasoning = getattr(message, "reasoning_content", None)
+            reasoning = self._extract_reasoning_content(raw_output)
             if isinstance(reasoning, str):
                 return reasoning
             text = getattr(message, "text", None)

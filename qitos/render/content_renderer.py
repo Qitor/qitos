@@ -46,13 +46,30 @@ class ContentFirstRenderer:
                 return self._truncate(rationale.strip(), self.max_preview_chars)
             return None
         if event.node == "model_output":
+            segments: List[str] = []
+            # API-level native reasoning (provider protocol, never agent text).
+            reasoning = payload.get("reasoning_content")
+            if isinstance(reasoning, str) and reasoning.strip():
+                source = payload.get("reasoning_source")
+                prefix = f"[native reasoning: {source}]\n" if source else ""
+                segments.append(prefix + reasoning.strip())
+            # Content text (non-tool-call output the model produced)
             raw = payload.get("raw_output")
-            if not isinstance(raw, str):
+            if isinstance(raw, str) and raw.strip():
+                m = _THOUGHT_RE.search(raw)
+                extracted = m.group(1).strip() if m else raw.strip()
+                # Deduplicate: skip raw_output when it duplicates any native
+                # reasoning field (some providers repeat the same content).
+                reasoning_values = [
+                    value.strip()
+                    for value in dict(payload.get("reasoning_fields") or {}).values()
+                    if isinstance(value, str) and value.strip()
+                ]
+                if extracted not in reasoning_values and extracted not in segments:
+                    segments.append(extracted)
+            if not segments:
                 return None
-            m = _THOUGHT_RE.search(raw)
-            if m:
-                return self._truncate(m.group(1).strip(), self.max_preview_chars)
-            return self._truncate(raw.strip(), self.max_preview_chars)
+            return self._truncate("\n---\n".join(segments), self.max_preview_chars)
         return None
 
     def model_response_summary(self, event: RenderEvent) -> Optional[str]:

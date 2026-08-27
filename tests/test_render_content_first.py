@@ -321,3 +321,21 @@ def test_claude_style_hook_preserves_recoverable_tool_error_card() -> None:
     assert "[GREP:invalid_cursor]" in text
     assert "INVALID_CURSOR" in text
     assert "Retry: GREP" in text
+
+def test_renderer_labels_native_reasoning_and_deduplicates_matching_content() -> None:
+    renderer = ContentFirstRenderer(max_preview_chars=200)
+    thought = renderer.thought_text(
+        RenderEvent(
+            channel="thinking",
+            node="model_output",
+            step_id=0,
+            payload={
+                "reasoning_content": "Inspect the length field before mutating bytes.",
+                "reasoning_fields": {"reasoning": "Inspect the length field before mutating bytes."},
+                "reasoning_source": "reasoning",
+                "raw_output": "Inspect the length field before mutating bytes.",
+            },
+        )
+    )
+
+    assert thought == "[native reasoning: reasoning]\nInspect the length field before mutating bytes."
