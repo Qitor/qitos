@@ -132,6 +132,12 @@ engine.clear_hooks()
 
 You can also pass hooks at construction time via the `hooks` parameter, or at run time via `agent.run(hooks=[...])`.
 
+## Runtime exception reporting
+
+Handled exceptions — anything the recovery layer catches during DECIDE/ACT, plus fatal `init_state` and env-setup failures — are reported through `Engine._report_runtime_exception()`: one stderr line with the full traceback, a `RECOVER` trace event carrying the structured payload, and (when `QITOS_ERROR_LOG` or `QITOS_TRACE_DIR` is set) an appended `step_error.log`. The last payload is exposed as `last_error` in the `EngineResult` run summary, so a run that ends with `unrecoverable_error` keeps usable diagnostics even under redirected output.
+
+Tool-call loop detection can be disabled for long-running agents that intentionally repeat calls: `ContextConfig(tool_call_loop_detection_enabled=False)` (default `True`, with `loop_max_repeats` controlling the threshold).
+
 ## Budget exhaustion
 
 When the step budget, wall-clock time limit, or token budget is exceeded, the Engine sets `state.stop_reason` to the appropriate value and emits an `END` event. The run terminates gracefully and `EngineResult` is still returned — inspect `state.stop_reason` to detect this case.

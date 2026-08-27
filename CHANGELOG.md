@@ -19,6 +19,7 @@ How to update:
 
 ### Added
 
+- Campaign absorption wave 1 (engine correctness, decontaminated): `ContextConfig.tool_call_loop_detection_enabled` (default on) so long-running agents can opt out of repeated-call blocking; runtime exception reporting — recovered exceptions now surface on stderr, as a `RECOVER` trace event, in `QITOS_ERROR_LOG`/`QITOS_TRACE_DIR/step_error.log`, and as `EngineResult` `last_error`; the `json_decision_multi_v1` protocol registration and preset-level `recommended_request_kwargs` plumbing (no preset flips its default yet — that decision is deferred to the conversation-kernel task).
 - Added an explicit repository architecture harness: a recovered-architecture audit, a module boundary matrix with a target dependency graph and the enumerated list of current violations, a task-oriented change guide, and a P0/P1/P2 architecture-debt inventory under `docs/architecture/`.
 - Added mechanical architecture guardrails (`tests/test_architecture_boundaries.py`): module-level dependency rules enforced as a ratchet with a shrinking legacy-violation allowlist, detection of new module-level import cycles (the tolerated `harness <-> models` and `benchmark <-> kit <-> recipes` cycles are pinned with exit plans), harness-document coverage checks, and link validation for `AGENTS.md`/`ARCHITECTURE.md`/architecture docs.
 - Added layered agent working agreements: rewrote the root `AGENTS.md` as a compact map (architecture map, dependency rules, where-changes-belong navigation, verification commands) and added local `AGENTS.md` files for `qitos/`, `qitos/core/`, `qitos/engine/`, and `qitos/kit/` covering owns/does-not-own, allowed and forbidden dependencies, invariants, and common mistakes.
@@ -41,6 +42,9 @@ How to update:
 
 ### Fixed
 
+- Multi-action steps no longer abort sibling actions when one is blocked: gate- and loop-blocked actions are collected pre-flight, executable siblings still run, and results merge back by original action index with `call_{step}_{i}` native tool-call ids; the terminal UI renders parallel actions/observations with per-index dedup and preserves recovery cards on failed observations instead of hiding them behind the error title.
+- Tool history keeps string recovery cards verbatim instead of wrapping them in an opaque JSON error envelope, keeping provider history and the TUI aligned on the same actionable text.
+- Concurrent benchmark recipe runs can no longer execute the same job twice: `execute_example_jobs` tracks in-flight job keys under a lock.
 - Fixed immediate cancellation finalization so the END event, canonical State, `TaskResult`/`EngineResult`, and trace manifest all report `cancelled_immediate`; cancelled manifests now use the existing terminal `stopped` status instead of `completed`.
 - Fixed native text fallback so malformed structured action output enters parser recovery instead of being misreported as a successful final answer, while ordinary natural-language conclusions still use `native_text_final`.
 - Fixed message-window trimming so native tool results whose declaring assistant call has been evicted are removed before provider dispatch, while complete tool chains and existing interrupted-call recovery remain unchanged.
