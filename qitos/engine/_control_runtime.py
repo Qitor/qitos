@@ -9,6 +9,7 @@ from ..core.decision import Decision
 from ..core.errors import StopReason
 from ..core.state import StateSchema
 from ._context_runtime import ContextOverflowError
+from ._model_runtime import DecisionContextConfigurationError
 from ._protocol import _EngineProtocol
 from .critic_result import CriticResult
 from .states import RuntimePhase, StepRecord
@@ -331,6 +332,9 @@ class _ControlRuntime(Generic[StateT, ObservationT, ActionT]):
     def recover(self, state: StateT, phase: RuntimePhase, exc: Exception) -> bool:
         engine = self.engine
         step_id = state.current_step
+        if isinstance(exc, DecisionContextConfigurationError):
+            state.set_stop(StopReason.INFRASTRUCTURE_INVALID)
+            return False
         engine._dispatch_hook(
             "on_recover",
             engine._hook_context(
