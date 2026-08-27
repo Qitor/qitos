@@ -1658,7 +1658,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             "error_message": str(exc),
             "traceback": traceback_text,
         }
-        self._last_runtime_error = payload
+        self._last_runtime_error: Optional[Dict[str, Any]] = payload
 
         print(
             f"[QitOS] runtime exception phase={phase_name} step={step_id} "
@@ -2240,7 +2240,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
 
     def _reset_run_state(self) -> None:
         self._trace_runtime.reset_run_state()
-        self._last_runtime_error: Optional[Dict[str, Any]] = None
+        self._last_runtime_error = None
         self._resolved_protocol = None
         self._resolved_protocol_source = ""
         self._last_prompt_metadata = {}

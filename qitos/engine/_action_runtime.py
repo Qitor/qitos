@@ -197,10 +197,10 @@ class _ActionRuntime(Generic[StateT, ActionT]):
 
         # If all actions were blocked, return immediately
         if len(blocked_indices) == len(actions):
-            merged_results = [br for _, br in sorted(blocked_results, key=lambda x: x[0])]
-            merged_invocations = [bi for _, bi in sorted(blocked_invocations, key=lambda x: x[0])]
-            record.action_results = merged_results
-            record.tool_invocations = merged_invocations
+            all_blocked_results = [br for _, br in sorted(blocked_results, key=lambda x: x[0])]
+            all_blocked_invocations = [bi for _, bi in sorted(blocked_invocations, key=lambda x: x[0])]
+            record.action_results = all_blocked_results
+            record.tool_invocations = all_blocked_invocations
             engine._dispatch_hook(
                 "on_after_act",
                 engine._hook_context(
@@ -208,11 +208,11 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                     phase=RuntimePhase.ACT,
                     state=state,
                     decision=decision,
-                    action_results=[r.to_dict() for r in merged_results],
+                    action_results=[r.to_dict() for r in all_blocked_results],
                     record=record,
                 ),
             )
-            return [r.to_dict() for r in merged_results]
+            return [r.to_dict() for r in all_blocked_results]
 
         # Execute non-blocked actions
         executable_actions = [a for i, a in enumerate(actions) if i not in blocked_indices]
