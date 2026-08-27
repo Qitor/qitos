@@ -175,6 +175,72 @@ def test_tool_loop_detection_remains_enabled_by_default():
     assert result.records[3].action_results[0].error == "tool_call_loop_detected"
 
 
+def test_blocked_first_action_does_not_cancel_sibling_actions():
+    """A gate-blocked action must not abort its siblings in a multi-action step.
+
+    Batch E regression (docs/v4/01-baseline-absorption.md §5): results merge
+    back by original action index, so the blocked slot errors while the
+    executable sibling still runs and succeeds.
+    """
+
+    class MixedActionAgent(AgentModule[DemoState, dict[str, Any], Action]):
+        def __init__(self) -> None:
+            registry = ToolRegistry()
+            self.ok_calls = 0
+
+            @tool(name="ok_tool")
+            def ok_tool() -> dict[str, str]:
+                self.ok_calls += 1
+                return {"status": "success", "result": "fine"}
+
+            registry.register(ok_tool)
+            super().__init__(tool_registry=registry)
+
+        def block_action(self, state: DemoState, action: Action) -> str:
+            _ = state
+            if action.name == "blocked_tool":
+                return "blocked_tool is gated for this test"
+            return ""
+
+        def init_state(self, task: str, **kwargs: Any) -> DemoState:
+            _ = kwargs
+            return DemoState(task=task, max_steps=3)
+
+        def decide(
+            self, state: DemoState, observation: dict[str, Any]
+        ) -> Decision[Action]:
+            _ = observation
+            if state.current_step == 0:
+                return Decision.act(
+                    actions=[
+                        Action(name="blocked_tool", args={}),
+                        Action(name="ok_tool", args={}),
+                    ]
+                )
+            return Decision.final("done")
+
+        def reduce(
+            self,
+            state: DemoState,
+            observation: dict[str, Any],
+            decision: Decision[Action],
+        ) -> DemoState:
+            _ = observation, decision
+            return state
+
+    agent = MixedActionAgent()
+    result = Engine(agent=agent, budget=RuntimeBudget(max_steps=3)).run("mixed")
+
+    record = result.records[0]
+    assert len(record.action_results) == 2
+    blocked, sibling = record.action_results
+    assert blocked.status == "error"
+    assert blocked.error == "action_blocked"
+    assert sibling.status == "success"
+    assert agent.ok_calls == 1
+    assert result.state.final_result == "done"
+
+
 def test_agent_run_shortcut():
     agent = DemoAgent()
     assert agent.run("compute", trace=False, render=False) == "42"
