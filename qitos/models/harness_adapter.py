@@ -133,6 +133,17 @@ def build_model_for_preset(
         tool_delivery=tool_delivery,
     )
     adapter = adapter_for_kind(harness.family_preset.adapter_kind)
+    # Merge preset-level recommended_request_kwargs with caller-provided kwargs;
+    # caller kwargs take precedence over preset recommendations.
+    preset_kwargs = harness.family_preset.recommended_request_kwargs
+    effective_kwargs = default_request_kwargs
+    if preset_kwargs:
+        if effective_kwargs is None:
+            effective_kwargs = dict(preset_kwargs)
+        else:
+            merged = dict(preset_kwargs)
+            merged.update(effective_kwargs)
+            effective_kwargs = merged
     llm = adapter.build_model(
         preset=harness.family_preset,
         model_name=model_name,
@@ -144,7 +155,7 @@ def build_model_for_preset(
         timeout=timeout,
         system_prompt=system_prompt,
         context_window=context_window,
-        default_request_kwargs=default_request_kwargs,
+        default_request_kwargs=effective_kwargs,
         api_mode=api_mode,
     )
     metadata = dict(getattr(llm, "qitos_harness_metadata", {}) or {})
