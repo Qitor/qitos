@@ -64,6 +64,7 @@ class OpenAICompatibleAdapter(ModelAdapter):
         context_window = kwargs.get("context_window")
         default_request_kwargs = kwargs.get("default_request_kwargs")
         api_mode = str(kwargs.get("api_mode") or "chat_completions")
+        retry = kwargs.get("retry")
         if not isinstance(preset, FamilyPreset):
             raise TypeError("preset must be a FamilyPreset")
         if not isinstance(model_name, str):
@@ -89,6 +90,7 @@ class OpenAICompatibleAdapter(ModelAdapter):
             ),
             default_request_kwargs=dict(default_request_kwargs) if isinstance(default_request_kwargs, dict) else None,
             api_mode=api_mode,
+            retry=retry if retry is None or hasattr(retry, "max_attempts") else None,
         )
         setattr(
             llm,
@@ -125,6 +127,7 @@ def build_model_for_preset(
     context_window: int | None = None,
     default_request_kwargs: dict[str, object] | None = None,
     api_mode: str = "chat_completions",
+    retry: object | None = None,
 ) -> object:
     harness = build_harness_policy(
         model_name=model_name,
@@ -157,6 +160,7 @@ def build_model_for_preset(
         context_window=context_window,
         default_request_kwargs=effective_kwargs,
         api_mode=api_mode,
+        retry=retry,
     )
     metadata = dict(getattr(llm, "qitos_harness_metadata", {}) or {})
     metadata.update(harness.to_dict())

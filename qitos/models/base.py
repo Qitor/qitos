@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Callable, Dict, Iterator, List, Optional, Type
 
 from ..core.multimodal import content_to_text, normalize_messages
+from ..core.tool import RetryPolicy
 from .context_registry import infer_context_window
 
 
@@ -74,6 +75,7 @@ class Model(ABC):
         temperature: float = 0.7,
         max_tokens: int = 2048,
         context_window: Optional[int] = None,
+        retry: Optional[RetryPolicy] = None,
     ):
         """
         Initialize model
@@ -84,12 +86,17 @@ class Model(ABC):
             temperature: Temperature parameter (0.0-1.0)
             max_tokens: Maximum output token count
             context_window: Total model context window used for input/output budgeting
+            retry: Optional explicit RetryPolicy. Default None performs no
+                model-layer retries (engine recovery stays the safety net);
+                when set, transient provider errors are retried per the
+                policy max attempts, backoff, and exception filter.
         """
         self.model = model
         self.system_prompt = system_prompt
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.context_window = self._resolve_context_window(context_window)
+        self.retry_policy = retry
         self._last_usage: Optional[Dict[str, Any]] = None
 
     @abstractmethod
@@ -107,6 +114,41 @@ class Model(ABC):
         """
         pass
 
+    def _run_with_retry(self, operation: "Callable[[], Any]") -> Any:
+        """Run ``operation`` under the explicit ``retry`` policy, if any.
+
+        Opt-in only: without a policy the call runs exactly once and every
+        exception propagates immediately (engine-level recovery remains the
+        safety net). With a policy, exceptions matching
+        ``retryable_exceptions`` are retried up to ``max_attempts`` with
+        exponential backoff (capped at ``max_backoff``, optional jitter).
+        """
+        policy = getattr(self, "retry_policy", None)
+        if policy is None:
+            return operation()
+        attempts = 0
+        while True:
+            attempts += 1
+            try:
+                return operation()
+            except Exception as exc:
+                if not isinstance(exc, policy.retryable_exceptions):
+                    raise
+                if attempts >= policy.max_attempts:
+                    raise
+                import time
+
+                delay = min(
+                    policy.backoff_factor * (2 ** (attempts - 1)),
+                    policy.max_backoff,
+                )
+                if policy.jitter and delay > 0:
+                    import random
+
+                    delay = delay * (0.5 + random.random())
+                if delay > 0:
+                    time.sleep(delay)
+
     def __call__(self, messages: List[Dict[str, Any]], **kwargs: Any) -> str:
         """
         Call model to generate response
@@ -119,7 +161,7 @@ class Model(ABC):
             Text that can be parsed by parse_tool_calls()
         """
         self._last_usage = None
-        return self._call_api(messages, **kwargs)
+        return self._run_with_retry(lambda: self._call_api(messages, **kwargs))
 
     def call_raw(self, messages: List[Dict[str, Any]], **kwargs: Any) -> Any:
         """

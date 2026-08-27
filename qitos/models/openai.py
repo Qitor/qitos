@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, AsyncIterator, Dict, Iterator, List, Optional, cast
 
 from ..core.model_response import ModelResponse
+from ..core.tool import RetryPolicy
 from ..core.multimodal import (
     content_to_text,
     ensure_data_url,
@@ -545,6 +546,7 @@ class OpenAICompatibleModel(Model):
         context_window: Optional[int] = None,
         default_request_kwargs: Optional[Dict[str, Any]] = None,
         api_mode: str = "chat_completions",
+        retry: Optional["RetryPolicy"] = None,
     ):
         """
         Initialize compatible model
@@ -561,6 +563,8 @@ class OpenAICompatibleModel(Model):
             default_request_kwargs: Extra kwargs merged into every API call
                 (e.g. {"chat_template_kwargs": {"thinking": True}})
             api_mode: OpenAI transport, ``chat_completions`` or ``responses``
+            retry: Optional explicit RetryPolicy for transient provider
+                errors (default: no model-layer retries)
         """
         super().__init__(
             model=model,
@@ -568,6 +572,7 @@ class OpenAICompatibleModel(Model):
             temperature=temperature,
             max_tokens=max_tokens,
             context_window=context_window,
+            retry=retry,
         )
 
         self.api_key = api_key or os.getenv("OPENAI_API_KEY") or "dummy-key"
@@ -744,14 +749,18 @@ class OpenAICompatibleModel(Model):
         import openai
 
         self._last_usage = None
-        client = openai.OpenAI(
-            api_key=self.api_key, base_url=self.base_url, timeout=self.timeout
-        )
-        if self.api_mode == "responses":
-            return _responses_completion(
-                self, client, messages, provider="openai-compatible", **kwargs
+
+        def _dispatch() -> Any:
+            client = openai.OpenAI(
+                api_key=self.api_key, base_url=self.base_url, timeout=self.timeout
             )
-        return self._chat_completion(client, messages, **kwargs)
+            if self.api_mode == "responses":
+                return _responses_completion(
+                    self, client, messages, provider="openai-compatible", **kwargs
+                )
+            return self._chat_completion(client, messages, **kwargs)
+
+        return self._run_with_retry(_dispatch)
 
     def _usage_from_response(self, response: Any) -> Optional[Dict[str, Any]]:
         usage = getattr(response, "usage", None)
