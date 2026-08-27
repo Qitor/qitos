@@ -979,7 +979,7 @@ def test_engine_uses_native_tool_call_lane_before_parser():
     assert traced["native_tool_call_used"] is True
 
 
-def test_engine_sanitizes_submit_poc_native_tool_history_without_mutating_result():
+def test_engine_projects_tool_model_summary_into_native_history_without_mutating_result():
     seen_messages: list[list[dict[str, Any]]] = []
 
     class _SubmitModel:
@@ -1040,6 +1040,7 @@ def test_engine_sanitizes_submit_poc_native_tool_history_without_mutating_result
             @tool(name="submit_poc")
             def submit_poc() -> dict[str, Any]:
                 return {
+                    "model_summary": "Submission accepted; verifier fields retained in the canonical result.",
                     "status": "success",
                     "vul_exit_code": 0,
                     "fix_exit_code": 0,
@@ -1074,7 +1075,8 @@ def test_engine_sanitizes_submit_poc_native_tool_history_without_mutating_result
     assert result.records[0].action_results[0].output["fix_exit_code"] == 0
     assert len(seen_messages) >= 2
     second_call_text = "\n".join(str(message) for message in seen_messages[1])
-    assert "wrong number of function inputs" in second_call_text
+    assert "Submission accepted" in second_call_text
+    assert "wrong number of function inputs" not in second_call_text
     assert "vul_exit_code" not in second_call_text
     assert "fix_exit_code" not in second_call_text
     assert "fix_stderr" not in second_call_text
@@ -1084,7 +1086,8 @@ def test_engine_sanitizes_submit_poc_native_tool_history_without_mutating_result
         e for e in result.events if getattr(e.phase, "value", e.phase) == "ACT"
     ]
     act_event_text = "\n".join(str(e.payload) for e in act_events)
-    assert "wrong number of function inputs" in act_event_text
+    assert "Submission accepted" in act_event_text
+    assert "wrong number of function inputs" not in act_event_text
     assert "vul_exit_code" not in act_event_text
     assert "fix_exit_code" not in act_event_text
     assert "fix_stderr" not in act_event_text

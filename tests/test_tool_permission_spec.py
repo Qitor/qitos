@@ -18,7 +18,7 @@ class TestToolPermissionSpec:
         assert spec.permissions == ToolPermission()
         assert spec.needs_approval is False
         assert spec.read_only is False
-        assert spec.concurrency_safe is False
+        assert spec.concurrency_safe is None  # tri-state: None = unspecified
         assert spec.required_ops == []
 
     def test_frozen(self) -> None:
