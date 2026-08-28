@@ -12,11 +12,12 @@ from concurrent.futures import (
     TimeoutError as FuturesTimeoutError,
     wait,
 )
-from typing import Any, Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING, cast
 
 from ..core.action import Action, ActionExecutionPolicy, ActionResult, ActionStatus
 from ..core.env import Env
 from ..core.interceptor import InterceptorChain, InterceptorContext
+from ..core.state import StateSchema
 from ..core.tool import (
     BaseTool,
     ToolPermissionContext,
@@ -575,7 +576,7 @@ class ActionExecutor:
         last_error = None
         tool_meta = self._tool_meta(action.name)
         runtime_context = self._build_runtime_context(action.name, env=env, state=state)
-        ordering_meta = {
+        ordering_meta: Dict[str, Any] = {
             "segment_index": segment_index,
             "started_at": started_at,
             "started": True,
@@ -1240,7 +1241,7 @@ class ActionExecutor:
             task="",
             step_id=step_id,
             phase=RuntimePhase.ACT,
-            state=active_state,
+            state=cast(StateSchema, active_state),
             tool_name=tool_name,
             tool_args=tool_args,
             tool_result=tool_result,

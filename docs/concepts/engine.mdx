@@ -60,6 +60,14 @@ engine = Engine(
   Prefer calling `agent.run()` for single-run workflows. Use `Engine` directly when you need to reuse an Engine across multiple runs or configure hooks dynamically between runs.
 </Tip>
 
+### Docker environment paths and variables
+
+`DockerEnv(container_env={...})` passes an explicit environment mapping when it
+creates a container. Relative filesystem paths resolve under the configured
+container workdir; absolute paths are interpreted as absolute paths inside the
+container. QitOS does not copy benchmark- or task-specific host environment
+variables implicitly.
+
 ## Protocol resolution
 
 `Engine` resolves the model protocol once per run using the following precedence:

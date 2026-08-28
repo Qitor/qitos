@@ -3,19 +3,15 @@
 from __future__ import annotations
 
 import asyncio
-import time
 from typing import Any, AsyncIterator, Generic, List, Optional, TypeVar
 
 from ..core.agent_module import AgentModule
-from ..core.decision import Decision
-from ..core.errors import StopReason
 from ..core.state import StateSchema
 from .engine import Engine, EngineResult
 from .events import EngineEvent, EngineEventType, EventStream
 from .hooks import HookContext
-from .states import ContextConfig, RuntimeBudget, RuntimeEvent, RuntimePhase, StepRecord
+from .states import RuntimeEvent, RuntimePhase, StepRecord
 from .stream.transformer import StreamTransformer, TransformerChain, TransformerOutput
-from ..models.base import ModelStreamChunk
 
 StateT = TypeVar("StateT", bound=StateSchema)
 ObservationT = TypeVar("ObservationT")
@@ -161,8 +157,6 @@ class AsyncEngine(Generic[StateT, ObservationT, ActionT]):
 
         if supports_streaming:
             # Use streaming model path
-            from .states import RuntimePhase
-
             def _run_stream() -> EngineResult[StateT]:
                 try:
                     return self._engine.run(task, **kwargs)
@@ -187,8 +181,9 @@ class AsyncEngine(Generic[StateT, ObservationT, ActionT]):
                         pass
         else:
             # Fallback: no streaming, just use arun_stream
-            async for event in self.arun_stream(task, **kwargs):
-                yield event
+            async for stream_item in self.arun_stream(task, **kwargs):
+                if isinstance(stream_item, EngineEvent):
+                    yield stream_item
 
 
 class _StreamBridgeHook:

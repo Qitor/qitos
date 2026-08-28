@@ -1,5 +1,12 @@
 # Batch 1 — Coding-Agent Task Instructions (first wave)
 
+Status: archived historical brief — do not dispatch
+
+Task 01 was closed on 2026-08-29. The authoritative capability ledger and
+verification gates are in `docs/v4/01-baseline-absorption.md`; Tasks 02–05 were
+redesigned after implementation review. This file is retained only to explain
+the original commit-by-commit rollout.
+
 How to use: each brief below is self-contained and can be pasted to a coding agent as one assignment. Recommended dispatch: Brief A first (it restores a trustworthy CI signal); after A merges, B, C, D are independent and can run in parallel. Each brief lands as its own small PR series. Repository-wide rules the agent must read first: root `AGENTS.md`, `docs/architecture/change-guide.md`, and the subpackage `AGENTS.md` relevant to the touched code.
 
 Verified baseline for this batch (2026-08-27, commit `4c4acdd`): `pytest -q` = **136 failed, 1630 passed, 10 collection errors**; `tests/test_architecture_boundaries.py` = 4/4 green.

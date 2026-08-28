@@ -1,62 +1,150 @@
-# Task 00 — Goal Definition & Acceptance Metric for the v4 Framework Round
+# v4 framework round — decisions, metrics, and delivery contract
 
-Status: agreed direction (this document is the acceptance anchor for Tasks 01–05)
-Position: sibling of `docs/internal/plans/cybergym_campaign_absorption.md` (v2) and `docs/internal/plans/v0.7_native_agent_kernel.md`
+Status: active acceptance anchor
+Updated: 2026-08-29
+Scope: Tasks 01–05 and engineering-quality Tasks 08–10
 
 ---
 
-## 1. The goal, stated precisely
+## 1. North star
 
-North star: with the new qitos, the Cyborg campaign agent (`cybergym_agent`, out-of-tree) can be rebuilt with drastically less code — excluding prompts.
+QitOS is a research-first agent framework: one domain-neutral
+`AgentModule + Engine` kernel that makes agent execution mechanisms reusable in
+the same way that a tensor/runtime framework makes learning mechanisms reusable.
 
-The literal reading ("reimplement cybergym_agent in 10% of its code") is **not achievable for the full agent** and must not be pursued as written: hitting it by LOC pressure would push domain strategy into the framework, violating the domain-neutrality invariant (AGENTS.md, absorption plan §1). The goal is therefore defined as two measurable acceptance metrics below.
+The CyberGym/Cyborg campaign is evidence, not product scope. We absorb mechanisms
+that can be described only with agent-execution vocabulary: state, observation,
+decision, action, tool, model, context, memory, artifact, trace, budget, hook,
+protocol, and experiment. Campaign strategy, vulnerability vocabulary, benchmark
+heuristics, and task-specific renderers remain out of tree.
 
-## 2. Baseline measurement (2026-08-27, `cybergym_agent` out-of-tree copy)
+## 2. What success means
 
-Python LOC, excluding tests and prompts: **50,872** total.
+The old “10% agent” target mixed code size and task performance and could be gamed
+by weakening the reference agent. v4 uses five independent gates instead.
 
-| Subsystem | LOC | Classification under v4 |
-|---|---|---|
-| `analysis/` (tree-sitter static analysis service) | 17,364 | domain — unchanged |
-| `tools/` | 11,067 | ~4,000 mechanism lines absorbed by Task 03; ~6,500 domain tools stay (submit/note/static), shrinking via framework card/render contracts |
-| `runtime/` (reducers, policy, history, tracing) | 7,719 | ~2,000 absorbed by Tasks 02/04/05 (messages, response normalization, history, context, tracing, token meter); reducers/policy are strategy and stay |
-| `scripts/` (ops tooling) | 5,205 | not agent implementation — excluded from the "agent proper" denominator |
-| `preflight/` (task bootstrap, harness discovery) | 3,683 | domain — small reuse of framework tools |
-| `benchmark/` (adapter, runner, environment) | 1,922 | shrinks to ~700 via entry-point seam (Task 01 / absorption WS8) |
-| `domain/` + `knowledge/` (state models, plans, ontology) | 2,176 | domain — unchanged |
-| `agent.py`, `cli.py`, `__main__.py` | 1,007 | shrinks to ~400 via AgentModule hooks + prompt resources |
-| `offline_eval/` | 621 | mostly replaced by Task 05 export/qita tooling |
+### Gate A — mechanism removal on the same agent
 
-Derived figures: eliminable mechanism code ≈ **10,000–11,000 LOC**; faithful reimplementation floor ≈ **38,000–40,000 LOC (75–80% of the full repo)**; "agent proper" denominator (excluding `analysis/` + `scripts/`) = **28,300 LOC**, floor ≈ **55–60%**.
+For each completed task, audit the out-of-tree campaign agent before and after
+adoption. Record the framework glue removed by category and its LOC. Compare the
+same agent, prompts, task subset, model, and runtime settings. Performance must
+remain within a predeclared non-inferiority band.
 
-## 3. Acceptance metrics
+Categories tracked by v4:
 
-### Metric A — Mechanism-zero (hard gate, per merged task)
+- provider message/reasoning assembly;
+- parallel tool-batch bookkeeping;
+- tool validation, recovery, projection, pagination, and output budgets;
+- control-context injection and transaction-safe compaction;
+- artifact externalization and trajectory plumbing.
 
-**The agent repository contains zero lines that exist because the framework lacked a feature.** Operationally, after Tasks 01–05 land, none of the following may appear in the out-of-tree agent:
+### Gate B — a second independent consumer
 
-- `validate_input` no-op bypasses (replaced by Task 03 soft-validation contract);
-- hand-rolled card envelopes, truncation/pagination/budget logic (Task 03 budgets + next_action);
-- hand-rolled message assembly, decision-response normalization, reasoning handling (Task 02);
-- hand-rolled history/compaction/context survival management (Task 04);
-- hand-rolled tracing/telemetry plumbing (Task 05 canonical store);
-- tool concurrency whitelists or token metering reimplementations (Task 01 adjudication + budgets).
+Every new core contract must be exercised by the campaign agent and at least one
+unrelated agent, example, or protocol fixture. A single consumer is insufficient
+evidence for promotion into `qitos.core`.
 
-Check: a dated audit note in the agent repo listing the removed categories with before/after LOC, reviewed alongside the corresponding v4 task's acceptance list.
+### Gate C — model protocol conformance
 
-### Metric B — The 10% reference agent (demonstration, shipped as an example)
+Offline fixtures cover OpenAI Chat Completions, OpenAI Responses, Anthropic, and
+Gemini/GLM-compatible paths. Opt-in `e2e` tests cover live endpoints when keys are
+available. Conformance includes multimodal content, ordered tool calls/results,
+reasoning continuation, steering boundaries, and explicit loss reports.
 
-A **reference reimplementation** of a CyberGym-class agent built purely on new qitos: `coding_toolset()` + a domain submit tool + a minimal state machine + prompts. Target: **≤ 2,800 LOC (≤10% of the 28,300 "agent proper" baseline)**, shipped under `examples/` (framework repo) or the agent monorepo with a CI-run smoke.
+### Gate D — replay and storage correctness
 
-Performance anchor (prevents the number from being gamed by gutting capability): on an agreed fixed task subset, the reference agent must reach **≥50% of the full agent's pass rate** — the exact subset and full-agent score are recorded in this file when Metric B work starts (baseline first, then build).
+The canonical QitOS format must round-trip losslessly. Exporters to external
+training formats declare their version and any information they drop. Storage
+size targets come from a committed benchmark against representative runs; v4
+does not pre-commit to an arbitrary compression ratio.
 
-### Non-goals (guardrails)
+### Gate E — framework quality
 
-- No domain vocabulary, strategy code, or benchmark-specific logic enters `qitos/` to improve either metric (neutrality grep in absorption plan §9 stays a merge gate).
-- The full campaign agent's strategy core (analysis, reducers, domain tools) is expected to remain large; shrinking it is research work, not framework work.
+Each merge keeps the full test suite, architecture boundaries, stable-surface
+flake8, and stable-surface mypy green. New public APIs include compatibility and
+migration tests. Task 08 adds a repository-wide no-regression ratchet so the
+stable-surface gate cannot be mistaken for whole-package coverage. No task is
+complete while its status document disagrees with the code.
 
-## 4. Anchoring
+## 3. Demonstration metric
 
-- Tasks 01–05 each close part of Metric A; their acceptance lists are the decomposition of §3A.
-- Metric B becomes executable after Tasks 02+03 land; schedule it as the capstone of this round (P2/P3).
-- Progress reporting uses two numbers only: "mechanism LOC removed from the agent repo" and "reference agent LOC / pass-rate anchor". Do not report raw framework LOC growth.
+A compact coding-agent example remains a developer-experience smoke test. Target:
+roughly 50–100 lines excluding prompts and configuration, using the public
+coding-toolset factory and no private Engine helpers. It is not a substitute for
+the five gates above and has no standalone pass-rate target.
+
+## 4. Architecture decisions fixed for this round
+
+1. Conversation state has three layers: persistent `ExchangeLog`, ephemeral
+   `RequestView`, and provider-owned codecs/continuation state.
+2. Parallel actions use the existing `Decision.actions` and ActionExecutor path;
+   v4 validates and completes it rather than introducing a second scheduler.
+3. ACI upgrades the existing `qitos.kit.tool` and `qitos.kit.toolset` hierarchy.
+   There is no `qitos.kit.aci` parallel package.
+4. Human steering, control context, semantic memory, and artifact storage are
+   distinct concepts with distinct lifetimes.
+5. QitOS owns a lossless canonical trajectory format. OpenAI, Hermes, ShareGPT,
+   and ms-swift shapes are versioned exporters, never the storage schema.
+6. `qitos/trace` v1 stays readable throughout v4. Migration is dual-read or
+   dual-write until parity is demonstrated.
+
+## 5. Delivery sequence
+
+```text
+Task 01 baseline ──→ Task 02 model I/O ──→ Task 04 context/artifacts ──→ Task 05 trajectories
+        └─────────→ Task 03 tool outcomes ────────────────┘
+
+        └─────────→ Task 08 quality gates ──→ Task 09 lifecycle/errors
+                                      Tasks 02–05 + 08–09 ──→ Task 10 consolidation
+```
+
+Task 02 and Task 03 may proceed independently after Task 01. Task 04 depends on
+their contracts. Task 05 depends on the exchange and artifact schemas. Task 08
+can start immediately; its first ratchet should land before large implementation
+diffs. Task 09 coordinates semantic changes with Tasks 02, 03, and 05. Task 10
+collects usage evidence early but removes or consolidates surfaces only after
+their canonical replacements are proven.
+
+The authoritative multi-agent dispatch and merge sequence is
+[`11-four-lane-execution-playbook.md`](11-four-lane-execution-playbook.md). It
+organizes these source tasks into four ownership lanes, four merge waves, and
+four evidence gates; it does not replace the task-level contracts.
+
+## 6. Coding-agent working contract
+
+Each task below is an executable specification. A coding agent must:
+
+1. read root and nested `AGENTS.md` files before editing;
+2. create or update the matching implementation plan under
+   `docs/internal/plans/` when the work spans multiple PRs;
+3. deliver the listed work packages in order, one reviewable PR per package;
+4. update the task document's evidence table after every merged package;
+5. run the task-specific checks plus the repository verification gates;
+6. stop at an explicit decision gate instead of inventing a new public API;
+7. keep CHANGELOG, README, user docs, examples, and EN/zh pages synchronized.
+
+## 7. Progress reporting
+
+Report only evidence-backed numbers:
+
+- mechanism LOC removed from the same out-of-tree agent;
+- provider conformance cases passed;
+- canonical replay invariants passed and exporter losses declared;
+- measured storage bytes before/after;
+- full tests, boundary tests, lint, and typing status.
+
+Do not report framework LOC growth or cherry-picked commit ancestry as progress.
+
+## 8. Four-lane dispatch rule
+
+When more than one coding agent is active, assign work through the four-lane
+playbook:
+
+- Lane A owns quality/release trust;
+- Lane B owns conversation/providers/context;
+- Lane C owns tool execution/runtime safety;
+- Lane D owns trajectories/observability/convergence.
+
+Cross-cutting Task 09 and Task 10 work returns to its semantic lane. No agent may
+create a parallel abstraction merely to avoid a shared-file lease or contract
+handoff.

@@ -26,10 +26,10 @@ class FakeMCPServer(MCPServer):
     def name(self) -> str:
         return self._name
 
-    def connect(self) -> None:
+    async def connect(self) -> None:
         self.connected = True
 
-    def cleanup(self) -> None:
+    async def cleanup(self) -> None:
         self.cleaned_up = True
 
     async def list_tools(self) -> list[MCPToolInfo]:

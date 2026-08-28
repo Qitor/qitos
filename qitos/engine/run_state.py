@@ -12,9 +12,9 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import Any, Callable, Dict, List, Optional, cast
 
-from ..core.state import StateSchema, StateMigrationError
+from ..core.state import StateMigrationError
 
 # ---------------------------------------------------------------------------
 # Schema versioning
@@ -107,7 +107,7 @@ class RunState:
             records=records,
             events=events,
             checkpoint_id=checkpoint_id,
-            budget=asdict(getattr(result, "budget", {}))
+            budget=asdict(cast(Any, getattr(result, "budget", {})))
             if hasattr(getattr(result, "budget", None), "__dataclass_fields__")
             else {},
             token_usage=getattr(result, "total_tokens", 0),

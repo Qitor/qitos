@@ -1,5 +1,12 @@
 # Batch 2 — Coding-Agent Task Instructions (Batch M / X / Y)
 
+Status: archived historical brief — do not dispatch
+
+Task 01 was closed on 2026-08-29. Use
+`docs/v4/01-baseline-absorption.md` for the final ledger and the rewritten
+Tasks 02–05 for new coding-agent assignments. This file preserves the original
+absorption instructions for forensic context only.
+
 Follows `docs/v4/06-batch-1-instructions.md` (all landed on main as of `adf179f`: green baseline 1652 passed, harness↔models decycled, kit→benchmark edge removed, Batch E engine fixes absorbed).
 
 Dispatch order: **Brief M first**; after M merges, **Brief X and Brief Y in parallel** (both touch `qitos/models/openai.py` or `_model_runtime.py` regions M may have changed; landing M first avoids conflicts). Brief E′ (test isolation, carried over) can run anytime.

@@ -929,6 +929,7 @@ def __init__(
     temperature: float = 0.7,
     max_tokens: int = 2048,
     timeout: int = 60,
+    default_headers: Optional[Dict[str, str]] = None,
 )
 ```
 
@@ -941,6 +942,7 @@ def __init__(
 | `temperature` | `0.7` | Sampling temperature |
 | `max_tokens` | `2048` | Maximum tokens in the response |
 | `timeout` | `60` | Request timeout in seconds |
+| `default_headers` | `None` | Explicit HTTP headers applied to every client request; values are caller-owned and are not inferred from task-specific environment variables |
 
 **Usage**
 

@@ -7,7 +7,7 @@ Three built-in reducer semantics: Append, Replace, Ephemeral.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable, List
+from typing import Any, Callable
 
 ReducerFn = Callable[[Any, Any], Any]  # (current, update) -> new_value
 
@@ -22,13 +22,13 @@ class Append:
 
     def __call__(self, current: Any, update: Any) -> Any:
         if isinstance(current, list) and isinstance(update, list):
-            result = list(current)
-            result.extend(update)
-            return result
+            list_result = list(current)
+            list_result.extend(update)
+            return list_result
         if isinstance(current, dict) and isinstance(update, dict):
-            result = dict(current)
-            result.update(update)
-            return result
+            dict_result = dict(current)
+            dict_result.update(update)
+            return dict_result
         # Fallback: replace if types don't match append semantics
         return update
 

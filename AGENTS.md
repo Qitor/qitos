@@ -115,4 +115,6 @@ Every meaningful change updates, in the same task:
 - `docs/architecture/module-boundaries.md` — boundary matrix + dependency graph + current violations
 - `docs/architecture/change-guide.md` — task-oriented change navigation
 - `docs/architecture/architecture-debt.md` — P0/P1/P2 debt inventory
+- `docs/engineering-quality-audit.md` — implementation quality, lifecycle, dependency, and test findings
+- `docs/v4/11-four-lane-execution-playbook.md` — four-lane ownership, dispatch, handoff, and merge gates
 - `docs/internal/plans/` — active plans (incl. v0.7 native agent kernel and `docs/v4/` tasks)

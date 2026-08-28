@@ -1,6 +1,11 @@
 # Architecture Debt
 
-Classified inventory of structural debt recovered by the [architecture audit](architecture-audit.md). Recorded, not fixed: this list is the input queue for future refactors (see `docs/internal/plans/v0.7_native_agent_kernel.md` and `docs/v4/` for the already-planned kernel work).
+Classified inventory of structural debt recovered by the
+[architecture audit](architecture-audit.md) and the
+[engineering-quality audit](../engineering-quality-audit.md). Recorded, not
+fixed: this list is the input queue for future refactors (see
+`docs/internal/plans/v0.7_native_agent_kernel.md` and `docs/v4/` for the active
+kernel and quality work).
 
 Legend: **P0** structural risk (blocks refactors / can break imports), **P1** important architecture debt (confuses agents and maintainers, grows entropy), **P2** local cleanup.
 
@@ -30,6 +35,16 @@ Legend: **P0** structural risk (blocks refactors / can break imports), **P1** im
 - Resolved by moving the concrete adapter layer out of harness: `OpenAICompatibleAdapter`, `adapter_for_kind`, `resolve_context_window`, and `build_model_for_preset` now live in `qitos/models/harness_adapter.py`; harness keeps preset data, policy types, and `build_harness_policy` (transport-free). The only remaining edge is the target-direction `models -> harness`.
 - D7 (harness naming) remains open and can proceed independently.
 
+### D23. Whole-package quality is outside the required lint/type signal
+- Where: CI and pre-commit check only `core`, `engine`, `models`, and `trace`; `pyproject.toml` excludes or ignores broad kit/render/benchmark surfaces. The 2026-08-29 full diagnostic found 204 flake8 findings and 48 mypy errors, including correctness-class findings.
+- Why P0: a green required check can coexist with undefined runtime names and invalid public overrides in the shipped package.
+- Exit: `docs/v4/08-quality-gates-and-packaging.md` establishes a full-surface no-regression baseline, preserves stable zero-error jobs, and retires debt package by package.
+
+### D24. Runtime success, timeout, and durability receipts are not trustworthy
+- Where: provider adapters return transport failures as text; ASYNC checkpointing returns intended IDs after queue drop and swallows worker errors; tool thread timeouts can leave workers running; hooks fail silently.
+- Why P0: callers cannot distinguish model output from infrastructure failure, timeout from cancellation, accepted from persisted work, or complete from degraded observability.
+- Exit: `docs/v4/09-runtime-lifecycle-and-error-semantics.md`, coordinated with Tasks 02, 03, and 05, defines typed failures, resource ownership, checkpoint receipts, and hook completeness.
+
 ## P1 — Important architecture debt
 
 ### D6. Benchmark-specific code inside `kit` — RESOLVED
@@ -58,6 +73,36 @@ Legend: **P0** structural risk (blocks refactors / can break imports), **P1** im
 - `engine/_trace_runtime.py:422` `dispatch_hook` swallows all hook exceptions with a debug log. Observability hooks failing invisibly undermines the observability contract.
 - Fix: count failures into the run result/trace event, or make strictness configurable.
 
+### D25. `Observation` and action outcomes have competing representations
+- `Observation` is both a mutable dataclass and `dict`, synchronized only at construction. `ActionResult` has five terminal states and execution identity while `ToolResult` collapses to success/error and legacy-flattens outputs.
+- Risk: reducers, history, traces, and renderers can observe divergent or lossy state.
+- Exit: Task 03 owns one lossless action outcome; Task 10 replaces dual-state `Observation` after Tasks 02/03 stabilize compatibility projections.
+
+### D26. Request control uses duplicated token and JSON-repair policies
+- Seven `_estimate_tokens` implementations use provider counts, word counts, character heuristics, or renderer regexes. Generic and protocol-specific JSON salvage is interleaved across core, parsers, evaluators, and REPL code.
+- Risk: budget/compaction decisions and parse diagnostics vary by entry point.
+- Exit: Tasks 02/04 establish a labeled token-counter capability and layered JSON parsing; Task 10 removes superseded helpers.
+
+### D27. Optional dependencies do not match advertised feature behavior
+- MCP HTTP, local embeddings, cron, PDF/notebook helpers, and pgvector drivers are not represented consistently in extras. Cron can accept inert jobs; PgVectorStore checks asyncpg but executes through psycopg2.
+- Risk: clean installations fail late or silently degrade, and the `all` extra is not actually comprehensive.
+- Exit: Task 08C owns the feature/extra matrix, isolated install smoke, and PEP 621 migration; Task 10 decides unsupported surfaces.
+
+### D28. MCP transport/session protocol is maintained in-framework
+- `qitos.mcp.stdio/http` manually own JSON-RPC, protocol negotiation, request correlation, transport, and cleanup while an official Python SDK provides these facilities.
+- Risk: protocol and lifecycle drift consume maintenance without differentiating QitOS.
+- Exit: Task 09F runs a pinned parity spike; Task 10 adopts or explicitly defers the SDK behind the existing QitOS tool bridge.
+
+### D29. Engine construction has multiple composition roots
+- `Engine` has a 33-argument constructor; `AgentModule._merge_run_defaults` constructs concrete env/trace/render/parser objects through reverse lazy imports; `config/builder.py` is another assembly path; `EngineConfig` is not the construction contract.
+- Risk: private protocols mirror shared mutable state and new mechanisms land in oversized owners.
+- Exit: Task 02 establishes one typed composition root while keeping Engine as the public façade; do not add manager wrappers over the same mutable Engine.
+
+### D30. qita route/data/render ownership is untested and monolithic
+- `_cli_app.py` is ~3,420 lines; the fork POST route references an undefined variable, while tests assert handler existence and HTML substrings rather than executing the route.
+- Risk: user-facing behavior can be broken under a green suite; large embedded renderers make isolated change difficult.
+- Exit: Task 08D adds route integration coverage; Task 10E splits only along proven route/data/render seams.
+
 ## P2 — Local cleanup
 
 - **D13** `cli.py` inlines `known_benchmarks` and `gold_ids` preset set instead of sourcing from `benchmark/runner.py` / `harness/_presets.py`; duplicated `--help` registration blocks.
@@ -70,9 +115,12 @@ Legend: **P0** structural risk (blocks refactors / can break imports), **P1** im
 - **D20** `kit/__init__.py` lazy-export machinery still eagerly imports `.tool`/`.toolset`; the laziness is cosmetic.
 - **D21** `func` package is unused inside qitos and referenced only by one test — decide: document as public sugar or mark experimental.
 - **D22** `leaderboard`/`hf` are operational features living in the core repo; candidates for out-of-tree tooling per the zoo policy.
+- **D31** `func`, CronScheduler, and PgVectorStore expose incomplete promises (inert retry/timeout knobs, ownerless executors, silent scheduler degradation, driver mismatch). Task 10 must complete, experimentalize, move, or deprecate them using consumer evidence.
 
 ## Explicit non-goals for debt cleanup
 
 - No big-bone rewrites of the engine loop outside the already-planned v0.7 tasks.
 - No renaming of public API surface (`qitos.core`/`qitos.engine` names stay).
 - No removal of the v1 trace format before the trajectory data plane (v4/05) lands a versioned replacement.
+- No repository-wide mechanical lint/type cleanup in the same PR as runtime behavior changes; Task 08 uses a ratchet.
+- No generic `utils.py`/`common.py`; consolidation follows a named contract owner.

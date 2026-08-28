@@ -5,6 +5,8 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Dict
 
+from .models import SpanData
+
 
 class TracingMode(str, Enum):
     """Controls the verbosity and behaviour of the tracing system.
@@ -44,7 +46,7 @@ _REDACTED_FIELDS = frozenset(
 _REDACTED_MARKER = "__redacted__"
 
 
-class RedactingSpanData:
+class RedactingSpanData(SpanData):
     """Wrapper that redacts sensitive fields when *export()* is called.
 
     This is used internally by the provider when the tracing mode is

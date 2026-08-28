@@ -1,125 +1,170 @@
-# Task 05 — Trajectory Data Plane & Observability Generalization
+# Task 05 — trajectory store v2 and observability migration
 
-Status: actionable design
-Parents: `docs/internal/plans/v0.7_native_agent_kernel.md` §5 (Pillar E); absorption plan WS5
-Depends on: Task 01 (canonical trace commit 4b8c8a0 base, error reporting); Task 02 (canonical turns are the export unit)
-Milestone: P1–P2
-
-Reference implementation: `origin/codex/x3-tool-contract` commit 4b8c8a0 (`qitos/trace/canonical.py`, `qitos/trace/export.py`, `TraceStorageConfig`) and the qita workbench commit 85a8099 (`qita/_cli_app.py` step_interactions/insights + `tests/test_qita_cli.py`).
+Status: design approved; implementation waits for Tasks 02 and 04 schemas
+Depends on: Task 02 exchanges; Task 04 artifacts
+Milestone: final v4 data-plane migration
+Risk: high — frozen v1 compatibility, replay, and research data fidelity
 
 ---
 
 ## 1. Goal
 
-One **canonical, space-efficient trajectory store** that is the single source of truth for replay, debugging (qita), and training-data production (SFT/distill), with exporters aligned to the formats the ecosystem actually consumes. Plus the observability generalization that decontaminates the campaign's qita/TUI work.
+Create one lossless, space-efficient QitOS trajectory source for replay,
+debugging, and dataset production while preserving the frozen `qitos/trace` v1
+contract during migration. External ecosystem formats are versioned views of the
+canonical data.
 
-Why it matters: the research loop is *run agents → collect trajectories → analyze/train*. A framework in the PyTorch position must treat trajectory storage as its DataLoader-equivalent: canonical, deduplicated, compressed, exportable.
+## 2. Migration rule
 
-## 2. Scope
+`qitos/trace` v1 (`manifest.json`, `events.jsonl`, `steps.jsonl`) remains readable
+and supported throughout v4. `qitos/tracing` spans and renderer JSONL are current
+separate planes; Task 05 must inventory them before consolidation.
 
-In: canonical store hardening (compression, dedup ratios, index); exporters (OpenAI messages, ShareGPT, ms-swift); redaction everywhere; qita reads the store; workbench plugin-signals extraction; declared render sections (generic replacement for campaign's constraint-board TUI blocks); truncation-default rollback.
+The migration order is:
 
-Out: analysis/leaderboarding (existing modules untouched); any domain-specific signal logic (moves to cybergym-agent as a plugin); otel/Letta exporters (noted as extensions).
+1. define v2 schema and lossless reader/writer;
+2. add v1-to-v2 adapter and qita dual-read;
+3. optionally dual-write representative runs;
+4. prove replay/export/size parity;
+5. select v2 as the default for new runs;
+6. discuss v1 write deprecation in a later release.
 
-## 3. Canonical store (base: 4b8c8a0, extended)
+No existing reader is pointed at a new layout without an adapter.
 
-Layout per run:
+## 3. Canonical data model
 
-```
-runs/<run_id>/
-  manifest.jsonl        # append-only turn records (references by hash)
-  blobs/<sha256>        # content-addressed payloads (messages, tool schemas, raw outputs), zstd-compressed
-  index.sqlite          # optional query index (built lazily)
-  meta.json             # run_id, git sha, config snapshot pointer, schema, stats
-```
+The v2 store contains:
 
-Mechanics (keep from campaign commit, then extend):
-- `TRAJECTORY_SCHEMA = "qitos.trajectory.v1"`: append-only; every message/tool-schema stored once, referenced by hash; turn records reference hashes + roles + timings. With Task 02, the canonical turn model is the record unit (assistant turns with N tool calls + batched results stay atomic).
-- **Add zstd** compression for blobs (`compression: "zstd"` in meta; stdlib-adjacent via `zstandard`, already a candidate dep — justify in pyproject).
-- **Add stats**: dedup ratio, compressed bytes, per-step model-visible chars vs stored chars (the budget/telemetry numbers researchers actually want).
-- TraceWriter `TraceStorageConfig`: `capture_debug_artifacts` stays opt-in; `flush_every` stays; add `compression`, `index` toggles.
-- `safe_projection` redaction (keys/bearers/hosts/tokens) runs on **every export path** — no exporter may bypass it (test-enforced).
+- run metadata and versioned configuration references;
+- ordered lifecycle/runtime events;
+- Task 02 exchange transactions and provider continuation attachments;
+- step/phase/run correlation IDs;
+- canonical Task 03 tool outcomes;
+- Task 04 content-addressed artifacts;
+- compaction and codec reports;
+- schema version, writer version, integrity hashes, and privacy policy.
 
-Acceptance target: ≥10× smaller than naive per-step JSON dumps on a real campaign run (dedup + zstd), measured by a scripted benchmark committed under `scripts/`.
+Large repeated payloads are stored once by digest. Canonical records reference
+them. A SQLite/search index, if added, is derived and rebuildable; it is never
+the canonical truth.
 
-## 4. Exporters — `qitos/trace/export.py`
+## 4. Privacy and fidelity
 
-| Exporter | Shape | Consumer |
-|---|---|---|
-| `openai_record(run)` | native OpenAI messages + tools schema, transaction manifest | universal analysis/replay; OpenAI-ecosystem tooling |
-| `sharegpt_record(run)` | ShareGPT JSONL (`conversations` with `from`/`value`, tool calls embedded) | Hermes/Axolotl-style SFT pipelines |
-| `swift_record(run)` | ms-swift roles + loss-mask flags | ms-swift training |
+Private raw capture and public/redacted export are separate policies.
 
-Rules:
-- Export from the canonical store only (never from live objects) — replay parity by construction.
-- Round-trip tests per exporter: `store → export → reimport → identical turns`.
-- Loss-masking policy (swift) is explicit and tested: mask tool results/system unless configured otherwise.
-- Multi-action turns export faithfully (N calls + N results in one assistant block — the native shape trainers expect).
+- Ingest-time destruction is opt-in because it prevents exact replay.
+- At-rest encryption or raw-data prohibition can be selected for sensitive runs.
+- Default public/qita/export views apply `safe_projection` and secret redaction.
+- Provider-encrypted reasoning payloads remain opaque and are never displayed.
+- Every exporter emits a loss report and privacy-policy identifier.
 
-## 5. qita workbench generalization (decontaminate 85a8099)
+## 5. Versioned exporters
 
-- Land the workbench mechanics: `step_interactions` causal pairing (action↔result by `action_id`/order, environment results separated, unmatched evidence bucket), `_build_step_summaries/_build_tool_stats/_build_phase_stats`, insights flag priority, inspector tabs, themes, Focus Navigator, mobile CSS; port `tests/test_qita_cli.py`.
-- **Extract domain signals into a plugin seam**:
+Initial exporter IDs:
 
-```python
-# qitos/qita/signals.py
-class SignalsPlugin(Protocol):
-    benchmark: str                       # registration key
-    def signals(self, state_diff: dict) -> dict        # neutral: typed key/values
-    def focus(self, run: CanonicalRun) -> FocusView | None
-# registration: entry_points(group="qitos.qita.signals") or explicit registry
-```
+- `qitos_canonical_v2` — exact round-trip;
+- `openai_chat_v1` — normalized chat/tool messages;
+- `openai_responses_items_v1` — heterogeneous Responses items;
+- `ms_swift_agent_v1` — documented ms-swift role/tool convention;
+- `hermes_sharegpt_v1` — documented Hermes normalization convention.
 
-  The campaign's `_cybergym_signals`/`_build_cybergym_focus` move to cybergym-agent under this interface; the built-in flag set keeps only neutral flags (parser_error, tool_or_event_error, critic_stop, model_error, unrecoverable_error…).
-- qita `board`/`replay`/`export` read the canonical store directly; replay becomes a deterministic manifest rebuild.
+Only canonical/native formats promise exact re-import. Lossy exporters declare
+which invariants survive: user/assistant text, call names/arguments, call-result
+correlation, reasoning summaries, multimodal refs, timestamps, or metadata.
 
-## 6. Declared render sections (replace campaign TUI blocks)
+## 6. Compression and size measurement
 
-- The campaign hardcoded Constraint Board / Task Memory / Sink Candidates rendering + `_tui_*` metadata plumbing into `_model_runtime._state_stats` and `render/_hooks_impl.py`. Replace with:
+First commit a benchmark that compares:
 
-```python
-# agent side (any AgentModule):
-def render_sections(self, state) -> Iterable[RenderSection]   # {title, lines, hints: {token: color}}
-# framework side: renders blindly, no vocabulary knowledge
-```
+- current v1 bytes;
+- naive repeated JSON bytes;
+- v2 references with no compression;
+- optional gzip/zstd variants when dependencies are available.
 
-- `RenderSection` lines are plain text; optional `hints` map substrings to semantic colors (the campaign's FIRST BLOCKER/refuted/confirmed coloring generalized).
-- TUI hook renders declared sections; per-task log file via TeeConsole stays (d2ee976). Phase badges: user-declared phase strings with a default color wheel (replaces the five hardcoded campaign phases).
-- AC: constraint-board-identical output reproducible from cybergym-agent with zero CyberGym terms in qitos source.
+The benchmark uses at least one long campaign run and one unrelated agent run.
+Adopt zstd only if measured benefit justifies the optional compiled dependency.
+The format records the actual compression algorithm and supports a safe fallback.
 
-## 7. Truncation-default rollback
+## 7. qita and render migration
 
-Revert debug-era inflation to configured defaults with explicit knobs (absorption plan §9): `parser_raw_preview` 50000→500 (knob `QITOS_PARSER_PREVIEW`), renderer body caps 50000→2000/20000 tiered, `cli_render` 200000→20000, hooks `max_preview_chars` 50000→800. Deep-debug profiles set knobs via config, not source edits.
+qita first gains a storage-reader interface and v1/v2 implementations. UI or
+signal generalization follows only after data parity.
 
-## 8. Implementation steps
+- domain-specific signal extractors remain in the owning agent package;
+- qita accepts typed, vocabulary-free signal providers;
+- Engine emits generic diagnostic events instead of returning render types from
+  `AgentModule` or core;
+- renderer extensions live in render/qita, avoiding core-to-render coupling;
+- truncation/detail levels are named knobs with conservative defaults.
 
-1. Land 4b8c8a0 base (from Task 01 batch or direct if not already) + zstd + stats + `scripts/benchmark_store_size.py`.
-2. Exporters + round-trip/redaction suites.
-3. qita store-backed reads + workbench mechanics port + signals plugin seam (neutral flags only).
-4. Declared render sections + TeeConsole retention + phase color wheel; port multi-action render from Task 01 picks.
-5. Truncation rollback sweep + knob docs.
-6. Docs: `docs/guides/observability.mdx` major update (canonical store, exporters with format examples, signals plugins, declared sections); `docs/zh` mirrors; CHANGELOG wave 2/3.
+Task 05 does not rewrite the whole qita CLI in the same PR as the store.
+
+## 8. Work packages
+
+### 05A — schema, benchmark, and decision record
+
+- Inventory all current event/artifact paths and readers.
+- Freeze v2 schemas and privacy modes with fixtures.
+- Commit the storage-size benchmark before choosing compression/index features.
+
+### 05B — store, artifacts, and v1 bridge
+
+- Implement atomic writer/reader and integrity validation.
+- Reuse Task 04 ArtifactStore rather than creating a trace-only blob store.
+- Add v1 import and optional dual-write parity fixtures.
+
+### 05C — exporters and loss reports
+
+- Implement canonical and OpenAI exporters first.
+- Add ms-swift and Hermes adapters from their documented conventions.
+- Add exact canonical re-import and invariant-based lossy re-import tests.
+
+### 05D — qita dual-read
+
+- Introduce the reader interface behind board/replay/export.
+- Run existing qita tests against both v1 and v2 fixtures.
+- Preserve URLs/CLI output unless a separately documented migration is needed.
+
+### 05E — observability extensions and default rollout
+
+- Add generic signal/diagnostic extension seams outside core.
+- Benchmark query and render behavior.
+- Make v2 the default only after parity, migration docs, and release review.
 
 ## 9. Acceptance criteria
 
-- [ ] Size benchmark: ≥10× vs naive dumps on the reference run; report committed.
-- [ ] Round-trip tests green for all three exporters; redaction suite green and enforced (exporter bypass attempt fails a test).
-- [ ] qita works end-to-end from the store: board, replay (deterministic rebuild), export.
-- [ ] `grep -rniE 'cybergym|_cybergym_signals|sink|constraint.?board' qitos/qita qitos/render qitos/engine` → zero hits; signals logic lives behind the plugin seam.
-- [ ] Truncation defaults restored; every former debug inflation is a documented knob.
-- [ ] A campaign-format run replays identically before/after generalization (fixture from the x3 branch).
+- [ ] Canonical v2 write/read/re-import preserves all declared exchange, event,
+  outcome, artifact, and correlation fields.
+- [ ] Existing v1 fixtures remain readable by qita and replay.
+- [ ] Dual-write/import parity is demonstrated on representative runs.
+- [ ] Every external exporter has a version and machine-readable loss report.
+- [ ] Raw private data and redacted export views are tested separately.
+- [ ] Integrity failures and missing blobs produce typed diagnostics.
+- [ ] Size claims come from the committed benchmark and include both consumers.
+- [ ] qita board/replay/export tests run against v1 and v2.
+- [ ] No domain vocabulary or render dependency enters core/engine.
 
 ## 10. Verification
 
 ```bash
-pytest -q tests/trace/test_canonical.py tests/trace/test_export.py tests/test_qita_cli.py tests/render/test_declared_sections.py
-python scripts/benchmark_store_size.py --run <reference-run>
+pytest -q tests/trace tests/tracing
+pytest -q tests/qita tests/test_qita_cli.py
+python scripts/benchmark_trajectory_store.py --fixture tests/fixtures/trajectories
 pytest -q
-flake8 qitos/trace qitos/qita qitos/render && mypy qitos/trace qitos/qita qitos/render
+flake8 qitos/core qitos/engine qitos/trace qitos/tracing qitos/qita qitos/render
+mypy qitos/core qitos/engine qitos/trace qitos/tracing qitos/qita qitos/render
 ```
 
-## 11. Risks / open questions
+If qita/render are not yet fully typed, the implementing plan must first state
+and mechanically enforce a shrinking baseline; it may not silently omit them.
 
-- Q: zstd dependency — `zstandard` is a compiled dep; if unacceptable, ship optional extra (`qitos[trajectory]`) with gzip fallback and keep the format field honest.
-- Q: ShareGPT tool-call encoding is not formally standardized — document the exact convention we emit (assistant `tool_calls` JSON in `value`, tool role records) and version it in the exporter, not the store.
-- Risk: signals plugin seam could become a domain backdoor — the neutrality grep gate (absorption §9) covers qita/render; keep plugin interface typed and vocabulary-free.
+## 11. Stop-and-escalate decisions
+
+Stop for review before:
+
+- changing or deleting the v1 on-disk contract;
+- redacting canonical raw data irreversibly by default;
+- adding SQLite as canonical state;
+- requiring zstd without benchmark and fallback evidence;
+- claiming exact round-trip for a lossy external format;
+- coupling `qitos.core` or `qitos.engine` to qita/render types.

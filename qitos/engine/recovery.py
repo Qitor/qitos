@@ -129,11 +129,10 @@ class RecoveryPolicy:
         self._last_step_id = step_id
 
         global_limit_exhausted = self._recoveries > self.max_recoveries_per_run
-        scoped_limit_exhausted = (
-            has_scoped_limit
-            and has_scoped_key
-            and self._scoped_recoveries > scoped_limit
-        )
+        scoped_limit_exhausted = False
+        if has_scoped_limit and has_scoped_key:
+            assert isinstance(scoped_limit, int)
+            scoped_limit_exhausted = self._scoped_recoveries > scoped_limit
         if global_limit_exhausted or scoped_limit_exhausted:
             self.tracker.add(info, recommendation, decision="stop")
             return RecoveryDecision(

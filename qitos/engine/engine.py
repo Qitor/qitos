@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 import logging
 import os
 import sys
 import time
 import traceback
 from collections.abc import Mapping
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar
+from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar, cast
 from uuid import uuid4
 
 _logger = logging.getLogger("qitos.engine")
@@ -68,6 +71,20 @@ ObservationT = TypeVar("ObservationT")
 ActionT = TypeVar("ActionT")
 
 RecoveryHandler = Callable[[StateT, RuntimePhase, Exception], None]
+
+
+def _resolve_awaitable(value: Any) -> Any:
+    """Resolve an optional awaitable at the synchronous Engine boundary."""
+    if not inspect.isawaitable(value):
+        return value
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if loop is not None and loop.is_running():
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, cast(Any, value)).result()
+    return asyncio.run(cast(Any, value))
 
 
 class _EngineWindowHistory(History):
@@ -398,7 +415,9 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             _ControlRuntime(self)
         )
         self._trace_runtime: _TraceRuntime[StateT] = _TraceRuntime(self)
-        self._handoff_runtime = _HandoffRuntime(self)
+        self._handoff_runtime: _HandoffRuntime[
+            StateT, ObservationT, ActionT
+        ] = _HandoffRuntime(self)
         self._handoff_history: list[str] = []  # tracks agent names for loop detection
         # NOTE (v0.6): Handoff Decision-mode handling is stable for v0.6.
         # Changes to the Engine loop for full handoff context strategies,
@@ -1130,13 +1149,18 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                         hc = self.trace_writer.metadata.get("handoff_count", 0) or 0
                         self.trace_writer.metadata["handoff_count"] = hc + 1
                     # Observation after handoff carries handoff info for reduce()
-                    current_observation = {
-                        "action_results": [{
-                            "handoff": True,
-                            "from": handoff_result.from_agent,
-                            "to": handoff_result.to_agent,
-                        }],
-                    }
+                    current_observation = cast(
+                        ObservationT,
+                        {
+                            "action_results": [
+                                {
+                                    "handoff": True,
+                                    "from": handoff_result.from_agent,
+                                    "to": handoff_result.to_agent,
+                                }
+                            ],
+                        },
+                    )
                     state.advance_step()
                     step_id += 1
                     continue
@@ -1179,7 +1203,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                     )
                 ):
                     try:
-                        action_results = []
+                        action_results: List[Any] = []
                         observation = self._build_observation_after_action(
                             state=state,
                             step_id=step_id,
@@ -1349,7 +1373,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                     and self._cancel_token.mode == CancelMode.AFTER_STEP
                 ):
                     self._save_checkpoint_if_needed(
-                        state, step_id - 1, force=True
+                        step_id - 1, state, task_text, task_obj
                     )
                     self._emit(
                         step_id - 1,
@@ -1370,7 +1394,9 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             # Checkpoint on cancellation (immediate mode)
             if self._cancel_token.is_cancel_requested and self._checkpoint_store is not None:
                 try:
-                    self._save_checkpoint(state, step_id)
+                    self._save_checkpoint(
+                        step_id, state, task_text, source="cancel_immediate"
+                    )
                 except Exception as exc:
                     _logger.warning("Checkpoint save failed during cancellation: %s", exc)
             # Flush durability manager on run end
@@ -1822,7 +1848,8 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             raise ValueError(f"Checkpoint not found: {config}")
 
         checkpoint = tuple_.checkpoint
-        state = type(self._active_state or StateSchema).from_dict(checkpoint.state_data)  # type: ignore[misc]
+        state_type: Any = type(self._active_state) if self._active_state else StateSchema
+        state = state_type.from_dict(checkpoint.state_data)
 
         # Restore version tracker
         if self._version_tracker is not None:
@@ -2260,11 +2287,11 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         for server in self.agent.mcp_servers:
             try:
                 if hasattr(server, "connect"):
-                    server.connect()
+                    _resolve_awaitable(server.connect())
                 self._connected_mcp_servers.append(server)
                 # Bridge MCP tools into the engine's tool registry
                 if self.tool_registry is not None:
-                    tools = mcp_server_to_function_tools(server)
+                    tools = _resolve_awaitable(mcp_server_to_function_tools(server))
                     for tool in tools:
                         if hasattr(self.tool_registry, "register"):
                             self.tool_registry.register(tool)
@@ -2277,7 +2304,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         for server in self._connected_mcp_servers:
             try:
                 if hasattr(server, "cleanup"):
-                    server.cleanup()
+                    _resolve_awaitable(server.cleanup())
             except Exception as exc:
                 _logger.debug("MCP server cleanup failed: %s", exc)
         self._connected_mcp_servers = []

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from rich.console import Console
 
+from qitos import Action
 from qitos.render.content_renderer import ContentFirstRenderer
 from qitos.render.events import RenderEvent
 from qitos.render.hooks import ClaudeStyleHook
@@ -34,6 +35,20 @@ def test_content_first_renderer_core_blocks() -> None:
     assert isinstance(action, dict)
     assert action.get("label") == "WEB SEARCH"
     assert "finding nemo fish species" in str(action.get("detail"))
+
+    object_action = renderer.action_summary(
+        RenderEvent(
+            channel="action",
+            node="planned_actions",
+            step_id=0,
+            payload={"actions": [Action(name="read", args={"path": "src/app.py"})]},
+        )
+    )
+    assert object_action == {
+        "label": "READ",
+        "detail": "src/app.py",
+        "status": "neutral",
+    }
 
     obs_evt = RenderEvent(
         channel="observation",
@@ -287,6 +302,7 @@ def test_claude_style_hook_prints_agent_composition() -> None:
     assert "Qwen/Qwen3-8B" in text
     assert "web_search" in text
 
+
 def test_claude_style_hook_preserves_recoverable_tool_error_card() -> None:
     """A failed tool must show its recovery card instead of only an Error title."""
     from qitos.core.tool_result import ToolResult
@@ -321,6 +337,7 @@ def test_claude_style_hook_preserves_recoverable_tool_error_card() -> None:
     assert "[GREP:invalid_cursor]" in text
     assert "INVALID_CURSOR" in text
     assert "Retry: GREP" in text
+
 
 def test_renderer_labels_native_reasoning_and_deduplicates_matching_content() -> None:
     renderer = ContentFirstRenderer(max_preview_chars=200)

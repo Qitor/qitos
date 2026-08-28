@@ -96,8 +96,10 @@ class DockerFSCapability(FileSystemCapability):
         return int(result.get("returncode", 1)) == 0
 
     def _inner_path(self, path: str) -> str:
-        rel = path.lstrip("/")
-        return f"{self.workdir}/{rel}" if rel else self.workdir
+        value = str(path)
+        if value.startswith("/"):
+            return value
+        return f"{self.workdir}/{value}" if value else self.workdir
 
 
 class DockerEnv(HostEnv):
@@ -122,6 +124,7 @@ class DockerEnv(HostEnv):
         remove_on_close: bool = False,
         network: Optional[str] = None,
         extra_run_args: Optional[list[str]] = None,
+        container_env: Optional[Dict[str, str]] = None,
         create_timeout: int = 60,
     ):
         self.container = str(container).strip() if container else ""
@@ -132,6 +135,9 @@ class DockerEnv(HostEnv):
         self.remove_on_close = bool(remove_on_close)
         self.network = network
         self.extra_run_args = list(extra_run_args or [])
+        self.container_env = {
+            str(key): str(value) for key, value in dict(container_env or {}).items()
+        }
         self.create_timeout = int(create_timeout)
         self._created_here = False
 
@@ -222,10 +228,11 @@ class DockerEnv(HostEnv):
         if self.network:
             run_cmd += ["--network", self.network]
 
-        mount_src = ""
+        for key, value in sorted(self.container_env.items()):
+            run_cmd += ["-e", f"{key}={value}"]
+
         if self.host_workspace:
             host = str(Path(self.host_workspace).resolve())
-            mount_src = host
             run_cmd += ["-v", f"{host}:{self.container_workspace}"]
 
         if self.extra_run_args:

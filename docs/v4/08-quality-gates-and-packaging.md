@@ -1,0 +1,178 @@
+# Task 08 — quality gates, packaging, and test trust
+
+Status: ready for implementation planning
+Depends on: Task 01
+Unblocks: Task 09 and safe large-scale work in Tasks 02–05
+Risk: medium — CI policy and contributor workflow
+
+---
+
+## 1. Goal
+
+Make a green QitOS build mean what contributors think it means: no newly
+introduced static defects anywhere in the shipped package, advertised optional
+features install correctly, and tests execute critical routes rather than only
+asserting that symbols or strings exist.
+
+This task uses a ratchet. It does not require hundreds of pre-existing findings
+to be repaired in one review.
+
+## 2. Baseline contract
+
+Record the exact commands, tool versions, Python version, exclusions, and
+machine-readable findings at the start of 08A. Separate findings into:
+
+- **correctness class:** undefined names, invalid overrides, unreachable imports,
+  impossible branches, unbound resources;
+- **contract class:** public typing errors, protocol violations, dependency
+  declarations inconsistent with imports;
+- **hygiene class:** unused imports, formatting, line length, and similar local
+  debt;
+- **intentionally excluded:** generated/vendored code with an owner and removal
+  plan.
+
+New findings in any non-vendored `qitos/` file fail CI immediately. Existing
+findings live in a committed baseline keyed by rule, path, and stable location;
+the baseline cannot grow without a reviewed exception and expiry.
+
+## 3. Work packages
+
+### 08A — static baseline and no-regression ratchet
+
+1. Write `docs/internal/plans/task08_quality_gates.md` with the selected ratchet
+   implementation and baseline format.
+2. Pin or record diagnostic versions so local and CI results agree.
+3. Generate full-surface flake8 and mypy reports. Do not hide packages using
+   broad `ignore_errors = true` after their findings have been baselined.
+4. Make new findings blocking. Preserve the existing stable-surface zero-error
+   jobs until the full ratchet is demonstrably stricter.
+5. Fix correctness-class findings in small, behavior-focused commits. The known
+   `qita` undefined route variable requires a route test before its fix.
+
+Decision gate: stop for review if the selected ratchet depends on unstable line
+numbers or silently drops diagnostics that cannot be parsed.
+
+### 08B — package-by-package baseline retirement
+
+Retire findings in ownership order, not alphabetical order:
+
+1. `qitos.kit.parser`, `qitos.render`, and public kit contracts;
+2. active recipes and `qita`;
+3. checkpoint, MCP, evaluate/metric, experiment, and functional API;
+4. deprecated benchmark code only where it remains shipped during Task 10B;
+5. generated/vendored code through upstream pinning or isolation, not manual
+   mass reformatting.
+
+Each PR must reduce the baseline and add a regression test for every
+correctness-class fix. A refactor PR may not include unrelated hygiene cleanup.
+
+### 08C — packaging and optional-capability matrix
+
+1. Inventory every non-stdlib import and map it to base install, an extra,
+   build/dev only, or a deliberately unsupported integration.
+2. Resolve known gaps: MCP HTTP, local embeddings, APScheduler, PDF/notebook
+   helpers, pgvector drivers, and the incomplete `all` extra.
+3. Add fresh-environment smoke jobs for the base package and each supported
+   extra. Importing the base package must not activate optional integrations.
+4. Missing optional dependencies must fail at feature construction with the
+   exact extra name; they must not silently create an inert feature.
+5. After install parity is proven, move project metadata to PEP 621
+   `[project]`/`[project.optional-dependencies]` and keep one source of truth.
+
+Decision gate: a feature with no maintainer/consumer or conflicting drivers is
+handed to Task 10 for admission/deprecation; do not add dependencies merely to
+make dead code import.
+
+### 08D — high-value test architecture
+
+Add tests in this order:
+
+1. qita HTTP route execution: board/run endpoints, fork POST, malformed input,
+   traversal rejection, SSE connection/cleanup, and shutdown;
+2. provider failure conformance: transport/auth/rate-limit/malformed response,
+   sync and streaming;
+3. method recipe override conformance against `AgentModule`;
+4. optional-feature construction under present/missing dependencies;
+5. resource ownership fixtures that record surviving threads, subprocesses,
+   clients, and schedulers.
+
+Move flat tests into subsystem directories only when their owning module is
+already being edited. Preserve test IDs or document the move so CI filters and
+contributor workflows do not silently stop selecting them.
+
+### 08E — CI and contributor workflow repair
+
+1. Replace unsupported changed-file expressions in `contribution-test.yml`.
+2. Remove unused variables and `|| true` from jobs intended to protect a merge.
+3. Delete or relocate the stale in-repo zoo workflow; out-of-tree projects own
+   their own integration checks.
+4. Make required checks explicit and non-overlapping: full tests, stable zero-
+   debt lint/type, repository ratchet, package build, dependency audit.
+5. Add a lightweight workflow/config test that detects missing test paths,
+   invalid path predicates, and commands masked by unconditional success.
+
+## 4. Required artifacts
+
+- machine-readable static baseline and human-readable generation instructions;
+- optional feature/extra matrix in the packaging reference;
+- isolated install smoke script or test harness;
+- CI ownership table (job, surface, blocking status, expected runtime);
+- updated contribution guide if commands or required checks change;
+- evidence updates in this task document after each package lands.
+
+## 5. Acceptance criteria
+
+- [ ] A new flake8 or mypy finding in any active non-vendored `qitos/` package
+  fails CI.
+- [ ] Stable-surface zero-error gates remain green throughout migration.
+- [ ] No broad mypy ignore remains without an itemized baseline and owner.
+- [ ] Every correctness-class baseline item is fixed or has an explicit task and
+  regression reproducer.
+- [ ] Base install and every advertised extra pass fresh-environment smoke tests.
+- [ ] Missing optional dependencies raise actionable feature-specific errors.
+- [ ] qita fork POST and provider error paths execute in tests.
+- [ ] No required CI command is masked by `|| true`.
+- [ ] Zoo/product checks do not masquerade as in-repo framework coverage.
+- [ ] `python -m build` and `python -m twine check dist/*` pass after metadata
+  migration.
+
+## 6. Verification
+
+Exact commands may be wrapped by the ratchet tool, but the underlying evidence
+must remain reproducible:
+
+```bash
+pytest -q
+pytest -q tests/test_architecture_boundaries.py
+flake8 qitos
+mypy qitos
+python -m build
+python -m twine check dist/*
+```
+
+Fresh-install jobs must use clean virtual environments and must not inherit the
+developer environment's optional packages.
+
+## 7. Stop-and-escalate decisions
+
+Stop for maintainer review before:
+
+- making an existing diagnostic disappear through a broader exclusion;
+- changing public behavior while fixing a static finding without a regression
+  test and migration note;
+- adding an optional dependency to the base install;
+- declaring an inactive/deprecated package “fully typed” by excluding it;
+- migrating packaging metadata without comparing wheel contents and entry
+  points before and after;
+- removing a workflow that is actually a required check in repository settings.
+
+## 8. Coordination contract
+
+Task 08 owns gates, packaging metadata, and test infrastructure. It does not own
+the semantic fixes exposed by those gates:
+
+- provider failures go to Task 02/09;
+- action outcomes/timeouts go to Task 03/09;
+- context/token behavior goes to Task 02/04;
+- trace schema goes to Task 05;
+- deletions and surface reduction go to Task 10.

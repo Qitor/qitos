@@ -6,6 +6,7 @@ High-level architecture map for the repository. Detailed material lives in `docs
 - [module-boundaries.md](docs/architecture/module-boundaries.md) — boundary matrix, target dependency graph, current violations
 - [change-guide.md](docs/architecture/change-guide.md) — where a given change belongs
 - [architecture-debt.md](docs/architecture/architecture-debt.md) — P0/P1/P2 debt inventory
+- [engineering-quality-audit.md](docs/engineering-quality-audit.md) — implementation quality, lifecycle, dependency, and test audit
 
 ## System Purpose
 
@@ -20,7 +21,7 @@ qitos.protocols.py  model I/O protocol registry (react/json/xml/kimi/... rendere
 qitos.prompting.py  prompt spec/builder, framework-owned sections                     ← root-level leaf
 qitos.engine        execution kernel: Engine + runtime mixins + ActionExecutor,
                     hooks, stop criteria, recovery, cancellation, interrupts, AsyncEngine
-qitos.harness       model family presets (FamilyPreset, adapters) — kernel-level defaults source
+qitos.harness       model family presets (FamilyPreset) — kernel-level defaults source
 qitos.models        provider abstraction: Model/AsyncModel/ModelFactory + OpenAI/
                     OpenAI-compatible/LiteLLM/Anthropic/Gemini/local backends
 qitos.kit           concrete implementations: tools, toolsets, parsers, prompts, memory,
@@ -98,10 +99,17 @@ Headlines (full inventory with exit plans in [architecture-debt.md](docs/archite
 2. `core` mixes contracts with the `AgentModule.run()` convenience layer (lazy reverse imports).
 3. Engine reaches kit/mcp/cache via lazy imports — kernel knows implementations.
 4. Three event schemas / artifact paths (engine states, trace v1, tracing v2 + render jsonl); qita reads only v1.
-5. `harness ↔ models` module-level import cycle.
-6. `qitos.harness` name collision; `evaluate`/`metric` contract-vs-kit-mirror split; god objects in the kernel.
+5. Whole-package lint/type coverage is narrower than the shipped surface.
+6. Runtime failure, timeout, durability, and hook receipts do not yet share trustworthy semantics.
+7. `qitos.harness` name collision; `evaluate`/`metric` contract-vs-kit-mirror split; god objects in the kernel.
 
-Next architectural step is already planned: the v0.7 native agent kernel (`docs/internal/plans/v0.7_native_agent_kernel.md`, tasks in `docs/v4/`) — canonical message stack, native parallel tool calls, trajectory data plane.
+The `harness ↔ models` module-level cycle is resolved; concrete model construction
+now lives in `qitos.models.harness_adapter`. The next architecture and quality
+steps are planned in `docs/v4/`: canonical model/action/context/trajectory
+contracts in Tasks 02–05 and quality gates, lifecycle semantics, and
+consolidation in Tasks 08–10. Multi-agent delivery follows the
+[four-lane execution playbook](docs/v4/11-four-lane-execution-playbook.md), which
+assigns one semantic owner per contract and shared-file leases for integration.
 
 ## Repository Layer Policy
 

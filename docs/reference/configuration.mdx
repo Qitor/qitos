@@ -58,6 +58,26 @@ Reasoning items are treated as opaque continuation state. Trace summaries keep
 safe item descriptors and provider-authorized summaries, but omit encrypted
 reasoning continuation payloads.
 
+### Per-client HTTP headers
+
+`OpenAIModel`, `OpenAICompatibleModel`, and their async compatible variants
+accept `default_headers`. Use it for neutral transport concerns such as routing
+affinity or gateway metadata:
+
+```python
+from qitos.models import OpenAICompatibleModel
+
+llm = OpenAICompatibleModel(
+    model="research-model",
+    base_url="https://gateway.example/v1",
+    default_headers={"x-route-key": task_route_key},
+)
+```
+
+QitOS does not read a provider-specific routing environment variable. Keep
+secrets and task-to-route policy in the calling application, and do not include
+secret header values in trace metadata.
+
 ---
 
 ## AgentModule.run() arguments

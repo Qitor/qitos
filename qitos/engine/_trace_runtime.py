@@ -284,12 +284,12 @@ class _TraceRuntime(Generic[StateT]):
             "prompt": dict(getattr(engine, "_last_prompt_metadata", {}) or {}),
             "harness": harness_meta,
             "run_spec": (
-                engine.run_spec.to_dict()
+                getattr(engine, "run_spec").to_dict()
                 if isinstance(getattr(engine, "run_spec", None), RunSpec)
                 else None
             ),
             "experiment_spec": (
-                engine.experiment_spec.to_dict()
+                getattr(engine, "experiment_spec").to_dict()
                 if isinstance(getattr(engine, "experiment_spec", None), ExperimentSpec)
                 else None
             ),

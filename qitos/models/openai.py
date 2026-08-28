@@ -34,6 +34,18 @@ from .base import Model, ModelStreamChunk
 GLM_TOKENIZER_ENV_VARS = ("QITOS_GLM_TOKENIZER_PATH", "GLM_TOKENIZER_PATH")
 
 
+def _openai_client_options(model: Any) -> Dict[str, Any]:
+    options: Dict[str, Any] = {
+        "api_key": model.api_key,
+        "base_url": model.base_url,
+        "timeout": model.timeout,
+    }
+    headers = dict(getattr(model, "default_headers", {}) or {})
+    if headers:
+        options["default_headers"] = headers
+    return options
+
+
 def _relocate_chat_template_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
     """Move provider-specific generation kwargs into ``extra_body``.
 
@@ -240,6 +252,7 @@ class OpenAIModel(Model):
         timeout: int = 60,
         context_window: Optional[int] = None,
         default_request_kwargs: Optional[Dict[str, Any]] = None,
+        default_headers: Optional[Dict[str, str]] = None,
         api_mode: str = "chat_completions",
     ):
         """
@@ -255,6 +268,7 @@ class OpenAIModel(Model):
             timeout: Request timeout (seconds)
             context_window: Total model context window
             default_request_kwargs: Extra kwargs merged into every API call
+            default_headers: Extra HTTP headers sent by the OpenAI client
             api_mode: OpenAI transport, ``chat_completions`` or ``responses``
         """
         super().__init__(
@@ -271,6 +285,7 @@ class OpenAIModel(Model):
         )
         self.timeout = timeout
         self.default_request_kwargs = default_request_kwargs or {}
+        self.default_headers = dict(default_headers or {})
         self.api_mode = _normalize_api_mode(api_mode)
 
         if not self.api_key:
@@ -291,9 +306,7 @@ class OpenAIModel(Model):
         import openai
 
         try:
-            client = openai.OpenAI(
-                api_key=self.api_key, base_url=self.base_url, timeout=self.timeout
-            )
+            client = openai.OpenAI(**_openai_client_options(self))
 
             if self.api_mode == "responses":
                 response = _responses_completion(
@@ -351,9 +364,7 @@ class OpenAIModel(Model):
         import openai
 
         self._last_usage = None
-        client = openai.OpenAI(
-            api_key=self.api_key, base_url=self.base_url, timeout=self.timeout
-        )
+        client = openai.OpenAI(**_openai_client_options(self))
         if self.api_mode == "responses":
             return _responses_completion(
                 self, client, messages, provider="openai", **kwargs
@@ -366,9 +377,7 @@ class OpenAIModel(Model):
 
         self._last_usage = None
         try:
-            client = openai.OpenAI(
-                api_key=self.api_key, base_url=self.base_url, timeout=self.timeout
-            )
+            client = openai.OpenAI(**_openai_client_options(self))
             if self.api_mode == "responses":
                 yield from _responses_stream(
                     self, client, messages, provider="openai", **kwargs
@@ -383,6 +392,7 @@ class OpenAIModel(Model):
                 **kwargs,
             )
             accumulated_tool_calls: List[Dict[str, Any]] = []
+            usage_data: Optional[Dict[str, Any]] = None
             for chunk in response:
                 if not chunk.choices:
                     continue
@@ -545,6 +555,7 @@ class OpenAICompatibleModel(Model):
         timeout: int = 60,
         context_window: Optional[int] = None,
         default_request_kwargs: Optional[Dict[str, Any]] = None,
+        default_headers: Optional[Dict[str, str]] = None,
         api_mode: str = "chat_completions",
         retry: Optional["RetryPolicy"] = None,
     ):
@@ -562,6 +573,7 @@ class OpenAICompatibleModel(Model):
             context_window: Total model context window
             default_request_kwargs: Extra kwargs merged into every API call
                 (e.g. {"chat_template_kwargs": {"thinking": True}})
+            default_headers: Extra HTTP headers sent by the OpenAI client
             api_mode: OpenAI transport, ``chat_completions`` or ``responses``
             retry: Optional explicit RetryPolicy for transient provider
                 errors (default: no model-layer retries)
@@ -579,6 +591,7 @@ class OpenAICompatibleModel(Model):
         self.base_url = base_url or os.getenv("OPENAI_BASE_URL", "")
         self.timeout = timeout
         self.default_request_kwargs = default_request_kwargs or {}
+        self.default_headers = dict(default_headers or {})
         self.api_mode = _normalize_api_mode(api_mode)
 
         if not self.base_url:
@@ -636,9 +649,7 @@ class OpenAICompatibleModel(Model):
         import openai
 
         try:
-            client = openai.OpenAI(
-                api_key=self.api_key, base_url=self.base_url, timeout=self.timeout
-            )
+            client = openai.OpenAI(**_openai_client_options(self))
 
             if self.api_mode == "responses":
                 response = _responses_completion(
@@ -751,9 +762,7 @@ class OpenAICompatibleModel(Model):
         self._last_usage = None
 
         def _dispatch() -> Any:
-            client = openai.OpenAI(
-                api_key=self.api_key, base_url=self.base_url, timeout=self.timeout
-            )
+            client = openai.OpenAI(**_openai_client_options(self))
             if self.api_mode == "responses":
                 return _responses_completion(
                     self, client, messages, provider="openai-compatible", **kwargs
@@ -787,9 +796,7 @@ class OpenAICompatibleModel(Model):
 
         self._last_usage = None
         try:
-            client = openai.OpenAI(
-                api_key=self.api_key, base_url=self.base_url, timeout=self.timeout
-            )
+            client = openai.OpenAI(**_openai_client_options(self))
             if self.api_mode == "responses":
                 yield from _responses_stream(
                     self, client, messages, provider="openai-compatible", **kwargs
@@ -821,6 +828,7 @@ class OpenAICompatibleModel(Model):
                     **create_kwargs,
                 )
             accumulated_tool_calls: List[Dict[str, Any]] = []
+            usage_data: Optional[Dict[str, Any]] = None
             for chunk in response:
                 if not chunk.choices:
                     # Empty choices chunk may carry usage data (OpenAI sends it last)
@@ -1004,9 +1012,7 @@ class AsyncOpenAICompatibleModel(OpenAICompatibleModel):
         import openai
 
         try:
-            client = openai.AsyncOpenAI(
-                api_key=self.api_key, base_url=self.base_url, timeout=self.timeout
-            )
+            client = openai.AsyncOpenAI(**_openai_client_options(self))
             if self.api_mode == "responses":
                 response = await _async_responses_completion(
                     self, client, messages, provider="openai-compatible", **kwargs
@@ -1042,9 +1048,7 @@ class AsyncOpenAICompatibleModel(OpenAICompatibleModel):
         import openai
 
         self._last_usage = None
-        client = openai.AsyncOpenAI(
-            api_key=self.api_key, base_url=self.base_url, timeout=self.timeout
-        )
+        client = openai.AsyncOpenAI(**_openai_client_options(self))
         if self.api_mode == "responses":
             return await _async_responses_completion(
                 self, client, messages, provider="openai-compatible", **kwargs
@@ -1057,9 +1061,7 @@ class AsyncOpenAICompatibleModel(OpenAICompatibleModel):
 
         self._last_usage = None
         try:
-            client = openai.AsyncOpenAI(
-                api_key=self.api_key, base_url=self.base_url, timeout=self.timeout
-            )
+            client = openai.AsyncOpenAI(**_openai_client_options(self))
             if self.api_mode == "responses":
                 async for chunk in _async_responses_stream(
                     self, client, messages, provider="openai-compatible", **kwargs
@@ -1112,9 +1114,7 @@ class AsyncOpenAIModel(OpenAIModel):
         import openai
 
         try:
-            client = openai.AsyncOpenAI(
-                api_key=self.api_key, base_url=self.base_url, timeout=self.timeout
-            )
+            client = openai.AsyncOpenAI(**_openai_client_options(self))
             if self.api_mode == "responses":
                 response = await _async_responses_completion(
                     self, client, messages, provider="openai", **kwargs
@@ -1147,9 +1147,7 @@ class AsyncOpenAIModel(OpenAIModel):
         import openai
 
         self._last_usage = None
-        client = openai.AsyncOpenAI(
-            api_key=self.api_key, base_url=self.base_url, timeout=self.timeout
-        )
+        client = openai.AsyncOpenAI(**_openai_client_options(self))
         if self.api_mode == "responses":
             return await _async_responses_completion(
                 self, client, messages, provider="openai", **kwargs
@@ -1162,9 +1160,7 @@ class AsyncOpenAIModel(OpenAIModel):
 
         self._last_usage = None
         try:
-            client = openai.AsyncOpenAI(
-                api_key=self.api_key, base_url=self.base_url, timeout=self.timeout
-            )
+            client = openai.AsyncOpenAI(**_openai_client_options(self))
             if self.api_mode == "responses":
                 async for chunk in _async_responses_stream(
                     self, client, messages, provider="openai", **kwargs

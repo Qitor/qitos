@@ -67,6 +67,7 @@ class StateSchema:
 
     # Subclasses can override this and set their own registry.
     migration_registry: ClassVar[StateMigrationRegistry] = StateMigrationRegistry()
+    _field_reducers_cache: ClassVar[Any]
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

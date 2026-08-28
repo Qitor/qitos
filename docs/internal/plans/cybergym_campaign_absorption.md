@@ -1,7 +1,15 @@
-# CyberGym Campaign Absorption Plan
+# CyberGym Campaign Absorption Plan — archived source inventory
 
-Status: planning (no code merged yet). **v2 revision: scope narrowed to domain-neutral mechanisms only.**
-Companion design: `v0.7_native_agent_kernel.md` — turns the campaign's six most-felt lessons (native parallel tool calls, message-stack orchestration with steering + reasoning preservation, ACI toolset, runtime context injection, trajectory data plane, curated kit) into first-class framework design.
+Status: superseded on 2026-08-29; do not dispatch this document.
+Authoritative execution set: `docs/v4/00-goal-metric.md` through
+`docs/v4/05-trajectory-data-plane.md`. Task 01 is closed there; Tasks 02–05
+replace the workstreams and acceptance criteria below.
+
+This file remains only as the branch/commit inventory and historical reasoning
+used to derive the v4 plans. Its old sequencing, statuses, metrics, and target
+paths are not current instructions.
+
+Former companion design: `v0.7_native_agent_kernel.md`.
 Author: framework team
 Sources: campaign branches `origin/qitos_cybergym`, `core` (Cyborg checkout), `origin/core`, `origin/codex/x3-tool-contract`, `origin/feat/runtime-context-in-tool`; Cyborg monorepo artifacts under `/Users/morinop/Desktop/cyborg/` (`Cyborg/cybergym_agent/`, `audit/cybergym-agent/`, `Cyborg/experiments/cybergym/`).
 

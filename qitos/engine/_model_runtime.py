@@ -38,7 +38,7 @@ from ..protocols import get_protocol, resolve_protocol_chain
 from ..core.state import StateSchema
 from ._context_runtime import ContextOverflowError
 from ._protocol import _EngineProtocol
-from .streaming import StreamHandler, to_stream_handler
+from .streaming import to_stream_handler
 from .parser import (
     build_parser_diagnostics,
     normalize_parser_diagnostics,
@@ -243,13 +243,16 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
         context_runtime = engine._context_runtime
         # Apply critic patches if present
         effective_system_prompt = system_prompt if isinstance(system_prompt, str) else ""
-        if getattr(engine, "_critic_modified_prompt", None) is not None:
-            effective_system_prompt = engine._critic_modified_prompt
+        modified_prompt = getattr(engine, "_critic_modified_prompt", None)
+        if modified_prompt is not None:
+            effective_system_prompt = modified_prompt
             engine._critic_modified_prompt = None  # Consume once
-        if getattr(engine, "_critic_instruction_patch", None) is not None:
-            patch = engine._critic_instruction_patch
+        instruction_patch = getattr(engine, "_critic_instruction_patch", None)
+        if instruction_patch is not None:
             engine._critic_instruction_patch = None  # Consume once
-            effective_system_prompt = effective_system_prompt + "\n\n" + patch
+            effective_system_prompt = (
+                effective_system_prompt + "\n\n" + instruction_patch
+            )
         pre_context = context_runtime.build_pre_request(
             llm=engine.agent.llm,
             system_prompt=effective_system_prompt,
@@ -943,6 +946,7 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
         )
 
         if is_native_text_response:
+            assert response is not None
             # Still try the parser chain first — if the model happened to
             # produce valid structured output (JSON with a final_answer, or
             # ReAct "Final Answer:" label), let the parser extract it.
@@ -1693,18 +1697,18 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                     return value
             content = raw_output.get("content")
             if isinstance(content, list):
-                parts: List[str] = []
+                message_parts: List[str] = []
                 for item in content:
                     if isinstance(item, str):
-                        parts.append(item)
+                        message_parts.append(item)
                     elif isinstance(item, dict) and isinstance(item.get("text"), str):
-                        parts.append(str(item.get("text")))
+                        message_parts.append(str(item.get("text")))
                     elif hasattr(item, "text") and isinstance(
                         getattr(item, "text", None), str
                     ):
-                        parts.append(str(getattr(item, "text")))
-                if parts:
-                    return "\n".join(parts)
+                        message_parts.append(str(getattr(item, "text")))
+                if message_parts:
+                    return "\n".join(message_parts)
             reasoning = self._extract_reasoning_content(raw_output)
             if isinstance(reasoning, str):
                 return reasoning

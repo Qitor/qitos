@@ -60,6 +60,10 @@ engine = Engine(
   单次运行的普通场景优先用 `agent.run()`。当你需要跨多次任务复用同一个 Engine，或在运行间动态调整钩子时，再直接使用 `Engine`。
 </Tip>
 
+### Docker 环境路径与变量
+
+`DockerEnv(container_env={...})` 会在创建容器时传入显式环境变量映射。相对文件路径基于容器 workdir 解析；绝对路径表示容器内的绝对路径。QitOS 不会隐式复制 benchmark 或任务专属的宿主机环境变量。
+
 ## 协议解析
 
 `Engine` 在每次运行中按照以下优先级解析模型协议：

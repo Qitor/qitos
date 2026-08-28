@@ -109,7 +109,6 @@ class ContentFirstRenderer:
                     return self._action_from_dict(actions[0])
                 summaries = [self._action_from_dict(a) for a in actions]
                 labels = [s["label"] for s in summaries]
-                details = [s["detail"] for s in summaries if s.get("detail")]
                 has_error = any(s.get("status") == "error" for s in summaries)
                 return {
                     "label": f"{len(actions)} ACTIONS",
@@ -338,16 +337,24 @@ class ContentFirstRenderer:
         return f"stop={stop_reason} · result={self._truncate(self._to_text(final_result), 180)}"
 
     def _action_from_dict(self, action: Any) -> Dict[str, str]:
-        if not isinstance(action, dict):
+        if hasattr(action, "name") and hasattr(action, "args"):
+            name = str(getattr(action, "name", "") or "action")
+            raw_args = getattr(action, "args", None)
+            args = raw_args if isinstance(raw_args, dict) else {}
+        elif isinstance(action, dict):
+            name = str(
+                action.get("name")
+                or action.get("tool")
+                or action.get("action")
+                or "action"
+            )
+            args = action.get("args") if isinstance(action.get("args"), dict) else {}
+        else:
             return {
                 "label": "ACTION",
                 "detail": self._truncate(self._to_text(action), 120),
                 "status": "neutral",
             }
-        name = str(
-            action.get("name") or action.get("tool") or action.get("action") or "action"
-        )
-        args = action.get("args") if isinstance(action.get("args"), dict) else {}
         detail = ""
         if args:
             for key in ("query", "url", "path", "command", "prompt", "file"):

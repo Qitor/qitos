@@ -401,11 +401,11 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                 if isinstance(payload, dict) and set(payload.keys()) == {"env"}:
                     continue
                 tool_name = actions[idx].name if idx < len(actions) else ""
-                tool_call_id = None
+                native_call_id: Optional[str] = None
                 if idx < len(actions):
-                    tool_call_id = actions[idx].action_id
-                if not tool_call_id:
-                    tool_call_id = f"call_{record.step_id}_{idx}"
+                    native_call_id = actions[idx].action_id
+                if not native_call_id:
+                    native_call_id = f"call_{record.step_id}_{idx}"
                 model_payload = self._model_visible_tool_output(tool_name, payload)
                 serialized = self._serialize_for_tool_message(model_payload, result.error)
                 engine._history_append(
@@ -415,7 +415,7 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                     ],
                     record.step_id,
                     metadata={"source": "engine", "tool_name": tool_name},
-                    tool_call_id=tool_call_id,
+                    tool_call_id=native_call_id,
                     name=(tool_name or None),
                 )
         engine._emit(

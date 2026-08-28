@@ -46,6 +46,23 @@ Responses 模式支持同步、异步和类型化流式调用。工具循环期�
 
 Reasoning item 被视为不透明的续接状态。追踪摘要只保留安全的 item 描述与供应商允许的摘要，并排除加密 reasoning 续接内容。
 
+### 每个客户端的 HTTP 头
+
+`OpenAIModel`、`OpenAICompatibleModel` 以及异步兼容模型支持
+`default_headers`。它适合表达路由亲和性、网关元数据等中性的传输需求：
+
+```python
+from qitos.models import OpenAICompatibleModel
+
+llm = OpenAICompatibleModel(
+    model="research-model",
+    base_url="https://gateway.example/v1",
+    default_headers={"x-route-key": task_route_key},
+)
+```
+
+QitOS 不读取供应商特定的路由环境变量。密钥和任务到路由的映射应由调用方管理，且不要把敏感头值写入 trace 元数据。
+
 ## AgentModule.run() 参数
 
 这些参数都可以直接传给 `agent.run(task, ...)`：
