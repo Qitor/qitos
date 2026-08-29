@@ -392,7 +392,7 @@ def test_trace_safe_projection_is_versioned_and_declares_loss() -> None:
         "provenance",
         "artifact_refs",
     }
-    assert visible["loss"]["redacted_secret_values"] == 1
+    assert visible["loss"]["redacted_secret_values"] == 2
     assert visible["loss"]["redacted_host_paths"] == 1
     assert '"token": "secret"' not in json.dumps(visible)
     assert "/Users/alice" not in json.dumps(visible)
@@ -445,12 +445,144 @@ def test_every_model_visible_field_is_redacted_and_loss_accounted() -> None:
         "recovery_hint",
         "identifiers",
         "next_action",
+        "omitted",
     }
     assert loss["fields"]["model_output"]["secret_values"] >= 1
     assert loss["fields"]["error"]["host_paths"] >= 1
     assert loss["fields"]["recovery_hint"]["secret_values"] >= 1
     assert loss["fields"]["identifiers"]["redacted_identifiers"] == 3
     assert loss["fields"]["next_action"]["redacted_identifiers"] == 2
+
+
+def test_sensitive_mapping_keys_are_recursive_collision_safe_and_loss_accounted() -> None:
+    raw_output = {
+        "/Users/alice/private/key": {
+            "kept": "path-key-value",
+            "nested": [{"token=nested-secret": "nested-value"}],
+        },
+        "token=key-secret": {
+            "kept": "token-key-value",
+            "detail": "password=value-secret /Users/alice/private/value.txt",
+        },
+        "[REDACTED_KEY_1]": "preexisting-placeholder",
+        "benign": "unchanged",
+    }
+    next_args = {
+        "safe": "kept",
+        "nested": [{"authorization": "token=next-secret"}],
+    }
+    result = ToolResult(
+        output=raw_output,
+        next_action={"name": "read", "args": next_args},
+    )
+
+    canonical = result.to_persistence_dict()
+    model = result.to_model_dict(max_chars=4000)
+    trace = result.to_trace_safe_dict(max_chars=4000)
+    rendered_model = json.dumps(model, sort_keys=True)
+    rendered_trace = json.dumps(trace, sort_keys=True)
+    projected_output = json.loads(model["model_output"])
+
+    for forbidden in (
+        "/Users/alice/private/key",
+        "token=key-secret",
+        "token=nested-secret",
+        "authorization",
+        "value-secret",
+        "next-secret",
+        "/Users/alice/private/value.txt",
+    ):
+        assert forbidden not in rendered_model
+        assert forbidden not in rendered_trace
+    assert canonical["output"] == raw_output
+    assert canonical["next_action"]["args"] == next_args
+    assert ToolResult.from_canonical_dict(canonical).to_persistence_dict() == canonical
+
+    assert projected_output["[REDACTED_KEY_1]"] == "preexisting-placeholder"
+    assert projected_output["benign"] == "unchanged"
+    projected_values = list(projected_output.values())
+    assert any(
+        isinstance(value, dict) and value.get("kept") == "path-key-value"
+        for value in projected_values
+    )
+    assert any(
+        isinstance(value, dict)
+        and value.get("kept") == "[REDACTED]"
+        and value.get("detail") is not None
+        for value in projected_values
+    )
+    assert len(projected_output) == len(raw_output)
+    assert len(set(projected_output)) == len(raw_output)
+    assert model["next_action"]["args"]["safe"] == "kept"
+
+    loss = trace["loss"]
+    assert loss["fields"]["model_output"]["redacted_keys"] == 3
+    assert loss["fields"]["next_action"]["redacted_keys"] == 1
+    assert loss["redacted_keys"] == sum(
+        field["redacted_keys"] for field in loss["fields"].values()
+    )
+    for fact in (
+        "secret_values",
+        "host_paths",
+        "non_json_values",
+        "redacted_identifiers",
+        "omitted_characters",
+        "omitted_fields",
+        "redacted_keys",
+    ):
+        aggregate_name = {
+            "secret_values": "redacted_secret_values",
+            "host_paths": "redacted_host_paths",
+            "non_json_values": "redacted_non_json_values",
+        }.get(fact, fact)
+        assert loss[aggregate_name] == sum(
+            field[fact] for field in loss["fields"].values()
+        )
+
+
+def test_trace_safe_omitted_keys_are_sanitized_bounded_and_loss_accounted() -> None:
+    omitted = {
+        "/Users/alice/private/omitted": 1,
+        "token=omitted-secret": 2,
+        "[REDACTED_KEY_1]": 3,
+        "benign": 4,
+        **{f"entry_{index:02d}_{'x' * 20}": index for index in range(5, 45)},
+    }
+    result = ToolResult(output=None, omitted=omitted)
+
+    canonical = result.to_persistence_dict()
+    trace = result.to_trace_safe_dict(max_chars=120)
+    rendered = json.dumps(trace, sort_keys=True)
+    safe_omitted = trace["omitted"]
+    omitted_loss = trace["loss"]["fields"]["omitted"]
+
+    assert canonical["omitted"] == omitted
+    assert ToolResult.from_canonical_dict(canonical).to_persistence_dict() == canonical
+    assert "/Users/alice/private/omitted" not in rendered
+    assert "token=omitted-secret" not in rendered
+    assert len(json.dumps(safe_omitted, sort_keys=True, separators=(",", ":"))) <= 120
+    assert len(safe_omitted) < len(omitted)
+    assert safe_omitted["[REDACTED_KEY_1]"] == 3
+    assert safe_omitted["benign"] == 4
+    assert omitted_loss["redacted_keys"] == 2
+    assert omitted_loss["omitted_fields"] == len(omitted) - len(safe_omitted)
+    assert omitted_loss["omitted_characters"] > 0
+    assert trace["loss"]["redacted_keys"] == sum(
+        field["redacted_keys"] for field in trace["loss"]["fields"].values()
+    )
+
+
+def test_zero_budget_omitted_projection_is_empty_and_explicitly_lossy() -> None:
+    trace = ToolResult(
+        output=None,
+        omitted={"token=hidden": 1, "benign": 2},
+    ).to_trace_safe_dict(max_chars=0)
+
+    assert trace["model_output"] == ""
+    assert trace["next_action"] is None
+    assert trace["omitted"] == {}
+    assert trace["loss"]["fields"]["omitted"]["redacted_keys"] == 1
+    assert trace["loss"]["fields"]["omitted"]["omitted_fields"] == 2
 
 
 @pytest.mark.parametrize(

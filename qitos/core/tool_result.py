@@ -187,6 +187,7 @@ def _new_facts() -> Dict[str, int]:
         "host_paths": 0,
         "non_json_values": 0,
         "redacted_identifiers": 0,
+        "redacted_keys": 0,
         "omitted_characters": 0,
         "omitted_fields": 0,
     }
@@ -215,19 +216,61 @@ def _safe_identifier(value: str | None, facts: Dict[str, int]) -> str | None:
     return "[REDACTED_IDENTIFIER]"
 
 
-def _redact_value(value: Any, facts: Dict[str, int]) -> Any:
+def _mapping_key_is_sensitive(value: str) -> bool:
+    return bool(
+        _SENSITIVE_KEY.search(value)
+        or _SECRET_TEXT.search(value)
+        or _HOST_PATH.search(value)
+    )
+
+
+def _redact_value(
+    value: Any, facts: Dict[str, int], *, force_secret: bool = False
+) -> Any:
     if isinstance(value, str):
-        return _redact_text(value, facts)
+        redacted = _redact_text(value, facts)
+        if force_secret and redacted == value:
+            facts["secret_values"] += 1
+            return "[REDACTED]"
+        return redacted
     if isinstance(value, list):
-        return [_redact_value(item, facts) for item in value]
+        return [
+            _redact_value(item, facts, force_secret=force_secret)
+            for item in value
+        ]
     if isinstance(value, dict):
         result: Dict[str, Any] = {}
-        for key, item in value.items():
-            if _SENSITIVE_KEY.search(str(key)):
-                result[str(key)] = "[REDACTED]"
-                facts["secret_values"] += 1
+        reserved = {str(key) for key in value}
+        sensitive_keys = sorted(
+            key for key in reserved if _mapping_key_is_sensitive(key)
+        )
+        placeholders: Dict[str, str] = {}
+        placeholder_index = 1
+        for key in sensitive_keys:
+            while True:
+                candidate = f"[REDACTED_KEY_{placeholder_index}]"
+                placeholder_index += 1
+                if candidate not in reserved and candidate not in placeholders.values():
+                    placeholders[key] = candidate
+                    break
+        for raw_key, item in value.items():
+            key = str(raw_key)
+            secret_count = facts["secret_values"]
+            redacted_key_text = _redact_text(key, facts)
+            sensitive_name = bool(_SENSITIVE_KEY.search(key))
+            sensitive_key = sensitive_name or redacted_key_text != key
+            if sensitive_key:
+                if sensitive_name and facts["secret_values"] == secret_count:
+                    facts["secret_values"] += 1
+                facts["redacted_keys"] += 1
+                safe_key = placeholders[key]
             else:
-                result[str(key)] = _redact_value(item, facts)
+                safe_key = key
+            result[safe_key] = _redact_value(
+                item,
+                facts,
+                force_secret=force_secret or sensitive_name,
+            )
         return result
     if value is None or isinstance(value, (bool, int, float)):
         return value
@@ -251,6 +294,41 @@ def _bounded_text(value: str, max_chars: int, facts: Dict[str, int]) -> str:
     if budget <= len(marker):
         return marker[:budget]
     return value[: budget - len(marker)] + marker
+
+
+def _bounded_mapping(
+    value: Mapping[str, Any], max_chars: int, facts: Dict[str, int]
+) -> Dict[str, Any]:
+    """Redact a mapping and retain entries that fit one deterministic budget."""
+
+    safe = _redact_value(dict(value), facts)
+    if not isinstance(safe, dict):  # Defensive: callers provide a mapping.
+        facts["omitted_fields"] += 1
+        return {}
+    budget = max(0, int(max_chars))
+    result: Dict[str, Any] = {}
+    for key in sorted(safe):
+        item = safe[key]
+        candidate = dict(result)
+        candidate[key] = item
+        rendered = json.dumps(
+            candidate,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        if budget > 0 and len(rendered) <= budget:
+            result = candidate
+            continue
+        facts["omitted_fields"] += 1
+        entry_text = json.dumps(
+            {key: item},
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        facts["omitted_characters"] += max(0, len(entry_text) - 2)
+    return result
 
 
 @dataclass
@@ -404,7 +482,7 @@ class ToolResult:
 
     def _model_view_with_loss(
         self, max_chars: int
-    ) -> tuple[Dict[str, Any], Dict[str, Any]]:
+    ) -> tuple[Dict[str, Any], Dict[str, Any], int]:
         """Build one bounded view and aggregate loss across every visible field."""
 
         self.__post_init__()
@@ -478,6 +556,8 @@ class ToolResult:
                 action_facts["omitted_characters"] += len(rendered_action)
                 action_facts["omitted_fields"] += 1
                 safe_next_action = None
+            else:
+                remaining = max(0, remaining - len(rendered_action))
 
         for facts in by_field.values():
             _merge_facts(totals, facts)
@@ -494,17 +574,21 @@ class ToolResult:
             "next_action": safe_next_action,
         }
         _require_json(payload, "model_view")
-        return payload, {"totals": totals, "fields": by_field}
+        return payload, {"totals": totals, "fields": by_field}, remaining
 
     def to_model_dict(self, *, max_chars: int = 4000) -> Dict[str, Any]:
         """Return the allowlist view permitted in model messages."""
-        payload, _ = self._model_view_with_loss(max_chars)
+        payload, _, _ = self._model_view_with_loss(max_chars)
         return payload
 
     def to_trace_safe_dict(self, *, max_chars: int = 4000) -> Dict[str, Any]:
         """Return the bounded ToolResult-only Lane D handoff projection."""
-        payload, projection_loss = self._model_view_with_loss(max_chars)
+        payload, projection_loss, remaining = self._model_view_with_loss(max_chars)
         facts = projection_loss["totals"]
+        omitted_facts = _new_facts()
+        safe_omitted = _bounded_mapping(self.omitted, remaining, omitted_facts)
+        projection_loss["fields"]["omitted"] = omitted_facts
+        _merge_facts(facts, omitted_facts)
         excluded = [
             name for name, value in (
                 ("output", self.output), ("metadata", self.metadata),
@@ -517,7 +601,7 @@ class ToolResult:
             {
                 "schema_version": TOOL_RESULT_TRACE_SAFE_VERSION,
                 "complete": self.complete, "truncated": self.truncated,
-                "omitted": dict(self.omitted), "attempts": self.attempts,
+                "omitted": safe_omitted, "attempts": self.attempts,
                 "latency_ms": self.latency_ms,
                 "worker_still_running": self.worker_still_running,
                 "loss": {
@@ -527,6 +611,7 @@ class ToolResult:
                     "redacted_host_paths": facts["host_paths"],
                     "redacted_non_json_values": facts["non_json_values"],
                     "redacted_identifiers": facts["redacted_identifiers"],
+                    "redacted_keys": facts["redacted_keys"],
                     "omitted_characters": facts["omitted_characters"],
                     "omitted_fields": facts["omitted_fields"],
                     "fields": projection_loss["fields"],
