@@ -22,6 +22,9 @@ python_version = "3.11"
 warn_unused_configs = true
 ignore_missing_imports = true
 disable_error_code = ["import-untyped"]
+# This remains the stable-surface zero-debt configuration. The full-package
+# ratchet deliberately bypasses these historical package exclusions/overrides
+# via quality/mypy.ini and itemizes every resulting error in its baseline.
 exclude = [
   "^qitos/benchmark/",
   "^qitos/kit/tool/experimental/",
@@ -30,6 +33,8 @@ exclude = [
 ]
 
 [[tool.mypy.overrides]]
+# Historical stable-gate compatibility only; never use this override for the
+# full-package signal. See quality/README.md and quality/static_baseline.json.
 module = [
   "qitos.kit.*",
   "qitos.render.*",

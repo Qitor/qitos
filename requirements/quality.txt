@@ -1,0 +1,7 @@
+# Reproducible Task 08A static-analysis toolchain.
+# Use Python 3.12.7, recorded in quality/toolchain.json.
+flake8==7.0.0
+mccabe==0.7.0
+pycodestyle==2.11.1
+pyflakes==3.2.0
+mypy==1.19.1
