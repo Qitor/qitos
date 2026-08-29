@@ -1,6 +1,6 @@
 # Task 02 — model I/O transaction kernel
 
-Status: Task 02A candidate integrated for G1 convergence; Tasks 02B–02E remain pending
+Status: Task 02A/B1-R candidate integrated for G1 convergence; C alignment pending; Tasks 02B–02E remain pending
 Depends on: Task 01
 Unblocks: Task 04, Task 12 durable snapshots, and Task 05
 Risk: high — core persistence and every provider adapter
@@ -80,7 +80,8 @@ Native parallel execution is already present through `Decision.actions` and
 ActionExecutor. This task does not create a scheduler. It closes protocol gaps:
 
 - one assistant item can declare N ordered calls;
-- results correlate by call ID and return in declaration order;
+- results correlate by call ID, persist in actual completion order, and expose
+  declaration order only through an explicit derived query;
 - execution failure, permission block, timeout, or missing worker each closes
   its slot explicitly;
 - human steering received mid-batch is queued until the batch is closed;
@@ -107,19 +108,32 @@ ActionExecutor. This task does not create a scheduler. It closes protocol gaps:
   provider-scoped call IDs, raw and parsed argument states, batch identities,
   typed terminal results, synthetic provenance, queued steering, and opaque
   continuation attachments.
-- `ToolBatchBuilder` accepts out-of-order completion but commits results in call
-  declaration order. An incomplete batch rejects the next normal transaction;
-  queued steering is committed once after closure.
+- `ToolBatchBuilder` persists every terminal result immediately in actual
+  completion order. A process-like reload reconstructs completed and missing
+  slots; only the latter are eligible to execute or close synthetically. An
+  incomplete batch rejects the next normal transaction, and queued steering is
+  committed once after closure, including after recovery.
 - The strict `HistoryMessage` adapters preserve compatible fields without
   changing the legacy dataclass. Unsupported reasoning replay or assistant
   interleaving raises a typed conversion error instead of flattening data.
-- Lossless persistence and safe/public projection are separate: persistence
-  retains opaque provider payloads while `to_safe_dict()` redacts them. Signed
-  or encrypted reasoning is never converted into assistant text.
+- Append/load/query/serialization boundaries defensively copy nested mutable
+  values so callers cannot rewrite committed facts or queued steering through
+  retained references. This favors simple dataclass ergonomics at the cost of
+  O(payload size) copies at ownership boundaries.
+- Lossless persistence and the continuation-redacted diagnostic projection are
+  separate. The latter redacts only opaque provider payloads and deliberately
+  leaves metadata and other potentially sensitive values unchanged; it is not
+  a privacy-safe/public exporter. Signed or encrypted reasoning is never
+  converted into assistant text.
 - Versioned semantic handoff fixtures live in
-  `tests/fixtures/conversation/v1/semantic_fixtures.json`; Lane C-like execution
-  and Lane D-like persistence consumers both exercise them in
-  `tests/core/test_conversation.py`.
+  `tests/fixtures/conversation/v2/semantic_fixtures.json`; execution-side and
+  persistence-side fixture consumer simulations exercise them in
+  `tests/core/test_conversation.py`. They are not real independent Lane C/D
+  consumers.
+- `ToolResultItem` remains a temporary conversation closure representation.
+  The exact C1-R HEAD must supply its strict serializer/reader, model view,
+  status/error mapping, and artifact slot in a separate follow-up before B1 can
+  be called canonical or merge-ready; `qitos/core/tool_result.py` is untouched.
 - Engine/provider/checkpoint/request-view paths and defaults remain unchanged.
   The branch must still rebase onto the integration HEAD containing Lane A/A1
   and pass its ratchet before it can be described as merge-ready.
@@ -172,7 +186,8 @@ ActionExecutor. This task does not create a scheduler. It closes protocol gaps:
 - [ ] Task 12 can restore the ExchangeLog and queued steering through a fresh
       process without retaining the original Engine/provider object.
 - [ ] Existing parallel executor behavior and ordering tests remain green.
-- [ ] Two independent consumers exercise the public contract.
+- [ ] Two real independent consumers exercise the public contract (the current
+  in-repository tests are fixture consumer simulations only).
 
 ## 6. Verification
 
