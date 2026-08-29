@@ -1,6 +1,6 @@
 # G1 final convergence plan
 
-Status: active
+Status: complete — G1 closed
 Updated: 2026-08-29
 Owner: G1 integration owner
 Branch: `codex/v4-g1-convergence`
@@ -41,9 +41,9 @@ cherry-pick is checked against the supplied full identity before execution.
 - [x] Integrate Lane C and close C-J1, C-I1, and C-P2.
 - [x] Integrate Lane B and close B-C1 and B-V1 against accepted C.
 - [x] Integrate Lane D and close D-R1 against accepted B/C fixtures.
-- [ ] Run combined reviewer probes and qualification matrix.
-- [ ] Synchronize progress/task evidence, README EN/zh, and changelog.
-- [ ] Close G1 only if every checklist item passes and the worktree is clean.
+- [x] Run combined reviewer probes and qualification matrix.
+- [x] Synchronize progress/task evidence, README EN/zh, and changelog.
+- [x] Close G1 only if every checklist item passes and the worktree is clean.
 
 ## Conflict policy
 
@@ -148,10 +148,30 @@ still qualifies no contracts. The JSON Schema and executable manifest validator
 share a full accepted/rejected parity corpus. Both CLI modes retain
 `schema_not_ready`, zero publication-qualified fixtures, and empty measurements
 and claims; normal exits 2 and dry-run exits 0. Trajectory v2 remains unfrozen.
+D-R1 fixing commit: `30c1823`.
+
+### Combined G1 qualification
+
+Reviewer suites passed with counts 20 static-ratchet, 8 workflow-contract, 39
+ToolResult, 24 tool-schema, 29 conversation, 3 projection, 35 trajectory
+readiness, 2 Lane D source-link, 4 architecture, 4 public-surface, and 2
+no-local-path tests. The stable flake8 command was clean; stable mypy succeeded
+on 77 source files; the full-package ratchet matched 399 findings (377 active,
+22 vendored/generated); the full suite passed with 1863 passed and 50 skipped;
+`git diff --check` was clean.
+
+The initial combined command stopped after the first three passing suites
+because the integration owner mistyped `test_tool_schema.py` as the nonexistent
+`test_schema.py`. No code test failed, no test was automatically rerun, and no
+exit was masked; qualification resumed from the correct original fourth command.
+The real workflow entrypoint then reported 61 imported modules, 74 class
+definitions, and 62 qualified/registered class tools; the same entrypoint's
+controlled invalid spec exited 1 with `invalid_tool_name`.
 
 ## Reviewer probes
 
-- [ ] Workflow qualification entrypoint imports and executes successfully.
+- [x] Workflow qualification entrypoint imports and executes successfully.
+- [x] A controlled invalid tool spec fails the same entrypoint.
 - [x] Nested arbitrary objects, NaN, Infinity, and -Infinity fail pre-execution.
 - [x] ToolResult caller/serialization mutations are isolated in both directions.
 - [x] Tokens and host paths cannot survive any model/trace-visible field.
@@ -174,20 +194,21 @@ server 149, and regenerated substitute source commits are prohibited.
 
 ## G1 checklist
 
-- [ ] All supplied Lane commits are present with source identity preserved.
+- [x] All supplied Lane commits are present with source identity preserved.
 - [x] A-CI1 has an executable shared entrypoint and controlled failure proof.
-- [ ] Pinned ratchet and stable flake8/mypy are green on the combined tree.
+- [x] Pinned ratchet and stable flake8/mypy are green on the combined tree.
 - [x] ToolResult is the only canonical outcome and has strict JSON/ownership rules.
 - [x] Model/trace views are allowlisted, bounded, redacted, and loss-accounted.
 - [x] ExchangeLog uses C serializers and has a typed strict v2 reader.
 - [x] D receipts verify exact committed producer evidence and clear one blocker only.
 - [x] Cross-lane fixture tests consume real producer artifacts.
-- [ ] Full suite, boundary, public surface, no-local-path, and diff checks pass.
-- [ ] Required documentation is synchronized without implementing Task 12/13.
-- [ ] Final branch status is clean.
+- [x] Full suite, boundary, public surface, no-local-path, and diff checks pass.
+- [x] Required documentation is synchronized without implementing Task 12/13.
+- [x] Final branch status is clean.
 
 ## Remaining blockers
 
-Only combined G1 qualification remains
-open until their integration-owned fixing commits and regression evidence are
-recorded above. Consequently G1 is open and S1 dispatch is blocked.
+No G1 blocker remains. G1 is closed and S1 capability-lane dispatch is
+authorized. Task 02B, 03B–E, 04/05A, Task 12/13 runtime, trajectory v2, qita
+redesign, provider-default changes, and packaging work remain separate future
+packages and were not started here.

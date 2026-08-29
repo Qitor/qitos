@@ -47,6 +47,7 @@ How to update:
 
 ### Changed
 
+- Closed G1 final convergence after integrating the reviewed A → C → B → D source commits and qualifying the combined tree: all seven review blockers now have executable regressions, canonical ToolResult ownership spans B/C, producer receipts are commit/path/hash/authority verified, and the S1 capability-lane dispatch is authorized. No Task 02B, 03B–E, 05A, 12/13 runtime, provider-default, trajectory-v2, qita, or packaging behavior was started.
 - Remapped post-G1 four-lane execution from a permanent quality implementation lane to four capability lanes—Session/Persistence, Conversation/Context, Tools/Multi-Agent, and Trajectory/qita/DX—while retaining the repository ratchet, tests, packaging, and documentation parity as mandatory cross-lane integration gates. Trajectory v2 schema freeze now waits for durable session and work-graph lineage.
 - Extended the v4 integration ledger with the convergence-wave code audit: exact A2/B2/C2/D2 identities, integration-owner reruns, executable boundary probes, newly discovered CI/JSON/aliasing/projection/receipt blockers, and the revised final-G1 repair order.
 - Replaced the original commit-oriented v4 drafts with dependency-ordered coding-agent specifications: a closed capability-based baseline; model I/O, tool, context/artifact, and lossless trajectory contracts; plus quality gates, lifecycle/error semantics, and consolidation. The old batch briefs and internal campaign workstream plan are explicitly archived.

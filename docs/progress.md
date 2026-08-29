@@ -609,3 +609,47 @@ freeze until Task 12/13 lineage is available.
 - Made G1 closure an explicit prerequisite for implementation dispatch and made
   the clean-process single-agent vertical slice a prerequisite for multi-agent
   behavior and trajectory-v2 schema freeze.
+
+### 2026-08-29 — G1 final convergence closed
+
+- Created `codex/v4-g1-convergence` in the isolated `WhitzardOS-g1` worktree
+  directly from fixed baseline
+  `a02ce05e9a364eb484ef339fe5cbd623910cf525`.
+- Integrated every supplied source commit in the fixed A → C → B → D order,
+  preserving reviewed heads `ec43f09c1d6926a146b2c3f80a4b351861c5ea87`,
+  `86ad165cef56262d0d5b58e095a1452f8201bc79`,
+  `5b0e8d54ab9dc95746b9e30fb2ce97a6165f0390`, and
+  `d80f4cc7e7c1532c33ea0cf057435447bf9261e7` without squashing or amending the
+  source identities.
+- Closed A-CI1 in `f145cbe`: the workflow and tests execute one checked-in real
+  tool-schema qualification entrypoint; 61 modules, 74 class definitions, and
+  62 qualified/registered class tools passed, while the controlled invalid
+  input exited 1 with `invalid_tool_name`.
+- Closed C-J1 in `c509bd0` and C-I1/C-P2 in `ab1c501`: recursive JSON admission
+  precedes interceptor/permission/tool execution, canonical and legacy result
+  values are deeply ownership-isolated, and all model/trace-visible result
+  fields are bounded, redacted, and covered by aggregate/per-field loss facts.
+- Closed B-C1/B-V1 in `2e46fc8`: ExchangeLog v2 embeds the sole canonical
+  ToolResult, delegates persistence/model/trace views to C, preserves completion
+  and recovery semantics, strictly normalizes malformed reads to
+  `ConversationValidationError`, and directly consumes C's committed fixture.
+- Closed D-R1 in `30c1823`: qualification is derived from an approved authority,
+  exact producer commit, committed fixture/evidence paths, current and committed
+  SHA-256 bytes, and matching producer-owned evidence. The B/C receipts clear
+  only their two contracts; all unimplemented dependencies remain typed blocked.
+- Combined qualification passed: targeted suites 20/8/39/24/29/3/35/2/4/4/2;
+  stable flake8 clean; stable mypy success on 77 files; full ratchet 399 findings
+  (377 active, 22 vendored/generated); full suite 1863 passed, 50 skipped;
+  architecture, public-surface, no-local-path, and `git diff --check` clean.
+- The initial combined command contained one operator typo for a nonexistent
+  `tests/core/test_schema.py` path after three passing suites. No code test
+  failed or was rerun; execution resumed at the correct original
+  `tests/core/test_tool_schema.py` command and the remaining matrix passed.
+- Both trajectory readiness modes remain honestly blocked:
+  `schema_not_ready`, zero publication-qualified fixtures, empty measurements
+  and claims; dry-run exits 0 and normal execution exits 2. Trajectory v2 remains
+  unfrozen.
+- Decision: **G1 CLOSED**. S1 capability-lane dispatch is authorized. This does
+  not mark Task 02B, 03B–E, 04/05A, Task 12/13 runtime, provider defaults,
+  trajectory v2, qita redesign, packaging migration, or deprecated-surface
+  removal as implemented.
