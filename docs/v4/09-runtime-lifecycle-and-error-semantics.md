@@ -1,6 +1,6 @@
 # Task 09 — runtime lifecycle and error semantics
 
-Status: ready after Task 08A planning
+Status: 09A matrix/fixtures implemented on Lane C; later packages remain staged
 Depends on: Task 01 and Task 08A
 Coordinates with: Tasks 02, 03, 05, 12, and 13
 Risk: high — failure, timeout, durability, and shutdown behavior
@@ -60,6 +60,19 @@ model/tool/checkpoint cases prove that the vocabulary is coherent.
 
 Decision gate: stop before adding a public lifecycle protocol if existing
 `Env`, `Model`, tool, and store contracts cannot adopt it without fake methods.
+
+Evidence (Lane C C1, 2026-08-29):
+
+- the complete creator/owner/open/close/partial-open/idempotency/deadline/
+  cancellation/failure/test/package matrix is published in
+  `docs/architecture/tool-outcome-and-runtime-ownership.md`;
+- the decision gate rejects a universal public lifecycle interface: native
+  owner-specific `close`, `aclose`, `cleanup`, and `shutdown` methods remain;
+- `tests/fixtures/tool_results/v1/lifecycle_receipts.json` fixes repeated-close
+  and borrowed-resource-open semantics for later conformance work;
+- `tests/checkpoint/test_durability_flush_race_window.py` deterministically
+  proves the known full-queue/flush warning race without changing durability
+  behavior; Task 09D retains implementation ownership.
 
 ### 09B — typed model/provider failures
 

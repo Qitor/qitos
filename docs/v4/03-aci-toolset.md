@@ -1,6 +1,6 @@
 # Task 03 — tool outcome contract and coding-toolset consolidation
 
-Status: contract candidate exists on a reviewed lane; integration/convergence pending
+Status: 03A contract integrated for G1 repair; 03B–E remain staged
 Depends on: Task 01
 Feeds: Task 04 artifacts, Task 12 recovery, Task 13 work outcomes, and v4 DX
 Risk: medium — broad kit surface, stable tool-result compatibility
@@ -119,6 +119,24 @@ Each defect gets a failing regression test before its fix.
 - Preserve old result dictionaries and `model_summary` through adapters.
 - Publish persistence/model/trace fixtures and effect-recovery fields for Tasks
   12 and 13.
+
+Evidence (Lane C C1, 2026-08-29):
+
+- ADR and compatibility/serialization decision:
+  `docs/architecture/tool-outcome-and-runtime-ownership.md`;
+- canonical schema: evolved `qitos.core.tool_result.ToolResult`, version
+  `qitos.tool_result/v1`; `ActionResult.to_tool_result()` is the executor
+  compatibility adapter;
+- structural hard gate: `validate_tool_arguments()` plus registry/executor
+  integration; semantic failures use typed `ToolResult` helpers;
+- versioned Lane B/D fixtures: `tests/fixtures/tool_results/v1/`;
+- contract/projection tests: `tests/core/test_tool_result.py`,
+  `tests/core/test_tool_structural_validation.py`, and
+  `tests/engine/test_tool_result_projection.py`.
+
+This evidence completes the C1/03A contract layer only. Coding-tool behavior,
+durability implementation, MCP replacement, and executor lifecycle refactors
+remain explicitly deferred.
 
 ### 03B — filesystem and search foundations
 

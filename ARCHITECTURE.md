@@ -6,6 +6,7 @@ High-level architecture map for the repository. Detailed material lives in `docs
 - [module-boundaries.md](docs/architecture/module-boundaries.md) — boundary matrix, target dependency graph, current violations
 - [change-guide.md](docs/architecture/change-guide.md) — where a given change belongs
 - [architecture-debt.md](docs/architecture/architecture-debt.md) — P0/P1/P2 debt inventory
+- [tool-outcome-and-runtime-ownership.md](docs/architecture/tool-outcome-and-runtime-ownership.md) — canonical tool outcome ADR, validation boundary, lifecycle ownership matrix, and Lane B/D fixtures
 - [engineering-quality-audit.md](docs/engineering-quality-audit.md) — implementation quality, lifecycle, dependency, and test audit
 
 ## System Purpose
