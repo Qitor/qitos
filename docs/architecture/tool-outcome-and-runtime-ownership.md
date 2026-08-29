@@ -1,7 +1,8 @@
 # Tool outcome and runtime ownership (ADR C1)
 
-Status: accepted for the C1 contract package
-Schema versions: `qitos.tool_result/v1`, `qitos.runtime_lifecycle/v1`,
+Status: accepted for C1; C1-R review hardening implemented
+Schema versions: `qitos.tool_result/v1`, `qitos.tool_result.model_view/v1`,
+`qitos.tool_result.trace_safe/v1`, `qitos.runtime_lifecycle/v1`,
 `qitos.durability_receipt/v1`
 Decision owners: Task 03A and Task 09A
 
@@ -36,22 +37,75 @@ paths nor creates a competing artifact abstraction.
 
 ## Serialization and compatibility
 
-`ToolResult.to_dict()` always emits `schema_version` and the canonical fields.
-It retains legacy flattening of dictionary output keys without allowing them to
-overwrite canonical keys. `ToolResult.from_value()` accepts:
+`ToolResult.to_persistence_dict()` is the canonical serializer;
+`ToolResult.to_dict()` is its compatibility name. It emits only declared v1
+fields and never flattens arbitrary dictionary output keys into the envelope.
+`ToolResult.from_canonical_dict()` is the strict parser. It rejects unknown
+versions and fields, malformed list/dict slots, non-JSON values, invalid scalar
+types/ranges, and contradictory terminal state. In particular:
+
+- success carries no error fields and cannot report a running worker;
+- error requires a semantic, execution, or policy `error_kind` plus a stable
+  non-empty `error_code`;
+- skipped requires `error_kind=policy`;
+- timed out and cancelled require `error_kind=execution`;
+- `worker_still_running` is legal only for timed out work;
+- attempts and omitted counts are non-negative integers (booleans are not
+  integers here), while latency is finite and non-negative.
+
+JSON serialization failure raises typed `ToolResultContractError` with a stable
+code. The action runtime converts an invalid tool return into an execution
+outcome at that boundary rather than serializing with `default=str` or aborting
+the whole action batch.
+
+Legacy compatibility is separate. `ToolResult.to_legacy_dict()` is the only
+projection that can flatten output, and `ToolResult.from_legacy_value()` is the
+permissive adapter. `from_value()` first discriminates any payload containing
+`schema_version` and sends it to the strict parser; versioned bad data never
+falls through to guessed legacy repair. The current flattened consumers are
+legacy reducers/examples reading result keys directly from the `Observation`
+mapping. `Observation.to_legacy_dict()` supplies that projection explicitly;
+canonical observation serialization remains nested.
+
+The accepted inputs are therefore:
 
 1. an existing `ToolResult`;
 2. an `ActionResult` through the named adapter;
-3. canonical v1 dictionaries;
-4. legacy dictionaries with `status`, `error`, `message`, or
+3. strict canonical v1 dictionaries;
+4. unversioned legacy dictionaries with `status`, `error`, `message`, or
    `output.model_summary`;
 5. strings and arbitrary values as legacy successful output.
 
-Unknown legacy statuses are mapped conservatively: a non-empty error becomes
-`error`; otherwise they remain successful for compatibility. Canonical v1
-payloads reject unknown statuses. `model_summary` remains readable but is
-normalized to `model_output`; canonical `output` is never replaced by the
-projection.
+Unknown legacy statuses are mapped conservatively. `model_summary` remains
+readable but is normalized to `model_output`; canonical `output` is never
+replaced by any projection.
+
+## Model and trace-safe views
+
+`ToolResult.to_model_dict(max_chars=...)` produces an allowlist model view. Its
+fields are version, terminal status, bounded/redacted `model_output`, redacted
+error and recovery text, stable error code, recoverability, validated/redacted
+next action, and call identity. When a tool has no explicit `model_output`, the
+fallback is a deterministic redacted and bounded text rendering; the canonical
+raw output object itself is not inserted into model messages.
+
+Metadata, normalized request, provenance, exception representations, host
+paths, credentials/headers/tokens, unrestricted artifact dictionaries,
+filesystem changes, and declared-effect internals are absent. Error content is
+charged to the same per-result/aggregate text budget. A zero remaining budget
+emits an empty projection, not an oversized truncation card. Action events,
+hooks, native tool history, and environment observation events use this view;
+they do not derive it by replacing fields in the persistence dictionary.
+
+`ToolResult.to_trace_safe_dict()` is a bounded, versioned ToolResult-only handoff
+for Lane D. It adds completeness/timing/worker facts and a `loss` object naming
+excluded fields, redaction counts, and omitted characters. It is not a full
+trajectory privacy policy and makes no claim about other event payloads.
+
+Until Lane B publishes `ArtifactRef`, canonical `artifact_refs` is an array of
+objects with required non-empty `artifact_id` and optional `media_type`,
+`byte_length`, `encoding`, `sensitivity`, and object-valued `provenance`.
+Unknown keys, including host-path slots, fail canonical parsing.
 
 ## Failure and validation boundary
 
@@ -73,6 +127,17 @@ Structural failure is an execution-boundary error. It uses stable codes such as
 `invalid_argument_type`, and `unexpected_argument`; the tool is not called.
 Tool-specific `validate_input()` remains a hard gate for compatibility and
 safety-sensitive local constraints.
+
+The mechanically supported schema subset was derived from repository
+`ToolSpec.input_schema` producers: top-level object, properties, required,
+primitive/container type (including type arrays), nested objects, array items,
+boolean or schema-valued additionalProperties, anyOf, oneOf, enum, and the
+repository's OpenAPI-style nullable flag. Annotation-only title, description,
+default, examples, comment, deprecated, readOnly, and writeOnly keys are
+accepted. Unknown types or acceptance-changing unsupported keywords fail with
+`schema_contract_violation`; malformed schemas are distinguished from invalid
+arguments. The registry and executor use the same validator, and the executor
+revalidates after interceptor and permission argument rewrites.
 
 ### Post-dispatch typed semantic result
 
@@ -157,9 +222,13 @@ Fixtures live under `tests/fixtures/tool_results/v1/`:
   artifact-reference slot, and legacy/model-summary compatibility;
 - `durability_receipts.json`: accepted, queued, persisted, failed, and dropped;
 - `lifecycle_receipts.json`: repeated shutdown and borrowed-resource-open.
+- `contract_hardening.json`: unknown-version, contradictory-state and malformed
+  canonical rejections, the model-safe source, and trace-safe loss expectations.
 
-Lane B consumes canonical serialization, `artifact_refs`, `model_output`, and
-the timeout receipt. Lane D consumes trace-safe outcomes, durability and
+Lane B consumes `to_persistence_dict()`, `from_canonical_dict()`,
+`from_legacy_value()`, `to_model_dict()`, the allowed `artifact_refs` shape,
+status/error mapping, and the timeout receipt. Lane D consumes
+`to_trace_safe_dict()` plus its exact fixture, durability and
 lifecycle failure fields. Before trace persistence, Lane D must redact secrets,
 authorization material, raw exception objects, unrestricted request payloads,
 and host-local paths; only stable codes, declared public refs, redacted
@@ -168,6 +237,8 @@ diagnostics, and correlation identifiers cross that boundary.
 ## Consequences and deferred behavior
 
 - Existing dict/string tool returns remain compatible.
+- Flattened result compatibility is explicit rather than part of canonical
+  persistence.
 - Model projection becomes explicit without losing canonical structured output.
 - No resource is forced into fake `close/aclose` methods.
 - C1 does not claim hard thread cancellation, durable ASYNC acceptance, or MCP

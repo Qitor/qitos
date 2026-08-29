@@ -1,6 +1,6 @@
 # Task 03 — tool outcome contract and coding-toolset consolidation
 
-Status: 03A contract integrated for G1 repair; 03B–E remain staged
+Status: 03A contract and C1-R hardening integrated for G1 repair; 03B–E remain staged
 Depends on: Task 01
 Feeds: Task 04 artifacts, Task 12 recovery, Task 13 work outcomes, and v4 DX
 Risk: medium — broad kit surface, stable tool-result compatibility
@@ -133,6 +133,16 @@ Evidence (Lane C C1, 2026-08-29):
 - contract/projection tests: `tests/core/test_tool_result.py`,
   `tests/core/test_tool_structural_validation.py`, and
   `tests/engine/test_tool_result_projection.py`.
+
+C1-R hardening (2026-08-29) separates strict canonical persistence from
+explicit legacy flattening and from allowlisted model/trace-safe views.
+Canonical v1 now rejects unknown versions/fields, malformed slots,
+contradictory terminal state, invalid scalar ranges, and non-JSON data. The
+schema hard gate validates the repository's actual object/properties/required/
+type/nesting/items/additionalProperties/anyOf/oneOf/enum/nullable subset and
+fails malformed schemas with `schema_contract_violation` before tool code.
+Interceptor and permission argument rewrites are revalidated. Cross-lane cases
+are fixed in `tests/fixtures/tool_results/v1/contract_hardening.json`.
 
 This evidence completes the C1/03A contract layer only. Coding-tool behavior,
 durability implementation, MCP replacement, and executor lifecycle refactors

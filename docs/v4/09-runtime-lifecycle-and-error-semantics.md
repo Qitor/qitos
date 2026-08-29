@@ -1,6 +1,6 @@
 # Task 09 — runtime lifecycle and error semantics
 
-Status: 09A matrix/fixtures implemented on Lane C; later packages remain staged
+Status: 09A matrix/fixtures and C1-R outcome hardening implemented; later packages remain staged
 Depends on: Task 01 and Task 08A
 Coordinates with: Tasks 02, 03, 05, 12, and 13
 Risk: high — failure, timeout, durability, and shutdown behavior
@@ -73,6 +73,12 @@ Evidence (Lane C C1, 2026-08-29):
 - `tests/checkpoint/test_durability_flush_race_window.py` deterministically
   proves the known full-queue/flush warning race without changing durability
   behavior; Task 09D retains implementation ownership.
+
+C1-R adds no lifecycle interface or durability behavior. It makes terminal
+ToolResult invariants mechanical, turns non-JSON/malformed tool returns into a
+typed contract-boundary execution outcome, and publishes a versioned
+ToolResult-only trace-safe view with explicit loss facts. This is Lane D input,
+not a claim that full trajectory privacy or hook failure policy is complete.
 
 ### 09B — typed model/provider failures
 

@@ -1,9 +1,10 @@
 # Lane C C1 — canonical tool outcome and runtime ownership
 
-Status: C1 complete; Lane A rebase/ratchet gate open
-Baseline: `fb75cd5902fedf50d5e67dd617e62cd981c3128f`
-Branch: `codex/v4-lane-c-outcome-lifecycle`
-Worktree: `/Users/morinop/Desktop/WhitzardOS-lane-c`
+Status: C1-R review hardening implemented; validation and final rebase gates open
+Integration baseline: `8441bef2f2024fd6c2ec01784708512222382471`
+C1 source HEAD: `1a36349b425e8c39d87b89e71ad4dcabd23d9e30`
+Branch: `codex/v4-lane-c-contract-hardening`
+Worktree: `/Users/morinop/Desktop/WhitzardOS-lane-c2`
 Work package: Task 03A contract layer + Task 09A lifecycle ownership matrix
 
 ## Scope and stop gates
@@ -18,6 +19,30 @@ schemas, or add a universal lifecycle interface.
 Implementation beyond the contract and compatibility boundary remains gated on
 Lane A's integrated ratchet. This branch must not be described as merge-ready
 until it is rebased onto that ratchet and the ratchet command passes.
+
+## C1-R review-blocker closure
+
+C1-R is limited to C-P1, C-S1, C-V1, and the ToolResult-specific portion of
+C-D1. It does not authorize coding-tool behavior refactors, checkpoint
+durability changes, MCP migration, trace-v1/qita changes, provider/request-view
+changes, or a universal lifecycle interface.
+
+- [x] Create the worktree at the integration baseline and cherry-pick all four
+  C1 source commits in order, preserving both sides of shared docs.
+- [x] Split strict canonical persistence, explicit legacy flattening, model
+  allowlist, and trace-safe views.
+- [x] Fail canonical v1 closed on unknown version/field, malformed collection,
+  contradictory state, invalid types/ranges, and non-JSON values.
+- [x] Replace Action/Env full-dictionary model projection with the allowlist and
+  enforce per-result plus aggregate text budgets.
+- [x] Inventory the repository schema subset and make malformed schemas fail
+  before execution with a distinct code.
+- [x] Revalidate interceptor and permission-pipeline argument rewrites.
+- [x] Publish `contract_hardening.json` for Lane B/D and document the temporary
+  ArtifactRef slot.
+- [x] Keep `docs/progress.md` byte-for-byte outside the branch diff.
+- [x] Complete final validation/static checks and record exact results below.
+- [ ] Rebase onto the eventual Lane A integrated HEAD and run its ratchet.
 
 ## Shared-file leases
 
@@ -97,18 +122,39 @@ no Task 04/05 schema is edited.
 Detailed ownership rows and fixture handoffs are maintained in
 `docs/architecture/tool-outcome-and-runtime-ownership.md`.
 
+## C1-R shared-file lease
+
+Lease owner: Lane C / C1-R
+
+File(s): `CHANGELOG.md`, `README.md`, `README.zh.md`,
+`docs/v4/03-aci-toolset.md`,
+`docs/v4/09-runtime-lifecycle-and-error-semantics.md`,
+`docs/architecture/tool-outcome-and-runtime-ownership.md`, and the single
+missing-slot constructor in `qitos/engine/engine.py`
+
+Semantic purpose: close the reviewed canonical serialization, model projection,
+schema-contract, and ToolResult trace-safe handoff blockers.
+
+Expected start/end package: C1-R only.
+
+Other lanes blocked or adapter supplied: Lane B receives canonical/legacy/model
+entrypoints and ArtifactRef-slot shape; Lane D receives only the versioned
+ToolResult trace-safe fixture. No provider, RequestView, trace-v1, qita, or
+durability behavior is changed.
+
 ## Validation evidence
 
-Completed on the source identity above:
+Completed on the C1-R source identity above:
 
-- new result/validation/lifecycle tests: `20 passed`;
-- result/model projection plus Engine compatibility group: `50 passed`;
-- tool migration, permission, registry, and core-flow group: `114 passed`;
-- `tests/test_bounded_queues.py`: `8 passed`;
+- `tests/core/test_tool_result.py`: `34 passed`;
+- `tests/core/test_tool_structural_validation.py`: `23 passed`;
+- `tests/engine/test_tool_result_projection.py`: `3 passed`;
 - `tests/engine`: `199 passed`;
-- `tests/checkpoint tests/mcp`: `59 passed`;
-- architecture/public-surface gates: `8 passed`;
-- full suite: `1714 passed, 50 skipped`;
+- real registry/permission substitute (`tests/test_tool_registry_and_toolset.py`
+  plus `tests/test_permission_pipeline.py`): `85 passed`;
+- deterministic durability race: `1 passed`;
+- architecture and public-surface gates: `4 passed` each;
+- full suite: `1756 passed, 50 skipped`;
 - stable flake8 command: zero findings;
 - stable mypy command: `Success: no issues found in 76 source files`;
 - `git diff --check`: clean.
