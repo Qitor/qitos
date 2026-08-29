@@ -1,6 +1,6 @@
 # Task 03 — tool outcome contract and coding-toolset consolidation
 
-Status: 03A integrated candidate; C-P3 projection-key repair required before G1 reclosure; 03B–E remain staged
+Status: 03A/C-P3 accepted on the G1 baseline; 03B–E remain staged
 Depends on: Task 01
 Feeds: Task 04 artifacts, Task 12 recovery, Task 13 work outcomes, and v4 DX
 Risk: medium — broad kit surface, stable tool-result compatibility
@@ -166,6 +166,17 @@ recursively sanitizes sensitive keys, gives omitted data an explicitly safe
 trace representation, preserves entries through a deterministic collision-safe
 encoding, accounts for both losses, and adds independent ExchangeLog consumer
 coverage. This is a bounded 03A correction, not authorization to begin 03B–E.
+
+G1-R3 closure (2026-08-29): C-P3 is closed without changing any v1 schema.
+Every model/trace-visible mapping key now applies key-name and secret/path text
+rules. Sensitive keys receive deterministic ordinal placeholders that skip
+pre-existing placeholder-like keys and cannot collide; their values remain
+structurally present and recursively redacted. Trace-safe omitted entries share
+the projection budget and report key redactions, omitted entries, and omitted
+characters in field and aggregate loss facts. Canonical persistence remains
+lossless. Producer commit `d50f41fb3b8190a953f9f37f278bf0b197af286b`
+publishes the executable fixture/evidence consumed by B and D. Tasks 03B–E are
+still unstarted.
 
 ### 03B — filesystem and search foundations
 

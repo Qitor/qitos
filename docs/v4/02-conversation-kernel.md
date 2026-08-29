@@ -1,6 +1,6 @@
 # Task 02 — model I/O transaction kernel
 
-Status: Task 02A/B1-R converged on canonical C for G1; Tasks 02B–02E remain pending
+Status: Task 02A/B1-R accepted and requalified against C-P3; Tasks 02B–02E remain pending
 Depends on: Task 01
 Unblocks: Task 04, Task 12 durable snapshots, and Task 05
 Risk: high — core persistence and every provider adapter
@@ -138,6 +138,11 @@ ActionExecutor. This task does not create a scheduler. It closes protocol gaps:
 - Engine/provider/checkpoint/request-view paths and defaults remain unchanged.
   The branch must still rebase onto the integration HEAD containing Lane A/A1
   and pass its ratchet before it can be described as merge-ready.
+- G1-R3 requalified `ExchangeLog.to_model_dict()` and
+  `to_trace_safe_dict()` as direct consumers of C's collision-safe sensitive-key
+  and omitted-budget projections. No B runtime or persistence shape changed;
+  malformed v2 reads, partial completion, recovery, completion order, and
+  steering stayed green. Task 02B remains unstarted.
 
 ### 02B — request-view and capability policy
 

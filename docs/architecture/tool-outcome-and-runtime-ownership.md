@@ -1,6 +1,6 @@
 # Tool outcome and runtime ownership (ADR C1)
 
-Status: accepted for C1; C1-R review hardening implemented
+Status: accepted; C1-R3 collision-safe projection hardening qualified
 Schema versions: `qitos.tool_result/v1`, `qitos.tool_result.model_view/v1`,
 `qitos.tool_result.trace_safe/v1`, `qitos.runtime_lifecycle/v1`,
 `qitos.durability_receipt/v1`
@@ -101,6 +101,22 @@ they do not derive it by replacing fields in the persistence dictionary.
 for Lane D. It adds completeness/timing/worker facts and a `loss` object naming
 excluded fields, redaction counts, and omitted characters. It is not a full
 trajectory privacy policy and makes no claim about other event payloads.
+
+C1-R3 applies the same rules to mapping keys at every visible depth. A key that
+matches credential/header/token names or secret/path text becomes a
+deterministic ordinal placeholder. Allocation is stable for the same mapping
+and skips both caller-supplied placeholder-like keys and placeholders already
+allocated in that mapping, so entries cannot collide or overwrite one another.
+The placeholder contains neither the raw key nor its hash. Benign keys stay
+unchanged, and values retain their recursive structure while secret-bearing
+content is redacted and counted.
+
+Trace-safe `omitted` is no longer copied from canonical persistence. It uses the
+same collision-safe key projection and retains only entries that fit the
+remaining per-result character budget. Every redacted key, omitted entry, and
+omitted character is recorded in the `omitted` field facts and aggregate totals.
+Canonical `qitos.tool_result/v1` persistence remains lossless and unchanged;
+model-view and trace-safe version identifiers remain v1.
 
 Until Lane B publishes `ArtifactRef`, canonical `artifact_refs` is an array of
 objects with required non-empty `artifact_id` and optional `media_type`,
@@ -223,7 +239,9 @@ Fixtures live under `tests/fixtures/tool_results/v1/`:
 - `durability_receipts.json`: accepted, queued, persisted, failed, and dropped;
 - `lifecycle_receipts.json`: repeated shutdown and borrowed-resource-open.
 - `contract_hardening.json`: unknown-version, contradictory-state and malformed
-  canonical rejections, the model-safe source, and trace-safe loss expectations.
+  canonical rejections plus executable host-path/token key, nested mapping,
+  collision, pre-existing placeholder, next-action, omitted-budget, and loss
+  expectations.
 - `qualification-evidence.json`: producer-owned G1 probes for recursive JSON
   admission, nested ownership isolation, all-field redaction, and per-field loss
   accounting. Lane D must bind this exact committed file and fixture rather than
@@ -244,7 +262,9 @@ permission-pipeline, tool permission, semantic validation, and tool execution.
 ToolResult owns a recursive copy of all accepted JSON trees, and every serializer
 returns another recursive copy. Model and trace-safe projections share one text
 budget and account redaction or omission separately for model output, errors,
-recovery hints, identifiers, and next actions.
+recovery hints, identifiers, next actions, and trace-safe omitted data. The
+accepted C producer commit is
+`d50f41fb3b8190a953f9f37f278bf0b197af286b`.
 
 ## Consequences and deferred behavior
 

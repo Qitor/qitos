@@ -3,8 +3,8 @@
 Status: active integration ledger
 Updated: 2026-08-29
 Integration branch: `codex/v4-g1-convergence`
-Reviewed convergence source: `587f34b76245e71fe3362a51dbad40895d7c43c5`
-Current gate: **G1 reopened on C-P3; S1 dispatch blocked**
+G1-R3 source: `acb491bd822baf6ca429e81639aadbde72a626f0`
+Current gate: **G1 closed; S1 contract dispatch authorized from the final accepted baseline**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md)
 and [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md)
@@ -29,20 +29,19 @@ Maintain it with these rules:
 
 ## 2. Current decision
 
-The A -> C -> B -> D convergence tree is materially integrated at
-`587f34b76245e71fe3362a51dbad40895d7c43c5`. The pinned ratchet, stable
-flake8/mypy, targeted contracts, full suite, architecture/public-surface gates,
-tool-schema qualification, and trajectory readiness behavior all passed an
-independent rerun. The previously recorded A-CI1, C-J1/C-I1/C-P2, B-C1/B-V1,
-and D-R1 blockers have executable fixing commits.
+The A -> C -> B -> D convergence tree has completed G1-R3 from exact source
+`acb491bd822baf6ca429e81639aadbde72a626f0`. C-P3 is closed by collision-safe
+sensitive-key projection, bounded trace-safe omitted data, and complete
+aggregate/per-field loss facts. B's ExchangeLog direct consumer passed without
+a runtime change, and D binds the changed C fixture/evidence to its exact
+producer commit. The pinned ratchet, stable flake8/mypy, targeted and
+adversarial contracts, readiness cases, architecture/public-surface gates,
+tool-schema qualification, and full suite passed.
 
-Gate G1 is nevertheless **reopened** on `C-P3`. A post-convergence adversarial
-probe found that ToolResult mapping keys bypass the recursive redactor, and
-trace-safe `omitted` keys bypass projection entirely. Host paths and token-like
-text can therefore survive in model/trace-visible keys while the loss report
-remains zero. This contradicts the claimed privacy/loss invariant. S1 remains
-blocked until a bounded C-owned repair, D receipt requalification when producer
-evidence changes, and a combined rerun close this finding.
+Gate G1 is **closed**. S1's four contract packages are authorized only from the
+final accepted baseline reported by the integration owner. This authorization
+does not create an S1 branch and does not implement Task 02B, 03B-E, 05A, 12A,
+or 13A.
 
 The convergence report's provenance wording is also corrected: all 26 reviewed
 source commits were applied by ordered cherry-pick, but the original source SHAs
@@ -62,9 +61,9 @@ checkpoint-backed session truth and one generation-checked work graph.
 | Lane | Integrated fixing HEAD | Package | Integration disposition | Next package |
 |---|---|---|---|---|
 | A | `f145cbe2df5f74418c9ccaae2f0a5cf5555b8daf` | A1/A2 + A-CI1 | Accepted in convergence tree | Stand by; retain cross-lane gates |
-| B | `2e46fc8e0228af42d6eaeaa6a665ffe5998c0bd5` | B1-R + B-C1/B-V1 | Accepted in convergence tree | Stand by; rerun consumer tests after C-P3 |
-| C | `ab1c501400fc2a8c47fcef1b4fe85c4e4db8d8f6` | C1-R2 | Changes requested: C-P3 mapping-key/omitted-key privacy and loss accounting | C1-R3 bounded projection repair |
-| D | `30c182392d7392b2c74446102893b2f10f1666e3` | D1-R2 | Accepted; exact receipts may need producer refresh after C-P3 | Conditional receipt requalification only |
+| B | `2e46fc8e0228af42d6eaeaa6a665ffe5998c0bd5` | B1-R + B-C1/B-V1 | Accepted; 108-test direct C consumer green with no runtime delta | Task 02B contract package authorized from final baseline |
+| C | `d50f41fb3b8190a953f9f37f278bf0b197af286b` | C1-R3 / C-P3 | Accepted; collision-safe key/omitted projection and loss accounting | Task 03 recovery + 13A contract package authorized from final baseline |
+| D | `72d5d11bd924466aeff8282a5b0aa5ef8341de9e` | D1-R2 receipt refresh | Accepted; exact B/C receipts, honest typed blockers retained | Lineage intake only; 05A freeze remains blocked |
 
 ## 3. Source and validation evidence
 
@@ -451,53 +450,38 @@ reviewed authority before any contract becomes qualified.
 
 ## 5. Contract convergence and merge order
 
-The historical A -> C -> B -> D order is complete in the convergence tree. It
-correctly placed the execution-outcome owner before its conversation consumer
-and then qualified D against accepted producer artifacts. The only active merge
-sequence is now:
-
-1. **C1-R3:** repair C-P3 on the exact convergence HEAD, without starting 03B–E.
-2. **B consumer rerun:** prove ExchangeLog's delegated model/trace projections
-   inherit the repaired behavior; change B only if a real consumer defect is
-   exposed.
-3. **D receipt refresh:** if the C fixture/evidence bytes or producer commit
-   change, publish and consume a new exact producer-owned receipt; otherwise
-   record why the current receipt remains valid.
-4. **G1 requalification:** rerun the pinned ratchet, stable lint/type, targeted
-   cross-lane suites, adversarial key probes, full suite, readiness modes, and
-   `git diff --check` on the combined tree.
-
-No A, B, or D feature work is authorized inside this repair. Shared release
-documents remain integration-owner leases.
+The historical A -> C -> B -> D order is complete. G1-R3 then executed the
+bounded C repair, B consumer rerun, D exact-receipt refresh, and combined
+qualification in that order. No A, B, or D feature work was added. Shared
+release documents remain integration-owner leases.
 
 ## 6. Next work
 
-The immediate dispatch is one bounded C-owned repair, not four concurrent
-feature branches.
+G1-R3 is complete. The next dispatch is the four S1 contract packages described
+below, each based on the final accepted baseline; this ledger does not create
+those branches.
 
-### Lane C — C1-R3 / C-P3 projection-key closure
+### Accepted Lane C — C1-R3 / C-P3 projection-key closure
 
-- recursively sanitize or replace mapping keys in model output and nested
+- recursively sanitizes or replaces mapping keys in model output and nested
   `next_action` arguments; raw host paths, token/header/secret-like text, and
   other sensitive identifiers must not survive as keys; the representation must
   be deterministic and collision-safe so two redacted keys cannot overwrite or
   silently discard values;
-- make trace-safe `omitted` data use an explicitly safe representation instead
+- makes trace-safe `omitted` data use an explicitly safe representation instead
   of copying canonical keys verbatim;
-- count key redactions and omitted-field projection losses in aggregate and
+- counts key redactions and omitted-field projection losses in aggregate and
   per-field loss facts;
-- add nested probes for host paths and secrets in keys, including model output,
+- adds nested probes for host paths and secrets in keys, including model output,
   next-action arguments, trace-safe omitted data, and ExchangeLog delegation;
-- preserve canonical persistence bytes and strict readers unless a versioned
-  migration is genuinely required;
-- publish updated C evidence/fixtures if their bytes change, then hand the exact
-  identity to D; do not start coding tools, durability, MCP, or Task 13 behavior.
+- preserves canonical persistence bytes and strict readers;
+- publishes updated C evidence/fixtures and hands the exact identity to D;
+  coding tools, durability, MCP, and Task 13 behavior remain untouched.
 
-Lanes A, B, and D remain on standby. B reruns its consumer suite after the C
-fix; D only refreshes exact receipts when producer evidence changes; A provides
-the integrated quality gate. The conditional S1 packages are specified in
+The bounded C repair, B consumer rerun, D receipt refresh, and integrated A
+quality gate are complete. The S1 packages are specified in
 [`docs/internal/plans/s1_contract_wave.md`](internal/plans/s1_contract_wave.md)
-and become dispatchable only after G1 is reclosed.
+and are now dispatchable from the final accepted baseline.
 
 ### Post-G1 capability remap (planned, not dispatched)
 
@@ -535,8 +519,8 @@ freeze until Task 12/13 lineage is available.
       parsed as YAML strings.
 - [x] Tool arguments reject every recursively non-JSON/non-finite value.
 - [x] ToolResult canonical serialization has no caller-visible nested aliases.
-- [ ] Trace-safe loss facts cover every redacted or omitted projected field.
-- [ ] Model/trace-safe projections sanitize sensitive mapping keys at every
+- [x] Trace-safe loss facts cover every redacted or omitted projected field.
+- [x] Model/trace-safe projections sanitize sensitive mapping keys at every
       nesting level, including trace-safe omitted data (`C-P3`).
 - [x] Cross-lane qualification receipts bind to reviewed producer artifacts.
 
@@ -682,3 +666,39 @@ freeze until Task 12/13 lineage is available.
 - Decision: the convergence tree remains a strong integration candidate, but
   **G1 is reopened and S1 is blocked**. Only the bounded C1-R3 repair, dependent
   B/D requalification, and combined gate rerun are authorized next.
+
+### 2026-08-29 — G1-R3 final projection closure accepted
+
+- Started the isolated final worktree directly from clean convergence source
+  `acb491bd822baf6ca429e81639aadbde72a626f0`; the official integration source
+  was independently clean at
+  `a02ce05e9a364eb484ef339fe5cbd623910cf525`.
+- Reproduced four pre-fix failures covering sensitive raw keys, omitted loss,
+  zero-budget omitted bypass, and ExchangeLog inheritance, then closed C-P3 in
+  core commit `94bfe80aae110f6ee7471478e6ab7eabdc13bba1`.
+- Accepted C producer `d50f41fb3b8190a953f9f37f278bf0b197af286b`.
+  The fixture SHA-256 is
+  `a3eccdbf4d0c5da282c8118ea8308b901216415e4e26bd44bb9c2f3dde8e5775`;
+  the evidence SHA-256 is
+  `16ace4464b4c5325f63ed9a9092eef00701cc15f35d0f691a07f5043dc438a19`.
+- Requalified B's direct canonical/model/trace delegation with no B runtime
+  change. D receipt refresh
+  `72d5d11bd924466aeff8282a5b0aa5ef8341de9e` binds the exact C artifacts and
+  preserves B producer `2e46fc8e0228af42d6eaeaa6a665ffe5998c0bd5`.
+- Passed 108 combined C/B tests, 55 readiness/evidence/boundary tests, seven
+  dedicated adversarial nodes, and all three readiness cases. Dry-run with no
+  receipts and dry-run with exact receipts exit 0; normal exact receipts exits
+  2. Every case remains `schema_not_ready`, with trajectory v2 false, empty
+  measurements/claims, and publication-qualified count zero; exact receipts
+  qualify only B/C.
+- Tool qualification passed with 61 imported modules, 74 class definitions,
+  and 62 qualified/registered tools. Python 3.12.7 ran the 399-finding ratchet
+  (377 active, 22 vendored/generated), stable flake8, stable mypy on 77 files,
+  and the pre-documentation full suite (`1867 passed, 50 skipped`). One earlier
+  combined shell invocation outlived its output-capture window, so its
+  unobservable tail was discarded as evidence and each gate was rerun with an
+  independently observable exit.
+- Decision: **G1 CLOSED**. S1 contract packages are authorized only from the
+  final accepted baseline reported by the integration owner. No S1 branch,
+  Task 02B, 03B-E, 05A, 12A, 13A, trajectory-v2 freeze, qita redesign, provider
+  default, packaging, push, deployment, or live-model work occurred.

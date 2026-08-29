@@ -18,13 +18,13 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 
 ## 最新进展
 
-- **G1 收敛候选已完成独立审计**：A → C → B → D 已集成，Python 3.12.7 ratchet、lint/type、定向及全量门禁均通过；但审计发现 C-P3——敏感 mapping key 和 trace-safe omitted key 可绕过 ToolResult 脱敏与 loss 计数。因此 G1 重新打开，S1 在完成该边界修复和组合复验前保持阻断。
+- **G1 最终收敛已验收**：G1-R3 以确定性、无碰撞的敏感 key 占位符、有界 trace-safe omitted 数据和完整 loss facts 关闭 C-P3。ExchangeLog 无需运行时代码改动即可继承修复后的公开投影，D 验证精确 C producer 产物；Python 3.12.7 ratchet、lint/type、定向、readiness、对抗及全量门禁均通过。S1 合同包只能从最终验收基线启动。
 - **持久会话与原生多智能体 v4 架构**：[Task 12](docs/v4/12-session-runtime-and-persistence.md) 规划了以 checkpoint v2 为唯一持久化真相的安全暂停、跨进程恢复、fork 与 effect-aware recovery；[Task 13](docs/v4/13-durable-multi-agent-work-graph.md) 则把 handoff、delegate、fan-out、spawn、fork、steer、join 明确为一个持久 work graph 上不同的所有权语义。[四产线手册](docs/v4/11-four-lane-execution-playbook.md)也已调整：G1 后工程质量成为跨线合并门禁，四条能力线转为 Session、Conversation/Context、Tools/Multi-Agent、Trajectory/qita/DX。
 - **静态 ratchet 资格验证与可执行贡献门禁**：确定性测试覆盖所有关键 baseline 转换；tool-schema workflow 与仓库测试现在共同执行同一个已提交入口，真实检查已注册 class tools，并包含受控 malformed-spec 失败证明。required-candidate、advisory、stale 与 release-only 角色继续明确记录，同时不声称掌握外部 branch-protection 配置。
 - **证据化 v4 集成进度账本**：[`docs/progress.md`](docs/progress.md) 现在持续记录各产线的准确 HEAD、集成结论、可执行复核探针、跨线契约阻断、合并顺序以及 G1/G2 检查表；收敛波次分支“已完成”与集成分支“已合入并通过资格验证”被明确区分。
 - **规范工具结果与运行时所有权**：`ToolResult` 已原位演进为无损的 `qitos.tool_result/v1` action/tool outcome，`ActionResult`、旧字典和 `model_summary` 通过兼容边界接入。结构化 schema 硬门禁、生命周期所有权矩阵、确定性的 durability 竞态证明及 Lane B/D 版本化 fixtures 共同完成 Task 03A/09A 合同层；本轮未改变编码工具、checkpoint 或 MCP transport 行为。
 - **ToolResult 契约加固**：canonical persistence 不再展开 output，带版本 payload 严格解析，legacy flattening 进入显式 adapter；模型与 trace-safe view 使用有界、脱敏的 allowlist。错误 schema 及 interceptor/permission 改写后的参数都会在工具执行前被共享硬门禁拒绝；C1-R fixture 固定了 Lane B/D 交接，但不宣称已经解决完整 trajectory privacy。
-- **G1 ToolResult 边界进展**：递归 JSON-only 参数会在 interceptor、权限与工具代码之前失败，canonical 与 legacy 的嵌套值均隔离调用方所有权；标量模型/trace 值已有有界脱敏，mapping key 与 omitted key 的完整保护由当前 C-P3 修复负责。
+- **G1 ToolResult 边界已关闭**：递归 JSON-only 参数会在 interceptor、权限与工具代码之前失败，canonical 与 legacy 的嵌套值均隔离调用方所有权；所有 model/trace 可见 mapping key（含 trace-safe omitted 数据）现在都采用无碰撞脱敏，并提供 aggregate 与 per-field loss 计数。
 - **仓库全包静态质量 ratchet**：固定版本的 Python/flake8/mypy 单一命令会用提交态分类 baseline 检查所有 active `qitos` package。新 finding 会阻断 CI，已修复 finding 会强制缩小 baseline，core/engine/models/trace 稳定层继续保持零债务；correctness finding 按语义交给对应产线，而不会被降级成普通清理。
 - **工程质量审计与证据门禁**：[证据化审计](docs/engineering-quality-audit.md)覆盖全包质量门禁、错误与持久化语义、资源生命周期、重复抽象、可选依赖和测试可信度。首轮质量保障、对话/上下文、工具/运行时、轨迹/架构收敛四线被保留为 G1 收口历史；G1 之后，同一套 ratchet 与证据规则将作为四条能力线的强制门禁。
 - **规范对话事务契约**：模块级 `qitos.core.conversation` 不再复制 outcome 字段，而是嵌入唯一 canonical `ToolResult`；persistence/model/trace view 全部委托给 C，ExchangeLog v2 严格读取并统一返回类型化错误，同时保留面向崩溃恢复的部分完成顺序与 steering，且直接用已提交的 C fixture 完成资格验证。Engine/provider 默认路径与 Task 02B 仍未启动。

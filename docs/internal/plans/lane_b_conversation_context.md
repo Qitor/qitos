@@ -1,6 +1,6 @@
 # Lane B conversation and context plan
 
-Status: B1-R integrated candidate; await C-P3 and rerun delegated projections
+Status: B1-R accepted; canonical C-P3 consumer requalification green
 Work package: B1-R Phase 1 / Task 02A contract integrity
 Integration baseline: `8441bef2f2024fd6c2ec01784708512222382471`
 B1 source HEAD: `69a961f6f50656dff308db7a2f3e400439ef20d0`
@@ -132,6 +132,18 @@ Integrated targeted evidence: 29 conversation tests and 71 combined
 conversation/ToolResult/projection tests passed; stable mypy succeeded on 77
 source files and stable flake8 was clean. Full combined G1 qualification remains
 open until Lane D is integrated.
+
+## G1-R3 canonical consumer requalification
+
+ExchangeLog required no runtime change. Its `to_model_dict()` and
+`to_trace_safe_dict()` continue to call C's public serializers directly, so the
+collision-safe key encoding, recursive value behavior, omitted budget, and loss
+facts are inherited byte-for-byte. The new consumer probe also confirms that
+persistence retains the original sensitive keys and strict round-trip behavior.
+The 108-test combined ToolResult/structural/projection/conversation command
+passed, including typed malformed reads, partial completion, completion order,
+recovery, and one-time steering. The B producer fixture/evidence bytes did not
+change, so D correctly retains B's `2e46fc8...` receipt.
 
 ## File leases
 

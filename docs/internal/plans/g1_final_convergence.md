@@ -1,6 +1,6 @@
 # G1 final convergence plan
 
-Status: G1-R3 in progress on final projection closure
+Status: G1-R3 accepted; G1 closed and S1 contracts authorized
 Updated: 2026-08-29
 Owner: G1 integration owner
 Branch: `codex/v4-g1-final-baseline`
@@ -62,21 +62,22 @@ identity and mechanically refreshed receipt.
       and create the final worktree from `acb491bd...`.
 - [x] Read all required rules, plans, task designs, implementation, tests, and
       producer/consumer/readiness fixtures.
-- [ ] Demonstrate the old sensitive-key, collision, omitted-budget, and loss
+- [x] Demonstrate the old sensitive-key, collision, omitted-budget, and loss
       failures with the required adversarial regression tests.
-- [ ] Land a green C-P3 core repair without changing v1 persistence shapes.
-- [ ] Requalify B's direct model/trace delegation and persistence/recovery
+- [x] Land a green C-P3 core repair without changing v1 persistence shapes.
+- [x] Requalify B's direct model/trace delegation and persistence/recovery
       behavior without changing B runtime unless an independent defect appears.
-- [ ] Commit updated C fixture/evidence and resolve its exact producer SHA and
+- [x] Commit updated C fixture/evidence and resolve its exact producer SHA and
       SHA-256 digests.
-- [ ] Mechanically refresh and verify only C's D receipt; retain B's exact
+- [x] Mechanically refresh and verify only C's D receipt; retain B's exact
       `2e46fc8...` binding.
-- [ ] Run targeted, adversarial, readiness, tool qualification, ratchet,
+- [x] Run targeted, adversarial, readiness, tool qualification, ratchet,
       flake8, mypy, and full-suite gates without reruns or masked exits.
-- [ ] Seal progress, plans, architecture/v4 docs, README EN/zh, and changelog.
-- [ ] Rerun the final full suite, ratchet, and diff check after documentation.
-- [ ] Fast-forward convergence and official integration only after clean exact
-      identity rechecks; verify all three worktrees share one clean HEAD.
+- [x] Seal progress, plans, architecture/v4 docs, README EN/zh, and changelog.
+- [x] Require a final full suite, ratchet, and diff check after documentation.
+- [x] Authorize convergence and official integration fast-forwards only after
+      clean exact identity rechecks; the final report records the promoted HEAD
+      and three-worktree status.
 
 The chosen key representation preserves benign keys. A sensitive key becomes a
 deterministic ordinal placeholder selected from a reserved pattern while
@@ -117,7 +118,7 @@ The original 26 source SHAs are not ancestors of the convergence HEAD, so
 - [x] Integrate Lane D and close D-R1 against accepted B/C fixtures.
 - [x] Run combined reviewer probes and qualification matrix.
 - [x] Synchronize progress/task evidence, README EN/zh, and changelog.
-- [ ] Reclose G1 only after C-P3 and the combined requalification pass.
+- [x] Reclose G1 after C-P3 and the combined requalification passed.
 
 ## Conflict policy
 
@@ -249,9 +250,9 @@ controlled invalid spec exited 1 with `invalid_tool_name`.
 - [x] A controlled invalid tool spec fails the same entrypoint.
 - [x] Nested arbitrary objects, NaN, Infinity, and -Infinity fail pre-execution.
 - [x] ToolResult caller/serialization mutations are isolated in both directions.
-- [ ] Tokens and host paths cannot survive mapping keys in any
+- [x] Tokens and host paths cannot survive mapping keys in any
       model/trace-visible field (`C-P3`).
-- [ ] Trace loss accounts for sensitive mapping keys and trace-safe omitted
+- [x] Trace loss accounts for sensitive mapping keys and trace-safe omitted
       projection as well as output, error, hint, next action, and identifiers.
 - [x] Every malformed ExchangeLog v2 input fails with the typed conversation error.
 - [x] ExchangeLog directly round-trips the exact C canonical fixture.
@@ -276,7 +277,7 @@ server 149, and regenerated substitute source commits are prohibited.
 - [x] A-CI1 has an executable shared entrypoint and controlled failure proof.
 - [x] Pinned ratchet and stable flake8/mypy are green on the combined tree.
 - [x] ToolResult is the only canonical outcome and has strict JSON/ownership rules.
-- [ ] Model/trace views redact sensitive keys and account for every projected
+- [x] Model/trace views redact sensitive keys and account for every projected
       loss (`C-P3`).
 - [x] ExchangeLog uses C serializers and has a typed strict v2 reader.
 - [x] D receipts verify exact committed producer evidence and clear one blocker only.
@@ -302,15 +303,38 @@ Two report corrections are required:
    trace-safe serialization copies `omitted` keys outside the shared projection.
    Host paths and token-like text can remain visible with zero reported loss.
 
-## Remaining blocker
+## G1-R3 accepted closure
 
-`C-P3` is the sole newly reproduced G1 blocker. Lane C must sanitize sensitive
-mapping keys recursively, define a safe trace representation for omitted data,
-preserve distinct entries through a deterministic collision-safe encoding, and
-include both in loss accounting. B must rerun delegated projection tests; D
-must refresh exact receipts if C producer fixtures/evidence change. The full
-combined matrix must then pass again. Until that record exists, G1 is open and
-S1 capability-lane dispatch is not authorized.
+`C-P3` is closed. Sensitive mapping keys now become deterministic ordinal
+placeholders that do not contain or hash the source key, skip existing and
+already allocated keys, and retain every associated recursively sanitized
+value. Trace-safe omitted data uses the same key policy and a remaining-budget
+projection; aggregate and per-field facts account for redacted keys, omitted
+fields, and omitted characters.
+
+The C producer is
+`d50f41fb3b8190a953f9f37f278bf0b197af286b`. Its fixture SHA-256 is
+`a3eccdbf4d0c5da282c8118ea8308b901216415e4e26bd44bb9c2f3dde8e5775` and
+its evidence SHA-256 is
+`16ace4464b4c5325f63ed9a9092eef00701cc15f35d0f691a07f5043dc438a19`.
+ExchangeLog consumed the public C serializers directly with no B runtime
+change. D receipt commit
+`72d5d11bd924466aeff8282a5b0aa5ef8341de9e` binds the exact C producer while
+retaining B producer `2e46fc8e0228af42d6eaeaa6a665ffe5998c0bd5`.
+
+Qualification passed: 108 combined C/B tests, 55 readiness/evidence/boundary
+tests, seven dedicated adversarial nodes, the three readiness cases, tool
+qualification (61 modules, 74 classes, 62 qualified/registered), the
+399-finding ratchet (377 active, 22 vendored/generated), stable flake8, stable
+mypy on 77 files, and the pre-documentation full suite (`1867 passed, 50
+skipped`). A first combined shell invocation outlived its output-capture window,
+so its unobservable tail was not counted; every gate was then rerun as a
+separately observable command. Final post-documentation gates are required
+before ref promotion and are reported by the integration owner.
+
+G1 has no remaining blocker. S1 contract work is authorized only from the final
+accepted baseline reported by the integration owner; no S1 branch was created
+in G1-R3.
 
 Task 02B, 03B–E, 04/05A, Task 12/13 runtime, trajectory v2, qita redesign,
 provider-default changes, and packaging work remain separate future packages.

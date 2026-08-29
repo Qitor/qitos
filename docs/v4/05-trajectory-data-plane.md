@@ -161,6 +161,13 @@ accepted/rejected parity corpus. These readiness receipts do not qualify the two
 trajectory payload manifests, produce measurements or claims, complete 05A, or
 freeze trajectory v2.
 
+G1-R3 refreshed only the C receipt after accepting ToolResult producer
+`d50f41fb3b8190a953f9f37f278bf0b197af286b`; receipt commit
+`72d5d11bd924466aeff8282a5b0aa5ef8341de9e` verifies the committed fixture and
+evidence bytes while retaining the exact B producer binding. Exact-receipt
+readiness still qualifies only B/C, reports `schema_not_ready`, emits no
+measurements or claims, and leaves trajectory v2 unfrozen.
+
 ### 05B — store, artifacts, and v1 bridge
 
 - Implement atomic writer/reader and integrity validation.

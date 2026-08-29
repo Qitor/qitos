@@ -1,6 +1,6 @@
 # Lane D data convergence
 
-Status: D1/D1-R integrated candidate; refresh exact C receipt only if C-P3 evidence changes
+Status: D1-R2 accepted; exact C-P3 producer receipt refreshed and verified
 Updated: 2026-08-29
 Work package: Lane D / D1-R — strict fixture manifests, portable evidence, and contract readiness gates
 Integration baseline: `8441bef2f2024fd6c2ec01784708512222382471`
@@ -361,8 +361,14 @@ duplicate, invalid, unestablished-version, version/path/digest/commit/authority
 mismatches are distinct typed blockers. One verified receipt clears only its
 exact blocker; fixture presence alone never qualifies a contract.
 
-The G1 integration-owned receipt set binds accepted B (`2e46fc8`) and C
-(`ab1c501`) producer commits. It qualifies only
+The G1 accepted receipt set binds B
+`2e46fc8e0228af42d6eaeaa6a665ffe5998c0bd5` and C
+`d50f41fb3b8190a953f9f37f278bf0b197af286b` producer commits. C's fixture and
+evidence digests are respectively
+`a3eccdbf4d0c5da282c8118ea8308b901216415e4e26bd44bb9c2f3dde8e5775`
+and `16ace4464b4c5325f63ed9a9092eef00701cc15f35d0f691a07f5043dc438a19`;
+the mechanical D receipt refresh is commit
+`72d5d11bd924466aeff8282a5b0aa5ef8341de9e`. It qualifies only
 `lane_b.exchange_log_fixture_version` and
 `lane_c.canonical_tool_result_fixture_version`; every 02B/03B-E/04/05A input
 remains typed blocked. Manifest schema parity is exercised across the complete

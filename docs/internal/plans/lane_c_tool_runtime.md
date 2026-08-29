@@ -1,6 +1,6 @@
 # Lane C C1 — canonical tool outcome and runtime ownership
 
-Status: integrated candidate; C-P3 projection-key repair required for G1 reclosure
+Status: C1-R3 accepted; C-P3 closed on the G1 accepted baseline
 Integration baseline: `8441bef2f2024fd6c2ec01784708512222382471`
 C1 source HEAD: `1a36349b425e8c39d87b89e71ad4dcabd23d9e30`
 Branch: `codex/v4-lane-c-contract-hardening`
@@ -57,17 +57,23 @@ changes, or a universal lifecycle interface.
   per-field trace loss facts.
 - [x] Publish producer-owned qualification evidence beside the versioned fixture
   for Lane D to verify against an exact committed producer source.
-- [ ] C-P3: sanitize sensitive mapping keys recursively in model/trace views,
+- [x] C-P3: sanitize sensitive mapping keys recursively in model/trace views,
   replace raw trace-safe omitted keys with a deterministic collision-safe
   representation, and include both in aggregate/per-field loss facts.
-- [ ] Prove C-P3 through nested output, next-action, omitted, and ExchangeLog
+- [x] Prove C-P3 through nested output, next-action, omitted, and ExchangeLog
   consumer regression tests, then republish exact producer evidence if changed.
 
 The earlier source-branch rebase gate is satisfied by the G1 integration branch:
 the Lane A ratchet passed with 399 baselined findings (377 active and 22
 vendored/generated). The combined gates are green at the reviewed convergence
-source, but G1 remains open until the later C-P3 adversarial finding is repaired
-and the matrix is rerun.
+source. C-P3 is closed by core commit `94bfe80aae110f6ee7471478e6ab7eabdc13bba1`
+and producer commit `d50f41fb3b8190a953f9f37f278bf0b197af286b`.
+Sensitive keys now use deterministic collision-safe ordinal placeholders,
+trace-safe omitted entries share the remaining budget, and `redacted_keys` plus
+omitted facts reconcile per field and in aggregate. The C fixture/evidence
+SHA-256 values are respectively
+`a3eccdbf4d0c5da282c8118ea8308b901216415e4e26bd44bb9c2f3dde8e5775`
+and `16ace4464b4c5325f63ed9a9092eef00701cc15f35d0f691a07f5043dc438a19`.
 
 ## Shared-file leases
 

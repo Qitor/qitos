@@ -1,7 +1,7 @@
 # Task 13 — durable multi-agent work graph and ownership transfer
 
-Status: architecture design ready; 13A dispatch waits for C-P3/G1 reclosure,
-and behavior follows Task 12's clean-process vertical slice
+Status: architecture design ready; 13A contract work is authorized from the
+final G1 baseline, while behavior still waits for Task 12's clean-process slice
 Depends on: Task 12A–12D; consumes Tasks 02, 03, and 04 contracts
 Feeds: Task 05 lineage/observability, Task 10 convergence, and native multi-agent
 research methods

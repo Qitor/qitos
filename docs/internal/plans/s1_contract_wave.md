@@ -1,6 +1,6 @@
 # S1 contract wave plan
 
-Status: blocked — dispatch only after C-P3 repair and G1 requalification
+Status: authorized from the final v4 G1 accepted integration baseline
 Updated: 2026-08-29
 Owner: v4 integration owner
 Source gates: [`docs/progress.md`](../../progress.md) and
@@ -17,8 +17,9 @@ schema, provider default, or distributed scheduler.
 ## Dispatch gate
 
 Do not create S1 implementation branches from
-`587f34b76245e71fe3362a51dbad40895d7c43c5`. Before dispatch, the integration
-owner must record one later exact baseline that contains:
+`587f34b76245e71fe3362a51dbad40895d7c43c5` or the pre-repair
+`acb491bd822baf6ca429e81639aadbde72a626f0`. G1-R3 has now established the
+later accepted baseline reported by the integration owner, containing:
 
 - the C-P3 sensitive-key and omitted-key projection repair;
 - B's canonical consumer requalification;
@@ -26,10 +27,12 @@ owner must record one later exact baseline that contains:
 - the pinned 399-finding ratchet, stable flake8/mypy, adversarial projection
   probes, targeted cross-lane suites, full suite, both readiness modes, and
   `git diff --check` passing on the combined tree;
-- a clean worktree and an explicit **G1 CLOSED** decision in `docs/progress.md`.
+- a clean three-worktree fast-forward and explicit **G1 CLOSED** decision in
+  `docs/progress.md` and the final integration report.
 
-Until then, planning may be reviewed, but no S1 branch may claim an accepted
-baseline or merge readiness.
+S1 contract branches may now be created only from that exact final SHA. This
+authorization does not create those branches and does not authorize behavior
+beyond each lane's first contract package.
 
 ## Shared contracts
 

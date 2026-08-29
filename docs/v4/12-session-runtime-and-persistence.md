@@ -1,6 +1,6 @@
 # Task 12 — durable session runtime and process-independent resume
 
-Status: architecture design ready; 12A dispatch waits for C-P3 and G1 reclosure
+Status: architecture design ready; 12A authorized from the final G1 baseline, not implemented
 Depends on: Task 01; coordinates with Tasks 02, 03, 04, and 09
 Unblocks: Task 05 schema freeze, Task 13 durable multi-agent work, and the v4
 long-horizon reference flow
