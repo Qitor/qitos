@@ -1,6 +1,6 @@
 # Task 02 — model I/O transaction kernel
 
-Status: contract candidate exists on a reviewed lane; integration/convergence pending
+Status: Task 02A candidate integrated for G1 convergence; Tasks 02B–02E remain pending
 Depends on: Task 01
 Unblocks: Task 04, Task 12 durable snapshots, and Task 05
 Risk: high — core persistence and every provider adapter
@@ -96,6 +96,33 @@ ActionExecutor. This task does not create a scheduler. It closes protocol gaps:
 - Unit-test multimodal content, duplicate IDs, raw/parsed arguments, synthetic
   results, and incomplete batches.
 - Do not touch provider payload builders yet.
+
+#### 02A evidence (Lane B / B1)
+
+- Decision record and compatibility matrix:
+  `docs/internal/plans/lane_b_conversation_context.md` (`B1-ADR-001`).
+- Module-level contract: `qitos/core/conversation.py`; it is intentionally not
+  exported from `qitos.core.__init__` or the root package in this wave.
+- Schema `qitos.exchange_log.v1` preserves ordered multimodal/assistant items,
+  provider-scoped call IDs, raw and parsed argument states, batch identities,
+  typed terminal results, synthetic provenance, queued steering, and opaque
+  continuation attachments.
+- `ToolBatchBuilder` accepts out-of-order completion but commits results in call
+  declaration order. An incomplete batch rejects the next normal transaction;
+  queued steering is committed once after closure.
+- The strict `HistoryMessage` adapters preserve compatible fields without
+  changing the legacy dataclass. Unsupported reasoning replay or assistant
+  interleaving raises a typed conversion error instead of flattening data.
+- Lossless persistence and safe/public projection are separate: persistence
+  retains opaque provider payloads while `to_safe_dict()` redacts them. Signed
+  or encrypted reasoning is never converted into assistant text.
+- Versioned semantic handoff fixtures live in
+  `tests/fixtures/conversation/v1/semantic_fixtures.json`; Lane C-like execution
+  and Lane D-like persistence consumers both exercise them in
+  `tests/core/test_conversation.py`.
+- Engine/provider/checkpoint/request-view paths and defaults remain unchanged.
+  The branch must still rebase onto the integration HEAD containing Lane A/A1
+  and pass its ratchet before it can be described as merge-ready.
 
 ### 02B — request-view and capability policy
 

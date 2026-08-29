@@ -26,6 +26,7 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 - **G1 ToolResult 边界收口**：递归 JSON-only 参数会在 interceptor、权限与工具代码之前失败；canonical 与 legacy 的嵌套值均隔离调用方所有权；所有模型/trace 可见字段共用有界脱敏投影，并提供总量和逐字段 loss 事实。
 - **仓库全包静态质量 ratchet**：固定版本的 Python/flake8/mypy 单一命令会用提交态分类 baseline 检查所有 active `qitos` package。新 finding 会阻断 CI，已修复 finding 会强制缩小 baseline，core/engine/models/trace 稳定层继续保持零债务；correctness finding 按语义交给对应产线，而不会被降级成普通清理。
 - **工程质量审计与证据门禁**：[证据化审计](docs/engineering-quality-audit.md)覆盖全包质量门禁、错误与持久化语义、资源生命周期、重复抽象、可选依赖和测试可信度。首轮质量保障、对话/上下文、工具/运行时、轨迹/架构收敛四线被保留为 G1 收口历史；G1 之后，同一套 ratchet 与证据规则将作为四条能力线的强制门禁。
+- **版本化对话事务契约**：新增模块级 `qitos.core.conversation` 契约，保留有序多模态 exchange、并行工具调用/结果关联、批次中 steering 排队、raw/parsed 参数、合成关闭 provenance 与不被展平的服务商原生 continuation。严格的 `HistoryMessage` adapter 和 Lane C/D fixture 会先稳定兼容边界，本轮不切换 Engine 或 provider 默认路径。
 - **中性的传输与容器控制**：OpenAI-compatible 模型支持由调用方管理的 `default_headers`；`DockerEnv` 支持显式 `container_env` 映射，并正确保留容器内绝对路径，不吸收实战任务专属的路由或环境策略。
 - **立即取消状态保持一致**：Engine 识别立即取消后，State、任务/运行结果、END event 与 trace manifest 现在都会记录 `cancelled_immediate`；qita 会将该 manifest 视为 `stopped`，不再误判为正常完成。
 - **结构化动作文本不再假完成**：当原生工具模型没有返回 `tool_calls`、却以文本输出了格式错误的动作字段时，QitOS 现在会保留 parser 恢复路径，而不会把动作文本当成最终答案；普通自然语言结论的行为保持不变。
