@@ -1,0 +1,52 @@
+{
+  "manifest_version": "trajectory-fixture-source-manifest-v1",
+  "fixture_id": "qitos-native-tool-unrelated-source",
+  "source_class": "unrelated_agent",
+  "status": "selected_source_only",
+  "payloads_committed": false,
+  "provenance": {
+    "source_kind": "deterministic repository-owned generator",
+    "logical_source_id": "tests/test_native_tool_calling_runtime.py::_NativeToolAgent",
+    "collection_owner": "QitOS repository",
+    "independent_consumer": "QitOS native-tool conformance test agent",
+    "model_call_performed_by_d1": false
+  },
+  "license": {
+    "status": "repository_license",
+    "requirement": "Generated fixture inherits the repository test-source license."
+  },
+  "source_evidence": {
+    "generator": "tests/test_native_tool_calling_runtime.py",
+    "generation_mode": "offline deterministic fake provider and local tool",
+    "expected_steps": 2,
+    "network_required": false,
+    "live_key_required": false
+  },
+  "observed_coverage": {
+    "long_run_scale": false,
+    "run_step_phase_correlation": true,
+    "multimodal_content": false,
+    "parallel_tool_calls": false,
+    "out_of_order_completion": false,
+    "reasoning_continuation": false,
+    "context_injection": false,
+    "compaction": false,
+    "artifact": false,
+    "provider_failure": false,
+    "tool_failure": false,
+    "retry": false,
+    "cancellation_timeout": false,
+    "native_tool_call_result_correlation": true,
+    "non_json_tool_result_normalization": true
+  },
+  "sanitization": {
+    "status": "generator_selected_not_materialized",
+    "required_actions": [
+      "materialize only after Lane B ExchangeLog and Lane C ToolResult fixtures are versioned",
+      "use synthetic task text and tool payloads",
+      "assert no absolute paths, credentials, or personal data",
+      "record the generator commit and deterministic transformation receipt"
+    ],
+    "publication_gate": "versioned Lane B/C contracts plus portability and secret scans"
+  }
+}

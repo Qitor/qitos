@@ -1,0 +1,54 @@
+{
+  "manifest_version": "trajectory-fixture-source-manifest-v1",
+  "fixture_id": "campaign-long-arvo-18224-source",
+  "source_class": "campaign_long",
+  "status": "selected_source_only",
+  "payloads_committed": false,
+  "provenance": {
+    "source_kind": "maintainer-local campaign archive",
+    "logical_source_id": "x10-sequential/arvo-18224/2026-08-04",
+    "collection_owner": "campaign maintainer",
+    "independent_consumer": "ARVO/CyberGym campaign",
+    "model_call_performed_by_d1": false
+  },
+  "license": {
+    "status": "authorization_required",
+    "requirement": "Maintainer must confirm redistribution rights before payload publication."
+  },
+  "source_evidence": {
+    "schema_version": "v1",
+    "manifest_sha256": "53f4711fa55343c62d118a40e910c4fe16cde6278f7787bcd7eb41624f0720ad",
+    "events_sha256": "3565edd87ec482d2f4a3b087b59d057e7aa9ac3e3ae8766371191f57e80247fb",
+    "steps_sha256": "d8848bf06f43dcbd82271d96e876207fff5e7981de2ca97463c2f1019e87ff3b",
+    "event_records": 2782,
+    "step_records": 200,
+    "total_source_bytes": 238779383
+  },
+  "observed_coverage": {
+    "long_run_scale": true,
+    "run_step_phase_correlation": true,
+    "multimodal_content": false,
+    "parallel_tool_calls": false,
+    "out_of_order_completion": false,
+    "reasoning_continuation": "unknown_pending_lane_b_fixture",
+    "context_injection": "unknown_pending_lane_b_fixture",
+    "compaction": false,
+    "artifact": false,
+    "provider_failure": false,
+    "tool_failure": false,
+    "retry": "unknown_pending_lane_c_receipt",
+    "cancellation_timeout": false
+  },
+  "sanitization": {
+    "status": "not_started",
+    "raw_source_secret_key_names_detected": true,
+    "required_actions": [
+      "apply the versioned Lane C trace-safe redaction contract",
+      "replace host paths with portable logical references",
+      "remove benchmark task content that is not redistributable",
+      "re-scan values and keys for credentials and personal data",
+      "record a deterministic source-to-sanitized transformation receipt"
+    ],
+    "publication_gate": "license approval plus zero-secret and zero-host-path scans"
+  }
+}
