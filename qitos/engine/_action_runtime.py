@@ -89,6 +89,11 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                         "tool_name": normalized_action.name,
                     },
                     error="action_blocked",
+                    error_kind="policy",
+                    error_code="action_blocked",
+                    tool_name=normalized_action.name,
+                    action_id=normalized_action.action_id,
+                    attempts=0,
                     metadata={
                         "tool_name": normalized_action.name,
                         "error_category": "action_blocked",
@@ -161,6 +166,11 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                     status="error",
                     output=None,
                     error="tool_call_loop_detected",
+                    error_kind="policy",
+                    error_code="tool_call_loop_detected",
+                    tool_name=normalized_action.name,
+                    action_id=normalized_action.action_id,
+                    attempts=0,
                     metadata={
                         "tool_name": normalized_action.name,
                         "reason": loop_result.message,
@@ -259,82 +269,59 @@ class _ActionRuntime(Generic[StateT, ActionT]):
         per_message_max = int(getattr(engine.context_config, "tool_result_per_message_max_chars", 0) or 0)
         message_total_chars = 0
         for item in execution:
-            if item.status.value == "success":
-                output = item.output
-                output_status = ""
-                output_error = None
-                if isinstance(output, dict):
-                    output_status = str(output.get("status") or "").strip().lower()
-                    output_error = output.get("error") or output.get("message")
-                if output_status in {"error", "failed", "denied", "needs_user_input"}:
-                    results.append(
-                        ToolResult(
-                            status="error",
-                            output=output,
-                            error=str(output_error or output_status),
-                            metadata={
-                                "tool_name": item.name,
-                                "latency_ms": item.latency_ms,
-                                "attempts": item.attempts,
-                            },
-                        )
-                    )
-                    continue
-                # Truncate large tool results to prevent context overflow.
-                # Artifact-heavy tools may expose a bounded, human-readable
-                # model projection while retaining their canonical structured
-                # result for reducers and trace replay; budget that projection
-                # instead of converting the raw dict to a truncated string.
-                if max_chars > 0 and output is not None:
-                    visible_for_budget, has_model_summary = self._tool_output_for_budget(output)
-                    output_str = (
-                        visible_for_budget
-                        if isinstance(visible_for_budget, str)
-                        else json.dumps(visible_for_budget, ensure_ascii=False, default=str)
-                    )
-                    # Per-message aggregate budget: if total exceeds limit, apply stricter per-tool truncation
-                    effective_max = max_chars
-                    if per_message_max > 0 and message_total_chars + len(output_str) > per_message_max:
-                        # Reduce per-tool limit to fit within aggregate budget
-                        remaining = max(0, per_message_max - message_total_chars)
-                        effective_max = min(max_chars, remaining)
-                    if len(output_str) > effective_max and not has_model_summary:
-                        head = int(effective_max * 0.7)
-                        tail = effective_max - head
-                        truncated = output_str[:head] + f"\n... [truncated, {len(output_str)} chars total] ...\n" + output_str[-tail:]
-                        output = truncated
-                        message_total_chars += len(output) if isinstance(output, str) else 0
-                    else:
-                        message_total_chars += len(output_str)
-                results.append(
-                    ToolResult(
-                        status="success",
-                        output=output,
-                        metadata={
-                            "tool_name": item.name,
-                            "latency_ms": item.latency_ms,
-                            "attempts": item.attempts,
-                        },
-                    )
+            result = ToolResult.from_action_result(item)
+            output = result.output
+            output_status = ""
+            output_error = None
+            if result.status == "success" and isinstance(output, dict):
+                output_status = str(output.get("status") or "").strip().lower()
+                output_error = output.get("error") or output.get("message")
+            if output_status in {"error", "failed", "denied", "needs_user_input"}:
+                result = ToolResult.semantic_error(
+                    code=output_status,
+                    error=str(output_error or output_status),
+                    output=output,
+                    tool_name=result.tool_name,
+                    action_id=result.action_id,
+                    model_output=result.model_output,
+                    attempts=result.attempts,
+                    latency_ms=result.latency_ms,
+                    metadata=result.metadata,
                 )
-            else:
-                results.append(
-                    ToolResult(
-                        status="error",
-                        # Executors may intentionally return a recoverable,
-                        # model-facing failure card together with a non-success
-                        # status (unknown tools and backend failures do this).
-                        # Preserve it through provider history rather than
-                        # replacing it with None and an opaque JSON error.
-                        output=item.output,
-                        error=str(item.error or "tool execution failed"),
-                        metadata={
-                            "tool_name": item.name,
-                            "latency_ms": item.latency_ms,
-                            "attempts": item.attempts,
-                        },
-                    )
+
+            # Budget only the model projection. Canonical structured output is
+            # retained for reducers/trace replay and truncation is explicit.
+            if result.status == "success" and max_chars > 0 and output is not None:
+                visible_for_budget = (
+                    result.model_output
+                    if result.model_output is not None
+                    else output
                 )
+                output_str = (
+                    visible_for_budget
+                    if isinstance(visible_for_budget, str)
+                    else json.dumps(visible_for_budget, ensure_ascii=False, default=str)
+                )
+                effective_max = max_chars
+                if per_message_max > 0 and message_total_chars + len(output_str) > per_message_max:
+                    remaining = max(0, per_message_max - message_total_chars)
+                    effective_max = min(max_chars, remaining)
+                if len(output_str) > effective_max and result.model_output is None:
+                    head = int(effective_max * 0.7)
+                    tail = effective_max - head
+                    suffix = output_str[-tail:] if tail else ""
+                    result.model_output = (
+                        output_str[:head]
+                        + f"\n... [truncated, {len(output_str)} chars total] ...\n"
+                        + suffix
+                    )
+                    result.complete = False
+                    result.truncated = True
+                    result.omitted["characters"] = len(output_str) - effective_max
+                    message_total_chars += len(result.model_output)
+                else:
+                    message_total_chars += len(output_str)
+            results.append(result)
 
         # Merge blocked results and execution results back into original action order
         if blocked_indices:
@@ -354,10 +341,27 @@ class _ActionRuntime(Generic[StateT, ActionT]):
             merged_invocations: List[Dict[str, Any]] = []
             for i in range(len(actions)):
                 if i in blocked_indices:
-                    merged_results.append(blocked_result_by_orig_idx.get(i, ToolResult(status="error", output=None, error="action_blocked")))
+                    merged_results.append(blocked_result_by_orig_idx.get(i, ToolResult(
+                        status="error",
+                        output=None,
+                        error="action_blocked",
+                        error_kind="execution",
+                        error_code="action_blocked",
+                        tool_name=actions[i].name,
+                        action_id=actions[i].action_id,
+                        attempts=0,
+                    )))
                     merged_invocations.append(blocked_inv_by_orig_idx.get(i, {}))
                 else:
-                    merged_results.append(exec_result_by_orig_idx.get(i, ToolResult(status="error", output=None, error="execution_failed")))
+                    merged_results.append(exec_result_by_orig_idx.get(i, ToolResult(
+                        status="error",
+                        output=None,
+                        error="execution_failed",
+                        error_kind="execution",
+                        error_code="execution_failed",
+                        tool_name=actions[i].name,
+                        action_id=actions[i].action_id,
+                    )))
                     merged_invocations.append(exec_inv_by_orig_idx.get(i, {}))
             results = merged_results
             record.tool_invocations = merged_invocations
@@ -383,6 +387,7 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                     ToolResult(
                         status="success",
                         output={"env": engine._env_step_result_to_dict(env_result)},
+                        tool_name="env",
                         metadata={"source": "env"},
                     )
                 )
@@ -406,7 +411,9 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                     native_call_id = actions[idx].action_id
                 if not native_call_id:
                     native_call_id = f"call_{record.step_id}_{idx}"
-                model_payload = self._model_visible_tool_output(tool_name, payload)
+                model_payload = self._model_visible_tool_output(
+                    tool_name, payload, result=result
+                )
                 serialized = self._serialize_for_tool_message(model_payload, result.error)
                 engine._history_append(
                     "tool",
@@ -490,7 +497,13 @@ class _ActionRuntime(Generic[StateT, ActionT]):
             return ""
         return str(reason or "").strip()
 
-    def _model_visible_tool_output(self, tool_name: str, output: Any) -> Any:
+    def _model_visible_tool_output(
+        self,
+        tool_name: str,
+        output: Any,
+        *,
+        result: ToolResult | None = None,
+    ) -> Any:
         """Project a bounded tool summary into native tool-call history.
 
         Reducers and trace writers retain the canonical structured result. A
@@ -501,6 +514,8 @@ class _ActionRuntime(Generic[StateT, ActionT]):
         is not a benchmark-specific rendering path.
         """
         _ = tool_name
+        if result is not None and result.model_output is not None:
+            return result.model_output
         if isinstance(output, dict) and isinstance(output.get("model_summary"), str):
             summary = output["model_summary"].strip()
             if summary:
@@ -513,20 +528,20 @@ class _ActionRuntime(Generic[StateT, ActionT]):
         tool_name: str,
     ) -> Dict[str, Any]:
         payload = result.to_dict()
-        has_summary = isinstance(result.output, dict) and bool(
-            str(result.output.get("model_summary") or "").strip()
-        )
-        if not has_summary:
+        if result.model_output is None:
             return payload
-        visible_output = self._model_visible_tool_output(tool_name, result.output)
-        visible = ToolResult(
-            status=result.status,
-            output=visible_output,
-            error=result.error,
-            metadata=dict(result.metadata),
-        ).to_dict()
-        visible["metadata"] = {
-            **dict(visible.get("metadata") or {}),
+        visible_output = self._model_visible_tool_output(
+            tool_name, result.output, result=result
+        )
+        payload["output"] = visible_output
+        # ``to_dict`` preserves legacy flattened fields. They belong to the
+        # canonical record, not to an explicitly redacted model projection.
+        if isinstance(result.output, dict):
+            for key in result.output:
+                if key not in ToolResult().to_dict():
+                    payload.pop(str(key), None)
+        payload["metadata"] = {
+            **dict(payload.get("metadata") or {}),
             "model_visible": True,
         }
-        return visible
+        return payload

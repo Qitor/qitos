@@ -1,0 +1,12 @@
+{
+  "fixture_version": "qitos.durability_receipt.fixtures/v1",
+  "schema_version": "qitos.durability_receipt/v1",
+  "redaction_required": ["exception_object", "credentials", "raw_payload", "host_path"],
+  "cases": [
+    {"case": "accepted", "receipt": {"state": "accepted", "checkpoint_id": "cp-1", "persisted": false}},
+    {"case": "queued", "receipt": {"state": "queued", "checkpoint_id": "cp-2", "persisted": false, "queue_position_known": false}},
+    {"case": "persisted", "receipt": {"state": "persisted", "checkpoint_id": "cp-3", "persisted": true}},
+    {"case": "failed", "receipt": {"state": "failed", "checkpoint_id": "cp-4", "persisted": false, "failure": {"phase": "store_write", "category": "backend_error", "retryable": true, "diagnostic": "redacted"}}},
+    {"case": "dropped", "receipt": {"state": "dropped", "checkpoint_id": "cp-5", "persisted": false, "failure": {"phase": "enqueue", "category": "overflow", "retryable": true, "diagnostic": "queue capacity reached"}}}
+  ]
+}

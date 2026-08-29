@@ -116,19 +116,20 @@ class _EnvRuntime(Generic[StateT, ObservationT, ActionT]):
 
     def _model_visible_tool_result_dict(self, item: Any) -> Any:
         result = ToolResult.from_value(item)
-        output = result.output
-        has_summary = isinstance(output, dict) and bool(
-            str(output.get("model_summary") or "").strip()
-        )
-        if not has_summary:
+        if result.model_output is None:
             return item
-        visible = ToolResult(
-            status=result.status,
-            output=str(output["model_summary"]).strip(),
-            error=result.error,
-            metadata={**dict(result.metadata), "model_visible": True},
-        )
-        return visible.to_dict()
+        visible = result.to_dict()
+        visible["output"] = result.model_output
+        if isinstance(result.output, dict):
+            canonical_keys = set(ToolResult().to_dict())
+            for key in result.output:
+                if key not in canonical_keys:
+                    visible.pop(str(key), None)
+        visible["metadata"] = {
+            **dict(visible.get("metadata") or {}),
+            "model_visible": True,
+        }
+        return visible
 
     def validate_env_capabilities(self) -> List[Dict[str, Any]]:
         required = self.collect_required_ops()

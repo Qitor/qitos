@@ -1,0 +1,29 @@
+{
+  "fixture_version": "qitos.runtime_lifecycle.fixtures/v1",
+  "schema_version": "qitos.runtime_lifecycle/v1",
+  "cases": [
+    {
+      "case": "repeated_shutdown",
+      "receipt": {
+        "resource_kind": "owned_executor",
+        "owner": "framework",
+        "state": "closed",
+        "close_calls": 2,
+        "close_effects": 1,
+        "shutdown_guarantee": "drained",
+        "failure": null
+      }
+    },
+    {
+      "case": "borrowed_resource_remains_open",
+      "receipt": {
+        "resource_kind": "borrowed_executor",
+        "owner": "caller",
+        "state": "open",
+        "framework_close_calls": 0,
+        "shutdown_guarantee": "borrowed",
+        "failure": null
+      }
+    }
+  ]
+}

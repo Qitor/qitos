@@ -1,0 +1,164 @@
+{
+  "fixture_version": "qitos.tool_result.fixtures/v1",
+  "schema_version": "qitos.tool_result/v1",
+  "cases": [
+    {
+      "case": "success",
+      "result": {
+        "schema_version": "qitos.tool_result/v1",
+        "status": "success",
+        "tool_name": "read_file",
+        "action_id": "call-1",
+        "output": {"path": "README.md", "content": "QitOS"},
+        "model_output": "README.md: QitOS",
+        "complete": true,
+        "attempts": 1,
+        "latency_ms": 2.5,
+        "normalized_request": {"path": "README.md"},
+        "provenance": {"source": "tool", "toolset_version": "1"}
+      }
+    },
+    {
+      "case": "semantic_error",
+      "result": {
+        "schema_version": "qitos.tool_result/v1",
+        "status": "error",
+        "tool_name": "read_file",
+        "error": "path does not exist",
+        "error_kind": "semantic",
+        "error_code": "path_not_found",
+        "recoverable": true,
+        "recovery_hint": "Choose an existing path.",
+        "next_action": {"name": "list_files", "args": {"path": "."}}
+      }
+    },
+    {
+      "case": "execution_error",
+      "result": {
+        "schema_version": "qitos.tool_result/v1",
+        "status": "error",
+        "tool_name": "compile",
+        "error": "implementation raised",
+        "error_kind": "execution",
+        "error_code": "tool_execution_error",
+        "recoverable": false
+      }
+    },
+    {
+      "case": "permission_skipped",
+      "result": {
+        "schema_version": "qitos.tool_result/v1",
+        "status": "skipped",
+        "tool_name": "write_file",
+        "error_kind": "policy",
+        "error_code": "permission_denied",
+        "attempts": 1,
+        "provenance": {"gate": "permission", "executed": false}
+      }
+    },
+    {
+      "case": "timed_out_worker_still_running",
+      "result": {
+        "schema_version": "qitos.tool_result/v1",
+        "status": "timed_out",
+        "tool_name": "slow_tool",
+        "action_id": "call-timeout",
+        "error": "action exceeded timeout of 0.05s",
+        "error_kind": "execution",
+        "error_code": "timeout",
+        "attempts": 1,
+        "latency_ms": 50.2,
+        "worker_still_running": true,
+        "provenance": {"timeout_s": 0.05, "timeout_source": "action"}
+      }
+    },
+    {
+      "case": "cancelled",
+      "result": {
+        "schema_version": "qitos.tool_result/v1",
+        "status": "cancelled",
+        "tool_name": "queued_tool",
+        "error_kind": "execution",
+        "error_code": "cancel_token",
+        "attempts": 0,
+        "provenance": {"started": false, "cancel_source": "cancel_token"}
+      }
+    },
+    {
+      "case": "missing_parallel_slot",
+      "result": {
+        "schema_version": "qitos.tool_result/v1",
+        "status": "error",
+        "tool_name": "parallel_tool",
+        "model_output": "The executor did not produce a result.",
+        "error": "concurrent_execution_failed",
+        "error_kind": "execution",
+        "error_code": "TOOL_RESULT_MISSING",
+        "recoverable": true,
+        "attempts": 1
+      }
+    },
+    {
+      "case": "retries_attempt_count",
+      "result": {
+        "schema_version": "qitos.tool_result/v1",
+        "status": "success",
+        "tool_name": "flaky_tool",
+        "output": {"value": 7},
+        "attempts": 3,
+        "latency_ms": 18.0
+      }
+    },
+    {
+      "case": "truncated_next_action",
+      "result": {
+        "schema_version": "qitos.tool_result/v1",
+        "status": "success",
+        "tool_name": "grep",
+        "output": {"hits": [{"path": "a.py", "line": 1}]},
+        "model_output": "1 of 20 hits",
+        "complete": false,
+        "truncated": true,
+        "omitted": {"hits": 19},
+        "next_action": {"name": "grep", "args": {"query": "needle", "cursor": "page-2"}}
+      }
+    },
+    {
+      "case": "filesystem_effects",
+      "result": {
+        "schema_version": "qitos.tool_result/v1",
+        "status": "success",
+        "tool_name": "write_file",
+        "declared_effects": [{"kind": "filesystem_write", "target": "notes.txt"}],
+        "filesystem_changes": [{"path": "notes.txt", "operation": "created", "bytes": 4}]
+      }
+    },
+    {
+      "case": "artifact_ref_slot",
+      "result": {
+        "schema_version": "qitos.tool_result/v1",
+        "status": "success",
+        "tool_name": "inspect_binary",
+        "model_output": "Binary report stored as an artifact.",
+        "artifact_refs": [{
+          "artifact_id": "sha256:0123456789abcdef",
+          "media_type": "application/json",
+          "byte_length": 512,
+          "sensitivity": "internal"
+        }]
+      }
+    },
+    {
+      "case": "legacy_dict_model_summary",
+      "legacy": true,
+      "result": {
+        "status": "partial",
+        "output": {
+          "model_summary": "3 matches; more results available",
+          "matches": [1, 2, 3]
+        },
+        "metadata": {"tool_name": "legacy_grep"}
+      }
+    }
+  ]
+}

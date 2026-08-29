@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, FrozenSet, Optional
+from typing import Any, Dict, FrozenSet, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .tool_result import ToolResult
 
 
 class ActionKind(str, Enum):
@@ -50,7 +53,12 @@ class Action:
 
 @dataclass
 class ActionResult:
-    """Standardized action execution result."""
+    """Executor compatibility record.
+
+    ``ToolResult`` is the canonical public outcome. Executor callers may keep
+    consuming this record during migration and adapt it explicitly with
+    :meth:`to_tool_result`.
+    """
 
     name: str
     status: ActionStatus
@@ -60,6 +68,12 @@ class ActionResult:
     attempts: int = 1
     latency_ms: float = 0.0
     metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_tool_result(self) -> "ToolResult":
+        """Adapt this executor record to the canonical outcome contract."""
+        from .tool_result import ToolResult
+
+        return ToolResult.from_action_result(self)
 
 
 @dataclass
