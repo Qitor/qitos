@@ -19,6 +19,7 @@ How to update:
 
 ### Added
 
+- Added a continuously maintained v4 integration ledger (`docs/progress.md`) that distinguishes lane completion from integrated qualification and records exact source identities, review findings, contract blockers, merge order, and evidence gates.
 - Added neutral per-client `default_headers` support to OpenAI and OpenAI-compatible synchronous/asynchronous transports, plus `DockerEnv(container_env=...)` and correct absolute container-path handling.
 - Added an explicit, opt-in model-layer retry policy: `Model(retry=RetryPolicy(...))` and `build_model_for_preset(..., retry=...)` re-use the `qitos.core.tool.RetryPolicy` shape (max attempts, exponential backoff with cap and jitter, retryable-exception filter) around chat-completions and raw provider dispatch. Default stays `None` — no silent retries; engine recovery remains the safety net.
 - Campaign absorption wave 1 (engine correctness, decontaminated): `ContextConfig.tool_call_loop_detection_enabled` (default on) so long-running agents can opt out of repeated-call blocking; runtime exception reporting — recovered exceptions now surface on stderr, as a `RECOVER` trace event, in `QITOS_ERROR_LOG`/`QITOS_TRACE_DIR/step_error.log`, and as `EngineResult` `last_error`; the `json_decision_multi_v1` protocol registration and preset-level `recommended_request_kwargs` plumbing (no preset flips its default yet — that decision is deferred to the conversation-kernel task).

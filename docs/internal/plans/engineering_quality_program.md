@@ -54,18 +54,27 @@ The implementation program runs through four semantic owners:
 Task 09 and Task 10 are split across these owners. The full file-lease, fixture-
 handoff, merge-wave, and stop-gate rules are in the dispatch playbook.
 
-## Immediate next dispatch
+## Current integration decision
 
-Dispatch four low-conflict assignments in parallel:
+The first-wave branches have produced A1, B1, C1, and D1 artifacts, but the
+integration review found contract-convergence work that must precede Gate G1.
+The evidence and exact blockers are maintained in
+[`docs/progress.md`](../../progress.md).
 
-1. Lane A implements Task 08A's no-regression ratchet;
-2. Lane B produces the Task 02A ADR and exchange fixtures;
-3. Lane C produces the lifecycle ownership matrix and outcome fixtures;
-4. Lane D performs the data-plane/public-consumer census and prepares benchmark
-   fixtures without freezing v2 schema.
+The required order is:
 
-Lane B/C implementation waits for the Lane A ratchet to become an integrated CI
-gate. The four artifacts together close Gate G1 in the playbook.
+1. integrate and qualify Lane A's ratchet;
+2. harden Lane C's canonical result serialization, model projection, and
+   structural validator;
+3. make Lane B consume that result contract while closing ExchangeLog
+   immutability, privacy-projection, and partial-batch persistence gaps;
+4. harden Lane D's fixture/readiness gates and rebase its dependency ledger onto
+   the accepted B/C contracts;
+5. run combined G1 qualification before beginning the full W2 feature wave.
+
+Lane work may continue in isolated branches, but no completion report closes a
+gate until its fixing commits and integrated verification are recorded in the
+progress ledger.
 
 ## Completion
 

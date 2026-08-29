@@ -18,6 +18,7 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 
 ## 最新进展
 
+- **证据化 v4 集成进度账本**：[`docs/progress.md`](docs/progress.md) 现在持续记录各产线的准确 HEAD、集成结论、代码审查发现、跨线契约阻断、合并顺序以及 G1/G2 检查表；产线分支“已完成”与集成分支“已合入并通过资格验证”被明确区分。
 - **工程质量审计与四产线执行轨道**：新的[证据化审计](docs/engineering-quality-audit.md)覆盖全包质量门禁、错误与持久化语义、资源生命周期、重复抽象、可选依赖和测试可信度。[四产线手册](docs/v4/11-four-lane-execution-playbook.md)进一步将 Tasks 02–05、08–10 编排为质量保障、对话/上下文、工具/运行时、轨迹/架构收敛四条产线，并明确文件租约、跨线 fixture、合并波次和证据门禁。
 - **中性的传输与容器控制**：OpenAI-compatible 模型支持由调用方管理的 `default_headers`；`DockerEnv` 支持显式 `container_env` 映射，并正确保留容器内绝对路径，不吸收实战任务专属的路由或环境策略。
 - **立即取消状态保持一致**：Engine 识别立即取消后，State、任务/运行结果、END event 与 trace manifest 现在都会记录 `cancelled_immediate`；qita 会将该 manifest 视为 `stopped`，不再误判为正常完成。
