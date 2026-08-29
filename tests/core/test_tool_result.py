@@ -585,6 +585,138 @@ def test_zero_budget_omitted_projection_is_empty_and_explicitly_lossy() -> None:
     assert trace["loss"]["fields"]["omitted"]["omitted_fields"] == 2
 
 
+def _scalar_leaves(value: object) -> list[object]:
+    if isinstance(value, dict):
+        return [
+            leaf
+            for item in value.values()
+            for leaf in _scalar_leaves(item)
+        ]
+    if isinstance(value, list):
+        return [leaf for item in value for leaf in _scalar_leaves(item)]
+    return [value]
+
+
+def test_forced_secret_content_redacts_all_scalar_types_without_harming_benign_values() -> None:
+    unique_integer = 918273645
+    unique_float = 918273.625
+    raw_output = {
+        "secret": {
+            "text": "plain-sensitive-leaf",
+            "integer": unique_integer,
+            "float": unique_float,
+            "boolean": True,
+            "null": None,
+            "nested": [{"value": 314159265}],
+        },
+        "/Users/example/private/count-key": 271828182,
+        "benign": {
+            "integer": 42,
+            "float": 2.5,
+            "boolean": False,
+            "null": None,
+        },
+    }
+    result = ToolResult(output=raw_output)
+
+    model = result.to_model_dict(max_chars=4000)
+    trace = result.to_trace_safe_dict(max_chars=4000)
+    projected = json.loads(model["model_output"])
+    rendered_model = json.dumps(model, sort_keys=True)
+    rendered_trace = json.dumps(trace, sort_keys=True)
+    secret_subtree = next(
+        value
+        for key, value in projected.items()
+        if key.startswith("[REDACTED_KEY_") and isinstance(value, dict)
+    )
+
+    assert set(_scalar_leaves(secret_subtree)) == {"[REDACTED]"}
+    assert projected["benign"] == raw_output["benign"]
+    assert 271828182 in projected.values()
+    assert str(unique_integer) not in rendered_model
+    assert str(unique_integer) not in rendered_trace
+    assert str(unique_float) not in rendered_model
+    assert str(unique_float) not in rendered_trace
+    assert result.to_persistence_dict()["output"] == raw_output
+    canonical = ToolResult.from_canonical_dict(result.to_persistence_dict())
+    assert canonical.output == raw_output
+    output_facts = trace["loss"]["fields"]["model_output"]
+    assert output_facts["redacted_keys"] == 2
+    assert output_facts["secret_values"] == 7
+
+
+def test_explicit_model_output_and_next_action_redact_forced_secret_scalars() -> None:
+    model_float = 776655.125
+    action_integer = 887766551
+    result = ToolResult(
+        output="canonical-output",
+        model_output={"api_key": model_float, "benign": 3.25},
+        next_action={
+            "name": "read",
+            "args": {
+                "credential": {
+                    "integer": action_integer,
+                    "float": 123456.75,
+                    "boolean": False,
+                    "null": None,
+                },
+                "benign": {"integer": 9, "boolean": True, "null": None},
+            },
+        },
+    )
+
+    model = result.to_model_dict(max_chars=4000)
+    trace = result.to_trace_safe_dict(max_chars=4000)
+    projected_model_output = json.loads(model["model_output"])
+    model_secret = next(
+        value
+        for key, value in projected_model_output.items()
+        if key.startswith("[REDACTED_KEY_")
+    )
+    action_secret = next(
+        value
+        for key, value in model["next_action"]["args"].items()
+        if key.startswith("[REDACTED_KEY_")
+    )
+
+    assert model_secret == "[REDACTED]"
+    assert projected_model_output["benign"] == 3.25
+    assert set(_scalar_leaves(action_secret)) == {"[REDACTED]"}
+    assert model["next_action"]["args"]["benign"] == {
+        "integer": 9,
+        "boolean": True,
+        "null": None,
+    }
+    rendered = json.dumps({"model": model, "trace": trace}, sort_keys=True)
+    assert str(model_float) not in rendered
+    assert str(action_integer) not in rendered
+    assert trace["loss"]["fields"]["model_output"]["secret_values"] == 2
+    assert trace["loss"]["fields"]["next_action"]["secret_values"] == 5
+
+
+def test_omitted_sensitive_key_uses_count_role_and_preserves_integer_value() -> None:
+    result = ToolResult(
+        output=None,
+        omitted={"token=hidden-field": 7, "benign": 11},
+    )
+
+    trace = result.to_trace_safe_dict(max_chars=4000)
+    safe_key = next(
+        key for key in trace["omitted"] if key.startswith("[REDACTED_KEY_")
+    )
+
+    assert trace["omitted"][safe_key] == 7
+    assert type(trace["omitted"][safe_key]) is int
+    assert trace["omitted"]["benign"] == 11
+    omitted_facts = trace["loss"]["fields"]["omitted"]
+    assert omitted_facts["redacted_keys"] == 1
+    assert omitted_facts["secret_values"] == 1
+    assert result.to_persistence_dict()["omitted"] == {
+        "token=hidden-field": 7,
+        "benign": 11,
+    }
+
+
 @pytest.mark.parametrize(
     "next_action",
     ["read", {"name": "", "args": {}}, {"name": "read", "args": []}],

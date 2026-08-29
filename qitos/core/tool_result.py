@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 ToolResultStatus = Literal["success", "error", "skipped", "timed_out", "cancelled"]
 ToolErrorKind = Literal["semantic", "execution", "policy"]
+_ProjectionRole = Literal["content", "omission_counts"]
 
 TOOL_RESULT_SCHEMA_VERSION = "qitos.tool_result/v1"
 TOOL_RESULT_MODEL_VIEW_VERSION = "qitos.tool_result.model_view/v1"
@@ -225,7 +226,11 @@ def _mapping_key_is_sensitive(value: str) -> bool:
 
 
 def _redact_value(
-    value: Any, facts: Dict[str, int], *, force_secret: bool = False
+    value: Any,
+    facts: Dict[str, int],
+    *,
+    force_secret: bool = False,
+    role: _ProjectionRole = "content",
 ) -> Any:
     if isinstance(value, str):
         redacted = _redact_text(value, facts)
@@ -235,7 +240,12 @@ def _redact_value(
         return redacted
     if isinstance(value, list):
         return [
-            _redact_value(item, facts, force_secret=force_secret)
+            _redact_value(
+                item,
+                facts,
+                force_secret=force_secret,
+                role=role,
+            )
             for item in value
         ]
     if isinstance(value, dict):
@@ -270,9 +280,13 @@ def _redact_value(
                 item,
                 facts,
                 force_secret=force_secret or sensitive_name,
+                role=role,
             )
         return result
     if value is None or isinstance(value, (bool, int, float)):
+        if force_secret and role == "content":
+            facts["secret_values"] += 1
+            return "[REDACTED]"
         return value
     facts["non_json_values"] += 1
     return f"[REDACTED_{type(value).__name__.upper()}]"
@@ -301,7 +315,7 @@ def _bounded_mapping(
 ) -> Dict[str, Any]:
     """Redact a mapping and retain entries that fit one deterministic budget."""
 
-    safe = _redact_value(dict(value), facts)
+    safe = _redact_value(dict(value), facts, role="omission_counts")
     if not isinstance(safe, dict):  # Defensive: callers provide a mapping.
         facts["omitted_fields"] += 1
         return {}
