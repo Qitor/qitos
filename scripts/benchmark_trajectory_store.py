@@ -101,7 +101,7 @@ CONTRACT_REQUIREMENTS = (
         "lane_c.canonical_tool_result_fixture_version",
         "qitos.tool_result/v1",
         producer_contract_id="qitos.tool_result",
-        producer_source_commit="d50f41fb3b8190a953f9f37f278bf0b197af286b",
+        producer_source_commit="9a0c5ed5d6c1c959ff277d3888f54c927be3e183",
         fixture_path="tests/fixtures/tool_results/v1/contract_hardening.json",
         qualification_evidence_path=(
             "tests/fixtures/tool_results/v1/qualification-evidence.json"

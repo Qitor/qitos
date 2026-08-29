@@ -16,11 +16,11 @@
       "contract_id": "lane_c.canonical_tool_result_fixture_version",
       "producer_contract_id": "qitos.tool_result",
       "version": "qitos.tool_result/v1",
-      "producer_source_commit": "d50f41fb3b8190a953f9f37f278bf0b197af286b",
+      "producer_source_commit": "9a0c5ed5d6c1c959ff277d3888f54c927be3e183",
       "fixture_path": "tests/fixtures/tool_results/v1/contract_hardening.json",
-      "fixture_sha256": "a3eccdbf4d0c5da282c8118ea8308b901216415e4e26bd44bb9c2f3dde8e5775",
+      "fixture_sha256": "b7f4dc6dfe8958bcd9c47617869a14bc8114629038d3428e6a623642fd2e5415",
       "qualification_evidence_path": "tests/fixtures/tool_results/v1/qualification-evidence.json",
-      "qualification_evidence_sha256": "16ace4464b4c5325f63ed9a9092eef00701cc15f35d0f691a07f5043dc438a19",
+      "qualification_evidence_sha256": "96b0e641ccca7e049a90658496a19964217aa7c359a29c6b6e6b345fb7cf99f5",
       "qualification_authority": "qitos.g1.integration_owner/v1"
     }
   ]

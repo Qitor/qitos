@@ -60,6 +60,16 @@ def _verified_receipts() -> list[dict[str, Any]]:
     return receipt_set["receipts"]
 
 
+def _verified_receipt(contract_id: str) -> dict[str, Any]:
+    return copy.deepcopy(
+        next(
+            receipt
+            for receipt in _verified_receipts()
+            if receipt["contract_id"] == contract_id
+        )
+    )
+
+
 def test_repository_fixture_set_is_strictly_blocked_and_portable() -> None:
     module = _load_script()
 
@@ -435,6 +445,29 @@ def test_exact_committed_b_and_c_receipts_clear_only_owned_contracts() -> None:
     assert result["measurements"] == []
     assert result["claims"] == []
     assert result["publication_qualified_count"] == 0
+
+
+def test_r3_lane_c_receipt_cannot_qualify_the_r4_scalar_safe_producer() -> None:
+    module = _load_script()
+    old_c = _verified_receipt("lane_c.canonical_tool_result_fixture_version")
+    old_c.update(
+        {
+            "producer_source_commit": "d50f41fb3b8190a953f9f37f278bf0b197af286b",
+            "fixture_sha256": (
+                "a3eccdbf4d0c5da282c8118ea8308b901216415e4e26bd44bb9c2f3dde8e5775"
+            ),
+            "qualification_evidence_sha256": (
+                "16ace4464b4c5325f63ed9a9092eef00701cc15f35d0f691a07f5043dc438a19"
+            ),
+        }
+    )
+
+    qualified, findings = module.validate_contract_receipts([old_c])
+
+    assert "lane_c.canonical_tool_result_fixture_version" not in qualified
+    assert "producer_source_commit_mismatch" in {
+        item["code"] for item in findings
+    }
 
 
 @pytest.mark.parametrize(
