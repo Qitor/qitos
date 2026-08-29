@@ -3,8 +3,8 @@
 Status: active integration ledger
 Updated: 2026-08-29
 Integration branch: `codex/v4-g1-convergence`
-G1-R3 source: `acb491bd822baf6ca429e81639aadbde72a626f0`
-Current gate: **G1 closed; S1 contract dispatch authorized from the final accepted baseline**
+G1-R4 source: `6b5f293aa9f4c9a2e5e3190dd95b3ae8611d598e`
+Current gate: **G1 reopened on C-P4; S1 dispatch blocked**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md)
 and [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md)
@@ -38,10 +38,11 @@ producer commit. The pinned ratchet, stable flake8/mypy, targeted and
 adversarial contracts, readiness cases, architecture/public-surface gates,
 tool-schema qualification, and full suite passed.
 
-Gate G1 is **closed**. S1's four contract packages are authorized only from the
-final accepted baseline reported by the integration owner. This authorization
-does not create an S1 branch and does not implement Task 02B, 03B-E, 05A, 12A,
-or 13A.
+An independent scalar audit has since reopened G1 on `C-P4`. Sensitive mapping
+keys correctly enter forced-secret context, but numeric, boolean, and null leaf
+values can remain visible because the scalar base case returns them unchanged.
+S1 dispatch is blocked until content and omitted-count roles are separated, B/D
+are requalified, and the full R4 matrix passes. No S1 branch exists.
 
 The convergence report's provenance wording is also corrected: all 26 reviewed
 source commits were applied by ordered cherry-pick, but the original source SHAs

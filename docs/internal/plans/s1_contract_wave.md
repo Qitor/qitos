@@ -1,6 +1,6 @@
 # S1 contract wave plan
 
-Status: authorized from the final v4 G1 accepted integration baseline
+Status: blocked pending G1-R4 forced-secret scalar closure
 Updated: 2026-08-29
 Owner: v4 integration owner
 Source gates: [`docs/progress.md`](../../progress.md) and
@@ -30,9 +30,10 @@ later accepted baseline reported by the integration owner, containing:
 - a clean three-worktree fast-forward and explicit **G1 CLOSED** decision in
   `docs/progress.md` and the final integration report.
 
-S1 contract branches may now be created only from that exact final SHA. This
-authorization does not create those branches and does not authorize behavior
-beyond each lane's first contract package.
+The R3 authorization is superseded by C-P4 review. No S1 branch may be created
+until the integration owner reports the new scalar-safe R4 baseline SHA after
+all gates and three fast-forwards. That later authorization will remain limited
+to each lane's first contract package.
 
 ## Shared contracts
 

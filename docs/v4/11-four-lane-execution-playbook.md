@@ -7,11 +7,10 @@ Source tasks: Tasks 02–05 and 08–13
 Baseline: Task 01 complete; exact current integration status lives in
 [`docs/progress.md`](../progress.md)
 
-Current dispatch state: G1-R3 closed C-P3 with collision-safe sensitive-key
-projection, bounded trace-safe omitted data, complete loss facts, direct B
-consumer requalification, and an exact D producer receipt. The combined gates
-are green and S1's four contract packages are authorized from the final accepted
-baseline; no S1 branch is created by this document.
+Current dispatch state: independent review reopened G1 on C-P4 because
+forced-secret numeric, boolean, and null leaves can remain visible beneath a
+sensitive key. Only the bounded role-aware scalar repair plus B/D and combined
+requalification is active. S1 dispatch is blocked and no S1 branch exists.
 
 ---
 

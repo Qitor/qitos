@@ -1,12 +1,13 @@
 # G1 final convergence plan
 
-Status: G1-R3 accepted; G1 closed and S1 contracts authorized
+Status: G1-R4 in progress; G1 reopened on forced-secret scalar projection
 Updated: 2026-08-29
 Owner: G1 integration owner
 Branch: `codex/v4-g1-final-baseline`
 Worktree: `/Users/morinop/Desktop/WhitzardOS-g1-final`
 Fixed baseline: `a02ce05e9a364eb484ef339fe5cbd623910cf525`
 G1-R3 source: `acb491bd822baf6ca429e81639aadbde72a626f0`
+G1-R4 source: `6b5f293aa9f4c9a2e5e3190dd95b3ae8611d598e`
 
 ## Objective and scope guard
 
@@ -19,6 +20,58 @@ trajectory v2, qita redesign, packaging migration, or new multi-agent behavior.
 The integration owner resolves shared documents manually, preserves historical
 audit evidence append-only, and does not reinterpret branch-local validation as
 integrated qualification.
+
+## G1-R4 forced-secret scalar closure
+
+An independent audit after G1-R3 found `C-P4`: a sensitive mapping key enters
+`force_secret=True`, but `_redact_value()` returns `None`, booleans, integers,
+and finite floats unchanged. The key and loss facts can therefore claim
+redaction while a credential-like scalar remains visible. G1 and S1 dispatch
+are reopened until the bounded repair and combined qualification pass.
+
+R4 uses one role-aware projection implementation. Content under a sensitive key
+must replace every JSON scalar leaf and count each replacement exactly once.
+Benign content scalars remain unchanged. Trace-safe `omitted` uses a distinct
+omission-count role: its sensitive key is replaced, but the validated
+non-negative integer count remains an integer and is not counted as a secret.
+Canonical persistence, public versions, and B ownership remain unchanged.
+
+Starting identities were reverified before worktree creation: official,
+convergence, and G1-final were clean at
+`6b5f293aa9f4c9a2e5e3190dd95b3ae8611d598e`; branch
+`codex/v4-g1-r4-secret-scalars` and worktree
+`/Users/morinop/Desktop/WhitzardOS-g1-r4` were absent and created directly from
+that exact commit.
+
+### G1-R4 lease
+
+Lease owner: G1 integration owner acting for C-P4.
+
+File(s): `qitos/core/tool_result.py`, ToolResult projection tests, Conversation
+consumer tests, C fixture/evidence, D producer requirement/receipt, and the
+listed integration-owned documents.
+
+Semantic purpose: separate secret-bearing content projection from omitted-count
+projection, close every forced-secret JSON scalar leak, preserve canonical data,
+and bind D to the new committed C producer.
+
+Other lanes blocked or adapter supplied: B receives only public C projection
+requalification; D receives only committed producer identity and exact digests;
+all S1 implementation remains blocked.
+
+### G1-R4 stages
+
+- [x] Verify all three R3 sources at the exact clean baseline and create R4.
+- [x] Read all required rules, plans, code, tests, and fixtures.
+- [ ] Demonstrate pre-fix integer/float/bool/null leaks with dedicated nodes.
+- [ ] Implement role-aware scalar projection without changing public schemas.
+- [ ] Requalify B without a runtime change.
+- [ ] Commit updated C fixture/evidence and resolve producer SHA/digests.
+- [ ] Refresh D's exact C requirement/receipt and reject the old R3 receipt.
+- [ ] Run adversarial, targeted, readiness, static, lint/type, and full gates.
+- [ ] Reclose documentation and rerun post-documentation gates.
+- [ ] Fast-forward G1-final, convergence, and official integration after exact
+      clean identity rechecks; verify four clean worktrees share one HEAD.
 
 ## G1-R3 final projection closure
 

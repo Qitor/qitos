@@ -1,6 +1,6 @@
 # Lane C C1 — canonical tool outcome and runtime ownership
 
-Status: C1-R3 accepted; C-P3 closed on the G1 accepted baseline
+Status: C1-R4 in progress; C-P4 forced-secret scalar repair required
 Integration baseline: `8441bef2f2024fd6c2ec01784708512222382471`
 C1 source HEAD: `1a36349b425e8c39d87b89e71ad4dcabd23d9e30`
 Branch: `codex/v4-lane-c-contract-hardening`
