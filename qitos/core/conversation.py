@@ -18,6 +18,9 @@ from .multimodal import ContentBlock, normalize_content_block
 
 
 EXCHANGE_LOG_SCHEMA_VERSION = "qitos.exchange_log.v1"
+CONTINUATION_REDACTED_DIAGNOSTIC_VERSION = (
+    "qitos.exchange_log.diagnostic.continuation_redacted.v1"
+)
 
 
 class ArgumentParseStatus(str, Enum):
@@ -30,7 +33,7 @@ class ArgumentParseStatus(str, Enum):
 
 
 class ToolResultStatus(str, Enum):
-    """Terminal states that close one declared tool-call slot."""
+    """Temporary conversation closure states pending canonical ToolResult alignment."""
 
     SUCCEEDED = "succeeded"
     FAILED = "failed"
@@ -120,6 +123,13 @@ def _require_id(value: str, label: str, *, item_id: Optional[str] = None) -> Non
 
 
 def _content_block(value: Any) -> ContentBlock:
+    metadata: Dict[str, Any] = {}
+    if isinstance(value, ContentBlock):
+        metadata = _isolated_copy(value.metadata)
+    elif isinstance(value, Mapping):
+        raw_metadata = value.get("metadata")
+        if isinstance(raw_metadata, Mapping):
+            metadata = _isolated_copy(dict(raw_metadata))
     normalized = normalize_content_block(value)
     return ContentBlock(
         type=str(normalized.get("type") or "text"),
@@ -129,7 +139,7 @@ def _content_block(value: Any) -> ContentBlock:
         path=normalized.get("path"),
         mime_type=normalized.get("mime_type"),
         detail=normalized.get("detail"),
-        metadata=dict(normalized.get("metadata") or {}),
+        metadata=metadata,
     )
 
 
@@ -144,7 +154,18 @@ def _content_blocks(value: Any) -> List[ContentBlock]:
 def _content_payload(blocks: Sequence[ContentBlock]) -> Any:
     if len(blocks) == 1 and blocks[0].type == "text":
         return str(blocks[0].text or "")
-    return [block.to_dict() for block in blocks]
+    return [copy.deepcopy(block.to_dict()) for block in blocks]
+
+
+def _isolated_copy(value: Any) -> Any:
+    """Return a defensive copy for an ExchangeLog ownership boundary."""
+
+    try:
+        return copy.deepcopy(value)
+    except Exception as exc:
+        raise InvalidExchangeItemError(
+            "exchange values must support defensive copying"
+        ) from exc
 
 
 def _validate_content(blocks: Sequence[ContentBlock], *, item_id: str) -> None:
@@ -200,7 +221,9 @@ class OpaqueContinuationAttachment:
             "metadata": copy.deepcopy(self.metadata),
         }
 
-    def to_safe_dict(self) -> Dict[str, Any]:
+    def to_continuation_redacted_dict(self) -> Dict[str, Any]:
+        """Redact only opaque continuation bytes for diagnostic inspection."""
+
         return {
             "attachment_id": self.attachment_id,
             "provider_scope": self.provider_scope,
@@ -379,6 +402,8 @@ class AssistantItem:
 
 @dataclass(frozen=True)
 class ToolResultItem:
+    """Temporary durable closure record, not the canonical tool outcome contract."""
+
     item_id: str
     exchange_id: str
     identity: CallIdentity
@@ -414,60 +439,65 @@ class ExchangeLog:
     ) -> None:
         self.log_id = _new_id("log") if log_id is None else log_id
         self.schema_version = schema_version
-        self._items = list(items or [])
-        self._queued_steering = list(queued_steering or [])
+        self._items = [_isolated_copy(item) for item in (items or [])]
+        self._queued_steering = [
+            _isolated_copy(item) for item in (queued_steering or [])
+        ]
         self.validate()
 
     @property
     def items(self) -> tuple[ExchangeItem, ...]:
-        """An immutable view of committed persistent items."""
-        return tuple(self._items)
+        """An isolated snapshot of committed persistent items."""
+        return tuple(_isolated_copy(item) for item in self._items)
 
     @property
     def queued_steering(self) -> tuple[SteeringItem, ...]:
-        """An immutable view of steering waiting for the open batch boundary."""
-        return tuple(self._queued_steering)
+        """An isolated snapshot of steering waiting for the open batch boundary."""
+        return tuple(_isolated_copy(item) for item in self._queued_steering)
 
     def append(self, item: ExchangeItem) -> Optional["ToolBatchBuilder"]:
         self.validate()
+        owned_item = _isolated_copy(item)
         open_batch = self.open_batch_id()
         if open_batch is not None:
-            if isinstance(item, SteeringItem):
-                self._ensure_new_item_id(item.item_id)
-                self._queued_steering.append(item)
+            if isinstance(owned_item, SteeringItem):
+                self._ensure_new_item_id(owned_item.item_id)
+                owned_item.validate()
+                self._queued_steering.append(owned_item)
                 self.validate()
                 return None
             raise IncompleteToolBatchError(
                 "an incomplete tool batch blocks the next persistent item",
-                item_id=item.item_id,
+                item_id=owned_item.item_id,
                 batch_id=open_batch,
             )
-        self._ensure_new_item_id(item.item_id)
-        item.validate()
-        if isinstance(item, ToolResultItem):
+        self._ensure_new_item_id(owned_item.item_id)
+        owned_item.validate()
+        if isinstance(owned_item, ToolResultItem):
             raise InvalidExchangeItemError(
                 "tool results must be committed by ToolBatchBuilder",
-                item_id=item.item_id,
-                batch_id=item.batch_id,
-                call_id=item.identity.call_id,
+                item_id=owned_item.item_id,
+                batch_id=owned_item.batch_id,
+                call_id=owned_item.identity.call_id,
             )
-        self._items.append(item)
+        self._items.append(owned_item)
         try:
             self.validate()
         except Exception:
             self._items.pop()
             raise
-        if isinstance(item, AssistantItem) and item.tool_calls():
-            return ToolBatchBuilder(self, str(item.batch_id))
+        if isinstance(owned_item, AssistantItem) and owned_item.tool_calls():
+            return ToolBatchBuilder(self, str(owned_item.batch_id))
         return None
 
     def queue_steering(self, item: SteeringItem) -> None:
         if self.open_batch_id() is None:
             self.append(item)
             return
-        self._ensure_new_item_id(item.item_id)
-        item.validate()
-        self._queued_steering.append(item)
+        owned_item = _isolated_copy(item)
+        self._ensure_new_item_id(owned_item.item_id)
+        owned_item.validate()
+        self._queued_steering.append(owned_item)
         self.validate()
 
     def validate(self) -> None:
@@ -484,7 +514,7 @@ class ExchangeLog:
         results: Dict[str, List[ToolResultItem]] = {}
         result_keys: set[tuple[str, str]] = set()
 
-        for position, item in enumerate(self.items):
+        for position, item in enumerate(self._items):
             item.validate()
             if item.item_id in item_ids:
                 raise DuplicateItemIdError(
@@ -552,7 +582,7 @@ class ExchangeLog:
                 result_keys.add(key)
                 results.setdefault(item.batch_id, []).append(item)
 
-        for queued in self.queued_steering:
+        for queued in self._queued_steering:
             queued.validate()
             if queued.item_id in item_ids:
                 raise DuplicateItemIdError(
@@ -566,16 +596,9 @@ class ExchangeLog:
             if len(batch_results) < len(calls):
                 open_batches.append(batch_id)
                 continue
-            expected = [call.identity.key() for call in calls]
-            actual = [result.identity.key() for result in batch_results]
-            if actual != expected:
-                raise ToolBatchMismatchError(
-                    "persistent tool results must follow declaration order",
-                    batch_id=batch_id,
-                )
             last_result_position = max(
                 index
-                for index, item in enumerate(self.items)
+                for index, item in enumerate(self._items)
                 if isinstance(item, ToolResultItem) and item.batch_id == batch_id
             )
             if last_result_position <= declaration_positions[batch_id]:
@@ -595,7 +618,7 @@ class ExchangeLog:
         if open_batches:
             open_batch = open_batches[0]
             open_position = declaration_positions[open_batch]
-            for item in self.items[open_position + 1 :]:
+            for item in self._items[open_position + 1 :]:
                 if not (
                     isinstance(item, ToolResultItem)
                     and item.batch_id == open_batch
@@ -607,32 +630,47 @@ class ExchangeLog:
                     )
 
     def _ensure_new_item_id(self, item_id: str) -> None:
-        known = {item.item_id for item in self.items}
-        known.update(item.item_id for item in self.queued_steering)
+        known = {item.item_id for item in self._items}
+        known.update(item.item_id for item in self._queued_steering)
         if item_id in known:
             raise DuplicateItemIdError(
                 f"duplicate item ID: {item_id}", item_id=item_id
             )
 
     def declared_calls(self, batch_id: str) -> List[ToolCall]:
-        for item in self.items:
+        for item in self._items:
             if isinstance(item, AssistantItem) and item.batch_id == batch_id:
-                return list(item.tool_calls())
+                return _isolated_copy(item.tool_calls())
         raise ToolBatchMismatchError(
             f"unknown tool batch: {batch_id!r}", batch_id=batch_id
         )
 
     def results_for_batch(self, batch_id: str) -> List[ToolResultItem]:
-        return [
+        return _isolated_copy([
             item
-            for item in self.items
+            for item in self._items
             if isinstance(item, ToolResultItem) and item.batch_id == batch_id
+        ])
+
+    def results_for_batch_in_declaration_order(
+        self, batch_id: str
+    ) -> List[ToolResultItem]:
+        """Derive results in call declaration order without rewriting facts."""
+
+        results = {
+            result.identity.key(): result
+            for result in self.results_for_batch(batch_id)
+        }
+        return [
+            results[call.identity.key()]
+            for call in self.declared_calls(batch_id)
+            if call.identity.key() in results
         ]
 
     def open_batch_id(self) -> Optional[str]:
         declarations: List[tuple[str, int]] = []
         counts: Dict[str, int] = {}
-        for item in self.items:
+        for item in self._items:
             if isinstance(item, AssistantItem) and item.tool_calls():
                 declarations.append((str(item.batch_id), len(item.tool_calls())))
             elif isinstance(item, ToolResultItem):
@@ -665,9 +703,13 @@ class ExchangeLog:
         payload = {
             "schema_version": self.schema_version,
             "log_id": self.log_id,
-            "items": [_item_to_dict(item, safe=False) for item in self.items],
+            "items": [
+                _item_to_dict(item, redact_continuation=False)
+                for item in self._items
+            ],
             "queued_steering": [
-                _item_to_dict(item, safe=False) for item in self.queued_steering
+                _item_to_dict(item, redact_continuation=False)
+                for item in self._queued_steering
             ],
         }
         try:
@@ -678,14 +720,25 @@ class ExchangeLog:
             ) from exc
         return payload
 
-    def to_safe_dict(self) -> Dict[str, Any]:
+    def to_continuation_redacted_diagnostic_dict(self) -> Dict[str, Any]:
+        """Return a diagnostic view; metadata and other secrets are unchanged."""
+
         self.validate()
         return {
             "schema_version": self.schema_version,
+            "projection_version": CONTINUATION_REDACTED_DIAGNOSTIC_VERSION,
+            "projection_policy": {
+                "opaque_continuation": "redacted",
+                "all_other_fields": "unchanged_not_privacy_filtered",
+            },
             "log_id": self.log_id,
-            "items": [_item_to_dict(item, safe=True) for item in self.items],
+            "items": [
+                _item_to_dict(item, redact_continuation=True)
+                for item in self._items
+            ],
             "queued_steering": [
-                _item_to_dict(item, safe=True) for item in self.queued_steering
+                _item_to_dict(item, redact_continuation=True)
+                for item in self._queued_steering
             ],
         }
 
@@ -715,7 +768,7 @@ class ExchangeLog:
 
 
 class ToolBatchBuilder:
-    """Buffer execution completion and atomically commit results in call order."""
+    """Persist terminal results immediately and close an active tool batch."""
 
     def __init__(self, exchange_log: ExchangeLog, batch_id: str) -> None:
         exchange_log.validate()
@@ -743,47 +796,64 @@ class ToolBatchBuilder:
         return self._exchange_id()
 
     def record_result(self, result: ToolResultItem) -> bool:
-        result.validate()
-        if result.batch_id != self.batch_id:
+        owned_result = _isolated_copy(result)
+        owned_result.validate()
+        if self.exchange_log.open_batch_id() != self.batch_id:
+            raise ToolBatchMismatchError(
+                "batch is no longer the active open batch", batch_id=self.batch_id
+            )
+        self._results = {
+            persisted.identity.key(): persisted
+            for persisted in self.exchange_log.results_for_batch(self.batch_id)
+        }
+        if owned_result.batch_id != self.batch_id:
             raise ToolBatchMismatchError(
                 "result batch does not match the active builder",
-                item_id=result.item_id,
-                batch_id=result.batch_id,
-                call_id=result.identity.call_id,
+                item_id=owned_result.item_id,
+                batch_id=owned_result.batch_id,
+                call_id=owned_result.identity.call_id,
             )
-        if result.exchange_id != self._exchange_id():
+        if owned_result.exchange_id != self._exchange_id():
             raise ToolBatchMismatchError(
                 "result exchange_id does not match the assistant declaration",
-                item_id=result.item_id,
-                batch_id=result.batch_id,
-                call_id=result.identity.call_id,
+                item_id=owned_result.item_id,
+                batch_id=owned_result.batch_id,
+                call_id=owned_result.identity.call_id,
             )
         declared = {call.identity.key() for call in self.calls}
-        key = result.identity.key()
+        key = owned_result.identity.key()
         if key not in declared:
             raise UnknownCallIdError(
                 "result references an undeclared call",
-                item_id=result.item_id,
+                item_id=owned_result.item_id,
                 batch_id=self.batch_id,
-                call_id=result.identity.call_id,
+                call_id=owned_result.identity.call_id,
             )
         if key in self._results:
             raise DuplicateToolResultError(
                 "a declared call cannot receive two results",
-                item_id=result.item_id,
+                item_id=owned_result.item_id,
                 batch_id=self.batch_id,
-                call_id=result.identity.call_id,
+                call_id=owned_result.identity.call_id,
             )
-        self.exchange_log._ensure_new_item_id(result.item_id)
-        if result.item_id in {item.item_id for item in self._results.values()}:
-            raise DuplicateItemIdError(
-                f"duplicate item ID: {result.item_id}", item_id=result.item_id
-            )
-        self._results[key] = result
-        if self.missing_calls:
-            return False
-        self._commit()
-        return True
+        self.exchange_log._ensure_new_item_id(owned_result.item_id)
+
+        original_items = list(self.exchange_log._items)
+        original_steering = list(self.exchange_log._queued_steering)
+        self.exchange_log._items.append(owned_result)
+        self._results[key] = owned_result
+        closed = not self.missing_calls
+        if closed:
+            self.exchange_log._items.extend(self.exchange_log._queued_steering)
+            self.exchange_log._queued_steering = []
+        try:
+            self.exchange_log.validate()
+        except Exception:
+            self.exchange_log._items = original_items
+            self.exchange_log._queued_steering = original_steering
+            self._results.pop(key, None)
+            raise
+        return closed
 
     def close_missing(
         self,
@@ -822,35 +892,17 @@ class ToolBatchBuilder:
             self.record_result(result)
 
     def _exchange_id(self) -> str:
-        for item in self.exchange_log.items:
+        for item in self.exchange_log._items:
             if isinstance(item, AssistantItem) and item.batch_id == self.batch_id:
                 return item.exchange_id
         raise ToolBatchMismatchError(
             "batch assistant declaration disappeared", batch_id=self.batch_id
         )
 
-    def _commit(self) -> None:
-        if self.exchange_log.open_batch_id() != self.batch_id:
-            raise ToolBatchMismatchError(
-                "batch is no longer the active open batch", batch_id=self.batch_id
-            )
-        ordered = [self._results[call.identity.key()] for call in self.calls]
-        original_items = list(self.exchange_log.items)
-        original_steering = list(self.exchange_log.queued_steering)
-        self.exchange_log._items.extend(ordered)
-        self.exchange_log._items.extend(self.exchange_log.queued_steering)
-        self.exchange_log._queued_steering = []
-        try:
-            self.exchange_log.validate()
-        except Exception:
-            self.exchange_log._items = original_items
-            self.exchange_log._queued_steering = original_steering
-            raise
-
 
 def _part_to_dict(part: AssistantPart) -> Dict[str, Any]:
     if isinstance(part, AssistantContent):
-        return {"kind": part.kind, "block": part.block.to_dict()}
+        return {"kind": part.kind, "block": copy.deepcopy(part.block.to_dict())}
     if isinstance(part, ReasoningReference):
         return {
             "kind": part.kind,
@@ -919,7 +971,9 @@ def _part_from_dict(payload: Any) -> AssistantPart:
     raise InvalidExchangeItemError(f"unsupported assistant part kind: {kind!r}")
 
 
-def _item_to_dict(item: ExchangeItem, *, safe: bool) -> Dict[str, Any]:
+def _item_to_dict(
+    item: ExchangeItem, *, redact_continuation: bool
+) -> Dict[str, Any]:
     base: Dict[str, Any] = {
         "kind": item.kind,
         "item_id": item.item_id,
@@ -927,12 +981,12 @@ def _item_to_dict(item: ExchangeItem, *, safe: bool) -> Dict[str, Any]:
         "metadata": copy.deepcopy(item.metadata),
     }
     if isinstance(item, (UserItem, SteeringItem)):
-        base["content"] = [block.to_dict() for block in item.content]
+        base["content"] = [copy.deepcopy(block.to_dict()) for block in item.content]
     elif isinstance(item, AssistantItem):
         base["parts"] = [_part_to_dict(part) for part in item.parts]
         base["continuation_attachments"] = [
-            attachment.to_safe_dict()
-            if safe
+            attachment.to_continuation_redacted_dict()
+            if redact_continuation
             else attachment.to_persistence_dict()
             for attachment in item.continuation_attachments
         ]
@@ -943,7 +997,9 @@ def _item_to_dict(item: ExchangeItem, *, safe: bool) -> Dict[str, Any]:
                 "call_id": item.identity.call_id,
                 "batch_id": item.batch_id,
                 "status": item.status.value,
-                "content": [block.to_dict() for block in item.content],
+                "content": [
+                    copy.deepcopy(block.to_dict()) for block in item.content
+                ],
                 "provenance": {
                     "source": item.provenance.source,
                     "synthetic": item.provenance.synthetic,
@@ -1253,7 +1309,19 @@ def exchange_log_to_history_messages(log: ExchangeLog) -> List[HistoryMessage]:
 
     log.assert_ready_for_model_transaction()
     messages: List[HistoryMessage] = []
-    for index, item in enumerate(log.items):
+    projection_items: List[ExchangeItem] = []
+    projected_batches: set[str] = set()
+    for item in log.items:
+        if isinstance(item, ToolResultItem) and item.batch_id in projected_batches:
+            continue
+        projection_items.append(item)
+        if isinstance(item, AssistantItem) and item.batch_id is not None:
+            projection_items.extend(
+                log.results_for_batch_in_declaration_order(item.batch_id)
+            )
+            projected_batches.add(item.batch_id)
+
+    for index, item in enumerate(projection_items):
         metadata = copy.deepcopy(item.metadata)
         step_id = int(metadata.pop("_history_step_id", index))
         if isinstance(item, UserItem):
@@ -1356,6 +1424,7 @@ def exchange_log_to_history_messages(log: ExchangeLog) -> List[HistoryMessage]:
 
 __all__ = [
     "EXCHANGE_LOG_SCHEMA_VERSION",
+    "CONTINUATION_REDACTED_DIAGNOSTIC_VERSION",
     "ArgumentParseStatus",
     "ToolResultStatus",
     "ConversationValidationError",
