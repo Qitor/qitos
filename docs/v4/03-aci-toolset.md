@@ -163,9 +163,9 @@ copied outside that projection path. A host path or token-like string used as a
 key in output, nested next-action arguments, or omitted data can therefore enter
 model/trace-visible JSON while loss remains zero. G1 is reopened until Lane C
 recursively sanitizes sensitive keys, gives omitted data an explicitly safe
-trace representation, accounts for both losses, and adds independent
-ExchangeLog consumer coverage. This is a bounded 03A correction, not
-authorization to begin 03B–E.
+trace representation, preserves entries through a deterministic collision-safe
+encoding, accounts for both losses, and adds independent ExchangeLog consumer
+coverage. This is a bounded 03A correction, not authorization to begin 03B–E.
 
 ### 03B — filesystem and search foundations
 

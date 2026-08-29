@@ -237,8 +237,9 @@ Two report corrections are required:
 
 `C-P3` is the sole newly reproduced G1 blocker. Lane C must sanitize sensitive
 mapping keys recursively, define a safe trace representation for omitted data,
-and include both in loss accounting. B must rerun delegated projection tests;
-D must refresh exact receipts if C producer fixtures/evidence change. The full
+preserve distinct entries through a deterministic collision-safe encoding, and
+include both in loss accounting. B must rerun delegated projection tests; D
+must refresh exact receipts if C producer fixtures/evidence change. The full
 combined matrix must then pass again. Until that record exists, G1 is open and
 S1 capability-lane dispatch is not authorized.
 

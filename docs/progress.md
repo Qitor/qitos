@@ -479,7 +479,9 @@ feature branches.
 
 - recursively sanitize or replace mapping keys in model output and nested
   `next_action` arguments; raw host paths, token/header/secret-like text, and
-  other sensitive identifiers must not survive as keys;
+  other sensitive identifiers must not survive as keys; the representation must
+  be deterministic and collision-safe so two redacted keys cannot overwrite or
+  silently discard values;
 - make trace-safe `omitted` data use an explicitly safe representation instead
   of copying canonical keys verbatim;
 - count key redactions and omitted-field projection losses in aggregate and

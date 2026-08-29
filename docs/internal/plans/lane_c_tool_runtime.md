@@ -58,8 +58,8 @@ changes, or a universal lifecycle interface.
 - [x] Publish producer-owned qualification evidence beside the versioned fixture
   for Lane D to verify against an exact committed producer source.
 - [ ] C-P3: sanitize sensitive mapping keys recursively in model/trace views,
-  replace raw trace-safe omitted keys with a safe representation, and include
-  both in aggregate/per-field loss facts.
+  replace raw trace-safe omitted keys with a deterministic collision-safe
+  representation, and include both in aggregate/per-field loss facts.
 - [ ] Prove C-P3 through nested output, next-action, omitted, and ExchangeLog
   consumer regression tests, then republish exact producer evidence if changed.
 
