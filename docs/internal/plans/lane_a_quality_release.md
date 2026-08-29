@@ -1,6 +1,6 @@
 # Lane A quality and release trust plan
 
-Status: in progress
+Status: complete — A1/A2 integration candidate; G1 remains open
 Updated: 2026-08-29
 Work package: Lane A / A1-I + A2 — static ratchet qualification and CI trust repair
 Integration baseline: `8441bef2f2024fd6c2ec01784708512222382471`
@@ -261,3 +261,60 @@ Final review confirmed that no runtime file, public API, packaging/extra
 declaration, historical `docs/v4/06-*`/`07-*` record, or other lane worktree was
 modified. The controlled probe is absent. The final branch status is clean
 after the evidence-closeout commit.
+
+## A1-I / A2 qualification closeout
+
+The four A1 source commits were applied to integration baseline `8441bef` in
+their declared order. README.md, README.zh.md, and CHANGELOG.md were the only
+conflicts; they were merged item by item to preserve both the integration
+progress-ledger link and A1 quality evidence. No runtime or baseline conflict
+occurred, and integration-owned `docs/progress.md` was not edited.
+
+Ratchet qualification:
+
+- transition tests increased from 9 to 20 and use temporary files, a fixed
+  date, monkeypatches, and synthetic base refs;
+- new/stale findings, controlled growth, legal and expired exceptions, W1
+  bootstrap identity, source-debt/rules-upgrade separation, malformed
+  diagnostics, and explicit update behavior are mechanically covered;
+- the real controlled F401 probe exited 1 with rule/path/symbol evidence, then
+  deletion without baseline mutation restored exit 0;
+- the baseline remains 399 total, 377 active, and 22 vendored/generated, with
+  the same SHA-256 `05ae4fb966c1f69ccbb59dc4bd6d859fff1d7ba02fc0c8df56a655849acab6f5`.
+
+CI trust repair:
+
+- invalid changed-file predicates and unused changed-count logic were removed;
+- intended commands no longer use `|| true`, stderr suppression, unconditional
+  `continue-on-error`, or automatic reruns;
+- contribution jobs are explicitly advisory and run within supported
+  workflow-level path scope;
+- the stale zoo workflow is retained, explicitly named stale/advisory, and
+  reduced to a deterministic migration inventory because external required-
+  check settings were not available;
+- six workflow/config contract tests guard predicates, masking/reruns,
+  referenced pytest/docs paths, bilingual documentation parity, the
+  stable/full-package split, and job inventory;
+- `docs/internal/ci-job-ownership.md` is the repository-intent ownership table,
+  not a claim about GitHub branch protection.
+
+Final qualification evidence:
+
+- Python 3.12.7; flake8 7.0.0; pyflakes 3.2.0; pycodestyle 2.11.1;
+  mccabe 0.7.0; mypy 1.19.1;
+- pinned full-package ratchet: passed, 399 matched;
+- stable flake8: clean; stable mypy: 76 files, no issues;
+- ratchet tests: 20 passed; workflow contracts: 6 passed;
+- architecture boundaries: 4 passed; public surface: 4 passed;
+- full suite: 1,720 passed and 50 skipped after its local-path policy caught and
+  Lane A removed a host-specific path from public evidence;
+- durability race investigation: 50 independent processes passed, 0 failed,
+  with no automatic retry. The test-trust finding remains assigned to Lane C /
+  Task 09D and no checkpoint behavior/assertion was changed.
+
+Known gaps: branch-protection/ruleset configuration was not inspected, so no
+workflow is claimed actually required by GitHub and the stale zoo workflow was
+not deleted. Task 08B baseline retirement, 08C packaging/extras, and 08D
+behavioral route/provider/resource coverage remain open. This lane is an
+A1/A2 integration candidate only; it does not claim the program-wide G1 gate is
+closed.

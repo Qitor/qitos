@@ -1,6 +1,6 @@
 # Task 08 — quality gates, packaging, and test trust
 
-Status: in progress — 08A implemented on Lane A; 08B–08E remain open
+Status: in progress — 08A qualified; 08E repository-side trust repair is an integration candidate; 08B–08D and external ruleset verification remain open
 Depends on: Task 01
 Unblocks: Task 09 and safe large-scale work in Tasks 02–05
 Risk: medium — CI policy and contributor workflow
@@ -122,17 +122,17 @@ contributor workflows do not silently stop selecting them.
 
 ## 5. Acceptance criteria
 
-- [ ] A new flake8 or mypy finding in any active non-vendored `qitos/` package
+- [x] A new flake8 or mypy finding in any active non-vendored `qitos/` package
   fails CI.
-- [ ] Stable-surface zero-error gates remain green throughout migration.
-- [ ] No broad mypy ignore remains without an itemized baseline and owner.
+- [x] Stable-surface zero-error gates remain green throughout migration.
+- [x] No broad mypy ignore remains without an itemized baseline and owner.
 - [ ] Every correctness-class baseline item is fixed or has an explicit task and
   regression reproducer.
 - [ ] Base install and every advertised extra pass fresh-environment smoke tests.
 - [ ] Missing optional dependencies raise actionable feature-specific errors.
 - [ ] qita fork POST and provider error paths execute in tests.
-- [ ] No required CI command is masked by `|| true`.
-- [ ] Zoo/product checks do not masquerade as in-repo framework coverage.
+- [x] No required CI command is masked by `|| true`.
+- [x] Zoo/product checks do not masquerade as in-repo framework coverage.
 - [ ] `python -m build` and `python -m twine check dist/*` pass after metadata
   migration.
 
@@ -235,3 +235,75 @@ warning assertion.
 environment, the `ci.yml` ratchet/architecture jobs, and contributor evidence.
 Optional installs, high-value route tests, baseline retirement, and the full
 Task 08E workflow repair remain open.
+
+## 10. A1-I / A2 integration qualification evidence — 2026-08-29
+
+Identity and migration:
+
+- reviewed integration source:
+  `8441bef2f2024fd6c2ec01784708512222382471` on
+  `feat/campaign-absorption`;
+- reviewed A1 source: `ab25edf9c6457ee40054aaaab4596d7bed30cbe5`;
+- A1 commits were cherry-picked in their declared order; only README.md,
+  README.zh.md, and CHANGELOG.md conflicted, and each was merged manually to
+  retain both the integration progress-ledger entry and A1 evidence;
+- qualification branch: `codex/v4-lane-a-ci-trust`; the local worktree identity
+  is retained only in the internal lane plan and handoff report;
+- `docs/progress.md` remained read-only.
+
+Ratchet transition coverage increased from 9 to 20 deterministic tests. The
+new cases use `tmp_path`, monkeypatching, a fixed policy date, and in-memory
+base-ref fixtures rather than real `qitos` edits or Git history. They prove:
+
+- a new finding fails with rule, path, and enclosing symbol;
+- a resolved finding left in the baseline fails;
+- base-ref growth fails without an itemized exception and succeeds with a
+  valid maintainer/reason/future-expiry exception;
+- expired and same-day exceptions fail;
+- a missing prior baseline fails when `created_from` is not the W1 source;
+- malformed flake8 and mypy diagnostics fail;
+- a rules/toolchain upgrade is reported separately from new source debt;
+- `check` never mutates the baseline, while `update` can shrink it or perform
+  controlled, exception-backed growth.
+
+Task 08E repository-side repair:
+
+- contribution jobs now use supported workflow-level path selection and run
+  deterministically inside that scope; the invalid `changed_files` array
+  expressions and unused numeric `CHANGED` value are gone;
+- focused pytest no longer redirects diagnostics or uses `|| true`;
+- the stale zoo workflow was not deleted because external required-check usage
+  is unknown. It is explicitly named advisory/stale, points to the actual
+  migration-document location, and performs inventory only rather than
+  pretending that absent out-of-tree product tests cover QitOS;
+- six workflow contract tests reject invalid predicates, masked commands,
+  rerun controls, missing pytest/docs paths, undocumented workflows, and
+  collapse of the stable/full-package gate split;
+- `docs/internal/ci-job-ownership.md` records required-candidate, advisory,
+  stale, and release-only repository roles. It explicitly does not infer
+  GitHub branch-protection configuration.
+
+Qualification evidence under Python 3.12.7 and the exact pinned toolchain:
+
+- full-package ratchet: passed with the unchanged 399-finding baseline (377
+  active, 22 vendored/generated);
+- stable flake8: clean; stable mypy: no issues in 76 source files;
+- ratchet transitions: 20 passed; workflow contracts: 6 passed;
+- architecture boundaries: 4 passed; public surface: 4 passed;
+- full suite: 1,720 passed, 50 skipped in 20.43 seconds after the suite caught
+  and Lane A removed a local absolute worktree path from this public evidence;
+- controlled probe: a temporary active F401 exited 1 and reported
+  `qitos/_quality_ratchet_probe.py`, `flake8:F401`, and `symbol=<module>`;
+  deletion without a baseline update restored exit 0 and 399 matched findings;
+- the baseline remained byte-for-byte unchanged and the probe is absent from
+  source and baseline;
+- durability race investigation: 50 independent targeted pytest processes
+  passed and none failed; no rerun plugin or failure retry was used. The
+  historical race remains a Lane C / Task 09D test-trust finding, and neither
+  checkpoint runtime nor the warning assertion changed.
+
+This evidence supports an A1/A2 integration candidate. It does not close G1:
+cross-lane B/C/D contracts and integration-owner qualification remain outside
+this lane. Task 08E also retains an external gap: repository rulesets must be
+inspected by an authorized maintainer before the stale zoo workflow is removed
+or any check is asserted to be branch-protection-required.

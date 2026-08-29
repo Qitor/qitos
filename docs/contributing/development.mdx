@@ -69,6 +69,11 @@ It fails on new findings and stale baseline entries. See
 `quality/README.md` before shrinking the baseline or requesting an expiring
 maintainer exception.
 
+CI keeps the stable lint/type surface separate from the full-package ratchet.
+Repository-intent roles for required-candidate, advisory, stale, and release
+jobs are listed in `docs/internal/ci-job-ownership.md`; that inventory does not
+claim to represent external GitHub branch-protection settings.
+
 Run coverage gate:
 
 ```bash

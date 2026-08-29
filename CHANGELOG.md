@@ -20,6 +20,7 @@ How to update:
 ### Added
 
 - Added the v4 durable-session and native multi-agent architecture: Task 12 defines distinct session/run/work/checkpoint identities, one checkpoint-v2-backed snapshot truth, safe pause, fresh-process resume, fork, resolver references, and honest effect recovery; Task 13 defines a generation-checked durable work graph for handoff, delegate, fan-out, spawn, fork, steering, join, cancellation, budget/capability boundaries, and qita lineage.
+- Added deterministic full-ratchet transition tests and a repository-intent CI ownership matrix covering required-candidate, advisory, stale, and release-only jobs without inferring external branch-protection state.
 - Added a continuously maintained v4 integration ledger (`docs/progress.md`) that distinguishes lane completion from integrated qualification and records exact source identities, review findings, contract blockers, merge order, and evidence gates.
 - Added a pinned repository-wide flake8/mypy no-regression ratchet with a machine-readable classified baseline, stable source anchors, shrink-only updates, expiring maintainer exceptions for growth, semantic-lane correctness handoffs, and a dedicated CI job while preserving the stable-surface zero-error gates.
 - Added neutral per-client `default_headers` support to OpenAI and OpenAI-compatible synchronous/asynchronous transports, plus `DockerEnv(container_env=...)` and correct absolute container-path handling.
@@ -54,6 +55,7 @@ How to update:
 
 ### Fixed
 
+- Repaired contribution CI trust: removed unsupported `pull_request.changed_files` array predicates, unused changed-count logic, masked pytest commands, and missing zoo test paths; retained the zoo workflow as an explicitly stale advisory inventory pending external required-check evidence.
 - Closed the campaign-absorption quality baseline: the stable core/engine/models/trace surface is flake8- and mypy-clean; the private Engine protocol matches its runtime helpers; cancellation checkpoints use the correct arguments; synchronous Engine MCP lifecycle and tool discovery resolve their async operations; and Action objects render correctly in the TUI.
 - Multi-action steps no longer abort sibling actions when one is blocked: gate- and loop-blocked actions are collected pre-flight, executable siblings still run, and results merge back by original action index with `call_{step}_{i}` native tool-call ids; the terminal UI renders parallel actions/observations with per-index dedup and preserves recovery cards on failed observations instead of hiding them behind the error title.
 - Tool history keeps string recovery cards verbatim instead of wrapping them in an opaque JSON error envelope, keeping provider history and the TUI aligned on the same actionable text.

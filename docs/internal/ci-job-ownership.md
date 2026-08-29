@@ -41,5 +41,6 @@ deleting any configured check.
   explicitly named stale/advisory and no longer runs missing or out-of-tree
   product tests. Runtime coverage belongs in the qitos-zoo repository.
 - `tests/test_workflow_contracts.py` blocks invalid changed-file expressions,
-  masked/rerun commands, missing pytest paths, loss of the distinct stable and
-  ratchet commands, and undocumented workflow files.
+  masked/rerun commands, missing pytest/docs paths, bilingual documentation
+  drift, loss of the distinct stable and ratchet commands, and undocumented
+  workflow files.

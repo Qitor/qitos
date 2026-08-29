@@ -88,3 +88,25 @@ only bootstrap and is identified by its source commit.
 `correctness_handoffs.md` is generated with the baseline. It assigns
 correctness-class debt to Lanes B, C, and D; Lane A does not silently recast
 runtime correctness findings as hygiene.
+
+## Integration qualification and CI trust
+
+The A1-I qualification rebased the ratchet onto integration source
+`8441bef2f2024fd6c2ec01784708512222382471` and retained the original W1
+diagnostic baseline unchanged: 399 total findings, 377 active and 22
+vendored/generated. Python 3.12.7 and every version in `toolchain.json` matched
+the pinned environment.
+
+`tests/test_static_quality_ratchet.py` now exercises the transition contract
+without editing real `qitos` files, reading real Git history, or racing the
+wall clock. It covers new and stale findings, base-ref growth, valid and
+expired itemized exceptions, non-W1 bootstrap rejection, diagnostic parse
+failures, source-debt versus rules-upgrade reporting, and explicit baseline
+shrink/growth updates.
+
+Task 08E repository-side workflow roles and commands are recorded in
+`docs/internal/ci-job-ownership.md`. `tests/test_workflow_contracts.py` rejects
+the invalid GitHub changed-file expression, masked commands, automatic reruns,
+missing pytest/docs paths, bilingual documentation drift, and accidental
+collapse of the stable and full-package gates. The table describes repository
+intent only; it does not infer GitHub branch-protection settings.

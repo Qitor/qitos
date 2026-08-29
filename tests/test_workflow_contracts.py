@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import re
 
@@ -86,3 +87,28 @@ def test_ci_ownership_evidence_covers_every_workflow() -> None:
 
     for path in WORKFLOWS:
         assert f"`{path.name}`" in evidence
+
+
+def test_docs_workflow_navigation_and_translation_paths_exist() -> None:
+    docs_root = ROOT / "docs"
+    config = json.loads((docs_root / "docs.json").read_text(encoding="utf-8"))
+    referenced: set[Path] = set()
+    for language in config.get("navigation", {}).get("languages", []):
+        for tab in language.get("tabs", []):
+            for group in tab.get("groups", []):
+                if group.get("root"):
+                    referenced.add(docs_root / f"{group['root']}.mdx")
+                referenced.update(
+                    docs_root / f"{page}.mdx" for page in group.get("pages", [])
+                )
+    assert not [path for path in sorted(referenced) if not path.exists()]
+
+    english = {
+        path.relative_to(docs_root)
+        for path in docs_root.rglob("*.mdx")
+        if "zh" not in path.relative_to(docs_root).parts
+        and "blog" not in path.relative_to(docs_root).parts
+        and path.parent.name != "images"
+    }
+    missing_zh = [docs_root / "zh" / path for path in sorted(english)]
+    assert not [path for path in missing_zh if not path.exists()]

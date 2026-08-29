@@ -68,6 +68,11 @@ python scripts/static_quality.py check
 baseline 条目时都会失败。缩小 baseline 或申请带到期日的 maintainer
 exception 前，请阅读 `quality/README.md`。
 
+CI 会将稳定层 lint/type 与全包 ratchet 保持为独立门禁。
+`docs/internal/ci-job-ownership.md` 记录了 required-candidate、advisory、
+stale 和 release job 的仓库内预期角色；该清单不声称代表外部 GitHub
+branch-protection 配置。
+
 运行覆盖率门槛：
 
 ```bash
