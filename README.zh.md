@@ -23,6 +23,7 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 - **证据化 v4 集成进度账本**：[`docs/progress.md`](docs/progress.md) 现在持续记录各产线的准确 HEAD、集成结论、可执行复核探针、跨线契约阻断、合并顺序以及 G1/G2 检查表；收敛波次分支“已完成”与集成分支“已合入并通过资格验证”被明确区分。
 - **规范工具结果与运行时所有权**：`ToolResult` 已原位演进为无损的 `qitos.tool_result/v1` action/tool outcome，`ActionResult`、旧字典和 `model_summary` 通过兼容边界接入。结构化 schema 硬门禁、生命周期所有权矩阵、确定性的 durability 竞态证明及 Lane B/D 版本化 fixtures 共同完成 Task 03A/09A 合同层；本轮未改变编码工具、checkpoint 或 MCP transport 行为。
 - **ToolResult 契约加固**：canonical persistence 不再展开 output，带版本 payload 严格解析，legacy flattening 进入显式 adapter；模型与 trace-safe view 使用有界、脱敏的 allowlist。错误 schema 及 interceptor/permission 改写后的参数都会在工具执行前被共享硬门禁拒绝；C1-R fixture 固定了 Lane B/D 交接，但不宣称已经解决完整 trajectory privacy。
+- **G1 ToolResult 边界收口**：递归 JSON-only 参数会在 interceptor、权限与工具代码之前失败；canonical 与 legacy 的嵌套值均隔离调用方所有权；所有模型/trace 可见字段共用有界脱敏投影，并提供总量和逐字段 loss 事实。
 - **仓库全包静态质量 ratchet**：固定版本的 Python/flake8/mypy 单一命令会用提交态分类 baseline 检查所有 active `qitos` package。新 finding 会阻断 CI，已修复 finding 会强制缩小 baseline，core/engine/models/trace 稳定层继续保持零债务；correctness finding 按语义交给对应产线，而不会被降级成普通清理。
 - **工程质量审计与证据门禁**：[证据化审计](docs/engineering-quality-audit.md)覆盖全包质量门禁、错误与持久化语义、资源生命周期、重复抽象、可选依赖和测试可信度。首轮质量保障、对话/上下文、工具/运行时、轨迹/架构收敛四线被保留为 G1 收口历史；G1 之后，同一套 ratchet 与证据规则将作为四条能力线的强制门禁。
 - **中性的传输与容器控制**：OpenAI-compatible 模型支持由调用方管理的 `default_headers`；`DockerEnv` 支持显式 `container_env` 映射，并正确保留容器内绝对路径，不吸收实战任务专属的路由或环境策略。

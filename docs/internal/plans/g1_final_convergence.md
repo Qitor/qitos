@@ -38,7 +38,7 @@ cherry-pick is checked against the supplied full identity before execution.
 - [x] Read root/nested agent rules, architecture, task designs, progress ledger,
       and all four Lane plans/fixtures/evidence.
 - [x] Integrate Lane A and close A-CI1.
-- [ ] Integrate Lane C and close C-J1, C-I1, and C-P2.
+- [x] Integrate Lane C and close C-J1, C-I1, and C-P2.
 - [ ] Integrate Lane B and close B-C1 and B-V1 against accepted C.
 - [ ] Integrate Lane D and close D-R1 against accepted B/C fixtures.
 - [ ] Run combined reviewer probes and qualification matrix.
@@ -77,7 +77,7 @@ Applied all seven supplied Lane A commits in order. Conflicts occurred only in
 `README.md`, `README.zh.md`, and `CHANGELOG.md`; each hunk retained Task 12/13,
 the post-G1 lane map, integration-ledger wording, and Lane A evidence.
 
-A-CI1 fixing commit: pending commit at the time of this plan update.
+A-CI1 fixing commit: `f145cbe`.
 
 - Replaced the broken inline import/check with
   `python scripts/qualify_tool_schemas.py`.
@@ -95,9 +95,26 @@ A-CI1 fixing commit: pending commit at the time of this plan update.
 
 ### Lane C integration and boundary repairs
 
-Pending. Required repairs: recursively strict JSON values including non-finite
-numbers; deep isolation at all canonical/legacy/persistence boundaries; bounded
-allowlisted and redacted model/trace projections with aggregate loss facts.
+Applied all seven supplied Lane C commits in order after accepted A. Shared-file
+conflicts preserved the fixed baseline Task 12/13 designs and the post-G1 lane
+map. The integration repair then closed all three reviewed blockers:
+
+- C-J1: recursive JSON admission rejects arbitrary objects, non-string keys,
+  NaN, Infinity, and -Infinity before interceptor, permission, or execution;
+- C-I1: construction, strict canonical read, named legacy adaptation, canonical
+  serialization, and explicit legacy serialization recursively detach values;
+- C-P2: every model/trace-visible field uses one bounded redaction path, with
+  aggregate and per-field loss facts covering model output, error, recovery
+  hint, identifiers, and next action.
+
+Producer-owned qualification evidence is published beside the C fixture for
+Lane D's later commit/path/digest/authority verification. C-J1 fixing commit:
+`c509bd0`; the C-I1/C-P2 fixing commit is recorded after this plan update.
+
+Phase evidence: 75 ToolResult/structural/projection tests passed; the stable
+flake8 gate was clean; the repository ratchet passed with 399 findings (377
+active and 22 vendored/generated); `git diff --check` was clean. No automatic
+rerun or masked exit was used.
 
 ### Lane B integration and B/C convergence
 
@@ -116,10 +133,10 @@ blocked and trajectory v2 remains unfrozen.
 
 - [ ] Workflow qualification entrypoint imports and executes successfully.
 - [ ] A controlled invalid tool spec fails the same entrypoint.
-- [ ] Nested arbitrary objects, NaN, Infinity, and -Infinity fail pre-execution.
-- [ ] ToolResult caller/serialization mutations are isolated in both directions.
-- [ ] Tokens and host paths cannot survive any model/trace-visible field.
-- [ ] Trace loss accounts for output, error, hint, next action, and identifiers.
+- [x] Nested arbitrary objects, NaN, Infinity, and -Infinity fail pre-execution.
+- [x] ToolResult caller/serialization mutations are isolated in both directions.
+- [x] Tokens and host paths cannot survive any model/trace-visible field.
+- [x] Trace loss accounts for output, error, hint, next action, and identifiers.
 - [ ] Every malformed ExchangeLog v2 input fails with the typed conversation error.
 - [ ] ExchangeLog directly round-trips the exact C canonical fixture.
 - [ ] Forged receipt digest/path/commit/version/authority cannot clear a blocker.
@@ -141,8 +158,8 @@ server 149, and regenerated substitute source commits are prohibited.
 - [ ] All supplied Lane commits are present with source identity preserved.
 - [x] A-CI1 has an executable shared entrypoint and controlled failure proof.
 - [ ] Pinned ratchet and stable flake8/mypy are green on the combined tree.
-- [ ] ToolResult is the only canonical outcome and has strict JSON/ownership rules.
-- [ ] Model/trace views are allowlisted, bounded, redacted, and loss-accounted.
+- [x] ToolResult is the only canonical outcome and has strict JSON/ownership rules.
+- [x] Model/trace views are allowlisted, bounded, redacted, and loss-accounted.
 - [ ] ExchangeLog uses C serializers and has a typed strict v2 reader.
 - [ ] D receipts verify exact committed producer evidence and clear one blocker only.
 - [ ] Cross-lane fixture tests consume real producer artifacts.
@@ -152,6 +169,6 @@ server 149, and regenerated substitute source commits are prohibited.
 
 ## Remaining blockers
 
-All seven reviewed G1 blockers remain open until their integration-owned fixing
-commits and regression evidence are recorded above. Consequently G1 is open and
-S1 dispatch is blocked.
+Four reviewed blockers (B-C1, B-V1, D-R1, and combined G1 qualification) remain
+open until their integration-owned fixing commits and regression evidence are
+recorded above. Consequently G1 is open and S1 dispatch is blocked.

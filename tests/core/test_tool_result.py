@@ -210,6 +210,90 @@ def test_non_json_value_fails_at_typed_contract_boundary() -> None:
     assert caught.value.code == "non_serializable_value"
 
 
+def test_constructor_recursively_detaches_caller_owned_values() -> None:
+    output = {"nested": [{"value": 1}]}
+    metadata = {"nested": [{"value": 2}]}
+    provenance = {"nested": {"value": 3}}
+    artifact_refs = [
+        {"artifact_id": "sha256:owned", "provenance": {"source": "caller"}}
+    ]
+    next_action = {"name": "read", "args": {"paths": ["a.py"]}}
+    result = ToolResult(
+        output=output,
+        metadata=metadata,
+        provenance=provenance,
+        artifact_refs=artifact_refs,
+        next_action=next_action,
+    )
+
+    output["nested"][0]["value"] = 10
+    metadata["nested"][0]["value"] = 20
+    provenance["nested"]["value"] = 30
+    artifact_refs[0]["provenance"]["source"] = "mutated"
+    next_action["args"]["paths"].append("b.py")
+    result.output["nested"][0]["value"] = 40
+
+    assert result.output == {"nested": [{"value": 40}]}
+    assert result.metadata == {"nested": [{"value": 2}]}
+    assert result.provenance == {"nested": {"value": 3}}
+    assert result.artifact_refs[0]["provenance"] == {"source": "caller"}
+    assert result.next_action == {"name": "read", "args": {"paths": ["a.py"]}}
+    assert output == {"nested": [{"value": 10}]}
+
+
+def test_canonical_reader_recursively_detaches_input_mapping() -> None:
+    payload = ToolResult(
+        output={"nested": [1]},
+        metadata={"nested": [2]},
+        next_action={"name": "read", "args": {"paths": ["a.py"]}},
+    ).to_persistence_dict()
+    result = ToolResult.from_canonical_dict(payload)
+
+    payload["output"]["nested"].append(9)
+    payload["metadata"]["nested"].append(9)
+    payload["next_action"]["args"]["paths"].append("b.py")
+
+    assert result.output == {"nested": [1]}
+    assert result.metadata == {"nested": [2]}
+    assert result.next_action == {"name": "read", "args": {"paths": ["a.py"]}}
+
+
+def test_legacy_reader_recursively_detaches_input_mapping() -> None:
+    payload = {
+        "output": {"nested": [1]},
+        "metadata": {"nested": [2]},
+        "next_action": {"name": "read", "args": {"paths": ["a.py"]}},
+    }
+    result = ToolResult.from_legacy_value(payload)
+
+    payload["output"]["nested"].append(9)
+    payload["metadata"]["nested"].append(9)
+    payload["next_action"]["args"]["paths"].append("b.py")
+
+    assert result.output == {"nested": [1]}
+    assert result.metadata == {"nested": [2]}
+    assert result.next_action == {"name": "read", "args": {"paths": ["a.py"]}}
+
+
+def test_persistence_and_legacy_serializers_return_detached_trees() -> None:
+    result = ToolResult(
+        output={"nested": [1]},
+        metadata={"nested": [2]},
+        next_action={"name": "read", "args": {"paths": ["a.py"]}},
+    )
+    persistence = result.to_persistence_dict()
+    legacy = result.to_legacy_dict()
+
+    persistence["output"]["nested"].append(9)
+    persistence["metadata"]["nested"].append(9)
+    persistence["next_action"]["args"]["paths"].append("b.py")
+    legacy["nested"].append(8)
+
+    assert result.output == {"nested": [1]}
+    assert result.metadata == {"nested": [2]}
+    assert result.next_action == {"name": "read", "args": {"paths": ["a.py"]}}
+
+
 def test_serializer_revalidates_mutated_canonical_object() -> None:
     result = ToolResult(output="valid")
     result.attempts = True
@@ -314,6 +398,61 @@ def test_trace_safe_projection_is_versioned_and_declares_loss() -> None:
     assert "/Users/alice" not in json.dumps(visible)
 
 
+def test_every_model_visible_field_is_redacted_and_loss_accounted() -> None:
+    result = ToolResult.execution_error(
+        tool_name="token=tool-secret",
+        action_id="/Users/alice/private/action-id",
+        code="secret=error-code",
+        error="token=error-secret at /Users/alice/private/error.log",
+        output="token=output-secret /Users/alice/private/output.log",
+        recovery_hint="password=hint-secret in /Users/alice/private/hint.txt",
+        next_action={
+            "name": "secret=next-tool",
+            "action_id": "/Users/alice/private/next-id",
+            "args": {
+                "authorization": "Bearer next-secret",
+                "path": "/Users/alice/private/next.txt",
+            },
+        },
+    )
+
+    model_view = result.to_model_dict(max_chars=1000)
+    trace_view = result.to_trace_safe_dict(max_chars=1000)
+    rendered_model = json.dumps(model_view)
+    rendered_trace = json.dumps(trace_view)
+
+    for forbidden in (
+        "tool-secret",
+        "error-code",
+        "error-secret",
+        "output-secret",
+        "hint-secret",
+        "next-secret",
+        "/Users/alice",
+    ):
+        assert forbidden not in rendered_model
+        assert forbidden not in rendered_trace
+    assert model_view["tool_name"] == "[REDACTED_IDENTIFIER]"
+    assert model_view["action_id"] == "[REDACTED_IDENTIFIER]"
+    assert model_view["error_code"] == "[REDACTED_IDENTIFIER]"
+    loss = trace_view["loss"]
+    assert loss["redacted_secret_values"] >= 5
+    assert loss["redacted_host_paths"] >= 5
+    assert loss["redacted_identifiers"] >= 5
+    assert set(loss["fields"]) == {
+        "model_output",
+        "error",
+        "recovery_hint",
+        "identifiers",
+        "next_action",
+    }
+    assert loss["fields"]["model_output"]["secret_values"] >= 1
+    assert loss["fields"]["error"]["host_paths"] >= 1
+    assert loss["fields"]["recovery_hint"]["secret_values"] >= 1
+    assert loss["fields"]["identifiers"]["redacted_identifiers"] == 3
+    assert loss["fields"]["next_action"]["redacted_identifiers"] == 2
+
+
 @pytest.mark.parametrize(
     "next_action",
     ["read", {"name": "", "args": {}}, {"name": "read", "args": []}],
@@ -368,6 +507,7 @@ def test_versioned_durability_and_lifecycle_fixture_inventory() -> None:
 
 def test_contract_hardening_fixture_is_consumable_by_lanes_b_and_d() -> None:
     fixture = json.loads((FIXTURE_DIR / "contract_hardening.json").read_text())
+    evidence = json.loads((FIXTURE_DIR / "qualification-evidence.json").read_text())
 
     assert fixture["canonical_schema_version"] == TOOL_RESULT_SCHEMA_VERSION
     assert fixture["model_view_version"] == TOOL_RESULT_MODEL_VIEW_VERSION
@@ -391,3 +531,8 @@ def test_contract_hardening_fixture_is_consumable_by_lanes_b_and_d() -> None:
     assert set(trace_view["loss"]["excluded_fields"]) == set(
         fixture["expected_trace_loss"]["excluded_fields"]
     )
+    assert evidence["contract_id"] == "qitos.tool_result"
+    assert evidence["contract_version"] == TOOL_RESULT_SCHEMA_VERSION
+    assert evidence["fixture_path"].endswith("contract_hardening.json")
+    assert evidence["qualification_authority"] == "qitos.g1.integration_owner/v1"
+    assert evidence["qualified"] is True

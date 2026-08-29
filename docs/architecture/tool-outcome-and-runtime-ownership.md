@@ -224,6 +224,10 @@ Fixtures live under `tests/fixtures/tool_results/v1/`:
 - `lifecycle_receipts.json`: repeated shutdown and borrowed-resource-open.
 - `contract_hardening.json`: unknown-version, contradictory-state and malformed
   canonical rejections, the model-safe source, and trace-safe loss expectations.
+- `qualification-evidence.json`: producer-owned G1 probes for recursive JSON
+  admission, nested ownership isolation, all-field redaction, and per-field loss
+  accounting. Lane D must bind this exact committed file and fixture rather than
+  trusting an unverified success flag.
 
 Lane B consumes `to_persistence_dict()`, `from_canonical_dict()`,
 `from_legacy_value()`, `to_model_dict()`, the allowed `artifact_refs` shape,
@@ -233,6 +237,14 @@ lifecycle failure fields. Before trace persistence, Lane D must redact secrets,
 authorization material, raw exception objects, unrestricted request payloads,
 and host-local paths; only stable codes, declared public refs, redacted
 diagnostics, and correlation identifiers cross that boundary.
+
+Every structural tool boundary first enforces recursive JSON values: object keys
+must be strings and floats must be finite. This check precedes interceptor,
+permission-pipeline, tool permission, semantic validation, and tool execution.
+ToolResult owns a recursive copy of all accepted JSON trees, and every serializer
+returns another recursive copy. Model and trace-safe projections share one text
+budget and account redaction or omission separately for model output, errors,
+recovery hints, identifiers, and next actions.
 
 ## Consequences and deferred behavior
 

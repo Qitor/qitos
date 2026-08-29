@@ -144,6 +144,15 @@ fails malformed schemas with `schema_contract_violation` before tool code.
 Interceptor and permission argument rewrites are revalidated. Cross-lane cases
 are fixed in `tests/fixtures/tool_results/v1/contract_hardening.json`.
 
+The G1 integration repair closes the remaining 03A boundary gaps without
+starting 03B–E: recursive JSON-only admission (including finite floats and
+string object keys) runs before interceptors, permissions, and execution;
+ToolResult recursively owns accepted constructor/reader data and serializers
+return detached trees; and the model/trace-safe view redacts and budgets every
+visible field while recording aggregate and per-field loss. Producer-owned
+qualification evidence is versioned beside the C fixture for Lane D receipt
+verification.
+
 This evidence completes the C1/03A contract layer only. Coding-tool behavior,
 durability implementation, MCP replacement, and executor lifecycle refactors
 remain explicitly deferred.

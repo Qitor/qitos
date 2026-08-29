@@ -1,6 +1,6 @@
 # Lane C C1 — canonical tool outcome and runtime ownership
 
-Status: C1-R review hardening implemented; validation and final rebase gates open
+Status: integrated G1 boundary repair implemented; combined G1 gate open
 Integration baseline: `8441bef2f2024fd6c2ec01784708512222382471`
 C1 source HEAD: `1a36349b425e8c39d87b89e71ad4dcabd23d9e30`
 Branch: `codex/v4-lane-c-contract-hardening`
@@ -43,6 +43,24 @@ changes, or a universal lifecycle interface.
 - [x] Keep `docs/progress.md` byte-for-byte outside the branch diff.
 - [x] Complete final validation/static checks and record exact results below.
 - [ ] Rebase onto the eventual Lane A integrated HEAD and run its ratchet.
+
+## G1 integration-owner boundary repair
+
+- [x] C-J1: reject arbitrary nested objects, non-string object keys, NaN,
+  Infinity, and -Infinity at the initial executor/registry boundary before any
+  interceptor, permission decision, or tool code.
+- [x] C-I1: recursively detach constructor, canonical-reader, legacy-reader,
+  canonical serializer, and explicit legacy serializer values in both mutation
+  directions.
+- [x] C-P2: apply one bounded redaction path to model output, error, recovery
+  hint, tool/action/error identifiers, and next action, with aggregate and
+  per-field trace loss facts.
+- [x] Publish producer-owned qualification evidence beside the versioned fixture
+  for Lane D to verify against an exact committed producer source.
+
+The earlier source-branch rebase gate is satisfied by the G1 integration branch:
+the Lane A ratchet passed with 399 baselined findings (377 active and 22
+vendored/generated). Combined B/D and full-suite qualification remain open.
 
 ## Shared-file leases
 

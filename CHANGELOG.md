@@ -58,6 +58,7 @@ How to update:
 
 ### Fixed
 
+- Closed the G1 ToolResult boundary gaps: tool calls now reject recursive non-JSON values and non-finite numbers before interceptors, permissions, or execution; canonical/legacy construction and serialization detach nested caller-owned values; and every model/trace-visible field shares bounded redaction with aggregate, per-field loss accounting.
 - Fixed the contribution tool-schema gate so workflow and repository tests execute one checked-in qualification entrypoint over real constructible class tools and the actual `ToolRegistry`, with a controlled malformed-spec failure instead of a broken inline `ToolSpec` import.
 - Repaired contribution CI trust: removed unsupported `pull_request.changed_files` array predicates, unused changed-count logic, masked pytest commands, and missing zoo test paths; retained the zoo workflow as an explicitly stale advisory inventory pending external required-check evidence.
 - Closed the campaign-absorption quality baseline: the stable core/engine/models/trace surface is flake8- and mypy-clean; the private Engine protocol matches its runtime helpers; cancellation checkpoints use the correct arguments; synchronous Engine MCP lifecycle and tool discovery resolve their async operations; and Action objects render correctly in the TUI.

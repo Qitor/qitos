@@ -1,0 +1,23 @@
+{
+  "evidence_version": "qitos.contract_qualification_evidence/v1",
+  "contract_id": "qitos.tool_result",
+  "contract_version": "qitos.tool_result/v1",
+  "producer": "lane-c-tool-runtime",
+  "fixture_path": "tests/fixtures/tool_results/v1/contract_hardening.json",
+  "qualification_authority": "qitos.g1.integration_owner/v1",
+  "qualified": true,
+  "probes": [
+    "recursive_json_pre_execution_gate",
+    "constructor_input_ownership_isolation",
+    "canonical_reader_input_ownership_isolation",
+    "legacy_reader_input_ownership_isolation",
+    "persistence_output_ownership_isolation",
+    "all_visible_fields_redacted",
+    "projection_loss_aggregated_by_field"
+  ],
+  "test_files": [
+    "tests/core/test_tool_result.py",
+    "tests/core/test_tool_structural_validation.py",
+    "tests/engine/test_tool_result_projection.py"
+  ]
+}

@@ -38,11 +38,12 @@ _SENSITIVE_KEY = re.compile(
     re.IGNORECASE,
 )
 _HOST_PATH = re.compile(
-    r"(?<![\w.])(?:/(?:Users|home|private|var/folders|tmp)/[^\s,;:'\"<>]+|[A-Za-z]:\\[^\s,;:'\"<>]+)"
+    r"(?<![\w.:])(?:/(?!/)[^\s,;:'\"<>]+|~[/\\][^\s,;:'\"<>]+|[A-Za-z]:\\[^\s,;:'\"<>]+|file://[^\s,;:'\"<>]+)"
 )
 _SECRET_TEXT = re.compile(
     r"(?i)(authorization\s*[:=]\s*(?:bearer\s+)?|bearer\s+|(?:api[_-]?key|token|password|secret)\s*[:=]\s*)[^\s,;]+"
 )
+_SAFE_IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 
 
 class ToolResultContractError(ValueError):
@@ -100,6 +101,20 @@ def _require_json(value: Any, path: str) -> None:
     )
 
 
+def _clone_json(value: Any, path: str) -> Any:
+    """Validate and recursively detach one JSON tree from caller ownership."""
+
+    _require_json(value, path)
+    if isinstance(value, list):
+        return [_clone_json(item, f"{path}[{index}]") for index, item in enumerate(value)]
+    if isinstance(value, dict):
+        return {
+            key: _clone_json(item, f"{path}.{key}")
+            for key, item in value.items()
+        }
+    return value
+
+
 def _require_optional_string(value: Any, path: str) -> None:
     if value is not None and not isinstance(value, str):
         raise _fail("invalid_canonical_field", f"{path} must be a string or null")
@@ -120,19 +135,16 @@ def _validate_next_action(value: Any) -> Dict[str, Any] | None:
         raise _fail("invalid_canonical_field", "next_action.args must be an object")
     if action_id is not None and not isinstance(action_id, str):
         raise _fail("invalid_canonical_field", "next_action.action_id must be a string")
-    result: Dict[str, Any] = {"name": name.strip(), "args": dict(args)}
+    result: Dict[str, Any] = {"name": name.strip(), "args": args}
     if action_id is not None:
         result["action_id"] = action_id
-    _require_json(result, "next_action")
-    return result
+    return _clone_json(result, "next_action")
 
 
 def _validate_dict(value: Any, path: str) -> Dict[str, Any]:
     if not isinstance(value, dict):
         raise _fail("invalid_canonical_field", f"{path} must be an object")
-    result = dict(value)
-    _require_json(result, path)
-    return result
+    return _clone_json(value, path)
 
 
 def _validate_dict_list(value: Any, path: str) -> list[Dict[str, Any]]:
@@ -170,7 +182,19 @@ def _validate_artifacts(value: Any) -> list[Dict[str, Any]]:
 
 
 def _new_facts() -> Dict[str, int]:
-    return {"secret_values": 0, "host_paths": 0, "non_json_values": 0, "omitted_characters": 0}
+    return {
+        "secret_values": 0,
+        "host_paths": 0,
+        "non_json_values": 0,
+        "redacted_identifiers": 0,
+        "omitted_characters": 0,
+        "omitted_fields": 0,
+    }
+
+
+def _merge_facts(target: Dict[str, int], source: Dict[str, int]) -> None:
+    for key in target:
+        target[key] += source.get(key, 0)
 
 
 def _redact_text(value: str, facts: Dict[str, int]) -> str:
@@ -179,6 +203,16 @@ def _redact_text(value: str, facts: Dict[str, int]) -> str:
     redacted, count = _HOST_PATH.subn("[REDACTED_PATH]", redacted)
     facts["host_paths"] += count
     return redacted
+
+
+def _safe_identifier(value: str | None, facts: Dict[str, int]) -> str | None:
+    if value is None:
+        return None
+    redacted = _redact_text(value, facts)
+    if redacted == value and _SAFE_IDENTIFIER.fullmatch(value):
+        return value
+    facts["redacted_identifiers"] += 1
+    return "[REDACTED_IDENTIFIER]"
 
 
 def _redact_value(value: Any, facts: Dict[str, int]) -> Any:
@@ -287,9 +321,9 @@ class ToolResult:
         self.artifact_refs = _validate_artifacts(self.artifact_refs)
         self.normalized_request = _validate_dict(self.normalized_request, "normalized_request")
         self.provenance = _validate_dict(self.provenance, "provenance")
-        self.model_output = _model_projection(self.output, self.model_output)
-        _require_json(self.output, "output")
-        _require_json(self.model_output, "model_output")
+        projected = _model_projection(self.output, self.model_output)
+        self.output = _clone_json(self.output, "output")
+        self.model_output = _clone_json(projected, "model_output")
         self._validate_terminal_invariants()
 
     def _validate_terminal_invariants(self) -> None:
@@ -329,21 +363,31 @@ class ToolResult:
         payload: Dict[str, Any] = {
             "schema_version": TOOL_RESULT_SCHEMA_VERSION, "status": self.status,
             "success": self.is_success, "tool_name": self.tool_name,
-            "action_id": self.action_id, "output": self.output,
-            "model_output": self.model_output, "error": self.error,
+            "action_id": self.action_id,
+            "output": _clone_json(self.output, "output"),
+            "model_output": _clone_json(self.model_output, "model_output"),
+            "error": self.error,
             "error_kind": self.error_kind, "error_code": self.error_code,
             "recoverable": self.recoverable, "recovery_hint": self.recovery_hint,
-            "next_action": dict(self.next_action) if self.next_action is not None else None,
+            "next_action": (
+                _clone_json(self.next_action, "next_action")
+                if self.next_action is not None else None
+            ),
             "complete": self.complete, "truncated": self.truncated,
-            "omitted": dict(self.omitted), "attempts": self.attempts,
+            "omitted": _clone_json(self.omitted, "omitted"),
+            "attempts": self.attempts,
             "latency_ms": self.latency_ms,
-            "declared_effects": [dict(item) for item in self.declared_effects],
-            "filesystem_changes": [dict(item) for item in self.filesystem_changes],
-            "artifact_refs": [dict(item) for item in self.artifact_refs],
-            "normalized_request": dict(self.normalized_request),
-            "provenance": dict(self.provenance),
+            "declared_effects": _clone_json(self.declared_effects, "declared_effects"),
+            "filesystem_changes": _clone_json(
+                self.filesystem_changes, "filesystem_changes"
+            ),
+            "artifact_refs": _clone_json(self.artifact_refs, "artifact_refs"),
+            "normalized_request": _clone_json(
+                self.normalized_request, "normalized_request"
+            ),
+            "provenance": _clone_json(self.provenance, "provenance"),
             "worker_still_running": self.worker_still_running,
-            "metadata": dict(self.metadata),
+            "metadata": _clone_json(self.metadata, "metadata"),
         }
         _require_json(payload, "ToolResult")
         return payload
@@ -355,61 +399,112 @@ class ToolResult:
         payload = self.to_persistence_dict()
         if flatten_output and isinstance(self.output, dict):
             for key, value in self.output.items():
-                payload.setdefault(str(key), value)
+                payload.setdefault(str(key), _clone_json(value, f"output.{key}"))
         return payload
 
-    def _safe_projection(self, max_chars: int) -> tuple[str, Dict[str, int]]:
-        facts = _new_facts()
+    def _model_view_with_loss(
+        self, max_chars: int
+    ) -> tuple[Dict[str, Any], Dict[str, Any]]:
+        """Build one bounded view and aggregate loss across every visible field."""
+
+        self.__post_init__()
+        budget = max(0, int(max_chars))
+        totals = _new_facts()
+        by_field: Dict[str, Dict[str, int]] = {}
+
+        def facts_for(field_name: str) -> Dict[str, int]:
+            facts = _new_facts()
+            by_field[field_name] = facts
+            return facts
+
+        output_facts = facts_for("model_output")
         source = self.model_output
         if source is None:
             source = self.output if self.output is not None else self.error or ""
-        return _bounded_text(_projection_text(source, facts), max_chars, facts), facts
-
-    def to_model_dict(self, *, max_chars: int = 4000) -> Dict[str, Any]:
-        """Return the allowlist view permitted in model messages."""
-        self.__post_init__()
-        budget = max(0, int(max_chars))
-        model_text, _ = self._safe_projection(budget)
+        model_text = _bounded_text(
+            _projection_text(source, output_facts), budget, output_facts
+        )
         remaining = max(0, budget - len(model_text))
-        error_facts, hint_facts, action_facts = _new_facts(), _new_facts(), _new_facts()
-        safe_error = (
-            _bounded_text(_redact_text(self.error, error_facts), remaining, error_facts)
-            if self.error is not None and remaining > 0 else None
-        )
-        remaining = max(0, remaining - len(safe_error or ""))
-        safe_hint = (
-            _bounded_text(_redact_text(self.recovery_hint, hint_facts), remaining, hint_facts)
-            if self.recovery_hint is not None and remaining > 0 else None
-        )
-        remaining = max(0, remaining - len(safe_hint or ""))
-        safe_next_action = (
-            _redact_value(self.next_action, action_facts)
-            if self.next_action is not None else None
-        )
-        if safe_next_action is not None:
+
+        error_facts = facts_for("error")
+        safe_error = None
+        if self.error is not None:
+            if remaining > 0:
+                safe_error = _bounded_text(
+                    _redact_text(self.error, error_facts), remaining, error_facts
+                )
+                remaining = max(0, remaining - len(safe_error))
+            else:
+                error_facts["omitted_characters"] += len(self.error)
+                error_facts["omitted_fields"] += 1
+
+        hint_facts = facts_for("recovery_hint")
+        safe_hint = None
+        if self.recovery_hint is not None:
+            if remaining > 0:
+                safe_hint = _bounded_text(
+                    _redact_text(self.recovery_hint, hint_facts),
+                    remaining,
+                    hint_facts,
+                )
+                remaining = max(0, remaining - len(safe_hint))
+            else:
+                hint_facts["omitted_characters"] += len(self.recovery_hint)
+                hint_facts["omitted_fields"] += 1
+
+        identity_facts = facts_for("identifiers")
+        safe_tool_name = _safe_identifier(self.tool_name, identity_facts)
+        safe_action_id = _safe_identifier(self.action_id, identity_facts)
+        safe_error_code = _safe_identifier(self.error_code, identity_facts)
+
+        action_facts = facts_for("next_action")
+        safe_next_action = None
+        if self.next_action is not None:
+            safe_next_action = {
+                "name": _safe_identifier(self.next_action["name"], action_facts),
+                "args": _redact_value(self.next_action.get("args", {}), action_facts),
+            }
+            if self.next_action.get("action_id") is not None:
+                safe_next_action["action_id"] = _safe_identifier(
+                    self.next_action["action_id"], action_facts
+                )
             rendered_action = json.dumps(
-                safe_next_action, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+                safe_next_action,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
             )
             if len(rendered_action) > remaining:
+                action_facts["omitted_characters"] += len(rendered_action)
+                action_facts["omitted_fields"] += 1
                 safe_next_action = None
+
+        for facts in by_field.values():
+            _merge_facts(totals, facts)
         payload: Dict[str, Any] = {
             "schema_version": TOOL_RESULT_MODEL_VIEW_VERSION,
             "status": self.status,
-            "tool_name": self.tool_name,
-            "action_id": self.action_id,
+            "tool_name": safe_tool_name,
+            "action_id": safe_action_id,
             "model_output": model_text,
             "error": safe_error,
-            "error_code": self.error_code,
+            "error_code": safe_error_code,
             "recoverable": self.recoverable,
             "recovery_hint": safe_hint,
             "next_action": safe_next_action,
         }
         _require_json(payload, "model_view")
+        return payload, {"totals": totals, "fields": by_field}
+
+    def to_model_dict(self, *, max_chars: int = 4000) -> Dict[str, Any]:
+        """Return the allowlist view permitted in model messages."""
+        payload, _ = self._model_view_with_loss(max_chars)
         return payload
 
     def to_trace_safe_dict(self, *, max_chars: int = 4000) -> Dict[str, Any]:
         """Return the bounded ToolResult-only Lane D handoff projection."""
-        model_text, facts = self._safe_projection(max_chars)
+        payload, projection_loss = self._model_view_with_loss(max_chars)
+        facts = projection_loss["totals"]
         excluded = [
             name for name, value in (
                 ("output", self.output), ("metadata", self.metadata),
@@ -418,7 +513,6 @@ class ToolResult:
                 ("filesystem_changes", self.filesystem_changes), ("artifact_refs", self.artifact_refs),
             ) if value not in (None, {}, [])
         ]
-        payload = self.to_model_dict(max_chars=max_chars)
         payload.update(
             {
                 "schema_version": TOOL_RESULT_TRACE_SAFE_VERSION,
@@ -426,14 +520,16 @@ class ToolResult:
                 "omitted": dict(self.omitted), "attempts": self.attempts,
                 "latency_ms": self.latency_ms,
                 "worker_still_running": self.worker_still_running,
-                "model_output": model_text,
                 "loss": {
                     "canonical_output_included": False,
                     "excluded_fields": excluded,
                     "redacted_secret_values": facts["secret_values"],
                     "redacted_host_paths": facts["host_paths"],
                     "redacted_non_json_values": facts["non_json_values"],
+                    "redacted_identifiers": facts["redacted_identifiers"],
                     "omitted_characters": facts["omitted_characters"],
+                    "omitted_fields": facts["omitted_fields"],
+                    "fields": projection_loss["fields"],
                 },
             }
         )
