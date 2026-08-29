@@ -1,18 +1,21 @@
 # Lane D data convergence
 
-Status: D1 evidence package implemented and validated
+Status: D1 census and D1-R evidence gates implemented and validated
 Updated: 2026-08-29
-Work package: Lane D / D1 — data-plane census, consumer ledger, and benchmark specification
-Baseline: `fb75cd5902fedf50d5e67dd617e62cd981c3128f`
-Branch: `codex/v4-lane-d-data-census`
-Worktree: `/Users/morinop/Desktop/WhitzardOS-lane-d`
+Work package: Lane D / D1-R — strict fixture manifests, portable evidence, and contract readiness gates
+Integration baseline: `8441bef2f2024fd6c2ec01784708512222382471`
+D1 source: `ad03cb0b63c62e2067a222d654f3879ba7c01bb5`
+Branch: `codex/v4-lane-d-evidence-gates`
+Worktree: isolated Lane D evidence-gates checkout
 
 ## Objective
 
 Establish exact-source evidence for every current trajectory producer, writer,
 reader, and public consumer; publish the public-surface/removal decision ledger;
 select two independent representative trajectory fixture sources; and specify a
-schema-neutral storage benchmark. D1 does not implement or freeze trajectory v2.
+schema-neutral storage benchmark. D1-R makes those inputs executable and
+portable, and replaces coarse cross-lane blockers with caller-supplied contract
+qualification receipts. It does not implement or freeze trajectory v2.
 
 ## Scope and stop gates
 
@@ -24,6 +27,8 @@ In scope:
 - public-surface classification and removal decisions with explicit unknowns;
 - fixture provenance/sanitization manifests and a typed schema-not-ready
   benchmark scaffold;
+- strict manifest/publication validation, portable diagnostic output, contract-
+  specific readiness receipts, and exact-source link checks;
 - explicit Lane B/C dependency requests.
 
 Out of scope:
@@ -41,7 +46,7 @@ of copying or inferring its fields.
 
 ## File leases
 
-Lease owner: Lane D / D1
+Lease owner: Lane D / D1-R
 
 File(s):
 
@@ -50,10 +55,14 @@ File(s):
 - `docs/v4/10-consolidation-and-surface-reduction.md`
 - `docs/architecture/architecture-debt.md`
 - `README.md`, `README.zh.md`, `CHANGELOG.md`
+- `scripts/benchmark_trajectory_store.py`
+- `tests/test_benchmark_trajectory_store.py`
+- `tests/test_lane_d_evidence_links.py`
+- `tests/fixtures/trajectories/README.md`
 
-Semantic purpose: evidence/status only, plus user-visible notice that the D1
-census and benchmark specification exist. No schema, runtime, CLI, import, or
-release behavior changes.
+Semantic purpose: evidence/status plus a stdlib-only readiness checker and its
+controlled-failure tests. No trajectory schema, runtime, CLI, import, or release
+behavior changes.
 
 Expected start/end package: D1 census through final validation and evidence
 handoff.
@@ -106,13 +115,16 @@ The completed plan will contain or link:
 - [x] Benchmark specification/scaffold complete.
 - [x] Documentation evidence/status synchronized.
 - [x] Required verification complete.
+- [x] Strict manifest/publication/portability and per-contract gates complete.
+- [x] D01–D16 source links and symbols mechanically verified.
 
 ## Explicit unsupported claims
 
 - Trajectory v2 schema is not frozen.
 - No v2 writer, store, reader, exporter, or qita adapter exists from this work.
 - No compression, deduplication, read/write/replay, or query performance result
-  is claimed until the versioned B/C contracts and sanitized fixtures exist.
+  is claimed until compatible B/C contracts and publication-qualified fixtures
+  exist.
 - No public surface is unused or safe to remove merely because an internal
   caller was not found.
 
@@ -126,21 +138,21 @@ current runtime or compatibility workflow, not a trajectory-v2 decision.
 | ID | File and symbol | Producer → writer/store → reader → consumer | Schema/version | Present role |
 |---|---|---|---|---|
 | D01 | `qitos/engine/states.py::RuntimeEvent`; `qitos/engine/_trace_runtime.py::_TraceRuntime.emit` | Engine phase helpers → in-memory `Engine.events` and current `StepRecord.phase_events`; then D04 and hooks | Dataclass, unversioned | Canonical runtime event in memory |
-| D02 | `qitos/engine/states.py::StepRecord`; `_TraceRuntime.finalize_step` | Engine decide/act/reduce helpers → `Engine.records` → D04 and hook summaries → `EngineResult` | Dataclass, unversioned | Canonical runtime step in memory |
+| D02 | `qitos/engine/states.py::StepRecord`; `qitos/engine/_trace_runtime.py::_TraceRuntime.finalize_step` | Engine decide/act/reduce helpers → `Engine.records` → D04 and hook summaries → `EngineResult` | Dataclass, unversioned | Canonical runtime step in memory |
 | D03 | `qitos/trace/writer.py::TraceWriter`, `qitos/trace/schema.py::TraceSchemaValidator` | recipe/demo/Engine assembly → `runs/{run_id}/manifest.json` → qita, replay, evaluate, leaderboard, HF | Frozen `v1` manifest | Canonical compatibility artifact |
 | D04 | `qitos/trace/events.py::{TraceEvent,TraceStep}`; `qitos/trace/writer.py::{runtime_event_to_trace,runtime_step_to_trace,TraceWriter.write_event,TraceWriter.write_step}` | D01/D02 → recursive key-redacted `events.jsonl`/`steps.jsonl` → qita, replay, evaluate, HF | Frozen `v1` JSONL | Canonical compatibility artifact |
-| D05 | `qitos/tracing/models.py::{SpanData,Span,Trace}`; `provider.py::TracingProvider` | opt-in instrumentation → `SynchronousMultiTraceProcessor` → JSON/JSONL, console, MLflow, W&B, or D06 | Tracing models, unversioned | Optional derived observability plane |
+| D05 | `qitos/tracing/models.py::{SpanData,Span,Trace}`; `qitos/tracing/provider.py::TracingProvider`; `qitos/tracing/processor.py::SynchronousMultiTraceProcessor` | opt-in instrumentation → processor fan-out → JSON/JSONL, console, MLflow, W&B, or D06 | Tracing models, unversioned | Optional derived observability plane |
 | D06 | `qitos/tracing/legacy_processor.py::LegacyTraceWriterProcessor` | D05 span → forced v1-like event → D03/D04 writer; no step write → v1 readers | Compatibility bridge, unversioned | Compatibility-only and lossy |
-| D07 | `qitos/render/events.py::RenderEvent`; `qitos/render/_hooks_impl.py::RenderStreamHook._emit` | Engine hooks plus copied D01 events → in-memory render stream and optional `render_events.jsonl` → `ClaudeStyleHook`/TUI | Unversioned JSONL | Derived presentation plane |
+| D07 | `qitos/render/events.py::RenderEvent`; `qitos/render/_hooks_impl.py::RenderStreamHook._emit`; `qitos/render/_hooks_impl.py::ClaudeStyleHook` | Engine hooks plus copied D01 events → in-memory render stream and optional `render_events.jsonl` → style hook/TUI | Unversioned JSONL | Derived presentation plane |
 | D08 | `qitos/qita/_cli_app.py::{_discover_runs,_load_run_payload,_build_replay_records,_cmd_board,_cmd_replay,_cmd_export}` | D03/D04 files → tolerant loaders/group-by-step → board, replay, JSON/HTML export, live SSE | v1 reader/view | Compatibility product consumer |
 | D09 | `qitos/debug/replay.py::ReplaySession`; qita fork endpoint | D03/D04 files → strict replay session → step view/forked copied v1 artifacts | v1 reader/writer | Deprecated compatibility dependency used by qita |
-| D10 | `qitos/checkpoint/checkpoint.py::{CheckpointData,CheckpointManager}`; `qitos/checkpoint/{store,memory_store,sqlite_store}.py`; Engine save/resume/fork helpers | Engine state plus, for legacy only, D01/D02 → JSON checkpoint or state-oriented v2 checkpoint stores → Engine resume/fork | Checkpoint schema v1/v2, not trajectory v2 | Durability plane, not trajectory truth |
-| D11 | `qitos/recipes/benchmarks/_shared.py::build_example_specs`; GAIA/CyBench/Tau/CyberGym runners; `qitos/benchmark/common.py` | benchmark runner → D03/D04 plus benchmark results JSONL containing `trace_run_dir` → CLI/evaluation | trace v1 plus benchmark-specific result records | Recipe consumer/producer edge |
+| D10 | `qitos/checkpoint/checkpoint.py::{CheckpointData,CheckpointManager}`; `qitos/checkpoint/store.py::{Checkpoint,CheckpointStore}`; `qitos/checkpoint/memory_store.py::InMemoryCheckpointStore`; `qitos/checkpoint/sqlite_store.py::SqliteCheckpointStore`; `qitos/checkpoint/fork.py::fork_checkpoint` | Engine state plus, for legacy only, D01/D02 → JSON checkpoint or state-oriented v2 checkpoint stores → Engine resume/fork | Checkpoint schema v1/v2, not trajectory v2 | Durability plane, not trajectory truth |
+| D11 | `qitos/recipes/benchmarks/_shared.py::build_example_specs`; `qitos/benchmark/common.py::write_benchmark_results` | GAIA/CyBench/Tau/CyberGym runner → D03/D04 plus benchmark results JSONL containing `trace_run_dir` → CLI/evaluation | trace v1 plus benchmark-specific result records | Recipe consumer/producer edge |
 | D12 | `qitos/evaluate/base.py::{EvaluationContext,load_run_artifacts}`; `qitos/metric/base.py::MetricInput` | D03/D04 → tolerant evaluation context → rule/DSL/multi-agent evaluators; recipe-normalized result → metrics | v1 input, evaluator/metric contracts unversioned | Derived evaluation consumers |
-| D13 | `qitos/leaderboard/store.py::submit_run_dir`; `qitos/hf/hub.py::{push_run,pull_run}` | D03 manifest → leaderboard SQLite pointer; D03/D04 and extra run files → HF upload/download → remote users | v1-oriented edge protocols | Distribution/registry consumers |
-| D14 | `qitos/core/model_response.py::ModelResponse.to_summary_dict`; `qitos/engine/_model_runtime.py` | provider response/native items → summary in D02 plus raw/model-output D01 payload → D04/D07 | Lane B contract not yet versioned | Current duplicated projection; future B-owned input |
-| D15 | `qitos/core/action.py::{ActionResult,ToolResult}`; `qitos/engine/_action_runtime.py`; `qitos/core/runtime_context.py` | action executor → rich `ActionResult` → lossy `ToolResult` reducer projection, D02 invocation/result fields and metadata artifacts → D04/D07 | Lane C outcome and B artifact contracts not yet versioned | Current runtime data awaiting owned contracts |
-| D16 | `qitos/kit/history/compact_history.py`; Engine compaction emit path | history strategy → ad hoc compaction dict D01 payload → D04/D07 | No versioned `CodecReport` or compaction report | Derived diagnostic awaiting Lane B contract |
+| D13 | `qitos/leaderboard/store.py::LeaderboardStore.submit_run_dir`; `qitos/hf/hub.py::{push_run,pull_run}` | D03 manifest → leaderboard SQLite pointer; D03/D04 and extra run files → HF upload/download → remote users | v1-oriented edge protocols | Distribution/registry consumers |
+| D14 | `qitos/core/model_response.py::ModelResponse.to_summary_dict`; `qitos/engine/_model_runtime.py::_ModelRuntime` | provider response/native items → summary in D02 plus raw/model-output D01 payload → D04/D07 | Lane B contract not yet qualified | Current duplicated projection; future B-owned input |
+| D15 | `qitos/core/action.py::ActionResult`; `qitos/core/tool_result.py::ToolResult`; `qitos/engine/_action_runtime.py::_ActionRuntime`; `qitos/engine/action_executor.py::ActionExecutor._build_runtime_context` | action executor → rich `ActionResult` → lossy `ToolResult` reducer projection, D02 invocation/result fields and metadata artifacts → D04/D07 | Lane C outcome and B artifact contracts not yet qualified | Current runtime data awaiting owned contracts |
+| D16 | `qitos/kit/history/compact_history.py::CompactHistory`; `qitos/engine/_context_runtime.py::_ContextRuntime.normalize_history_events` | history strategy → ad hoc compaction dict D01 payload → D04/D07 | No qualified `CodecReport` or compaction report | Derived diagnostic awaiting Lane B contract |
 
 ### Correlation and representation comparison
 
@@ -305,7 +317,7 @@ The committed files are source/sanitization manifests, not trajectory payloads:
 3. Apply Lane C's versioned trace-safe redaction contract to keys and values;
    reject rather than merely warn on a secret/credential finding.
 4. Replace absolute paths, usernames, hosts, task IDs, and environment-specific
-   endpoints with stable logical references. Reject `file://`, home-directory,
+   endpoints with stable logical references. Reject file-URI, home-directory,
    drive-letter, and repository-external path patterns.
 5. Separate `raw_private` and `redacted_public`; never derive replay-fidelity
    claims from the public projection.
@@ -314,15 +326,49 @@ The committed files are source/sanitization manifests, not trajectory payloads:
 7. Review free-form strings and artifact bytes, not only key names. Current v1
    key redaction is necessary but insufficient as a fixture-publication proof.
 
+### D1-R executable gates
+
+`tests/fixtures/trajectories/fixture-manifest.schema.json` documents the strict
+`trajectory-fixture-source-manifest-v1` shape; the stdlib-only parser in the
+benchmark script is the executable gate. It rejects unsupported versions and
+enums, missing or extra fields, type/count/digest failures, payload/status
+inconsistency, unknown coverage shapes, malformed/non-object JSON, and duplicate
+fixture or logical-source identities.
+
+Publication qualification runs only for `sanitized_payload_ready` and requires
+the qualified license, transform input/output digests, policy identity,
+dropped/rewritten paths, five zero-finding scan receipts (secret keys,
+free-form secret values, PII, portability, and artifacts), a qualified loss
+report, and a repository-contained payload inventory whose streamed file
+size/digest and aggregate output digest match. Both current manifests remain
+typed `publication_status_not_ready`; no payload was copied or parsed.
+
+Evidence output contains only a fixture-set ID, repository-relative manifest
+paths, typed finding codes, and counts. It never serializes the inspected
+fixture root or rejected path/value. Controlled tests cover POSIX absolute,
+drive-qualified, file-URI, home-expanded, repository-external, and local
+endpoint findings, plus a scan over the D1-R docs/schema/manifests.
+
+Contract readiness uses stable contract IDs and an optional pure-data
+`trajectory-contract-qualification-receipts-v1` input. Each receipt supplies
+contract ID, version, SHA-256 digest, fixture identity, and qualified state.
+Missing, unknown, duplicate, invalid, unqualified, version-mismatched, and
+owner-version-unestablished states are distinct. A valid receipt clears only
+its exact blocker; fixture presence never qualifies a contract. Reviewed B1/C1
+fixtures provide several published top-level versions, but no compatible
+caller qualification receipt exists in this branch, so every required contract
+remains blocked by default.
+
 ## Storage benchmark specification
 
 `scripts/benchmark_trajectory_store.py` is deliberately a readiness checker.
 With `--dry-run` it exits successfully and emits
-`trajectory-store-benchmark-readiness-v1`; without it, the same typed
+`trajectory-store-benchmark-readiness-v2`; without it, the same typed
 `TRAJECTORY_SCHEMA_NOT_READY` result exits 2. It never loads raw payloads or
 creates measurements while contracts are missing.
 
-After B/C fixtures are versioned and both manifests are sanitized, the future
+After B/C contracts are explicitly qualified and both manifests are sanitized,
+publication-qualified, and representative, the future
 benchmark must use the same semantic record set and deterministic serialization
 for every candidate:
 
@@ -358,6 +404,28 @@ Measurement protocol:
   optional-dependency review.
 
 ## Cross-lane dependency requests
+
+The readiness checker uses the following stable IDs. “Published source version”
+is only an expected version for receipt matching; it is not a D-owned schema or
+a qualification claim.
+
+| Contract ID | Published source version reviewed by D | Default D1-R state |
+|---|---|---|
+| `lane_b.exchange_log_fixture_version` | `qitos.exchange_log.v1` | receipt missing |
+| `lane_b.request_view_report` | unestablished | receipt missing |
+| `lane_b.codec_report` | unestablished | receipt missing |
+| `lane_b.provider_continuation_opaque_fields` | unestablished | receipt missing |
+| `lane_b.artifact_ref` | unestablished | receipt missing |
+| `lane_b.compaction_report` | unestablished | receipt missing |
+| `lane_c.canonical_tool_result_fixture_version` | `qitos.tool_result/v1` | receipt missing |
+| `lane_c.timeout_cancellation_receipt` | `qitos.runtime_lifecycle/v1` | receipt missing |
+| `lane_c.durability_receipt` | `qitos.durability_receipt/v1` | receipt missing |
+| `lane_c.hook_failure_fields` | unestablished | receipt missing |
+| `lane_c.trace_safe_redaction_contract` | unestablished | receipt missing |
+
+The corresponding B1/C1 top-level fixture identities and digests were reviewed
+only to establish these dependency expectations. Their internal fields were not
+copied, and no qualification mapping is committed.
 
 ### Lane B — Conversation, Providers, and Context
 
@@ -406,7 +474,7 @@ guess the contract.
 - The campaign source is selected but cannot be committed until licensing and
   sanitization gates pass.
 - The unrelated source is deterministic but not materialized because doing so
-  now would freeze pre-contract exchange/outcome fields.
+  now would freeze exchange/outcome fields without compatible qualification.
 - Required multimodal, parallel/out-of-order, compaction, artifact, provider
   failure, tool failure/retry, and cancellation/timeout coverage awaits B/C
   fixtures.
@@ -415,19 +483,21 @@ guess the contract.
 - HF upload is not yet a versioned public/redacted export boundary.
 - Hook/processor/durability failures do not yet share an auditable receipt.
 - Trajectory v2 schema is not frozen. D2/05A may start schema work only after
-  the B/C handoff fixtures and sanitization gates are satisfied.
+  compatible B/C receipts and representative publication-qualified fixtures
+  satisfy the recorded gates.
 
 ## Validation record
 
-Exact results on the fixed baseline worktree:
+Exact results on the fixed D1-R worktree:
 
 - [x] `pytest -q tests/tracing tests/test_engine_result_traces.py` → 77 passed
 - [x] `pytest -q tests/test_qita_cli.py` → 20 passed
-- [x] `pytest -q tests/test_public_surface.py` → 4 passed
 - [x] `pytest -q tests/test_architecture_boundaries.py` → 4 passed
-- [x] `pytest -q` → 1,696 passed, 50 skipped
+- [x] `pytest -q tests/test_public_surface.py` → 4 passed
+- [x] `pytest -q tests/test_benchmark_trajectory_store.py` → 24 passed
+- [x] `pytest -q tests/test_lane_d_evidence_links.py` → 2 passed
+- [x] `pytest -q` → 1,720 passed, 50 skipped
 - [x] `flake8 qitos/core qitos/engine qitos/models qitos/trace` → clean
 - [x] `mypy qitos/core qitos/engine qitos/models qitos/trace` → success, 76 files
 - [x] `git diff --check` → clean
 - [x] `python scripts/benchmark_trajectory_store.py --fixture tests/fixtures/trajectories --dry-run` → typed `schema_not_ready`, 0 measurements/claims
-- [x] `pytest -q tests/test_benchmark_trajectory_store.py` → 2 passed
