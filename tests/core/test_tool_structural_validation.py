@@ -42,6 +42,19 @@ class _RecordingTool(BaseTool):
         return {"query": args["query"]}
 
 
+class _BoundaryRecordingTool(_RecordingTool):
+    def __init__(self) -> None:
+        super().__init__()
+        self.permission_calls = 0
+
+    def check_permissions(
+        self, args: dict[str, Any], runtime_context: Any = None
+    ) -> ToolPermissionDecision:
+        _ = args, runtime_context
+        self.permission_calls += 1
+        return ToolPermissionDecision.allow()
+
+
 @pytest.mark.parametrize(
     ("args", "code"),
     [
@@ -56,6 +69,90 @@ def test_structural_schema_gate_rejects_invalid_json(args: Any, code: str) -> No
     result = validate_tool_arguments(args, SCHEMA)
     assert result.valid is False
     assert result.code == code
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        {"value": object()},
+        {"value": [object()]},
+        {"value": float("nan")},
+        {"value": float("inf")},
+        {"value": float("-inf")},
+        {1: "non-string-key"},
+    ],
+)
+def test_recursive_json_gate_rejects_values_before_schema_matching(
+    args: dict[Any, Any],
+) -> None:
+    result = validate_tool_arguments(
+        args,
+        {"type": "object", "additionalProperties": True},
+    )
+
+    assert result.valid is False
+    assert result.code == "invalid_json_value"
+
+
+class _CountingInterceptor(ToolInterceptor):
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def before_execute(self, action: Action, context: InterceptorContext) -> Action:
+        _ = context
+        self.calls += 1
+        return action
+
+    def after_execute(
+        self, action: Action, result: Any, context: InterceptorContext
+    ) -> Any:
+        _ = action, context
+        return result
+
+
+class _CountingPermissionPipeline:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def evaluate(self, **kwargs: Any) -> ToolPermissionDecision:
+        _ = kwargs
+        self.calls += 1
+        return ToolPermissionDecision.allow()
+
+
+def test_non_json_executor_args_fail_before_interceptor_permission_and_tool() -> None:
+    tool = _BoundaryRecordingTool()
+    interceptor = _CountingInterceptor()
+    pipeline = _CountingPermissionPipeline()
+    executor = ActionExecutor(
+        ToolRegistry().register(tool),
+        interceptor_chain=InterceptorChain([interceptor]),
+        permission_pipeline=pipeline,
+    )
+
+    result = executor.execute(
+        [Action(name="search", args={"query": "x", "extra": float("nan")})]
+    )[0]
+
+    assert result.status == ActionStatus.ERROR
+    assert result.attempts == 0
+    assert result.metadata["error_code"] == "invalid_json_value"
+    assert interceptor.calls == 0
+    assert pipeline.calls == 0
+    assert tool.permission_calls == 0
+    assert tool.calls == 0
+
+
+def test_non_json_registry_args_fail_before_permission_and_tool() -> None:
+    tool = _BoundaryRecordingTool()
+    tool.spec.input_schema = {"type": "object", "additionalProperties": True}
+    registry = ToolRegistry().register(tool)
+
+    with pytest.raises(ValueError, match="invalid_json_value"):
+        registry.call("search", value={"nested": [object()]})
+
+    assert tool.permission_calls == 0
+    assert tool.calls == 0
 
 
 def test_action_executor_structural_gate_runs_before_tool_code() -> None:

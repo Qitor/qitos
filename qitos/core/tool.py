@@ -358,6 +358,11 @@ def validate_tool_arguments(
             "Tool arguments must be a JSON object",
             code="invalid_arguments_shape",
         )
+    if not _is_json_value(args):
+        return ToolValidationResult.fail(
+            "Tool arguments must contain only finite JSON values and string object keys",
+            code="invalid_json_value",
+        )
     effective_schema = schema if schema is not None else {"type": "object"}
     if not isinstance(effective_schema, dict):
         return ToolValidationResult.fail(
