@@ -1,11 +1,12 @@
 # G1 final convergence plan
 
-Status: integrated candidate; G1 reopened on C-P3 after independent audit
+Status: G1-R3 in progress on final projection closure
 Updated: 2026-08-29
 Owner: G1 integration owner
-Branch: `codex/v4-g1-convergence`
-Worktree: `/Users/morinop/Desktop/WhitzardOS-g1`
+Branch: `codex/v4-g1-final-baseline`
+Worktree: `/Users/morinop/Desktop/WhitzardOS-g1-final`
 Fixed baseline: `a02ce05e9a364eb484ef339fe5cbd623910cf525`
+G1-R3 source: `acb491bd822baf6ca429e81639aadbde72a626f0`
 
 ## Objective and scope guard
 
@@ -18,6 +19,74 @@ trajectory v2, qita redesign, packaging migration, or new multi-agent behavior.
 The integration owner resolves shared documents manually, preserves historical
 audit evidence append-only, and does not reinterpret branch-local validation as
 integrated qualification.
+
+## G1-R3 final projection closure
+
+This single-worktree repair closes only C-P3, reruns B as a direct canonical
+consumer, refreshes C producer evidence and D's exact receipt, and then seals the
+accepted G1 baseline. It does not authorize Task 02B, 03B-E, 05A, 09 runtime,
+12A, 13A, Engine/checkpoint/MCP/trace-v1/qita changes, packaging work, or public
+API changes.
+
+Starting identities were reverified before worktree creation:
+
+- official integration: `feat/campaign-absorption` at
+  `a02ce05e9a364eb484ef339fe5cbd623910cf525`, clean;
+- convergence source: `codex/v4-g1-convergence` at
+  `acb491bd822baf6ca429e81639aadbde72a626f0`, clean;
+- final branch/worktree did not exist and were created directly from the exact
+  convergence source.
+
+### G1-R3 leases
+
+Lease owner: G1 integration owner acting for C-P3.
+
+File(s): `qitos/core/tool_result.py`, ToolResult projection tests, C fixture and
+qualification evidence.
+
+Semantic purpose: recursively sanitize sensitive mapping keys with a
+deterministic collision-safe representation, retain recursively sanitized
+values, budget trace-safe omitted data, and make aggregate/per-field loss facts
+complete without changing canonical persistence.
+
+Expected start/end package: core repair through the committed C producer
+fixture/evidence package.
+
+Other lanes blocked or adapter supplied: B receives only the repaired public C
+projection and consumer tests; D receives only the exact committed C producer
+identity and mechanically refreshed receipt.
+
+### G1-R3 stages
+
+- [x] Verify exact official/convergence sources, clean status, target absence,
+      and create the final worktree from `acb491bd...`.
+- [x] Read all required rules, plans, task designs, implementation, tests, and
+      producer/consumer/readiness fixtures.
+- [ ] Demonstrate the old sensitive-key, collision, omitted-budget, and loss
+      failures with the required adversarial regression tests.
+- [ ] Land a green C-P3 core repair without changing v1 persistence shapes.
+- [ ] Requalify B's direct model/trace delegation and persistence/recovery
+      behavior without changing B runtime unless an independent defect appears.
+- [ ] Commit updated C fixture/evidence and resolve its exact producer SHA and
+      SHA-256 digests.
+- [ ] Mechanically refresh and verify only C's D receipt; retain B's exact
+      `2e46fc8...` binding.
+- [ ] Run targeted, adversarial, readiness, tool qualification, ratchet,
+      flake8, mypy, and full-suite gates without reruns or masked exits.
+- [ ] Seal progress, plans, architecture/v4 docs, README EN/zh, and changelog.
+- [ ] Rerun the final full suite, ratchet, and diff check after documentation.
+- [ ] Fast-forward convergence and official integration only after clean exact
+      identity rechecks; verify all three worktrees share one clean HEAD.
+
+The chosen key representation preserves benign keys. A sensitive key becomes a
+deterministic ordinal placeholder selected from a reserved pattern while
+skipping every raw key already present in the same mapping and every placeholder
+already allocated there. It never embeds or hashes the raw key, never merges two
+entries, and never discards the associated value. Values continue through the
+recursive redactor. Trace-safe omitted data uses the same key policy, a bounded
+entry projection, and explicit `redacted_keys`, omitted-field, and omitted-
+character facts whose per-field sums equal aggregate totals. If this cannot be
+implemented within the existing v1 structures, G1-R3 stops as a design blocker.
 
 ## Fixed source identities
 
