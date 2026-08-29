@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import re
+import subprocess
+import sys
 
 import yaml
 
@@ -66,6 +68,66 @@ def test_contribution_checks_use_supported_workflow_path_scope() -> None:
     assert "qitos/engine/critic_decorator.py" in text
     assert "tests/engine/**" in text
     assert "advisory" in text
+
+
+def test_contribution_tool_schema_entrypoint_executes_real_inventory() -> None:
+    completed = subprocess.run(
+        [sys.executable, "scripts/qualify_tool_schemas.py"],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    report = json.loads(completed.stdout)
+    assert report["status"] == "qualified"
+    assert report["modules_imported"] > 1
+    assert report["class_definitions"] > 0
+    assert report["class_tools_qualified"] > 0
+    assert report["registered_class_tools"] == report["class_tools_qualified"]
+
+    commands = _run_commands(
+        _jobs(WORKFLOW_DIR / "contribution-test.yml")["tool-schema-check"]
+    )
+    assert "python scripts/qualify_tool_schemas.py" in commands
+
+
+def test_contribution_tool_schema_entrypoint_rejects_invalid_spec(tmp_path: Path) -> None:
+    fixture = tmp_path / "invalid-tool-spec.json"
+    fixture.write_text(
+        json.dumps(
+            {
+                "specs": [
+                    {
+                        "name": "",
+                        "description": "controlled invalid spec",
+                        "parameters": {},
+                        "required": [],
+                        "input_schema": {"type": "object", "properties": {}},
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "scripts/qualify_tool_schemas.py",
+            "--spec-fixture",
+            str(fixture),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+
+    assert completed.returncode == 1
+    failure = json.loads(completed.stderr)
+    assert failure["status"] == "failed"
+    assert failure["code"] == "invalid_tool_name"
 
 
 def test_stable_zero_debt_and_full_ratchet_are_distinct_jobs() -> None:

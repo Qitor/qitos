@@ -55,6 +55,7 @@ How to update:
 
 ### Fixed
 
+- Fixed the contribution tool-schema gate so workflow and repository tests execute one checked-in qualification entrypoint over real constructible class tools and the actual `ToolRegistry`, with a controlled malformed-spec failure instead of a broken inline `ToolSpec` import.
 - Repaired contribution CI trust: removed unsupported `pull_request.changed_files` array predicates, unused changed-count logic, masked pytest commands, and missing zoo test paths; retained the zoo workflow as an explicitly stale advisory inventory pending external required-check evidence.
 - Closed the campaign-absorption quality baseline: the stable core/engine/models/trace surface is flake8- and mypy-clean; the private Engine protocol matches its runtime helpers; cancellation checkpoints use the correct arguments; synchronous Engine MCP lifecycle and tool discovery resolve their async operations; and Action objects render correctly in the TUI.
 - Multi-action steps no longer abort sibling actions when one is blocked: gate- and loop-blocked actions are collected pre-flight, executable siblings still run, and results merge back by original action index with `call_{step}_{i}` native tool-call ids; the terminal UI renders parallel actions/observations with per-index dedup and preserves recovery cards on failed observations instead of hiding them behind the error title.

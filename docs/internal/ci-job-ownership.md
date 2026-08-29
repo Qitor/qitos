@@ -20,7 +20,8 @@ deleting any configured check.
 | `ci.yml` / `architecture-boundaries` | dependency boundary allowlist | required candidate | `pytest -q tests/test_architecture_boundaries.py` | <1 min |
 | `ci.yml` / `audit` | installed dependency vulnerabilities | required candidate | `pip-audit --progress-spinner off` | 1–3 min |
 | `docs.yml` / `validate` | documentation navigation and bilingual parity | required candidate | embedded deterministic validators | <1 min |
-| `contribution-test.yml` / all jobs | path-scoped tool/parser/critic diagnostics | advisory | always run when the workflow-level contribution paths match | 1–4 min |
+| `contribution-test.yml` / `tool-schema-check` | real registered/class-tool schema inventory | advisory | `python scripts/qualify_tool_schemas.py` | <1 min |
+| `contribution-test.yml` / remaining jobs | path-scoped parser/critic/test diagnostics | advisory | always run when the workflow-level contribution paths match | 1–4 min |
 | `zoo-test.yml` / `stale-zoo-inventory` | migration-document inventory only; no framework/product runtime coverage | stale advisory; disable/move candidate after ruleset evidence | deterministic staging-manifest inventory | <1 min |
 | `pypi.yml` / `build` | release artifact construction | release-only required predecessor | build and twine check | 1–3 min |
 | `pypi.yml` / `publish` | trusted publication after release build | release-only privileged action | PyPI trusted-publish action | 1–3 min |
@@ -37,6 +38,9 @@ deleting any configured check.
 - `contribution-test.yml` uses supported workflow-level path filters and runs
   every focused job within that scope. It does not treat the numeric
   `pull_request.changed_files` field as an iterable.
+- The tool-schema job and repository tests execute the same checked-in Python
+  entrypoint. Its inventory must contain real constructible class tools that
+  also pass `ToolRegistry`; a controlled malformed ToolSpec fails that CLI.
 - `zoo-test.yml` is retained because branch-protection usage is unknown. It is
   explicitly named stale/advisory and no longer runs missing or out-of-tree
   product tests. Runtime coverage belongs in the qitos-zoo repository.

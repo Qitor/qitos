@@ -318,3 +318,20 @@ not deleted. Task 08B baseline retirement, 08C packaging/extras, and 08D
 behavioral route/provider/resource coverage remain open. This lane is an
 A1/A2 integration candidate only; it does not claim the program-wide G1 gate is
 closed.
+
+## G1 integration-owner A-CI1 closure
+
+All seven reviewed Lane A commits were integrated in their supplied order on
+`codex/v4-g1-convergence`. The integration owner replaced the workflow's broken
+inline `ToolSpec` import with `scripts/qualify_tool_schemas.py`, a normal
+repository entrypoint used unchanged by the workflow and executable tests.
+
+The entrypoint imported 61 real `qitos.kit.tool` modules, inventoried 74 public
+class-tool definitions, qualified 62 constructible class tools, and registered
+all 62 through `ToolRegistry`; 12 constructor-dependent definitions were
+reported rather than instantiated with fake dependencies. A controlled invalid
+spec ran through the same entrypoint, exited 1, and reported
+`invalid_tool_name`. Integrated Phase A evidence is 20 ratchet tests, 8 workflow
+tests, 4 architecture tests, 4 public-surface tests, and the pinned Python
+3.12.7 ratchet with all 399 baseline findings matched. This closes A-CI1 only;
+combined G1 remains an integration-owner decision after C/B/D qualification.

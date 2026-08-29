@@ -307,3 +307,21 @@ cross-lane B/C/D contracts and integration-owner qualification remain outside
 this lane. Task 08E also retains an external gap: repository rulesets must be
 inspected by an authorized maintainer before the stale zoo workflow is removed
 or any check is asserted to be branch-protection-required.
+
+## 11. G1 A-CI1 integrated repair evidence — 2026-08-29
+
+The G1 integration owner applied all seven reviewed Lane A commits to the fixed
+`a02ce05e9a364eb484ef339fe5cbd623910cf525` baseline, then closed the executable
+workflow blocker. `scripts/qualify_tool_schemas.py` is now the single repository
+and workflow entrypoint: it imports the real tool package, requires non-empty
+module and class inventories, validates constructible class ToolSpecs, and
+registers every qualified tool through `ToolRegistry`.
+
+The integrated inventory qualified 62 registered class tools across 61 imported
+modules. `tests/test_workflow_contracts.py` executes that exact command and also
+passes a controlled malformed ToolSpec fixture through the same CLI, proving a
+stable non-zero failure with `invalid_tool_name`. The pinned Python 3.12.7
+ratchet matched all 399 baseline findings; 20 ratchet, 8 workflow, 4
+architecture, and 4 public-surface tests passed without reruns or masked exits.
+This closes A-CI1, not the remaining Task 08B/08C/08D work or the combined G1
+gate.

@@ -34,24 +34,7 @@ jobs:
           python -m pip install -e ".[dev]"
 
       - name: Validate tool schemas
-        run: |
-          python -c "
-          from qitos.core.tool_registry import ToolRegistry
-          from qitos.core.tool_schema import ToolSpec
-          import importlib, pkgutil, inspect
-          import qitos.kit.tool as pkg
-          errors = []
-          for _, name, _ in pkgutil.walk_packages(pkg.__path__, pkg.__name__ + '.'):
-              mod = importlib.import_module(name)
-              for attr_name in dir(mod):
-                  attr = getattr(mod, attr_name)
-                  if isinstance(attr, ToolSpec):
-                      if not attr.name or not attr.parameters:
-                          errors.append(f'{name}.{attr_name}: invalid ToolSpec')
-          if errors:
-              raise ValueError('Tool schema issues:\\n' + '\\n'.join(errors))
-          print('All tool schemas valid')
-          "
+        run: python scripts/qualify_tool_schemas.py
 
   parser-contract-check:
     name: advisory - parser contract

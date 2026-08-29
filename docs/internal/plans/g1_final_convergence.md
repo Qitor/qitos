@@ -37,7 +37,7 @@ cherry-pick is checked against the supplied full identity before execution.
 - [x] Create the isolated worktree and branch directly from the fixed baseline.
 - [x] Read root/nested agent rules, architecture, task designs, progress ledger,
       and all four Lane plans/fixtures/evidence.
-- [ ] Integrate Lane A and close A-CI1.
+- [x] Integrate Lane A and close A-CI1.
 - [ ] Integrate Lane C and close C-J1, C-I1, and C-P2.
 - [ ] Integrate Lane B and close B-C1 and B-V1 against accepted C.
 - [ ] Integrate Lane D and close D-R1 against accepted B/C fixtures.
@@ -73,9 +73,25 @@ coverage.
 
 ### Lane A integration and A-CI1
 
-Pending. Required repair: one normal repository entrypoint for real tool schema
-inventory, executed by both the workflow and tests, with a controlled malformed
-spec failure and no masked exit or rerun.
+Applied all seven supplied Lane A commits in order. Conflicts occurred only in
+`README.md`, `README.zh.md`, and `CHANGELOG.md`; each hunk retained Task 12/13,
+the post-G1 lane map, integration-ledger wording, and Lane A evidence.
+
+A-CI1 fixing commit: pending commit at the time of this plan update.
+
+- Replaced the broken inline import/check with
+  `python scripts/qualify_tool_schemas.py`.
+- The entrypoint imports 61 real repository tool modules, identifies 74 public
+  class definitions, constructs and validates 62 class tools, and registers all
+  62 through the real `ToolRegistry`; 12 constructor-dependent classes remain
+  inventoried rather than fabricated.
+- Repository tests execute the exact workflow entrypoint as a subprocess and
+  assert non-empty module/class/registration inventories.
+- A controlled JSON fixture with an empty tool name executes the same entrypoint,
+  exits 1, and returns stable `invalid_tool_name` evidence.
+- Python 3.12.7 pinned ratchet: 399 findings matched (377 active, 22 vendored).
+- Phase gate tests: 20 ratchet, 8 workflow, 4 architecture, and 4 public-surface
+  tests passed. No automatic rerun or masked command was used.
 
 ### Lane C integration and boundary repairs
 
@@ -123,7 +139,7 @@ server 149, and regenerated substitute source commits are prohibited.
 ## G1 checklist
 
 - [ ] All supplied Lane commits are present with source identity preserved.
-- [ ] A-CI1 has an executable shared entrypoint and controlled failure proof.
+- [x] A-CI1 has an executable shared entrypoint and controlled failure proof.
 - [ ] Pinned ratchet and stable flake8/mypy are green on the combined tree.
 - [ ] ToolResult is the only canonical outcome and has strict JSON/ownership rules.
 - [ ] Model/trace views are allowlisted, bounded, redacted, and loss-accounted.

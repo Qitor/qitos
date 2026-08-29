@@ -19,7 +19,7 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 ## 最新进展
 
 - **持久会话与原生多智能体 v4 架构**：[Task 12](docs/v4/12-session-runtime-and-persistence.md) 规划了以 checkpoint v2 为唯一持久化真相的安全暂停、跨进程恢复、fork 与 effect-aware recovery；[Task 13](docs/v4/13-durable-multi-agent-work-graph.md) 则把 handoff、delegate、fan-out、spawn、fork、steer、join 明确为一个持久 work graph 上不同的所有权语义。[四产线手册](docs/v4/11-four-lane-execution-playbook.md)也已调整：G1 后工程质量成为跨线合并门禁，四条能力线转为 Session、Conversation/Context、Tools/Multi-Agent、Trajectory/qita/DX。
-- **静态 ratchet 资格验证与可审计 CI 角色**：确定性测试现已证明所有关键 baseline 转换，包括新债务、陈旧项、受控增长、到期、bootstrap、不可解析诊断和规则升级。Contribution checks 不再把 GitHub 的数值型 `changed_files` 当成文件数组，也不再掩盖 pytest 失败；文档明确记录 required-candidate、advisory、stale 与 release-only 角色，同时不声称掌握外部 branch-protection 配置。
+- **静态 ratchet 资格验证与可执行贡献门禁**：确定性测试覆盖所有关键 baseline 转换；tool-schema workflow 与仓库测试现在共同执行同一个已提交入口，真实检查已注册 class tools，并包含受控 malformed-spec 失败证明。required-candidate、advisory、stale 与 release-only 角色继续明确记录，同时不声称掌握外部 branch-protection 配置。
 - **证据化 v4 集成进度账本**：[`docs/progress.md`](docs/progress.md) 现在持续记录各产线的准确 HEAD、集成结论、可执行复核探针、跨线契约阻断、合并顺序以及 G1/G2 检查表；收敛波次分支“已完成”与集成分支“已合入并通过资格验证”被明确区分。
 - **仓库全包静态质量 ratchet**：固定版本的 Python/flake8/mypy 单一命令会用提交态分类 baseline 检查所有 active `qitos` package。新 finding 会阻断 CI，已修复 finding 会强制缩小 baseline，core/engine/models/trace 稳定层继续保持零债务；correctness finding 按语义交给对应产线，而不会被降级成普通清理。
 - **工程质量审计与证据门禁**：[证据化审计](docs/engineering-quality-audit.md)覆盖全包质量门禁、错误与持久化语义、资源生命周期、重复抽象、可选依赖和测试可信度。首轮质量保障、对话/上下文、工具/运行时、轨迹/架构收敛四线被保留为 G1 收口历史；G1 之后，同一套 ratchet 与证据规则将作为四条能力线的强制门禁。
