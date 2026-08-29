@@ -1,0 +1,282 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "qitos://trajectory-fixture-source-manifest-v1",
+  "title": "QitOS representative trajectory fixture source manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_version",
+    "fixture_id",
+    "source_class",
+    "status",
+    "payloads_committed",
+    "provenance",
+    "license",
+    "source_evidence",
+    "observed_coverage",
+    "sanitization"
+  ],
+  "properties": {
+    "manifest_version": {"const": "trajectory-fixture-source-manifest-v1"},
+    "fixture_id": {"type": "string", "minLength": 1},
+    "source_class": {"enum": ["campaign_long", "unrelated_agent"]},
+    "status": {
+      "enum": [
+        "selected_source_only",
+        "generator_selected_not_materialized",
+        "sanitized_payload_ready"
+      ]
+    },
+    "payloads_committed": {"type": "boolean"},
+    "provenance": {"$ref": "#/$defs/provenance"},
+    "license": {"$ref": "#/$defs/license"},
+    "source_evidence": {"type": "object"},
+    "observed_coverage": {"$ref": "#/$defs/coverage"},
+    "sanitization": {"$ref": "#/$defs/sanitization"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"source_class": {"const": "campaign_long"}}},
+      "then": {"properties": {"source_evidence": {"$ref": "#/$defs/campaignEvidence"}}}
+    },
+    {
+      "if": {"properties": {"source_class": {"const": "unrelated_agent"}}},
+      "then": {"properties": {"source_evidence": {"$ref": "#/$defs/generatorEvidence"}}}
+    },
+    {
+      "if": {"properties": {"status": {"const": "sanitized_payload_ready"}}},
+      "then": {
+        "properties": {
+          "payloads_committed": {"const": true},
+          "license": {"properties": {"status": {"const": "qualified"}}},
+          "sanitization": {
+            "properties": {
+              "status": {"const": "sanitized_payload_ready"},
+              "publication_qualification": {"$ref": "#/$defs/publicationQualification"}
+            },
+            "required": ["publication_qualification"]
+          }
+        }
+      },
+      "else": {"properties": {"payloads_committed": {"const": false}}}
+    }
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
+    "nonnegativeInteger": {"type": "integer", "minimum": 0},
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_kind",
+        "logical_source_id",
+        "collection_owner",
+        "independent_consumer",
+        "model_call_performed_by_d1"
+      ],
+      "properties": {
+        "source_kind": {"type": "string", "minLength": 1},
+        "logical_source_id": {"type": "string", "minLength": 1},
+        "collection_owner": {"type": "string", "minLength": 1},
+        "independent_consumer": {"type": "string", "minLength": 1},
+        "model_call_performed_by_d1": {"type": "boolean"}
+      }
+    },
+    "license": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "requirement"],
+      "properties": {
+        "status": {"enum": ["authorization_required", "repository_license", "qualified"]},
+        "requirement": {"type": "string", "minLength": 1}
+      }
+    },
+    "campaignEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "manifest_sha256",
+        "events_sha256",
+        "steps_sha256",
+        "event_records",
+        "step_records",
+        "total_source_bytes"
+      ],
+      "properties": {
+        "schema_version": {"type": "string", "minLength": 1},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "events_sha256": {"$ref": "#/$defs/sha256"},
+        "steps_sha256": {"$ref": "#/$defs/sha256"},
+        "event_records": {"$ref": "#/$defs/nonnegativeInteger"},
+        "step_records": {"$ref": "#/$defs/nonnegativeInteger"},
+        "total_source_bytes": {"$ref": "#/$defs/nonnegativeInteger"}
+      }
+    },
+    "generatorEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generator",
+        "generation_mode",
+        "expected_steps",
+        "network_required",
+        "live_key_required"
+      ],
+      "properties": {
+        "generator": {"type": "string", "minLength": 1},
+        "generation_mode": {"type": "string", "minLength": 1},
+        "expected_steps": {"$ref": "#/$defs/nonnegativeInteger"},
+        "network_required": {"type": "boolean"},
+        "live_key_required": {"type": "boolean"}
+      }
+    },
+    "coverageValue": {
+      "oneOf": [
+        {"type": "boolean"},
+        {"enum": ["unknown_pending_lane_b_fixture", "unknown_pending_lane_c_receipt"]}
+      ]
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "long_run_scale",
+        "run_step_phase_correlation",
+        "multimodal_content",
+        "parallel_tool_calls",
+        "out_of_order_completion",
+        "reasoning_continuation",
+        "context_injection",
+        "compaction",
+        "artifact",
+        "provider_failure",
+        "tool_failure",
+        "retry",
+        "cancellation_timeout"
+      ],
+      "properties": {
+        "long_run_scale": {"$ref": "#/$defs/coverageValue"},
+        "run_step_phase_correlation": {"$ref": "#/$defs/coverageValue"},
+        "multimodal_content": {"$ref": "#/$defs/coverageValue"},
+        "parallel_tool_calls": {"$ref": "#/$defs/coverageValue"},
+        "out_of_order_completion": {"$ref": "#/$defs/coverageValue"},
+        "reasoning_continuation": {"$ref": "#/$defs/coverageValue"},
+        "context_injection": {"$ref": "#/$defs/coverageValue"},
+        "compaction": {"$ref": "#/$defs/coverageValue"},
+        "artifact": {"$ref": "#/$defs/coverageValue"},
+        "provider_failure": {"$ref": "#/$defs/coverageValue"},
+        "tool_failure": {"$ref": "#/$defs/coverageValue"},
+        "retry": {"$ref": "#/$defs/coverageValue"},
+        "cancellation_timeout": {"$ref": "#/$defs/coverageValue"},
+        "native_tool_call_result_correlation": {"$ref": "#/$defs/coverageValue"},
+        "non_json_tool_result_normalization": {"$ref": "#/$defs/coverageValue"}
+      }
+    },
+    "sanitization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "required_actions", "publication_gate"],
+      "properties": {
+        "status": {
+          "enum": [
+            "not_started",
+            "generator_selected_not_materialized",
+            "sanitized_payload_ready"
+          ]
+        },
+        "required_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "publication_gate": {"type": "string", "minLength": 1},
+        "raw_source_secret_key_names_detected": {"type": "boolean"},
+        "publication_qualification": {"$ref": "#/$defs/publicationQualification"}
+      }
+    },
+    "scanReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["qualified", "finding_count", "receipt_sha256"],
+      "properties": {
+        "qualified": {"const": true},
+        "finding_count": {"const": 0},
+        "receipt_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "publicationQualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transform_receipt",
+        "privacy_policy",
+        "dropped_field_paths",
+        "rewritten_field_paths",
+        "scans",
+        "loss_report",
+        "payload_files"
+      ],
+      "properties": {
+        "transform_receipt": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["receipt_version", "receipt_id", "input_sha256", "output_sha256"],
+          "properties": {
+            "receipt_version": {"const": "trajectory-fixture-transform-receipt-v1"},
+            "receipt_id": {"type": "string", "minLength": 1},
+            "input_sha256": {"$ref": "#/$defs/sha256"},
+            "output_sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "privacy_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["policy_id", "version"],
+          "properties": {
+            "policy_id": {"type": "string", "minLength": 1},
+            "version": {"type": "string", "minLength": 1}
+          }
+        },
+        "dropped_field_paths": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "rewritten_field_paths": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "scans": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["secret_keys", "secret_values", "pii", "portability", "artifacts"],
+          "properties": {
+            "secret_keys": {"$ref": "#/$defs/scanReceipt"},
+            "secret_values": {"$ref": "#/$defs/scanReceipt"},
+            "pii": {"$ref": "#/$defs/scanReceipt"},
+            "portability": {"$ref": "#/$defs/scanReceipt"},
+            "artifacts": {"$ref": "#/$defs/scanReceipt"}
+          }
+        },
+        "loss_report": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["report_version", "qualified", "report_sha256"],
+          "properties": {
+            "report_version": {"const": "trajectory-fixture-loss-report-v1"},
+            "qualified": {"const": true},
+            "report_sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "payload_files": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["logical_path", "sha256", "bytes"],
+            "properties": {
+              "logical_path": {"type": "string", "minLength": 1},
+              "sha256": {"$ref": "#/$defs/sha256"},
+              "bytes": {"$ref": "#/$defs/nonnegativeInteger"}
+            }
+          }
+        }
+      }
+    }
+  }
+}
