@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import math
 import re
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Dict, List, Optional, cast, get_type_hints
@@ -64,9 +65,34 @@ class ToolValidationResult:
         )
 
 
+_JSON_TYPES = frozenset(
+    {"null", "boolean", "integer", "number", "string", "array", "object"}
+)
+_SCHEMA_KEYWORDS = frozenset(
+    {
+        "type",
+        "properties",
+        "required",
+        "additionalProperties",
+        "items",
+        "anyOf",
+        "oneOf",
+        "enum",
+        "nullable",
+        # Annotation-only keywords do not change the accepted instance set.
+        "title",
+        "description",
+        "default",
+        "examples",
+        "$comment",
+        "deprecated",
+        "readOnly",
+        "writeOnly",
+    }
+)
+
+
 def _matches_json_type(value: Any, declared: str) -> bool:
-    if declared in {"any", ""}:
-        return True
     if declared == "null":
         return value is None
     if declared == "boolean":
@@ -81,7 +107,158 @@ def _matches_json_type(value: Any, declared: str) -> bool:
         return isinstance(value, list)
     if declared == "object":
         return isinstance(value, dict)
-    return True
+    return False
+
+
+def _schema_contract_failure(path: str, message: str) -> ToolValidationResult:
+    location = path or "$"
+    return ToolValidationResult.fail(
+        f"Tool schema contract violation at '{location}': {message}",
+        code="schema_contract_violation",
+    )
+
+
+def _is_json_value(value: Any) -> bool:
+    if value is None or isinstance(value, (str, bool, int)):
+        return True
+    if isinstance(value, float):
+        return math.isfinite(value)
+    if isinstance(value, list):
+        return all(_is_json_value(item) for item in value)
+    if isinstance(value, dict):
+        return all(
+            isinstance(key, str) and _is_json_value(item)
+            for key, item in value.items()
+        )
+    return False
+
+
+def _json_equal(left: Any, right: Any) -> bool:
+    if isinstance(left, bool) or isinstance(right, bool):
+        return isinstance(left, bool) and isinstance(right, bool) and left == right
+    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+        return float(left) == float(right)
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, list):
+        return len(left) == len(right) and all(
+            _json_equal(a, b) for a, b in zip(left, right)
+        )
+    if isinstance(left, dict):
+        return set(left) == set(right) and all(
+            _json_equal(left[key], right[key]) for key in left
+        )
+    return bool(left == right)
+
+
+def _validate_schema_contract(
+    schema: Any,
+    *,
+    path: str,
+    top_level: bool = False,
+) -> ToolValidationResult:
+    if not isinstance(schema, dict):
+        return _schema_contract_failure(path, "schema node must be an object")
+    unknown = sorted(str(key) for key in schema if key not in _SCHEMA_KEYWORDS)
+    if unknown:
+        return _schema_contract_failure(
+            path, f"unsupported keyword '{unknown[0]}'"
+        )
+
+    declared = schema.get("type")
+    if isinstance(declared, str):
+        declared_types = [declared]
+    elif isinstance(declared, list) and declared:
+        if any(not isinstance(item, str) for item in declared):
+            return _schema_contract_failure(path, "type array must contain strings")
+        declared_types = list(declared)
+    elif declared is None:
+        declared_types = []
+    else:
+        return _schema_contract_failure(path, "type must be a string or non-empty array")
+    unknown_types = sorted(set(declared_types) - _JSON_TYPES)
+    if unknown_types:
+        return _schema_contract_failure(
+            path, f"unsupported JSON type '{unknown_types[0]}'"
+        )
+    if len(declared_types) != len(set(declared_types)):
+        return _schema_contract_failure(path, "type array must not contain duplicates")
+    if top_level and "object" not in declared_types:
+        return _schema_contract_failure(path, "top-level type must include object")
+
+    nullable = schema.get("nullable", False)
+    if not isinstance(nullable, bool):
+        return _schema_contract_failure(path, "nullable must be boolean")
+    enum = schema.get("enum")
+    if "enum" in schema and (not isinstance(enum, list) or not enum):
+        return _schema_contract_failure(path, "enum must be a non-empty array")
+    if isinstance(enum, list) and any(not _is_json_value(item) for item in enum):
+        return _schema_contract_failure(path, "enum values must be finite JSON values")
+
+    properties = schema.get("properties")
+    if "properties" in schema:
+        if not isinstance(properties, dict):
+            return _schema_contract_failure(path, "properties must be an object")
+        if declared_types and "object" not in declared_types:
+            return _schema_contract_failure(path, "properties requires object type")
+        for key, child_schema in properties.items():
+            if not isinstance(key, str):
+                return _schema_contract_failure(path, "property names must be strings")
+            child = f"{path}.properties.{key}" if path else f"properties.{key}"
+            result = _validate_schema_contract(child_schema, path=child)
+            if not result.valid:
+                return result
+
+    required = schema.get("required")
+    if "required" in schema:
+        if not isinstance(required, list):
+            return _schema_contract_failure(path, "required must be an array")
+        if any(not isinstance(key, str) for key in required):
+            return _schema_contract_failure(path, "required must contain strings")
+        if len(required) != len(set(required)):
+            return _schema_contract_failure(path, "required must not contain duplicates")
+        if not isinstance(properties, dict):
+            return _schema_contract_failure(path, "required needs declared properties")
+        missing = sorted(key for key in required if key not in properties)
+        if missing:
+            return _schema_contract_failure(
+                path, f"required property '{missing[0]}' is not declared"
+            )
+
+    additional = schema.get("additionalProperties", True)
+    if not isinstance(additional, (bool, dict)):
+        return _schema_contract_failure(
+            path, "additionalProperties must be boolean or a schema object"
+        )
+    if isinstance(additional, dict):
+        result = _validate_schema_contract(
+            additional, path=f"{path}.additionalProperties"
+        )
+        if not result.valid:
+            return result
+
+    if "items" in schema:
+        if "array" not in declared_types:
+            return _schema_contract_failure(path, "items requires array type")
+        result = _validate_schema_contract(schema["items"], path=f"{path}.items")
+        if not result.valid:
+            return result
+
+    if "anyOf" in schema and "oneOf" in schema:
+        return _schema_contract_failure(path, "anyOf and oneOf cannot both be declared")
+    for keyword in ("anyOf", "oneOf"):
+        if keyword not in schema:
+            continue
+        alternatives = schema[keyword]
+        if not isinstance(alternatives, list) or not alternatives:
+            return _schema_contract_failure(path, f"{keyword} must be a non-empty array")
+        for index, alternative in enumerate(alternatives):
+            result = _validate_schema_contract(
+                alternative, path=f"{path}.{keyword}[{index}]"
+            )
+            if not result.valid:
+                return result
+    return ToolValidationResult.ok()
 
 
 def _validate_schema_value(
@@ -90,17 +267,21 @@ def _validate_schema_value(
     *,
     path: str,
 ) -> ToolValidationResult:
-    alternatives = schema.get("anyOf") or schema.get("oneOf")
-    if isinstance(alternatives, list) and alternatives:
+    if value is None and schema.get("nullable") is True:
+        return ToolValidationResult.ok()
+
+    alternative_keyword = "anyOf" if "anyOf" in schema else "oneOf" if "oneOf" in schema else ""
+    if alternative_keyword:
+        alternatives = schema[alternative_keyword]
+        matches = 0
         for alternative in alternatives:
-            if not isinstance(alternative, dict):
-                continue
             if _validate_schema_value(value, alternative, path=path).valid:
-                return ToolValidationResult.ok()
-        return ToolValidationResult.fail(
-            f"Argument '{path}' does not match any declared schema variant",
-            code="invalid_argument_type",
-        )
+                matches += 1
+        if not matches or (alternative_keyword == "oneOf" and matches != 1):
+            return ToolValidationResult.fail(
+                f"Argument '{path}' does not match the declared {alternative_keyword} variants",
+                code="invalid_argument_type",
+            )
 
     declared = schema.get("type")
     declared_types = declared if isinstance(declared, list) else [declared]
@@ -114,11 +295,17 @@ def _validate_schema_value(
             code="invalid_argument_type",
         )
 
+    if "enum" in schema and not any(
+        _json_equal(value, candidate) for candidate in schema["enum"]
+    ):
+        return ToolValidationResult.fail(
+            f"Argument '{path}' is not one of the declared enum values",
+            code="invalid_argument_value",
+        )
+
     if isinstance(value, dict):
-        properties = schema.get("properties")
-        properties = properties if isinstance(properties, dict) else {}
-        required = schema.get("required")
-        required = required if isinstance(required, list) else []
+        properties = schema.get("properties", {})
+        required = schema.get("required", [])
         for key in required:
             if isinstance(key, str) and key not in value:
                 child = f"{path}.{key}" if path else key
@@ -135,14 +322,16 @@ def _validate_schema_value(
                 )
         for key, item in value.items():
             item_schema = properties.get(key)
-            if not isinstance(item_schema, dict):
+            if item_schema is None and isinstance(schema.get("additionalProperties"), dict):
+                item_schema = schema["additionalProperties"]
+            if item_schema is None:
                 continue
             child = f"{path}.{key}" if path else str(key)
             result = _validate_schema_value(item, item_schema, path=child)
             if not result.valid:
                 return result
 
-    if isinstance(value, list) and isinstance(schema.get("items"), dict):
+    if isinstance(value, list) and "items" in schema:
         for index, item in enumerate(value):
             result = _validate_schema_value(
                 item,
@@ -169,12 +358,15 @@ def validate_tool_arguments(
             "Tool arguments must be a JSON object",
             code="invalid_arguments_shape",
         )
-    effective_schema = schema or {"type": "object"}
+    effective_schema = schema if schema is not None else {"type": "object"}
     if not isinstance(effective_schema, dict):
         return ToolValidationResult.fail(
             "Tool input schema must be an object",
             code="schema_contract_violation",
         )
+    contract = _validate_schema_contract(effective_schema, path="$", top_level=True)
+    if not contract.valid:
+        return contract
     return _validate_schema_value(args, effective_schema, path="")
 
 

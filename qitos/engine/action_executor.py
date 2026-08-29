@@ -841,7 +841,43 @@ class ActionExecutor:
                         },
                     )
 
-                effective_args = dict(permission.updated_args or action.args)
+                effective_args = dict(
+                    permission.updated_args
+                    if permission.updated_args is not None
+                    else action.args
+                )
+                final_structural = (
+                    tool.validate_structure(effective_args)
+                    if tool is not None
+                    else ToolValidationResult.ok()
+                )
+                if not final_structural.valid:
+                    return self._finish_result(
+                        action=action,
+                        status=ActionStatus.ERROR,
+                        start=start,
+                        attempts=attempts,
+                        tool_meta=tool_meta,
+                        error=(
+                            final_structural.message
+                            or "tool argument structure is invalid"
+                        ),
+                        extra_metadata={
+                            "error_category": (
+                                final_structural.code or "validation_error"
+                            ),
+                            "error_code": (
+                                final_structural.code or "validation_error"
+                            ),
+                            "validation": {
+                                "valid": False,
+                                "boundary": "final_structural",
+                                "message": final_structural.message,
+                                "code": final_structural.code,
+                            },
+                            "executed": False,
+                        },
+                    )
                 self._dispatch_tool_hook(
                     "on_before_tool_use", action.name, effective_args,
                     tool_result=None, permission_decision=permission.decision,

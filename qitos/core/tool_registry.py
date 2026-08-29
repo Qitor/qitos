@@ -302,7 +302,26 @@ class ToolRegistry:
                     }
                 )
             )
-        return tool.execute(kwargs, runtime_context=runtime_context)
+        updated_args = (
+            permission.get("updated_args")
+            if isinstance(permission, dict)
+            else getattr(permission, "updated_args", None)
+        )
+        effective_args = dict(updated_args if updated_args is not None else kwargs)
+        final_structural = tool.validate_structure(effective_args)
+        if not final_structural.valid:
+            raise ValueError(
+                str(
+                    {
+                        "status": "error",
+                        "error_category": final_structural.code,
+                        "message": final_structural.message,
+                        "tool_name": name,
+                        "executed": False,
+                    }
+                )
+            )
+        return tool.execute(effective_args, runtime_context=runtime_context)
 
     def setup(self, context: Optional[Dict[str, Any]] = None) -> None:
         if self._setup_done:
