@@ -1,0 +1,397 @@
+{
+  "fixture_version": "qitos.conversation.fixture.v1",
+  "schema_version": "qitos.exchange_log.v1",
+  "fixtures": [
+    {
+      "name": "multimodal_exchange",
+      "schema_version": "qitos.exchange_log.v1",
+      "expected_invariant": "User content blocks retain text and image order without text flattening.",
+      "expected_error": null,
+      "consumers": ["lane_b_history", "lane_d_trajectory"],
+      "lossless": true,
+      "operation": "load",
+      "exchange_log": {
+        "schema_version": "qitos.exchange_log.v1",
+        "log_id": "fixture_multimodal",
+        "queued_steering": [],
+        "items": [
+          {
+            "kind": "user",
+            "item_id": "user_multimodal",
+            "exchange_id": "exchange_multimodal",
+            "content": [
+              {"type": "text", "text": "Inspect the screenshot."},
+              {"type": "image_url", "url": "https://example.invalid/screen.png", "mime_type": "image/png"}
+            ],
+            "metadata": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "single_tool_call",
+      "schema_version": "qitos.exchange_log.v1",
+      "expected_invariant": "One declared call has exactly one correlated terminal result.",
+      "expected_error": null,
+      "consumers": ["lane_c_execution", "lane_d_trajectory"],
+      "lossless": true,
+      "operation": "load",
+      "exchange_log": {
+        "schema_version": "qitos.exchange_log.v1",
+        "log_id": "fixture_single_call",
+        "queued_steering": [],
+        "items": [
+          {
+            "kind": "assistant",
+            "item_id": "assistant_single",
+            "exchange_id": "exchange_single",
+            "parts": [
+              {"kind": "content", "block": {"type": "text", "text": "I will inspect it."}},
+              {"kind": "tool_call", "provider_scope": "openai:chat", "call_id": "call_single", "batch_id": "batch_single", "name": "read", "raw_arguments": "{\"path\":\"README.md\"}", "parsed_arguments": {"path": "README.md"}, "parse_status": "parsed", "parse_error": null, "metadata": {}}
+            ],
+            "continuation_attachments": [],
+            "metadata": {}
+          },
+          {
+            "kind": "tool_result",
+            "item_id": "result_single",
+            "exchange_id": "exchange_single",
+            "provider_scope": "openai:chat",
+            "call_id": "call_single",
+            "batch_id": "batch_single",
+            "status": "succeeded",
+            "content": [{"type": "text", "text": "contents"}],
+            "provenance": {"source": "fixture.worker", "synthetic": false, "reason": null, "details": {}},
+            "metadata": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "native_parallel_calls",
+      "schema_version": "qitos.exchange_log.v1",
+      "expected_invariant": "One assistant item declares multiple ordered calls in one batch.",
+      "expected_error": null,
+      "consumers": ["lane_c_execution", "lane_d_trajectory"],
+      "lossless": true,
+      "operation": "complete_batch",
+      "completion_order": ["call_beta", "call_alpha"],
+      "exchange_log": {
+        "schema_version": "qitos.exchange_log.v1",
+        "log_id": "fixture_parallel",
+        "queued_steering": [],
+        "items": [
+          {
+            "kind": "assistant",
+            "item_id": "assistant_parallel",
+            "exchange_id": "exchange_parallel",
+            "parts": [
+              {"kind": "tool_call", "provider_scope": "anthropic:messages", "call_id": "call_alpha", "batch_id": "batch_parallel", "name": "read", "raw_arguments": "{\"path\":\"a\"}", "parsed_arguments": {"path": "a"}, "parse_status": "parsed", "parse_error": null, "metadata": {}},
+              {"kind": "tool_call", "provider_scope": "anthropic:messages", "call_id": "call_beta", "batch_id": "batch_parallel", "name": "read", "raw_arguments": "{\"path\":\"b\"}", "parsed_arguments": {"path": "b"}, "parse_status": "parsed", "parse_error": null, "metadata": {}}
+            ],
+            "continuation_attachments": [],
+            "metadata": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "out_of_order_completion",
+      "schema_version": "qitos.exchange_log.v1",
+      "expected_invariant": "Execution may finish beta before alpha while persistence commits alpha then beta.",
+      "expected_error": null,
+      "consumers": ["lane_c_execution", "lane_d_trajectory"],
+      "lossless": true,
+      "operation": "complete_batch",
+      "completion_order": ["call_beta", "call_alpha"],
+      "exchange_log": {
+        "schema_version": "qitos.exchange_log.v1",
+        "log_id": "fixture_out_of_order",
+        "queued_steering": [],
+        "items": [
+          {
+            "kind": "assistant",
+            "item_id": "assistant_out_of_order",
+            "exchange_id": "exchange_out_of_order",
+            "parts": [
+              {"kind": "tool_call", "provider_scope": "openai:responses", "call_id": "call_alpha", "batch_id": "batch_out_of_order", "name": "alpha", "raw_arguments": "{}", "parsed_arguments": {}, "parse_status": "parsed", "parse_error": null, "metadata": {}},
+              {"kind": "tool_call", "provider_scope": "openai:responses", "call_id": "call_beta", "batch_id": "batch_out_of_order", "name": "beta", "raw_arguments": "{}", "parsed_arguments": {}, "parse_status": "parsed", "parse_error": null, "metadata": {}}
+            ],
+            "continuation_attachments": [],
+            "metadata": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "malformed_raw_args",
+      "schema_version": "qitos.exchange_log.v1",
+      "expected_invariant": "Malformed raw arguments remain byte-for-byte text with no parsed object.",
+      "expected_error": null,
+      "consumers": ["lane_b_codec", "lane_d_trajectory"],
+      "lossless": true,
+      "operation": "assert_parse_status",
+      "exchange_log": {
+        "schema_version": "qitos.exchange_log.v1",
+        "log_id": "fixture_malformed",
+        "queued_steering": [],
+        "items": [
+          {
+            "kind": "assistant",
+            "item_id": "assistant_malformed",
+            "exchange_id": "exchange_malformed",
+            "parts": [
+              {"kind": "tool_call", "provider_scope": "gemini:native", "call_id": "call_malformed", "batch_id": "batch_malformed", "name": "search", "raw_arguments": "{bad json", "parsed_arguments": null, "parse_status": "malformed_raw", "parse_error": "invalid JSON", "metadata": {}}
+            ],
+            "continuation_attachments": [],
+            "metadata": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "raw_valid_parsed_failed",
+      "schema_version": "qitos.exchange_log.v1",
+      "expected_invariant": "Syntactically valid non-object JSON is distinct from malformed raw JSON.",
+      "expected_error": null,
+      "consumers": ["lane_b_codec", "lane_d_trajectory"],
+      "lossless": true,
+      "operation": "assert_parse_status",
+      "exchange_log": {
+        "schema_version": "qitos.exchange_log.v1",
+        "log_id": "fixture_parsed_invalid",
+        "queued_steering": [],
+        "items": [
+          {
+            "kind": "assistant",
+            "item_id": "assistant_parsed_invalid",
+            "exchange_id": "exchange_parsed_invalid",
+            "parts": [
+              {"kind": "tool_call", "provider_scope": "gemini:native", "call_id": "call_parsed_invalid", "batch_id": "batch_parsed_invalid", "name": "search", "raw_arguments": "[1,2]", "parsed_arguments": null, "parse_status": "parsed_invalid", "parse_error": "decoded arguments are not an object", "metadata": {}}
+            ],
+            "continuation_attachments": [],
+            "metadata": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "duplicate_call_id",
+      "schema_version": "qitos.exchange_log.v1",
+      "expected_invariant": "Call IDs are unique within provider scope.",
+      "expected_error": "duplicate_call_id",
+      "consumers": ["lane_c_execution", "lane_d_validator"],
+      "lossless": false,
+      "operation": "load",
+      "exchange_log": {
+        "schema_version": "qitos.exchange_log.v1",
+        "log_id": "fixture_duplicate",
+        "queued_steering": [],
+        "items": [
+          {
+            "kind": "assistant",
+            "item_id": "assistant_duplicate",
+            "exchange_id": "exchange_duplicate",
+            "parts": [
+              {"kind": "tool_call", "provider_scope": "openai:chat", "call_id": "duplicate", "batch_id": "batch_duplicate", "name": "one", "raw_arguments": "{}", "parsed_arguments": {}, "parse_status": "parsed", "parse_error": null, "metadata": {}},
+              {"kind": "tool_call", "provider_scope": "openai:chat", "call_id": "duplicate", "batch_id": "batch_duplicate", "name": "two", "raw_arguments": "{}", "parsed_arguments": {}, "parse_status": "parsed", "parse_error": null, "metadata": {}}
+            ],
+            "continuation_attachments": [],
+            "metadata": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "incomplete_batch",
+      "schema_version": "qitos.exchange_log.v1",
+      "expected_invariant": "An open batch cannot enter the next normal model transaction.",
+      "expected_error": "incomplete_tool_batch",
+      "consumers": ["lane_c_execution", "lane_b_request_view"],
+      "lossless": true,
+      "operation": "assert_ready",
+      "exchange_log": {
+        "schema_version": "qitos.exchange_log.v1",
+        "log_id": "fixture_incomplete",
+        "queued_steering": [],
+        "items": [
+          {
+            "kind": "assistant",
+            "item_id": "assistant_incomplete",
+            "exchange_id": "exchange_incomplete",
+            "parts": [
+              {"kind": "tool_call", "provider_scope": "openai:chat", "call_id": "call_incomplete", "batch_id": "batch_incomplete", "name": "read", "raw_arguments": "{}", "parsed_arguments": {}, "parse_status": "parsed", "parse_error": null, "metadata": {}}
+            ],
+            "continuation_attachments": [],
+            "metadata": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "interrupted_batch_synthetic_closure",
+      "schema_version": "qitos.exchange_log.v1",
+      "expected_invariant": "Interrupted slots close explicitly and retain synthetic provenance.",
+      "expected_error": null,
+      "consumers": ["lane_c_execution", "lane_d_trajectory"],
+      "lossless": true,
+      "operation": "load",
+      "exchange_log": {
+        "schema_version": "qitos.exchange_log.v1",
+        "log_id": "fixture_interrupted",
+        "queued_steering": [],
+        "items": [
+          {
+            "kind": "assistant",
+            "item_id": "assistant_interrupted",
+            "exchange_id": "exchange_interrupted",
+            "parts": [
+              {"kind": "tool_call", "provider_scope": "openai:chat", "call_id": "call_interrupted", "batch_id": "batch_interrupted", "name": "bash", "raw_arguments": "{}", "parsed_arguments": {}, "parse_status": "parsed", "parse_error": null, "metadata": {}}
+            ],
+            "continuation_attachments": [],
+            "metadata": {}
+          },
+          {
+            "kind": "tool_result",
+            "item_id": "result_interrupted",
+            "exchange_id": "exchange_interrupted",
+            "provider_scope": "openai:chat",
+            "call_id": "call_interrupted",
+            "batch_id": "batch_interrupted",
+            "status": "cancelled",
+            "content": [{"type": "text", "text": "Execution interrupted."}],
+            "provenance": {"source": "qitos.recovery", "synthetic": true, "reason": "run_interrupted", "details": {"worker_still_running": false}},
+            "metadata": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "mid_batch_steering",
+      "schema_version": "qitos.exchange_log.v1",
+      "expected_invariant": "Human steering received mid-batch remains queued until closure.",
+      "expected_error": "incomplete_tool_batch",
+      "consumers": ["lane_c_execution", "lane_b_request_view"],
+      "lossless": true,
+      "operation": "complete_batch",
+      "completion_order": ["call_steering"],
+      "exchange_log": {
+        "schema_version": "qitos.exchange_log.v1",
+        "log_id": "fixture_steering",
+        "queued_steering": [
+          {"kind": "steering", "item_id": "steering_queued", "exchange_id": "exchange_next", "content": [{"type": "text", "text": "Use the smaller file."}], "metadata": {}}
+        ],
+        "items": [
+          {
+            "kind": "assistant",
+            "item_id": "assistant_steering",
+            "exchange_id": "exchange_steering",
+            "parts": [
+              {"kind": "tool_call", "provider_scope": "openai:chat", "call_id": "call_steering", "batch_id": "batch_steering", "name": "read", "raw_arguments": "{}", "parsed_arguments": {}, "parse_status": "parsed", "parse_error": null, "metadata": {}}
+            ],
+            "continuation_attachments": [],
+            "metadata": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "opaque_continuation",
+      "schema_version": "qitos.exchange_log.v1",
+      "expected_invariant": "Provider-native continuation remains opaque and safe projections redact its payload.",
+      "expected_error": null,
+      "consumers": ["lane_b_codec", "lane_d_trajectory"],
+      "lossless": true,
+      "operation": "safe_projection",
+      "exchange_log": {
+        "schema_version": "qitos.exchange_log.v1",
+        "log_id": "fixture_opaque",
+        "queued_steering": [],
+        "items": [
+          {
+            "kind": "assistant",
+            "item_id": "assistant_opaque",
+            "exchange_id": "exchange_opaque",
+            "parts": [
+              {"kind": "reasoning_reference", "provider_scope": "openai:responses", "reference_id": "reasoning_ref_1", "attachment_id": "attachment_opaque", "metadata": {}}
+            ],
+            "continuation_attachments": [
+              {"attachment_id": "attachment_opaque", "provider_scope": "openai:responses", "api_mode": "responses", "opaque_payload": {"type": "reasoning", "encrypted_content": "opaque-ciphertext"}, "metadata": {"sensitivity": "provider_native"}}
+            ],
+            "metadata": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "unsupported_reasoning_replay",
+      "schema_version": "qitos.exchange_log.v1",
+      "expected_invariant": "Legacy projection rejects reasoning references instead of turning them into text.",
+      "expected_error": "unsupported_reasoning_replay",
+      "consumers": ["lane_b_history", "lane_d_validator"],
+      "lossless": false,
+      "operation": "history_projection",
+      "exchange_log": {
+        "schema_version": "qitos.exchange_log.v1",
+        "log_id": "fixture_reasoning_replay",
+        "queued_steering": [],
+        "items": [
+          {
+            "kind": "assistant",
+            "item_id": "assistant_reasoning",
+            "exchange_id": "exchange_reasoning",
+            "parts": [
+              {"kind": "reasoning_reference", "provider_scope": "anthropic:messages", "reference_id": "thinking_signature_1", "attachment_id": null, "metadata": {}}
+            ],
+            "continuation_attachments": [],
+            "metadata": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "genuine_error_prefix_assistant_text",
+      "schema_version": "qitos.exchange_log.v1",
+      "expected_invariant": "Assistant text beginning with Error: remains ordinary authored content.",
+      "expected_error": null,
+      "consumers": ["lane_b_history", "lane_d_trajectory"],
+      "lossless": true,
+      "operation": "history_projection",
+      "exchange_log": {
+        "schema_version": "qitos.exchange_log.v1",
+        "log_id": "fixture_error_text",
+        "queued_steering": [],
+        "items": [
+          {
+            "kind": "assistant",
+            "item_id": "assistant_error_text",
+            "exchange_id": "exchange_error_text",
+            "parts": [
+              {"kind": "content", "block": {"type": "text", "text": "Error: this is a quoted example, not a provider failure."}}
+            ],
+            "continuation_attachments": [],
+            "metadata": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "serialization_round_trip",
+      "schema_version": "qitos.exchange_log.v1",
+      "expected_invariant": "The versioned persistence representation round-trips exactly.",
+      "expected_error": null,
+      "consumers": ["lane_c_execution", "lane_d_trajectory"],
+      "lossless": true,
+      "operation": "round_trip",
+      "exchange_log": {
+        "schema_version": "qitos.exchange_log.v1",
+        "log_id": "fixture_round_trip",
+        "queued_steering": [],
+        "items": [
+          {"kind": "user", "item_id": "user_round_trip", "exchange_id": "exchange_round_trip", "content": [{"type": "text", "text": "hello"}], "metadata": {"source": "fixture"}},
+          {"kind": "assistant", "item_id": "assistant_round_trip", "exchange_id": "exchange_round_trip", "parts": [{"kind": "content", "block": {"type": "text", "text": "world"}}], "continuation_attachments": [], "metadata": {"finish_reason": "stop"}}
+        ]
+      }
+    }
+  ]
+}
