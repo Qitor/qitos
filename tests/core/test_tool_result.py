@@ -650,21 +650,56 @@ def test_contract_hardening_fixture_is_consumable_by_lanes_b_and_d() -> None:
         assert caught.value.code == case["expected_error_code"]
 
     canonical = ToolResult.from_value(fixture["model_safe_source"])
-    model_view = canonical.to_model_dict(max_chars=200)
-    trace_view = canonical.to_trace_safe_dict(max_chars=200)
+    model_view = canonical.to_model_dict(max_chars=4000)
+    trace_view = canonical.to_trace_safe_dict(max_chars=4000)
     rendered_model = json.dumps(model_view)
     rendered_trace = json.dumps(trace_view)
+    qualification = fixture["projection_qualification"]
 
-    assert "fixture-secret" not in rendered_model
-    assert "/Users/example" not in rendered_model
-    assert "fixture-secret" not in rendered_trace
-    assert "/Users/example" not in rendered_trace
+    for forbidden in qualification["sensitive_text_forbidden"][:-2]:
+        assert forbidden not in rendered_model
+        assert forbidden not in rendered_trace
+    projected_output = json.loads(model_view["model_output"])
+    assert len(projected_output) == qualification["expected_model_output_entries"]
+    placeholder = qualification["preexisting_placeholder_key"]
+    assert projected_output[placeholder] == "preexisting-placeholder"
+    assert projected_output["benign"] == "unchanged"
     assert trace_view["loss"]["canonical_output_included"] is False
     assert set(trace_view["loss"]["excluded_fields"]) == set(
         fixture["expected_trace_loss"]["excluded_fields"]
+    )
+    assert set(trace_view["loss"]["fields"]) == set(
+        qualification["required_loss_fields"]
+    )
+
+    omitted = ToolResult.from_value(fixture["omitted_safe_source"])
+    omitted_canonical = omitted.to_persistence_dict()
+    omitted_trace = omitted.to_trace_safe_dict(
+        max_chars=qualification["omitted_budget_chars"]
+    )
+    rendered_omitted = json.dumps(omitted_trace)
+    for forbidden in qualification["sensitive_text_forbidden"][-2:]:
+        assert forbidden not in rendered_omitted
+    assert omitted_canonical["omitted"] == fixture["omitted_safe_source"]["omitted"]
+    assert ToolResult.from_canonical_dict(
+        omitted_canonical
+    ).to_persistence_dict() == omitted_canonical
+    assert len(omitted_trace["omitted"]) < len(omitted_canonical["omitted"])
+    omitted_loss = omitted_trace["loss"]["fields"]["omitted"]
+    assert omitted_loss["redacted_keys"] == 2
+    assert omitted_loss["omitted_fields"] > 0
+    assert omitted_loss["omitted_characters"] > 0
+    assert omitted_trace["loss"]["redacted_keys"] == sum(
+        field["redacted_keys"]
+        for field in omitted_trace["loss"]["fields"].values()
     )
     assert evidence["contract_id"] == "qitos.tool_result"
     assert evidence["contract_version"] == TOOL_RESULT_SCHEMA_VERSION
     assert evidence["fixture_path"].endswith("contract_hardening.json")
     assert evidence["qualification_authority"] == "qitos.g1.integration_owner/v1"
     assert evidence["qualified"] is True
+    assert set(evidence["test_files"]) >= {
+        "tests/core/test_tool_result.py",
+        "tests/core/test_conversation.py",
+    }
+    assert len(evidence["probes"]) == 21

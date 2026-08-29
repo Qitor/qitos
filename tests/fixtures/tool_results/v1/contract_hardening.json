@@ -48,8 +48,18 @@
     "tool_name": "inspect",
     "action_id": "call-safe",
     "output": {
-      "token": "fixture-secret",
-      "host_path": "/Users/example/private/result.json"
+      "/Users/example/private/result-key": {
+        "kept": "path-key-value",
+        "nested": [
+          {"token=nested-fixture-secret": "nested-secret-value"}
+        ]
+      },
+      "token=fixture-key-secret": {
+        "kept": "token-key-value",
+        "detail": "password=fixture-value-secret /Users/example/private/value.txt"
+      },
+      "[REDACTED_KEY_1]": "preexisting-placeholder",
+      "benign": "unchanged"
     },
     "metadata": {
       "authorization": "Bearer fixture-secret"
@@ -67,6 +77,67 @@
         "byte_length": 512,
         "sensitivity": "internal"
       }
+    ],
+    "next_action": {
+      "name": "read",
+      "args": {
+        "safe": "kept",
+        "nested": [
+          {"authorization": "token=fixture-next-secret"}
+        ]
+      }
+    }
+  },
+  "omitted_safe_source": {
+    "schema_version": "qitos.tool_result/v1",
+    "status": "success",
+    "output": null,
+    "omitted": {
+      "/Users/example/private/omitted": 1,
+      "token=fixture-omitted-secret": 2,
+      "[REDACTED_KEY_1]": 3,
+      "benign": 4,
+      "entry_05_xxxxxxxxxxxxxxxxxxxx": 5,
+      "entry_06_xxxxxxxxxxxxxxxxxxxx": 6,
+      "entry_07_xxxxxxxxxxxxxxxxxxxx": 7,
+      "entry_08_xxxxxxxxxxxxxxxxxxxx": 8,
+      "entry_09_xxxxxxxxxxxxxxxxxxxx": 9,
+      "entry_10_xxxxxxxxxxxxxxxxxxxx": 10,
+      "entry_11_xxxxxxxxxxxxxxxxxxxx": 11,
+      "entry_12_xxxxxxxxxxxxxxxxxxxx": 12,
+      "entry_13_xxxxxxxxxxxxxxxxxxxx": 13,
+      "entry_14_xxxxxxxxxxxxxxxxxxxx": 14,
+      "entry_15_xxxxxxxxxxxxxxxxxxxx": 15,
+      "entry_16_xxxxxxxxxxxxxxxxxxxx": 16,
+      "entry_17_xxxxxxxxxxxxxxxxxxxx": 17,
+      "entry_18_xxxxxxxxxxxxxxxxxxxx": 18,
+      "entry_19_xxxxxxxxxxxxxxxxxxxx": 19,
+      "entry_20_xxxxxxxxxxxxxxxxxxxx": 20
+    }
+  },
+  "projection_qualification": {
+    "omitted_budget_chars": 120,
+    "expected_model_output_entries": 4,
+    "preexisting_placeholder_key": "[REDACTED_KEY_1]",
+    "benign_keys": ["benign", "safe"],
+    "sensitive_text_forbidden": [
+      "/Users/example/private/result-key",
+      "token=fixture-key-secret",
+      "token=nested-fixture-secret",
+      "authorization",
+      "fixture-value-secret",
+      "fixture-next-secret",
+      "/Users/example/private/value.txt",
+      "/Users/example/private/omitted",
+      "token=fixture-omitted-secret"
+    ],
+    "required_loss_fields": [
+      "model_output",
+      "error",
+      "recovery_hint",
+      "identifiers",
+      "next_action",
+      "omitted"
     ]
   },
   "expected_trace_loss": {

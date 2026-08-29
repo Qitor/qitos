@@ -12,12 +12,27 @@
     "canonical_reader_input_ownership_isolation",
     "legacy_reader_input_ownership_isolation",
     "persistence_output_ownership_isolation",
-    "all_visible_fields_redacted",
-    "projection_loss_aggregated_by_field"
+    "model_output_host_path_key_redacted",
+    "model_output_token_key_redacted",
+    "nested_dict_list_sensitive_keys_redacted",
+    "two_sensitive_keys_preserve_distinct_entries",
+    "preexisting_placeholder_key_not_overwritten",
+    "sensitive_key_values_recursively_redacted",
+    "next_action_nested_sensitive_key_redacted",
+    "trace_omitted_path_and_token_keys_redacted",
+    "trace_omitted_entries_budgeted",
+    "model_and_trace_json_exclude_raw_sensitive_text",
+    "redacted_keys_counted_in_totals_and_fields",
+    "collision_has_no_silent_entry_loss",
+    "benign_keys_preserved",
+    "canonical_sensitive_keys_round_trip_losslessly",
+    "zero_budget_and_existing_truncation_invariants",
+    "exchange_log_delegates_repaired_projection"
   ],
   "test_files": [
     "tests/core/test_tool_result.py",
     "tests/core/test_tool_structural_validation.py",
-    "tests/engine/test_tool_result_projection.py"
+    "tests/engine/test_tool_result_projection.py",
+    "tests/core/test_conversation.py"
   ]
 }

@@ -582,6 +582,66 @@ def test_exchange_log_delegates_result_persistence_model_and_trace_views() -> No
     assert "result-secret" not in json.dumps(trace)
 
 
+def test_exchange_log_inherits_collision_safe_canonical_key_projections() -> None:
+    call = _call("key_projection", batch_id="key_projection_batch")
+    canonical = ToolResult(
+        tool_name=call.name,
+        action_id=call.identity.call_id,
+        output={
+            "/Users/alice/private/result": "path-key-value",
+            "token=result-secret": "token-key-value",
+            "[REDACTED_KEY_1]": "preexisting-placeholder",
+            "benign": "unchanged",
+        },
+        next_action={
+            "name": "read",
+            "args": {"nested": [{"authorization": "token=next-secret"}]},
+        },
+        omitted={"/Users/alice/private/omitted": 1, "benign": 2},
+    )
+    log = ExchangeLog(log_id="key_projection_log")
+    builder = log.append(
+        _assistant_with_calls(
+            call,
+            item_id="key_projection_assistant",
+            exchange_id="key_projection_exchange",
+        )
+    )
+    assert builder is not None
+    builder.record_result(
+        ToolResultItem(
+            item_id="key_projection_result",
+            exchange_id="key_projection_exchange",
+            identity=call.identity,
+            batch_id=call.batch_id,
+            result=canonical,
+        )
+    )
+
+    persistence = log.to_persistence_dict()["items"][1]["result"]
+    model = log.to_model_dict()["items"][1]["result"]
+    trace = log.to_trace_safe_dict()["items"][1]["result"]
+    rendered_model = json.dumps(model, sort_keys=True)
+    rendered_trace = json.dumps(trace, sort_keys=True)
+
+    assert persistence == canonical.to_persistence_dict()
+    assert model == canonical.to_model_dict()
+    assert trace == canonical.to_trace_safe_dict()
+    assert persistence["output"]["/Users/alice/private/result"] == "path-key-value"
+    for forbidden in (
+        "/Users/alice/private/result",
+        "token=result-secret",
+        "authorization",
+        "next-secret",
+        "/Users/alice/private/omitted",
+    ):
+        assert forbidden not in rendered_model
+        assert forbidden not in rendered_trace
+    assert trace["loss"]["fields"]["model_output"]["redacted_keys"] == 2
+    assert trace["loss"]["fields"]["next_action"]["redacted_keys"] == 1
+    assert trace["loss"]["fields"]["omitted"]["redacted_keys"] == 1
+
+
 def test_out_of_order_completion_persists_immediately_in_completion_order() -> None:
     first = _call("first")
     second = _call("second")
