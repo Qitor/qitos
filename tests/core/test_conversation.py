@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 
 from qitos.core.conversation import (
+    CONTINUATION_REDACTED_DIAGNOSTIC_VERSION,
     ArgumentParseStatus,
     AssistantContent,
     AssistantItem,
@@ -25,6 +26,7 @@ from qitos.core.conversation import (
     ToolBatchBuilder,
     ToolResultItem,
     ToolResultStatus,
+    UnsupportedSchemaVersionError,
     UnsupportedReasoningReplayError,
     UnsafeHistoryConversionError,
     UserItem,
@@ -39,9 +41,11 @@ FIXTURE_PATH = (
     Path(__file__).parents[1]
     / "fixtures"
     / "conversation"
-    / "v1"
+    / "v2"
     / "semantic_fixtures.json"
 )
+
+FIXTURE_SCHEMA_VERSION = "qitos.conversation.fixture.v2"
 
 
 def _call(
@@ -95,8 +99,18 @@ def _result(
     )
 
 
+def _validate_fixture_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
+    if manifest.get("fixture_version") != FIXTURE_SCHEMA_VERSION:
+        raise UnsupportedSchemaVersionError(
+            f"unsupported conversation fixture schema: "
+            f"{manifest.get('fixture_version')!r}"
+        )
+    return manifest
+
+
 def _fixture_manifest() -> dict[str, Any]:
-    return json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    manifest = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    return _validate_fixture_manifest(manifest)
 
 
 def test_multimodal_content_and_assistant_part_order_round_trip() -> None:
@@ -137,7 +151,7 @@ def test_multimodal_content_and_assistant_part_order_round_trip() -> None:
     ]
 
 
-def test_exchange_log_exposes_immutable_sequence_views() -> None:
+def test_exchange_log_exposes_isolated_sequence_snapshots() -> None:
     log = ExchangeLog(log_id="log_append_only")
     initial_view = log.items
     assert isinstance(initial_view, tuple)
@@ -155,7 +169,232 @@ def test_exchange_log_exposes_immutable_sequence_views() -> None:
     assert len(log.items) == 1
 
 
-def test_out_of_order_completion_commits_in_declaration_order() -> None:
+def test_append_and_read_boundaries_isolate_all_nested_mutable_values() -> None:
+    block_metadata = {"nested": {"value": "block-original"}}
+    parsed_arguments = {"nested": {"value": "args-original"}}
+    call_metadata = {"nested": {"value": "call-original"}}
+    reasoning_metadata = {"nested": {"value": "reasoning-original"}}
+    opaque_payload = {"nested": ["opaque-original"]}
+    attachment_metadata = {"nested": {"value": "attachment-original"}}
+    assistant_metadata = {"nested": {"value": "assistant-original"}}
+    call = ToolCall(
+        identity=CallIdentity("provider:mode", "nested_call"),
+        batch_id="nested_batch",
+        name="nested_tool",
+        raw_arguments="{}",
+        parsed_arguments=parsed_arguments,
+        parse_status=ArgumentParseStatus.PARSED,
+        metadata=call_metadata,
+    )
+    parts = [
+        AssistantContent(
+            ContentBlock(type="text", text="fact", metadata=block_metadata)
+        ),
+        ReasoningReference(
+            "provider:mode", "reasoning", metadata=reasoning_metadata
+        ),
+        call,
+    ]
+    attachments = [
+        OpaqueContinuationAttachment(
+            attachment_id="nested_attachment",
+            provider_scope="provider:mode",
+            api_mode="mode",
+            opaque_payload=opaque_payload,
+            metadata=attachment_metadata,
+        )
+    ]
+    log = ExchangeLog(log_id="log_nested_isolation")
+    builder = log.append(
+        AssistantItem(
+            item_id="assistant_nested",
+            exchange_id="exchange_nested",
+            parts=parts,
+            continuation_attachments=attachments,
+            metadata=assistant_metadata,
+        )
+    )
+    assert builder is not None
+
+    parts.clear()
+    attachments.clear()
+    block_metadata["nested"]["value"] = "block-mutated"
+    parsed_arguments["nested"]["value"] = "args-mutated"
+    call_metadata["nested"]["value"] = "call-mutated"
+    reasoning_metadata["nested"]["value"] = "reasoning-mutated"
+    opaque_payload["nested"].append("opaque-mutated")
+    attachment_metadata["nested"]["value"] = "attachment-mutated"
+    assistant_metadata["nested"]["value"] = "assistant-mutated"
+
+    result_content_metadata = {"nested": {"value": "result-content-original"}}
+    provenance_details = {"nested": {"value": "provenance-original"}}
+    result_metadata = {"nested": {"value": "result-original"}}
+    result = ToolResultItem(
+        item_id="result_nested",
+        exchange_id="exchange_nested",
+        identity=call.identity,
+        batch_id=call.batch_id,
+        status=ToolResultStatus.SUCCEEDED,
+        content=[
+            ContentBlock(
+                type="text", text="done", metadata=result_content_metadata
+            )
+        ],
+        provenance=ClosureProvenance(
+            source="tests.worker", details=provenance_details
+        ),
+        metadata=result_metadata,
+    )
+    builder.record_result(result)
+    result_content_metadata["nested"]["value"] = "result-content-mutated"
+    provenance_details["nested"]["value"] = "provenance-mutated"
+    result_metadata["nested"]["value"] = "result-mutated"
+    result.content.append(ContentBlock(type="text", text="late mutation"))
+
+    snapshot = log.items
+    assistant = snapshot[0]
+    recorded_result = snapshot[1]
+    assert isinstance(assistant, AssistantItem)
+    assert isinstance(recorded_result, ToolResultItem)
+    assistant.parts.clear()
+    assistant.continuation_attachments[0].opaque_payload["nested"].append(
+        "snapshot-mutated"
+    )
+    assistant.metadata["nested"]["value"] = "snapshot-mutated"
+    recorded_result.content.clear()
+    recorded_result.provenance.details["nested"]["value"] = "snapshot-mutated"
+    recorded_result.metadata["nested"]["value"] = "snapshot-mutated"
+
+    persisted = log.to_persistence_dict()
+    assert len(persisted["items"][0]["parts"]) == 3
+    assert persisted["items"][0]["parts"][0]["block"]["metadata"]["nested"][
+        "value"
+    ] == "block-original"
+    assert persisted["items"][0]["parts"][2]["parsed_arguments"]["nested"][
+        "value"
+    ] == "args-original"
+    assert persisted["items"][0]["parts"][1]["metadata"]["nested"][
+        "value"
+    ] == "reasoning-original"
+    assert persisted["items"][0]["parts"][2]["metadata"]["nested"][
+        "value"
+    ] == "call-original"
+    assert persisted["items"][0]["continuation_attachments"][0][
+        "opaque_payload"
+    ] == {"nested": ["opaque-original"]}
+    assert persisted["items"][0]["continuation_attachments"][0]["metadata"][
+        "nested"
+    ]["value"] == "attachment-original"
+    assert persisted["items"][0]["metadata"]["nested"]["value"] == (
+        "assistant-original"
+    )
+    assert persisted["items"][1]["provenance"]["details"]["nested"][
+        "value"
+    ] == "provenance-original"
+    assert persisted["items"][1]["content"][0]["metadata"]["nested"][
+        "value"
+    ] == "result-content-original"
+    assert len(persisted["items"][1]["content"]) == 1
+
+    persisted["items"][0]["parts"].clear()
+    persisted["items"][1]["metadata"]["nested"]["value"] = "serialized-mutated"
+    fresh = log.to_persistence_dict()
+    assert len(fresh["items"][0]["parts"]) == 3
+    assert fresh["items"][1]["metadata"]["nested"]["value"] == "result-original"
+
+
+def test_user_and_queued_steering_inputs_and_snapshots_are_isolated() -> None:
+    user_content = [
+        ContentBlock(type="text", text="user", metadata={"nested": ["original"]})
+    ]
+    user_metadata = {"nested": ["original"]}
+    log = ExchangeLog(log_id="log_user_steering_isolation")
+    log.append(
+        UserItem(
+            item_id="user_isolated",
+            exchange_id="exchange_user",
+            content=user_content,
+            metadata=user_metadata,
+        )
+    )
+    user_content.clear()
+    user_metadata["nested"].append("mutated")
+
+    call = _call("steering_isolation", batch_id="batch_steering_isolation")
+    builder = log.append(
+        _assistant_with_calls(
+            call,
+            item_id="assistant_steering_isolation",
+            exchange_id="exchange_steering_isolation",
+        )
+    )
+    assert builder is not None
+    steering_content = [ContentBlock(type="text", text="queued")]
+    steering_metadata = {"nested": ["queued-original"]}
+    steering = SteeringItem(
+        item_id="steering_isolated",
+        exchange_id="exchange_next",
+        content=steering_content,
+        metadata=steering_metadata,
+    )
+    log.queue_steering(steering)
+    steering_content.clear()
+    steering_metadata["nested"].append("mutated")
+    queued_snapshot = log.queued_steering[0]
+    queued_snapshot.content.clear()
+    queued_snapshot.metadata["nested"].append("snapshot-mutated")
+
+    partial = log.to_persistence_dict()
+    assert partial["items"][0]["content"][0]["text"] == "user"
+    assert partial["items"][0]["metadata"] == {"nested": ["original"]}
+    assert partial["queued_steering"][0]["content"][0]["text"] == "queued"
+    assert partial["queued_steering"][0]["metadata"] == {
+        "nested": ["queued-original"]
+    }
+
+
+def test_from_dict_copies_nested_input_values() -> None:
+    payload = {
+        "schema_version": "qitos.exchange_log.v1",
+        "log_id": "log_from_dict_isolation",
+        "queued_steering": [],
+        "items": [
+            {
+                "kind": "user",
+                "item_id": "user_from_dict",
+                "exchange_id": "exchange_from_dict",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "original",
+                        "metadata": {"nested": ["original"]},
+                    }
+                ],
+                "metadata": {"nested": ["original"]},
+            }
+        ],
+    }
+    log = ExchangeLog.from_dict(payload)
+    payload["items"][0]["content"][0]["text"] = "mutated"
+    payload["items"][0]["content"][0]["metadata"]["nested"].append("mutated")
+    payload["items"][0]["metadata"]["nested"].append("mutated")
+
+    assert log.to_persistence_dict()["items"][0] == {
+        "kind": "user",
+        "item_id": "user_from_dict",
+        "exchange_id": "exchange_from_dict",
+        "content": [
+            {
+                "type": "text",
+                "text": "original",
+                "metadata": {"nested": ["original"]},
+            }
+        ],
+        "metadata": {"nested": ["original"]},
+    }
+
+
+def test_out_of_order_completion_persists_immediately_in_completion_order() -> None:
     first = _call("first")
     second = _call("second")
     log = ExchangeLog(log_id="log_parallel")
@@ -163,14 +402,140 @@ def test_out_of_order_completion_commits_in_declaration_order() -> None:
     assert builder is not None
 
     assert builder.record_result(_result(second, item_id="result_second")) is False
-    assert log.results_for_batch("batch_1") == []
+    assert [result.identity.call_id for result in log.results_for_batch("batch_1")] == [
+        "second"
+    ]
     assert builder.record_result(_result(first, item_id="result_first")) is True
 
     assert [result.identity.call_id for result in log.results_for_batch("batch_1")] == [
+        "second",
+        "first",
+    ]
+    assert [
+        result.identity.call_id
+        for result in log.results_for_batch_in_declaration_order("batch_1")
+    ] == [
         "first",
         "second",
     ]
     log.assert_ready_for_model_transaction()
+
+
+def test_partial_batch_round_trip_resumes_only_missing_calls_and_steering_once() -> None:
+    first = _call("first", batch_id="batch_recovery")
+    second = _call("second", batch_id="batch_recovery")
+    log = ExchangeLog(log_id="log_recovery")
+    builder = log.append(
+        _assistant_with_calls(
+            first,
+            second,
+            item_id="assistant_recovery",
+            exchange_id="exchange_recovery",
+        )
+    )
+    assert builder is not None
+    builder.record_result(
+        _result(
+            second,
+            item_id="result_second_before_reload",
+            exchange_id="exchange_recovery",
+        )
+    )
+    log.queue_steering(
+        SteeringItem(
+            item_id="steering_after_recovery",
+            exchange_id="exchange_next",
+            content=[ContentBlock(type="text", text="continue once")],
+        )
+    )
+
+    persisted = json.loads(json.dumps(log.to_persistence_dict()))
+    recovered = ExchangeLog.from_dict(persisted)
+    assert recovered.open_batch_id() == "batch_recovery"
+    with pytest.raises(IncompleteToolBatchError):
+        recovered.assert_ready_for_model_transaction()
+
+    recovered_builder = ToolBatchBuilder(recovered, "batch_recovery")
+    with pytest.raises(DuplicateToolResultError):
+        recovered_builder.record_result(
+            _result(
+                second,
+                item_id="duplicate_second_after_reload",
+                exchange_id="exchange_recovery",
+            )
+        )
+    with pytest.raises(IncompleteToolBatchError):
+        recovered.append(
+            UserItem(
+                item_id="blocked_after_reload",
+                exchange_id="exchange_blocked",
+                content=[ContentBlock(type="text", text="too early")],
+            )
+        )
+    executed: list[str] = []
+    for missing in recovered_builder.missing_calls:
+        executed.append(missing.identity.call_id)
+        recovered_builder.record_result(
+            _result(
+                missing,
+                item_id=f"result_{missing.identity.call_id}_after_reload",
+                exchange_id="exchange_recovery",
+            )
+        )
+
+    assert executed == ["first"]
+    assert [
+        result.identity.call_id
+        for result in recovered.results_for_batch("batch_recovery")
+    ] == ["second", "first"]
+    assert [
+        result.identity.call_id
+        for result in recovered.results_for_batch_in_declaration_order(
+            "batch_recovery"
+        )
+    ] == ["first", "second"]
+    assert sum(
+        item.item_id == "steering_after_recovery" for item in recovered.items
+    ) == 1
+    assert recovered.items[-1].item_id == "steering_after_recovery"
+    assert recovered.queued_steering == ()
+    recovered.assert_ready_for_model_transaction()
+
+
+def test_recovery_synthetic_closure_never_overwrites_completed_slots() -> None:
+    first = _call("first", batch_id="batch_synthetic_recovery")
+    second = _call("second", batch_id="batch_synthetic_recovery")
+    log = ExchangeLog(log_id="log_synthetic_recovery")
+    builder = log.append(
+        _assistant_with_calls(
+            first,
+            second,
+            item_id="assistant_synthetic_recovery",
+            exchange_id="exchange_synthetic_recovery",
+        )
+    )
+    assert builder is not None
+    builder.record_result(
+        _result(
+            second,
+            item_id="result_completed",
+            exchange_id="exchange_synthetic_recovery",
+        )
+    )
+
+    recovered = ExchangeLog.from_dict(log.to_persistence_dict())
+    recovered_builder = ToolBatchBuilder(recovered, "batch_synthetic_recovery")
+    recovered_builder.close_missing(
+        status=ToolResultStatus.MISSING_WORKER,
+        reason="worker_missing_after_reload",
+    )
+
+    results = recovered.results_for_batch("batch_synthetic_recovery")
+    assert [result.identity.call_id for result in results] == ["second", "first"]
+    assert results[0].item_id == "result_completed"
+    assert results[0].provenance.synthetic is False
+    assert results[1].provenance.synthetic is True
+    assert results[1].status is ToolResultStatus.MISSING_WORKER
 
 
 @pytest.mark.parametrize(
@@ -277,7 +642,7 @@ def test_incomplete_batch_blocks_normal_items_and_queues_steering() -> None:
     builder.record_result(_result(call, item_id="result_open"))
 
     assert log.queued_steering == ()
-    assert log.items[-1] is steering
+    assert log.items[-1] == steering
     assert sum(isinstance(item, SteeringItem) for item in log.items) == 1
     log.assert_ready_for_model_transaction()
 
@@ -288,6 +653,7 @@ def test_opaque_continuation_is_lossless_only_in_persistence_projection() -> Non
         provider_scope="provider:responses",
         api_mode="responses",
         opaque_payload={"encrypted_content": "ciphertext"},
+        metadata={"token": "diagnostic-secret"},
     )
     log = ExchangeLog(log_id="log_opaque")
     log.append(
@@ -304,13 +670,17 @@ def test_opaque_continuation_is_lossless_only_in_persistence_projection() -> Non
     )
 
     persisted = log.to_persistence_dict()
-    safe = log.to_safe_dict()
+    diagnostic = log.to_continuation_redacted_diagnostic_dict()
 
     assert "ciphertext" in json.dumps(persisted)
-    assert "ciphertext" not in json.dumps(safe)
-    assert safe["items"][0]["continuation_attachments"][0]["opaque_payload"] == {
-        "redacted": True
-    }
+    assert "ciphertext" not in json.dumps(diagnostic)
+    assert "diagnostic-secret" in json.dumps(diagnostic)
+    assert diagnostic["projection_version"] == (
+        CONTINUATION_REDACTED_DIAGNOSTIC_VERSION
+    )
+    assert diagnostic["items"][0]["continuation_attachments"][0][
+        "opaque_payload"
+    ] == {"redacted": True}
     assert ExchangeLog.from_dict(persisted).to_persistence_dict() == persisted
 
 
@@ -348,7 +718,11 @@ def test_history_adapter_preserves_compatible_parallel_exchange() -> None:
     assert [call.identity.call_id for call in calls] == ["call_a", "call_b"]
     assert calls[0].parse_status is ArgumentParseStatus.PARSED
     assert calls[1].parse_status is ArgumentParseStatus.PARSED_INVALID
-    assert [result.identity.call_id for result in results] == ["call_a", "call_b"]
+    assert [result.identity.call_id for result in results] == ["call_b", "call_a"]
+    assert [
+        result.identity.call_id
+        for result in log.results_for_batch_in_declaration_order("legacy_batch_0")
+    ] == ["call_a", "call_b"]
     projected = exchange_log_to_history_messages(log)
     assert [message.role for message in projected] == ["assistant", "tool", "tool"]
     assert [message.tool_call_id for message in projected[1:]] == [
@@ -391,7 +765,9 @@ def test_history_adapter_preserves_native_items_as_opaque_not_text() -> None:
     assert isinstance(assistant, AssistantItem)
     assert assistant.parts == []
     assert assistant.continuation_attachments[0].opaque_payload == native
-    assert "ciphertext" not in json.dumps(log.to_safe_dict())
+    assert "ciphertext" not in json.dumps(
+        log.to_continuation_redacted_diagnostic_dict()
+    )
     projected = exchange_log_to_history_messages(log)
     assert projected[0].content is None
     assert projected[0].native_items == native
@@ -456,18 +832,26 @@ def test_versioned_semantic_fixture_manifest_exercises_all_required_cases() -> N
         "genuine_error_prefix_assistant_text",
         "serialization_round_trip",
     }
-    assert manifest["fixture_version"] == "qitos.conversation.fixture.v1"
+    assert manifest["fixture_version"] == FIXTURE_SCHEMA_VERSION
     assert set(fixtures) == required
     for case in fixtures.values():
         assert case["schema_version"] == "qitos.exchange_log.v1"
         assert case["expected_invariant"]
         assert "expected_error" in case
-        assert case["consumers"]
+        assert case["consumer_simulations"]
         assert isinstance(case["lossless"], bool)
 
 
-def test_lane_c_execution_consumer_closes_fixture_batches() -> None:
-    """Independent consumer 1: executor-like completion and ordered commit."""
+def test_old_fixture_envelope_is_rejected_with_typed_version_error() -> None:
+    with pytest.raises(UnsupportedSchemaVersionError) as exc_info:
+        _validate_fixture_manifest(
+            {"fixture_version": "qitos.conversation.fixture.v1"}
+        )
+    assert exc_info.value.code == "unsupported_schema_version"
+
+
+def test_execution_fixture_consumer_simulation_closes_batches() -> None:
+    """In-repository simulation of an execution-side fixture consumer."""
 
     cases = _fixture_manifest()["fixtures"]
     for case in cases:
@@ -491,13 +875,17 @@ def test_lane_c_execution_consumer_closes_fixture_batches() -> None:
         log.assert_ready_for_model_transaction()
         assert [
             result.identity.call_id for result in log.results_for_batch(batch_id)
+        ] == case["completion_order"]
+        assert [
+            result.identity.call_id
+            for result in log.results_for_batch_in_declaration_order(batch_id)
         ] == [call.identity.call_id for call in builder.calls]
         if case["name"] == "mid_batch_steering":
             assert isinstance(log.items[-1], SteeringItem)
 
 
-def test_lane_d_persistence_consumer_validates_fixture_semantics() -> None:
-    """Independent consumer 2: trajectory-like load, errors, and round-trip."""
+def test_persistence_fixture_consumer_simulation_validates_semantics() -> None:
+    """In-repository simulation of a persistence-side fixture consumer."""
 
     for case in _fixture_manifest()["fixtures"]:
         expected_error = case["expected_error"]
@@ -520,9 +908,11 @@ def test_lane_d_persistence_consumer_validates_fixture_semantics() -> None:
             else:
                 projected = exchange_log_to_history_messages(log)
                 assert projected
-        elif operation == "safe_projection":
+        elif operation == "continuation_redacted_diagnostic_projection":
             assert "opaque-ciphertext" in json.dumps(log.to_persistence_dict())
-            assert "opaque-ciphertext" not in json.dumps(log.to_safe_dict())
+            diagnostic = log.to_continuation_redacted_diagnostic_dict()
+            assert "opaque-ciphertext" not in json.dumps(diagnostic)
+            assert "diagnostic-secret" in json.dumps(diagnostic)
         elif operation == "round_trip":
             persisted = log.to_persistence_dict()
             assert ExchangeLog.from_dict(persisted).to_persistence_dict() == persisted

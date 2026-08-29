@@ -1,5 +1,5 @@
 {
-  "fixture_version": "qitos.conversation.fixture.v1",
+  "fixture_version": "qitos.conversation.fixture.v2",
   "schema_version": "qitos.exchange_log.v1",
   "fixtures": [
     {
@@ -7,7 +7,7 @@
       "schema_version": "qitos.exchange_log.v1",
       "expected_invariant": "User content blocks retain text and image order without text flattening.",
       "expected_error": null,
-      "consumers": ["lane_b_history", "lane_d_trajectory"],
+      "consumer_simulations": ["history_adapter", "persistence_reader"],
       "lossless": true,
       "operation": "load",
       "exchange_log": {
@@ -33,7 +33,7 @@
       "schema_version": "qitos.exchange_log.v1",
       "expected_invariant": "One declared call has exactly one correlated terminal result.",
       "expected_error": null,
-      "consumers": ["lane_c_execution", "lane_d_trajectory"],
+      "consumer_simulations": ["execution", "persistence_reader"],
       "lossless": true,
       "operation": "load",
       "exchange_log": {
@@ -72,7 +72,7 @@
       "schema_version": "qitos.exchange_log.v1",
       "expected_invariant": "One assistant item declares multiple ordered calls in one batch.",
       "expected_error": null,
-      "consumers": ["lane_c_execution", "lane_d_trajectory"],
+      "consumer_simulations": ["execution", "persistence_reader"],
       "lossless": true,
       "operation": "complete_batch",
       "completion_order": ["call_beta", "call_alpha"],
@@ -98,9 +98,9 @@
     {
       "name": "out_of_order_completion",
       "schema_version": "qitos.exchange_log.v1",
-      "expected_invariant": "Execution may finish beta before alpha while persistence commits alpha then beta.",
+      "expected_invariant": "Execution may finish beta before alpha; persistence retains beta then alpha while a derived query returns declaration order.",
       "expected_error": null,
-      "consumers": ["lane_c_execution", "lane_d_trajectory"],
+      "consumer_simulations": ["execution", "persistence_reader"],
       "lossless": true,
       "operation": "complete_batch",
       "completion_order": ["call_beta", "call_alpha"],
@@ -128,7 +128,7 @@
       "schema_version": "qitos.exchange_log.v1",
       "expected_invariant": "Malformed raw arguments remain byte-for-byte text with no parsed object.",
       "expected_error": null,
-      "consumers": ["lane_b_codec", "lane_d_trajectory"],
+      "consumer_simulations": ["codec_boundary", "persistence_reader"],
       "lossless": true,
       "operation": "assert_parse_status",
       "exchange_log": {
@@ -154,7 +154,7 @@
       "schema_version": "qitos.exchange_log.v1",
       "expected_invariant": "Syntactically valid non-object JSON is distinct from malformed raw JSON.",
       "expected_error": null,
-      "consumers": ["lane_b_codec", "lane_d_trajectory"],
+      "consumer_simulations": ["codec_boundary", "persistence_reader"],
       "lossless": true,
       "operation": "assert_parse_status",
       "exchange_log": {
@@ -180,7 +180,7 @@
       "schema_version": "qitos.exchange_log.v1",
       "expected_invariant": "Call IDs are unique within provider scope.",
       "expected_error": "duplicate_call_id",
-      "consumers": ["lane_c_execution", "lane_d_validator"],
+      "consumer_simulations": ["execution", "persistence_validator"],
       "lossless": false,
       "operation": "load",
       "exchange_log": {
@@ -207,7 +207,7 @@
       "schema_version": "qitos.exchange_log.v1",
       "expected_invariant": "An open batch cannot enter the next normal model transaction.",
       "expected_error": "incomplete_tool_batch",
-      "consumers": ["lane_c_execution", "lane_b_request_view"],
+      "consumer_simulations": ["execution", "request_boundary"],
       "lossless": true,
       "operation": "assert_ready",
       "exchange_log": {
@@ -233,7 +233,7 @@
       "schema_version": "qitos.exchange_log.v1",
       "expected_invariant": "Interrupted slots close explicitly and retain synthetic provenance.",
       "expected_error": null,
-      "consumers": ["lane_c_execution", "lane_d_trajectory"],
+      "consumer_simulations": ["execution", "persistence_reader"],
       "lossless": true,
       "operation": "load",
       "exchange_log": {
@@ -271,7 +271,7 @@
       "schema_version": "qitos.exchange_log.v1",
       "expected_invariant": "Human steering received mid-batch remains queued until closure.",
       "expected_error": "incomplete_tool_batch",
-      "consumers": ["lane_c_execution", "lane_b_request_view"],
+      "consumer_simulations": ["execution", "request_boundary"],
       "lossless": true,
       "operation": "complete_batch",
       "completion_order": ["call_steering"],
@@ -298,11 +298,11 @@
     {
       "name": "opaque_continuation",
       "schema_version": "qitos.exchange_log.v1",
-      "expected_invariant": "Provider-native continuation remains opaque and safe projections redact its payload.",
+      "expected_invariant": "The diagnostic projection redacts opaque continuation only; metadata remains unchanged and may still contain secrets.",
       "expected_error": null,
-      "consumers": ["lane_b_codec", "lane_d_trajectory"],
+      "consumer_simulations": ["codec_boundary", "persistence_reader"],
       "lossless": true,
-      "operation": "safe_projection",
+      "operation": "continuation_redacted_diagnostic_projection",
       "exchange_log": {
         "schema_version": "qitos.exchange_log.v1",
         "log_id": "fixture_opaque",
@@ -316,7 +316,7 @@
               {"kind": "reasoning_reference", "provider_scope": "openai:responses", "reference_id": "reasoning_ref_1", "attachment_id": "attachment_opaque", "metadata": {}}
             ],
             "continuation_attachments": [
-              {"attachment_id": "attachment_opaque", "provider_scope": "openai:responses", "api_mode": "responses", "opaque_payload": {"type": "reasoning", "encrypted_content": "opaque-ciphertext"}, "metadata": {"sensitivity": "provider_native"}}
+              {"attachment_id": "attachment_opaque", "provider_scope": "openai:responses", "api_mode": "responses", "opaque_payload": {"type": "reasoning", "encrypted_content": "opaque-ciphertext"}, "metadata": {"sensitivity": "provider_native", "token": "diagnostic-secret"}}
             ],
             "metadata": {}
           }
@@ -328,7 +328,7 @@
       "schema_version": "qitos.exchange_log.v1",
       "expected_invariant": "Legacy projection rejects reasoning references instead of turning them into text.",
       "expected_error": "unsupported_reasoning_replay",
-      "consumers": ["lane_b_history", "lane_d_validator"],
+      "consumer_simulations": ["history_adapter", "persistence_validator"],
       "lossless": false,
       "operation": "history_projection",
       "exchange_log": {
@@ -354,7 +354,7 @@
       "schema_version": "qitos.exchange_log.v1",
       "expected_invariant": "Assistant text beginning with Error: remains ordinary authored content.",
       "expected_error": null,
-      "consumers": ["lane_b_history", "lane_d_trajectory"],
+      "consumer_simulations": ["history_adapter", "persistence_reader"],
       "lossless": true,
       "operation": "history_projection",
       "exchange_log": {
@@ -380,7 +380,7 @@
       "schema_version": "qitos.exchange_log.v1",
       "expected_invariant": "The versioned persistence representation round-trips exactly.",
       "expected_error": null,
-      "consumers": ["lane_c_execution", "lane_d_trajectory"],
+      "consumer_simulations": ["execution", "persistence_reader"],
       "lossless": true,
       "operation": "round_trip",
       "exchange_log": {
