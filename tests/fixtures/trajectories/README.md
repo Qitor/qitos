@@ -58,15 +58,20 @@ never matched content.
 The benchmark gate accepts an optional pure-data receipt set with version
 `trajectory-contract-qualification-receipts-v1`. Each receipt contains exactly:
 
-- `contract_id`, `version`, `digest`, and `fixture_identity`;
-- boolean `qualified`;
-- optional `qualification_authority`.
+- D contract ID, producer contract ID, and schema/version;
+- exact producer source commit;
+- repository-relative committed fixture path and SHA-256;
+- repository-relative producer qualification-evidence path and SHA-256;
+- the reviewed `qitos.g1.integration_owner/v1` authority.
 
-Unknown, duplicate, invalid, unqualified, unestablished-version, and
-version-mismatched receipts are distinct blockers. One valid receipt qualifies
-only its exact contract ID; fixture presence never auto-qualifies a Lane B/C
-contract. The repository intentionally carries no fabricated qualification
-receipt.
+The caller cannot supply `qualified=true`. Qualification is derived only after
+the validator verifies the pinned producer commit exists, both paths and hashes
+match the current repository bytes and the bytes at that commit, and the
+producer-owned evidence names the same contract/version/path/authority. Unknown,
+duplicate, invalid, unestablished-version, version/path/digest/commit/authority
+mismatches are typed blockers. One verified receipt qualifies only its exact
+contract ID. The checked-in receipt set binds the accepted G1 B/C producers;
+all unimplemented dependencies remain blocked.
 
 ## Stable readiness behavior
 

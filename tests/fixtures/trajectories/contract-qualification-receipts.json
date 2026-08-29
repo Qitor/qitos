@@ -1,0 +1,27 @@
+{
+  "receipt_version": "trajectory-contract-qualification-receipts-v1",
+  "receipts": [
+    {
+      "contract_id": "lane_b.exchange_log_fixture_version",
+      "producer_contract_id": "qitos.exchange_log",
+      "version": "qitos.exchange_log.v2",
+      "producer_source_commit": "2e46fc8e0228af42d6eaeaa6a665ffe5998c0bd5",
+      "fixture_path": "tests/fixtures/conversation/v3/semantic_fixtures.json",
+      "fixture_sha256": "927e0ace339337fa1a2c2cb5a1a8b03147df3ae4ec97b3b54634908249be8a40",
+      "qualification_evidence_path": "tests/fixtures/conversation/v3/qualification-evidence.json",
+      "qualification_evidence_sha256": "86d52fd2c6c3d37e33e35dd42a662d556e2fc96422be35e6c9d9a24529419b0a",
+      "qualification_authority": "qitos.g1.integration_owner/v1"
+    },
+    {
+      "contract_id": "lane_c.canonical_tool_result_fixture_version",
+      "producer_contract_id": "qitos.tool_result",
+      "version": "qitos.tool_result/v1",
+      "producer_source_commit": "ab1c501400fc2a8c47fcef1b4fe85c4e4db8d8f6",
+      "fixture_path": "tests/fixtures/tool_results/v1/contract_hardening.json",
+      "fixture_sha256": "9794ac17192e19422bc47fd37ef2712dd7352b4eea9016a2d5c4459f214a0a39",
+      "qualification_evidence_path": "tests/fixtures/tool_results/v1/qualification-evidence.json",
+      "qualification_evidence_sha256": "227d0d435a0198fd9c901abc4ce57299f994ca00c09f8c84a7c6346b310cba93",
+      "qualification_authority": "qitos.g1.integration_owner/v1"
+    }
+  ]
+}

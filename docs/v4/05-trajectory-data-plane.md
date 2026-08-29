@@ -153,6 +153,14 @@ Task 05 does not rewrite the whole qita CLI in the same PR as the store.
 05A is not complete: its schema freeze, representative fixtures, benchmark
 measurements, and decision record remain open.
 
+G1 D-R1 verifies only the accepted B/C contract handoffs. Receipts bind contract
+and schema IDs, exact producer commits, committed fixture/evidence paths and
+hashes, and a reviewed authority; callers cannot self-declare qualification.
+The executable manifest validator and the published JSON Schema share an
+accepted/rejected parity corpus. These readiness receipts do not qualify the two
+trajectory payload manifests, produce measurements or claims, complete 05A, or
+freeze trajectory v2.
+
 ### 05B — store, artifacts, and v1 bridge
 
 - Implement atomic writer/reader and integrity validation.

@@ -60,6 +60,7 @@ How to update:
 
 ### Fixed
 
+- Closed D-R1 by deriving contract readiness only from reviewed receipts bound to exact B/C producer commits, committed fixture and producer-evidence paths and hashes, and an approved authority. Forged digest/path/commit/version/authority fields are typed blockers; each receipt clears only its own contract, while trajectory v2, publication, measurements, and claims remain blocked.
 - Closed the G1 ToolResult boundary gaps: tool calls now reject recursive non-JSON values and non-finite numbers before interceptors, permissions, or execution; canonical/legacy construction and serialization detach nested caller-owned values; and every model/trace-visible field shares bounded redaction with aggregate, per-field loss accounting.
 - Fixed the contribution tool-schema gate so workflow and repository tests execute one checked-in qualification entrypoint over real constructible class tools and the actual `ToolRegistry`, with a controlled malformed-spec failure instead of a broken inline `ToolSpec` import.
 - Repaired contribution CI trust: removed unsupported `pull_request.changed_files` array predicates, unused changed-count logic, masked pytest commands, and missing zoo test paths; retained the zoo workflow as an explicitly stale advisory inventory pending external required-check evidence.

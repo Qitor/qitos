@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+from dataclasses import replace
 import hashlib
 import importlib.util
 import json
@@ -11,6 +12,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 import pytest
+from jsonschema import Draft202012Validator
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +20,7 @@ SCRIPT = ROOT / "scripts" / "benchmark_trajectory_store.py"
 FIXTURES = ROOT / "tests" / "fixtures" / "trajectories"
 SOURCE_MANIFEST = FIXTURES / "unrelated-agent" / "fixture-manifest.json"
 MANIFEST_SCHEMA = FIXTURES / "fixture-manifest.schema.json"
+VERIFIED_RECEIPTS_PATH = FIXTURES / "contract-qualification-receipts.json"
 
 
 def _load_script() -> Any:
@@ -46,15 +49,15 @@ def _codes(result: Mapping[str, Any]) -> set[str]:
 
 
 def _receipt(**updates: Any) -> dict[str, Any]:
-    result = {
-        "contract_id": "lane_b.exchange_log_fixture_version",
-        "version": "qitos.exchange_log.v1",
-        "digest": "a" * 64,
-        "fixture_identity": "lane-b-exchange-log-fixture-v1",
-        "qualified": True,
-    }
+    receipt_set = json.loads(VERIFIED_RECEIPTS_PATH.read_text(encoding="utf-8"))
+    result = copy.deepcopy(receipt_set["receipts"][0])
     result.update(updates)
     return result
+
+
+def _verified_receipts() -> list[dict[str, Any]]:
+    receipt_set = json.loads(VERIFIED_RECEIPTS_PATH.read_text(encoding="utf-8"))
+    return receipt_set["receipts"]
 
 
 def test_repository_fixture_set_is_strictly_blocked_and_portable() -> None:
@@ -96,10 +99,72 @@ def test_documented_schema_and_checked_evidence_are_portable() -> None:
         ROOT / "docs" / "v4" / "10-consolidation-and-surface-reduction.md",
         FIXTURES / "README.md",
         MANIFEST_SCHEMA,
+        VERIFIED_RECEIPTS_PATH,
         *sorted(FIXTURES.glob("*/fixture-manifest.json")),
     ]
     for path in checked:
         assert module.portability_finding_codes(path.read_text(encoding="utf-8")) == [], path
+
+
+def test_manifest_json_schema_and_executable_validator_have_full_corpus_parity() -> None:
+    module = _load_script()
+    schema = json.loads(MANIFEST_SCHEMA.read_text(encoding="utf-8"))
+    json_validator = Draft202012Validator(schema)
+    unrelated = _manifest()
+    campaign = json.loads(
+        (FIXTURES / "campaign-long" / "fixture-manifest.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    def mutated(base: dict[str, Any], mutation: Any) -> dict[str, Any]:
+        value = copy.deepcopy(base)
+        mutation(value)
+        return value
+
+    corpus: list[tuple[str, dict[str, Any], bool]] = [
+        ("valid_unrelated", unrelated, True),
+        ("valid_campaign", campaign, True),
+        ("unknown_top_field", mutated(unrelated, lambda x: x.update(extra=True)), False),
+        ("unknown_version", mutated(unrelated, lambda x: x.update(manifest_version="v999")), False),
+        ("empty_fixture_id", mutated(unrelated, lambda x: x.update(fixture_id="")), False),
+        ("unknown_source_class", mutated(unrelated, lambda x: x.update(source_class="other")), False),
+        ("unknown_status", mutated(unrelated, lambda x: x.update(status="ready")), False),
+        ("payload_flag_type", mutated(unrelated, lambda x: x.update(payloads_committed=1)), False),
+        ("payload_status_mismatch", mutated(unrelated, lambda x: x.update(payloads_committed=True)), False),
+        ("provenance_missing", mutated(unrelated, lambda x: x["provenance"].pop("source_kind")), False),
+        ("provenance_extra", mutated(unrelated, lambda x: x["provenance"].update(extra=True)), False),
+        ("provenance_empty", mutated(unrelated, lambda x: x["provenance"].update(logical_source_id="")), False),
+        ("provenance_bool", mutated(unrelated, lambda x: x["provenance"].update(model_call_performed_by_d1=1)), False),
+        ("license_status", mutated(unrelated, lambda x: x["license"].update(status="unknown")), False),
+        ("license_empty", mutated(unrelated, lambda x: x["license"].update(requirement="")), False),
+        ("generator_missing", mutated(unrelated, lambda x: x["source_evidence"].pop("generator")), False),
+        ("generator_extra", mutated(unrelated, lambda x: x["source_evidence"].update(extra=True)), False),
+        ("generator_negative_steps", mutated(unrelated, lambda x: x["source_evidence"].update(expected_steps=-1)), False),
+        ("generator_bool_type", mutated(unrelated, lambda x: x["source_evidence"].update(network_required=1)), False),
+        ("campaign_bad_digest", mutated(campaign, lambda x: x["source_evidence"].update(events_sha256="bad")), False),
+        ("campaign_negative_count", mutated(campaign, lambda x: x["source_evidence"].update(event_records=-1)), False),
+        ("coverage_missing", mutated(unrelated, lambda x: x["observed_coverage"].pop("retry")), False),
+        ("coverage_extra", mutated(unrelated, lambda x: x["observed_coverage"].update(extra=True)), False),
+        ("coverage_value", mutated(unrelated, lambda x: x["observed_coverage"].update(retry="maybe")), False),
+        ("sanitization_status", mutated(unrelated, lambda x: x["sanitization"].update(status="unknown")), False),
+        ("sanitization_actions", mutated(unrelated, lambda x: x["sanitization"].update(required_actions=[])), False),
+        ("sanitization_gate", mutated(unrelated, lambda x: x["sanitization"].update(publication_gate="")), False),
+        ("sanitization_optional_bool", mutated(unrelated, lambda x: x["sanitization"].update(raw_source_secret_key_names_detected=1)), False),
+        ("qualification_shape", mutated(unrelated, lambda x: x["sanitization"].update(publication_qualification={})), False),
+    ]
+
+    for name, payload, expected in corpus:
+        schema_accepts = json_validator.is_valid(payload)
+        record = module.ManifestRecord(name, FIXTURES, copy.deepcopy(payload), [])
+        module._validate_manifest(record, FIXTURES)
+        executable_accepts = not any(
+            finding["category"] == "manifest_schema"
+            for finding in record.diagnostics
+        )
+        assert schema_accepts is expected, name
+        assert executable_accepts is expected, name
+        assert executable_accepts == schema_accepts, name
 
 
 def test_missing_fixture_root_is_a_typed_blocker(tmp_path: Path) -> None:
@@ -275,16 +340,20 @@ def test_complete_publication_receipt_qualifies_only_the_fixture(tmp_path: Path)
     assert result["status"] == "schema_not_ready"
 
 
-def test_contract_receipt_missing_unqualified_and_mismatch_are_distinct() -> None:
+def test_contract_receipt_missing_self_declaration_and_mismatch_are_distinct() -> None:
     module = _load_script()
     _, missing = module.validate_contract_receipts(None)
-    _, unqualified = module.validate_contract_receipts([_receipt(qualified=False)])
+    _, self_declared = module.validate_contract_receipts(
+        [_receipt(qualified=True)]
+    )
     _, mismatch = module.validate_contract_receipts(
         [_receipt(version="qitos.exchange_log.v0")]
     )
 
     assert "contract_receipt_missing" in {item["code"] for item in missing}
-    assert "contract_receipt_unqualified" in {item["code"] for item in unqualified}
+    assert "receipt_unexpected_field" in {
+        item["code"] for item in self_declared
+    }
     assert "contract_version_mismatch" in {item["code"] for item in mismatch}
 
 
@@ -306,7 +375,7 @@ def test_unknown_and_duplicate_contract_receipts_are_distinct() -> None:
 
 def test_contract_receipt_diagnostics_are_input_order_independent() -> None:
     module = _load_script()
-    known = _receipt(qualified=False)
+    known = _receipt(fixture_sha256="0" * 64)
     unknown = _receipt(contract_id="lane_x.unknown_contract")
 
     assert module.validate_contract_receipts([known, unknown]) == (
@@ -335,6 +404,105 @@ def test_exact_qualified_receipt_does_not_auto_qualify_other_contracts() -> None
     assert receipt_result["blocker_categories"]["contract_receipt"] == (
         default_result["blocker_categories"]["contract_receipt"] - 1
     )
+
+
+def test_exact_committed_b_and_c_receipts_clear_only_owned_contracts() -> None:
+    module = _load_script()
+
+    qualified, findings = module.validate_contract_receipts(_verified_receipts())
+    result = module.build_readiness_result(
+        FIXTURES,
+        dry_run=True,
+        contract_receipts=_verified_receipts(),
+    )
+
+    assert qualified == [
+        "lane_b.exchange_log_fixture_version",
+        "lane_c.canonical_tool_result_fixture_version",
+    ]
+    assert set(result["qualified_contract_ids"]) == set(qualified)
+    assert all(
+        item["subject"] not in qualified
+        for item in findings
+        if item["code"] == "contract_receipt_missing"
+    )
+    assert any(
+        item["subject"] == "lane_b.request_view_report"
+        for item in findings
+        if item["code"] == "contract_receipt_missing"
+    )
+    assert result["status"] == "schema_not_ready"
+    assert result["measurements"] == []
+    assert result["claims"] == []
+    assert result["publication_qualified_count"] == 0
+
+
+@pytest.mark.parametrize(
+    ("updates", "expected"),
+    [
+        ({"fixture_sha256": "0" * 64}, "producer_digest_mismatch"),
+        (
+            {"qualification_evidence_sha256": "0" * 64},
+            "producer_digest_mismatch",
+        ),
+        ({"fixture_path": "tests/fixtures/trajectories/README.md"}, "producer_path_mismatch"),
+        ({"producer_source_commit": "0" * 40}, "producer_source_commit_mismatch"),
+        ({"version": "qitos.exchange_log.v999"}, "contract_version_mismatch"),
+        (
+            {"qualification_authority": "unreviewed.authority/v1"},
+            "qualification_authority_not_approved",
+        ),
+        ({"producer_contract_id": "qitos.fake"}, "producer_contract_mismatch"),
+    ],
+)
+def test_forged_receipt_fields_are_typed_and_cannot_qualify(
+    updates: dict[str, Any], expected: str
+) -> None:
+    module = _load_script()
+
+    qualified, findings = module.validate_contract_receipts([_receipt(**updates)])
+
+    assert "lane_b.exchange_log_fixture_version" not in qualified
+    assert expected in {item["code"] for item in findings}
+
+
+def test_receipt_source_commit_must_resolve_to_a_real_commit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_script()
+    missing_commit = "0" * 40
+    requirements = tuple(
+        replace(item, producer_source_commit=missing_commit)
+        if item.contract_id == "lane_b.exchange_log_fixture_version"
+        else item
+        for item in module.CONTRACT_REQUIREMENTS
+    )
+    monkeypatch.setattr(module, "CONTRACT_REQUIREMENTS", requirements)
+
+    qualified, findings = module.validate_contract_receipts(
+        [_receipt(producer_source_commit=missing_commit)]
+    )
+
+    assert "lane_b.exchange_log_fixture_version" not in qualified
+    assert "producer_source_commit_not_found" in {
+        item["code"] for item in findings
+    }
+
+
+def test_cli_accepts_verified_receipt_set_without_changing_exit_policy(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    module = _load_script()
+
+    assert module.main(
+        ["--dry-run", "--contract-receipts", str(VERIFIED_RECEIPTS_PATH)]
+    ) == 0
+    dry = json.loads(capsys.readouterr().out)
+    assert set(dry["qualified_contract_ids"]) == {
+        "lane_b.exchange_log_fixture_version",
+        "lane_c.canonical_tool_result_fixture_version",
+    }
+    assert dry["status"] == "schema_not_ready"
 
 
 def test_cli_exit_policy_is_stable(capsys: pytest.CaptureFixture[str]) -> None:

@@ -351,13 +351,23 @@ endpoint findings, plus a scan over the D1-R docs/schema/manifests.
 
 Contract readiness uses stable contract IDs and an optional pure-data
 `trajectory-contract-qualification-receipts-v1` input. Each receipt supplies
-contract ID, version, SHA-256 digest, fixture identity, and qualified state.
-Missing, unknown, duplicate, invalid, unqualified, version-mismatched, and
-owner-version-unestablished states are distinct. A valid receipt clears only
-its exact blocker; fixture presence never qualifies a contract. Reviewed B1/C1
-fixtures provide several published top-level versions, but no compatible
-caller qualification receipt exists in this branch, so every required contract
-remains blocked by default.
+the D and producer contract IDs, version, exact producer source commit, exact
+repository-relative fixture and qualification-evidence paths and SHA-256 values,
+and the reviewed authority. The caller cannot self-assert `qualified=true`.
+Qualification is derived only after the commit exists, both current files match
+their declared hashes and their bytes at that commit, and the producer-owned
+evidence names the same contract/version/path/authority. Missing, unknown,
+duplicate, invalid, unestablished-version, version/path/digest/commit/authority
+mismatches are distinct typed blockers. One verified receipt clears only its
+exact blocker; fixture presence alone never qualifies a contract.
+
+The G1 integration-owned receipt set binds accepted B (`2e46fc8`) and C
+(`ab1c501`) producer commits. It qualifies only
+`lane_b.exchange_log_fixture_version` and
+`lane_c.canonical_tool_result_fixture_version`; every 02B/03B-E/04/05A input
+remains typed blocked. Manifest schema parity is exercised across the complete
+accepted/rejected corpus against both the published Draft 2020-12 JSON Schema
+and executable validator.
 
 ## Storage benchmark specification
 
@@ -411,21 +421,20 @@ a qualification claim.
 
 | Contract ID | Published source version reviewed by D | Default D1-R state |
 |---|---|---|
-| `lane_b.exchange_log_fixture_version` | `qitos.exchange_log.v1` | receipt missing |
+| `lane_b.exchange_log_fixture_version` | `qitos.exchange_log.v2` | verified G1 producer receipt |
 | `lane_b.request_view_report` | unestablished | receipt missing |
 | `lane_b.codec_report` | unestablished | receipt missing |
 | `lane_b.provider_continuation_opaque_fields` | unestablished | receipt missing |
 | `lane_b.artifact_ref` | unestablished | receipt missing |
 | `lane_b.compaction_report` | unestablished | receipt missing |
-| `lane_c.canonical_tool_result_fixture_version` | `qitos.tool_result/v1` | receipt missing |
+| `lane_c.canonical_tool_result_fixture_version` | `qitos.tool_result/v1` | verified G1 producer receipt |
 | `lane_c.timeout_cancellation_receipt` | `qitos.runtime_lifecycle/v1` | receipt missing |
 | `lane_c.durability_receipt` | `qitos.durability_receipt/v1` | receipt missing |
 | `lane_c.hook_failure_fields` | unestablished | receipt missing |
 | `lane_c.trace_safe_redaction_contract` | unestablished | receipt missing |
 
-The corresponding B1/C1 top-level fixture identities and digests were reviewed
-only to establish these dependency expectations. Their internal fields were not
-copied, and no qualification mapping is committed.
+The corresponding B/C producer fixture and evidence bytes are verified at their
+exact commits. No other qualification mapping is inferred or committed.
 
 ### Lane B — Conversation, Providers, and Context
 

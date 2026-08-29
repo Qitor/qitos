@@ -12,6 +12,7 @@ import argparse
 import hashlib
 import json
 import re
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
@@ -70,13 +71,26 @@ OPTIONAL_COVERAGE_KEYS = {
 class ContractRequirement:
     contract_id: str
     expected_version: Optional[str]
+    producer_contract_id: Optional[str] = None
+    producer_source_commit: Optional[str] = None
+    fixture_path: Optional[str] = None
+    qualification_evidence_path: Optional[str] = None
+    qualification_authority: Optional[str] = None
 
 
 # A version is pinned only when the reviewed B1/C1 fixture publishes it.
 # None means the semantic owner has not published a version D can accept.
 CONTRACT_REQUIREMENTS = (
     ContractRequirement(
-        "lane_b.exchange_log_fixture_version", "qitos.exchange_log.v1"
+        "lane_b.exchange_log_fixture_version",
+        "qitos.exchange_log.v2",
+        producer_contract_id="qitos.exchange_log",
+        producer_source_commit="2e46fc8e0228af42d6eaeaa6a665ffe5998c0bd5",
+        fixture_path="tests/fixtures/conversation/v3/semantic_fixtures.json",
+        qualification_evidence_path=(
+            "tests/fixtures/conversation/v3/qualification-evidence.json"
+        ),
+        qualification_authority="qitos.g1.integration_owner/v1",
     ),
     ContractRequirement("lane_b.request_view_report", None),
     ContractRequirement("lane_b.codec_report", None),
@@ -84,7 +98,15 @@ CONTRACT_REQUIREMENTS = (
     ContractRequirement("lane_b.artifact_ref", None),
     ContractRequirement("lane_b.compaction_report", None),
     ContractRequirement(
-        "lane_c.canonical_tool_result_fixture_version", "qitos.tool_result/v1"
+        "lane_c.canonical_tool_result_fixture_version",
+        "qitos.tool_result/v1",
+        producer_contract_id="qitos.tool_result",
+        producer_source_commit="ab1c501400fc2a8c47fcef1b4fe85c4e4db8d8f6",
+        fixture_path="tests/fixtures/tool_results/v1/contract_hardening.json",
+        qualification_evidence_path=(
+            "tests/fixtures/tool_results/v1/qualification-evidence.json"
+        ),
+        qualification_authority="qitos.g1.integration_owner/v1",
     ),
     ContractRequirement(
         "lane_c.timeout_cancellation_receipt", "qitos.runtime_lifecycle/v1"
@@ -111,6 +133,7 @@ PLANNED_MEASUREMENTS = [
 PLANNED_VIEWS = ["raw_private", "redacted_public"]
 
 _SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+_COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 _WINDOWS_DRIVE_RE = re.compile(r"(?:^|[\s(\"'=])[A-Za-z]:[\\/]")
 _HOME_EXPANSION_RE = re.compile(r"(?:^|[\s(\"'=])~[\\/]")
 _POSIX_HOST_PATH_RE = re.compile(
@@ -422,16 +445,25 @@ def _validate_publication(
     data = record.data or {}
     subject = record.logical_path
     out: List[Diagnostic] = []
-    if data.get("status") != "sanitized_payload_ready":
-        return [_diag("publication", "publication_status_not_ready", subject, "status")]
-    if not isinstance(data.get("license"), Mapping) or data["license"].get("status") != "qualified":
+    ready = data.get("status") == "sanitized_payload_ready"
+    if not ready:
+        out.append(
+            _diag("publication", "publication_status_not_ready", subject, "status")
+        )
+    if ready and (
+        not isinstance(data.get("license"), Mapping)
+        or data["license"].get("status") != "qualified"
+    ):
         out.append(
             _diag(
                 "publication", "publication_license_not_qualified", subject, "license.status"
             )
         )
     sanitization = data.get("sanitization")
-    if not isinstance(sanitization, Mapping) or sanitization.get("status") != "sanitized_payload_ready":
+    if ready and (
+        not isinstance(sanitization, Mapping)
+        or sanitization.get("status") != "sanitized_payload_ready"
+    ):
         out.append(
             _diag(
                 "publication", "sanitization_status_not_ready", subject, "sanitization.status"
@@ -442,6 +474,8 @@ def _validate_publication(
         if isinstance(sanitization, Mapping)
         else None
     )
+    if qualification is None and not ready:
+        return out
     required = {
         "transform_receipt",
         "privacy_policy",
@@ -762,22 +796,160 @@ def _receipt_list(
         key=lambda item: (
             str(item.get("contract_id", "")) if isinstance(item, Mapping) else "",
             str(item.get("version", "")) if isinstance(item, Mapping) else "",
-            str(item.get("fixture_identity", ""))
+            str(item.get("fixture_path", ""))
             if isinstance(item, Mapping)
             else "",
         ),
     )
 
 
+def _committed_file_bytes(
+    repository_root: Path, commit: str, logical_path: str
+) -> Optional[bytes]:
+    result = subprocess.run(
+        ["git", "-C", str(repository_root), "show", f"{commit}:{logical_path}"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    return result.stdout if result.returncode == 0 else None
+
+
+def _commit_exists(repository_root: Path, commit: str) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(repository_root), "cat-file", "-e", f"{commit}^{{commit}}"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _verify_receipt_file(
+    *,
+    repository_root: Path,
+    commit: str,
+    logical_path: Any,
+    declared_sha: Any,
+    expected_path: str,
+    subject: str,
+    path_field: str,
+    digest_field: str,
+) -> Tuple[Optional[bytes], List[Diagnostic]]:
+    out: List[Diagnostic] = []
+    if logical_path != expected_path:
+        out.append(
+            _diag("contract_receipt", "producer_path_mismatch", subject, path_field)
+        )
+        return None, out
+    if not isinstance(logical_path, str) or (
+        PurePosixPath(logical_path).is_absolute()
+        or portability_finding_codes(logical_path)
+    ):
+        out.append(
+            _diag("contract_receipt", "producer_path_not_portable", subject, path_field)
+        )
+        return None, out
+    target = (repository_root / logical_path).resolve()
+    try:
+        target.relative_to(repository_root.resolve())
+    except ValueError:
+        out.append(
+            _diag("contract_receipt", "producer_path_outside_repository", subject, path_field)
+        )
+        return None, out
+    if not target.is_file():
+        out.append(
+            _diag("contract_receipt", "producer_file_missing", subject, path_field)
+        )
+        return None, out
+    current = target.read_bytes()
+    current_sha = hashlib.sha256(current).hexdigest()
+    if declared_sha != current_sha:
+        out.append(
+            _diag("contract_receipt", "producer_digest_mismatch", subject, digest_field)
+        )
+    committed = _committed_file_bytes(repository_root, commit, logical_path)
+    if committed is None:
+        out.append(
+            _diag("contract_receipt", "producer_file_not_at_commit", subject, path_field)
+        )
+        return None, out
+    if committed != current:
+        out.append(
+            _diag("contract_receipt", "producer_worktree_bytes_mismatch", subject, path_field)
+        )
+    if hashlib.sha256(committed).hexdigest() != declared_sha:
+        out.append(
+            _diag(
+                "contract_receipt",
+                "producer_committed_digest_mismatch",
+                subject,
+                digest_field,
+            )
+        )
+    return committed, out
+
+
+def _validate_producer_evidence(
+    payload: Optional[bytes],
+    requirement: ContractRequirement,
+    subject: str,
+) -> List[Diagnostic]:
+    if payload is None:
+        return []
+    try:
+        evidence = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return [
+            _diag("contract_receipt", "producer_evidence_malformed", subject)
+        ]
+    expected = {
+        "contract_id": requirement.producer_contract_id,
+        "contract_version": requirement.expected_version,
+        "fixture_path": requirement.fixture_path,
+        "qualification_authority": requirement.qualification_authority,
+        "qualified": True,
+    }
+    if not isinstance(evidence, Mapping):
+        return [_diag("contract_receipt", "producer_evidence_not_object", subject)]
+    return [
+        _diag(
+            "contract_receipt",
+            "producer_evidence_mismatch",
+            subject,
+            f"qualification_evidence.{field}",
+        )
+        for field, expected_value in expected.items()
+        if evidence.get(field) != expected_value
+    ]
+
+
 def validate_contract_receipts(
-    receipts: Optional[Sequence[Mapping[str, Any]] | Mapping[str, Mapping[str, Any]]]
+    receipts: Optional[Sequence[Mapping[str, Any]] | Mapping[str, Mapping[str, Any]]],
+    *,
+    repository_root: Optional[Path] = None,
 ) -> Tuple[List[str], List[Diagnostic]]:
+    repo_root = (
+        Path(__file__).resolve().parents[1]
+        if repository_root is None
+        else repository_root.resolve()
+    )
     normalized = _receipt_list(receipts)
     requirements = {item.contract_id: item for item in CONTRACT_REQUIREMENTS}
     out: List[Diagnostic] = []
     by_id: Dict[str, List[Tuple[Mapping[str, Any], bool]]] = {}
-    required = {"contract_id", "version", "digest", "fixture_identity", "qualified"}
-    optional = {"qualification_authority"}
+    required = {
+        "contract_id",
+        "producer_contract_id",
+        "version",
+        "producer_source_commit",
+        "fixture_path",
+        "fixture_sha256",
+        "qualification_evidence_path",
+        "qualification_evidence_sha256",
+        "qualification_authority",
+    }
     for index, receipt in enumerate(normalized):
         subject = f"contract-receipt[{index}]"
         if not isinstance(receipt, Mapping):
@@ -788,22 +960,37 @@ def validate_contract_receipts(
         for field in sorted(required - keys):
             out.append(_diag("contract_receipt", "receipt_required_field_missing", subject, field))
             valid = False
-        for field in sorted(keys - required - optional):
+        for field in sorted(keys - required):
             out.append(_diag("contract_receipt", "receipt_unexpected_field", subject, field))
             valid = False
-        for field in ("contract_id", "version", "fixture_identity"):
+        for field in (
+            "contract_id",
+            "producer_contract_id",
+            "version",
+            "producer_source_commit",
+            "fixture_path",
+            "qualification_evidence_path",
+            "qualification_authority",
+        ):
             if not _nonempty(receipt.get(field)):
                 out.append(_diag("contract_receipt", "receipt_nonempty_string_required", subject, field))
                 valid = False
-        if not _sha256(receipt.get("digest")):
-            out.append(_diag("contract_receipt", "receipt_invalid_digest", subject, "digest"))
-            valid = False
-        if not isinstance(receipt.get("qualified"), bool):
-            out.append(_diag("contract_receipt", "receipt_boolean_required", subject, "qualified"))
-            valid = False
-        if "qualification_authority" in receipt and not _nonempty(receipt.get("qualification_authority")):
+        for field in ("fixture_sha256", "qualification_evidence_sha256"):
+            if not _sha256(receipt.get(field)):
+                out.append(
+                    _diag("contract_receipt", "receipt_invalid_digest", subject, field)
+                )
+                valid = False
+        if not isinstance(receipt.get("producer_source_commit"), str) or not (
+            _COMMIT_RE.fullmatch(str(receipt.get("producer_source_commit")))
+        ):
             out.append(
-                _diag("contract_receipt", "receipt_nonempty_string_required", subject, "qualification_authority")
+                _diag(
+                    "contract_receipt",
+                    "receipt_invalid_source_commit",
+                    subject,
+                    "producer_source_commit",
+                )
             )
             valid = False
         portability = portability_diagnostics(receipt, subject)
@@ -843,12 +1030,71 @@ def validate_contract_receipts(
             out.append(
                 _diag("contract_receipt", "contract_version_mismatch", requirement.contract_id)
             )
-        elif receipt.get("qualified") is not True:
+        elif receipt.get("producer_contract_id") != requirement.producer_contract_id:
             out.append(
-                _diag("contract_receipt", "contract_receipt_unqualified", requirement.contract_id)
+                _diag("contract_receipt", "producer_contract_mismatch", requirement.contract_id)
             )
         else:
-            qualified.append(requirement.contract_id)
+            receipt_findings: List[Diagnostic] = []
+            commit = str(receipt.get("producer_source_commit"))
+            if commit != requirement.producer_source_commit:
+                receipt_findings.append(
+                    _diag(
+                        "contract_receipt",
+                        "producer_source_commit_mismatch",
+                        requirement.contract_id,
+                    )
+                )
+            if receipt.get("qualification_authority") != (
+                requirement.qualification_authority
+            ):
+                receipt_findings.append(
+                    _diag(
+                        "contract_receipt",
+                        "qualification_authority_not_approved",
+                        requirement.contract_id,
+                    )
+                )
+            if not receipt_findings and not _commit_exists(repo_root, commit):
+                receipt_findings.append(
+                    _diag(
+                        "contract_receipt",
+                        "producer_source_commit_not_found",
+                        requirement.contract_id,
+                    )
+                )
+            if not receipt_findings:
+                fixture_bytes, fixture_findings = _verify_receipt_file(
+                    repository_root=repo_root,
+                    commit=commit,
+                    logical_path=receipt.get("fixture_path"),
+                    declared_sha=receipt.get("fixture_sha256"),
+                    expected_path=str(requirement.fixture_path),
+                    subject=requirement.contract_id,
+                    path_field="fixture_path",
+                    digest_field="fixture_sha256",
+                )
+                evidence_bytes, evidence_findings = _verify_receipt_file(
+                    repository_root=repo_root,
+                    commit=commit,
+                    logical_path=receipt.get("qualification_evidence_path"),
+                    declared_sha=receipt.get("qualification_evidence_sha256"),
+                    expected_path=str(requirement.qualification_evidence_path),
+                    subject=requirement.contract_id,
+                    path_field="qualification_evidence_path",
+                    digest_field="qualification_evidence_sha256",
+                )
+                _ = fixture_bytes
+                receipt_findings.extend(fixture_findings)
+                receipt_findings.extend(evidence_findings)
+                receipt_findings.extend(
+                    _validate_producer_evidence(
+                        evidence_bytes, requirement, requirement.contract_id
+                    )
+                )
+            out.extend(receipt_findings)
+            if not receipt_findings:
+                qualified.append(requirement.contract_id)
     return sorted(qualified), sorted(out, key=_diag_key)
 
 

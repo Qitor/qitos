@@ -40,7 +40,7 @@ cherry-pick is checked against the supplied full identity before execution.
 - [x] Integrate Lane A and close A-CI1.
 - [x] Integrate Lane C and close C-J1, C-I1, and C-P2.
 - [x] Integrate Lane B and close B-C1 and B-V1 against accepted C.
-- [ ] Integrate Lane D and close D-R1 against accepted B/C fixtures.
+- [x] Integrate Lane D and close D-R1 against accepted B/C fixtures.
 - [ ] Run combined reviewer probes and qualification matrix.
 - [ ] Synchronize progress/task evidence, README EN/zh, and changelog.
 - [ ] Close G1 only if every checklist item passes and the worktree is clean.
@@ -131,15 +131,23 @@ evidence directly consume and round-trip C's committed canonical fixture.
 
 Phase evidence: 29 conversation tests and 71 combined B/C projection tests
 passed; stable mypy succeeded on 77 source files; stable flake8 and
-`git diff --check` were clean. The B-C1/B-V1 fixing commit is recorded after
-this plan update.
+`git diff --check` were clean. B-C1/B-V1 fixing commit: `2e46fc8`.
 
 ### Lane D integration and D-R1
 
-Pending. Required repair: reviewed authorities and receipts bound to contract
-ID, version, producer commit, exact committed fixture path and digest, plus
-producer-owned qualification evidence. Unimplemented dependencies remain typed
-blocked and trajectory v2 remains unfrozen.
+Applied all six supplied Lane D commits in order after accepted B/C. D-R1 no
+longer accepts caller-owned `qualified=true`: qualification is derived only
+from the reviewed authority, pinned producer contract/version and commit, exact
+repository-relative fixture/evidence paths, current and committed byte hashes,
+and matching producer-owned evidence.
+
+The committed receipt set binds B `2e46fc8` and C `ab1c501` and qualifies only
+their two owned contracts. Forged digest, evidence digest, path, source commit,
+version, authority, or producer contract ID is a typed blocker. Default input
+still qualifies no contracts. The JSON Schema and executable manifest validator
+share a full accepted/rejected parity corpus. Both CLI modes retain
+`schema_not_ready`, zero publication-qualified fixtures, and empty measurements
+and claims; normal exits 2 and dry-run exits 0. Trajectory v2 remains unfrozen.
 
 ## Reviewer probes
 
@@ -150,8 +158,8 @@ blocked and trajectory v2 remains unfrozen.
 - [x] Trace loss accounts for output, error, hint, next action, and identifiers.
 - [x] Every malformed ExchangeLog v2 input fails with the typed conversation error.
 - [x] ExchangeLog directly round-trips the exact C canonical fixture.
-- [ ] Forged receipt digest/path/commit/version/authority cannot clear a blocker.
-- [ ] Exact committed B/C receipts clear only their owned blockers.
+- [x] Forged receipt digest/path/commit/version/authority cannot clear a blocker.
+- [x] Exact committed B/C receipts clear only their owned blockers.
 
 ## Qualification matrix
 
@@ -172,7 +180,7 @@ server 149, and regenerated substitute source commits are prohibited.
 - [x] ToolResult is the only canonical outcome and has strict JSON/ownership rules.
 - [x] Model/trace views are allowlisted, bounded, redacted, and loss-accounted.
 - [x] ExchangeLog uses C serializers and has a typed strict v2 reader.
-- [ ] D receipts verify exact committed producer evidence and clear one blocker only.
+- [x] D receipts verify exact committed producer evidence and clear one blocker only.
 - [x] Cross-lane fixture tests consume real producer artifacts.
 - [ ] Full suite, boundary, public surface, no-local-path, and diff checks pass.
 - [ ] Required documentation is synchronized without implementing Task 12/13.
@@ -180,6 +188,6 @@ server 149, and regenerated substitute source commits are prohibited.
 
 ## Remaining blockers
 
-Two reviewed blockers (D-R1 and combined G1 qualification) remain
+Only combined G1 qualification remains
 open until their integration-owned fixing commits and regression evidence are
 recorded above. Consequently G1 is open and S1 dispatch is blocked.
