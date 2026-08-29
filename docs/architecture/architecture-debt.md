@@ -30,6 +30,7 @@ Legend: **P0** structural risk (blocks refactors / can break imports), **P1** im
 - Where: `engine/states.py` (RuntimeEvent/StepRecord) → `trace/` (TraceEvent/TraceStep, `runs/{run_id}/`) → `tracing/` (SpanData, `.traces/`), plus `render/ClaudeStyleHook(output_jsonl=...)`; the v2→v1 bridge forces `step_id=0`.
 - Why P0: qita (the product observability surface) reads only v1; tracing v2 is built, tested, and wired nowhere by default. Three writers duplicate state representation and drift risk is active.
 - Exit: `docs/v4/05-trajectory-data-plane.md` is the planned consolidation; until then, treat the v1 artifact format as frozen contract and route all new fields through it.
+- D1 evidence (2026-08-29): the symbol-level producer/writer/reader chains, correlation/privacy/failure comparison, two independent fixture-source manifests, and benchmark readiness gate are recorded in `docs/internal/plans/lane_d_data_convergence.md`. Census is complete; schema/store consolidation is not started and trajectory v2 is not frozen.
 
 ### D5. ~~`harness <-> models` module-level import cycle~~ (RESOLVED)
 - Resolved by moving the concrete adapter layer out of harness: `OpenAICompatibleAdapter`, `adapter_for_kind`, `resolve_context_window`, and `build_model_for_preset` now live in `qitos/models/harness_adapter.py`; harness keeps preset data, policy types, and `build_harness_policy` (transport-free). The only remaining edge is the target-direction `models -> harness`.
@@ -44,6 +45,7 @@ Legend: **P0** structural risk (blocks refactors / can break imports), **P1** im
 - Where: provider adapters return transport failures as text; ASYNC checkpointing returns intended IDs after queue drop and swallows worker errors; tool thread timeouts can leave workers running; hooks fail silently.
 - Why P0: callers cannot distinguish model output from infrastructure failure, timeout from cancellation, accepted from persisted work, or complete from degraded observability.
 - Exit: `docs/v4/09-runtime-lifecycle-and-error-semantics.md`, coordinated with Tasks 02, 03, and 05, defines typed failures, resource ownership, checkpoint receipts, and hook completeness.
+- D1 evidence (2026-08-29): exact consumers and missing receipt joins are listed in the Lane D census. Benchmark/fixture materialization explicitly blocks on Lane C timeout/cancellation, durability, hook-failure, and redaction fixtures rather than inferring their fields.
 
 ### D32. Session and multi-agent continuity are fragmented across in-process primitives
 - Where: `Engine.init_session`/`step`, `RunState`, checkpoint v2 `thread_id`, interrupt/resume, qita fork, `_handoff_runtime`, `DelegateTool`, and `FanOutTool` each carry part of session or child-work state.
@@ -107,6 +109,7 @@ Legend: **P0** structural risk (blocks refactors / can break imports), **P1** im
 - `_cli_app.py` is ~3,420 lines; the fork POST route references an undefined variable, while tests assert handler existence and HTML substrings rather than executing the route.
 - Risk: user-facing behavior can be broken under a green suite; large embedded renderers make isolated change difficult.
 - Exit: Task 08D adds route integration coverage; Task 10E splits only along proven route/data/render seams.
+- D1 evidence (2026-08-29): qita board/replay/export, live-tail, replay grouping, and the deprecated debug fork dependency are mapped as v1 compatibility consumers in the Lane D census; no qita behavior or route was changed.
 
 ## P2 — Local cleanup
 

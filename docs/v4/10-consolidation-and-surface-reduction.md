@@ -48,6 +48,23 @@ where available. Record confidence and unknowns.
 Inventory work may start after Task 08. Removal work waits for replacement
 contracts and maintainer approval.
 
+#### D1 inventory evidence (2026-08-29)
+
+Lane D completed the first repository evidence pass in
+`docs/internal/plans/lane_d_data_convergence.md`. It inventories root/module
+exports, CLI commands and entry points, extras, registries, docs/examples,
+deprecated shims, benchmark/recipes, func, qita/debug, evaluate/metric,
+leaderboard/HF, SharedMemory, CronScheduler, PgVectorStore, and MCP. The joined
+removal ledger records current owner, internal and known/unknown external use,
+replacement, semantic lane, adapter/warning/removal gates, tests, status, and
+blockers.
+
+This evidence does not classify an API as unused from repository grep and does
+not authorize a removal. All warning and earliest-removal releases remain
+unannounced/TBD where external usage or a canonical replacement is unknown.
+Trajectory v2 schema is not frozen, so trace v1 and its readers remain outside
+the removal set.
+
 ### 10B — finish benchmark-to-recipes migration
 
 1. Map every `qitos.benchmark` import, CLI route, test, fixture, and packaged

@@ -1,6 +1,6 @@
 # Task 05 — trajectory store v2 and observability migration
 
-Status: census/readiness work may proceed; schema freeze waits for Tasks 12–13
+Status: D1 census/readiness integrated; schema freeze waits for Tasks 12–13
 Depends on: Task 02 exchanges; Task 04 artifacts; Tasks 12–13 lineage
 Milestone: final v4 data-plane migration
 Risk: high — frozen v1 compatibility, replay, and research data fidelity
@@ -30,6 +30,27 @@ The migration order is:
 6. discuss v1 write deprecation in a later release.
 
 No existing reader is pointed at a new layout without an adapter.
+
+### D1 evidence status (2026-08-29)
+
+The exact-source producer/writer/reader census, canonical-versus-derived
+decisions, fixture source manifests, privacy gates, and schema-neutral benchmark
+specification are recorded in
+`docs/internal/plans/lane_d_data_convergence.md`.
+
+D1 selected one independent 200-step campaign source for scale and one
+repository-owned deterministic native-tool agent source for call/result shape.
+Only provenance/sanitization manifests are committed: the campaign payload is
+blocked on redistribution authorization and secret/path sanitization, while the
+unrelated payload waits for versioned Lane B/C fixtures. The benchmark scaffold
+therefore emits a typed `TRAJECTORY_SCHEMA_NOT_READY` result with no measurements
+or compression claims.
+
+Still blocked on Lane B: versioned ExchangeLog, RequestView, CodecReport,
+provider-continuation opaque fields, ArtifactRef, and compaction report. Still
+blocked on Lane C: versioned canonical tool outcome, timeout/cancellation and
+durability receipts, hook failure fields, and trace-safe redaction. Trajectory
+v2 schema is not frozen.
 
 ## 3. Canonical data model
 
@@ -111,10 +132,12 @@ Task 05 does not rewrite the whole qita CLI in the same PR as the store.
 
 ### 05A — schema, benchmark, and decision record
 
-- Inventory all current event/artifact paths and readers.
+- Inventory all current event/artifact paths and readers. **D1 complete.**
 - Prepare v2 schemas and privacy modes with fixtures, but freeze them only after
   Task 12 session lineage and Task 13 work-graph receipts are reviewed.
 - Commit the storage-size benchmark before choosing compression/index features.
+  **Readiness scaffold complete; measurements wait for sanitized, versioned
+  fixtures.**
 
 ### 05B — store, artifacts, and v1 bridge
 
