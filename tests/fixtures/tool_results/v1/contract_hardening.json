@@ -115,6 +115,56 @@
       "entry_20_xxxxxxxxxxxxxxxxxxxx": 20
     }
   },
+  "forced_secret_scalar_source": {
+    "schema_version": "qitos.tool_result/v1",
+    "status": "success",
+    "output": {
+      "secret": {
+        "text": "scalar-fixture-secret",
+        "integer": 918273645,
+        "float": 918273.625,
+        "boolean": true,
+        "null": null,
+        "nested": [
+          {
+            "value": 314159265
+          }
+        ]
+      },
+      "/Users/example/private/count-key": 271828182,
+      "benign": {
+        "integer": 42,
+        "float": 2.5,
+        "boolean": false,
+        "null": null
+      }
+    },
+    "next_action": {
+      "name": "read",
+      "args": {
+        "credential": {
+          "integer": 887766551,
+          "float": 123456.75,
+          "boolean": false,
+          "null": null
+        },
+        "benign": {
+          "integer": 9,
+          "boolean": true,
+          "null": null
+        }
+      }
+    }
+  },
+  "explicit_model_output_scalar_source": {
+    "schema_version": "qitos.tool_result/v1",
+    "status": "success",
+    "output": "canonical-output",
+    "model_output": {
+      "api_key": 776655.125,
+      "benign": 3.25
+    }
+  },
   "projection_qualification": {
     "omitted_budget_chars": 120,
     "expected_model_output_entries": 4,
@@ -139,6 +189,22 @@
       "next_action",
       "omitted"
     ]
+  },
+  "scalar_projection_qualification": {
+    "forced_content_sentinels": [
+      "scalar-fixture-secret",
+      "918273645",
+      "918273.625",
+      "314159265",
+      "887766551",
+      "123456.75",
+      "776655.125"
+    ],
+    "host_path_value_preserved": 271828182,
+    "omitted_count_preserved": 2,
+    "forced_output_secret_values": 7,
+    "forced_next_action_secret_values": 5,
+    "explicit_model_output_secret_values": 2
   },
   "expected_trace_loss": {
     "canonical_output_included": false,

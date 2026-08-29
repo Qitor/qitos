@@ -27,7 +27,15 @@
     "benign_keys_preserved",
     "canonical_sensitive_keys_round_trip_losslessly",
     "zero_budget_and_existing_truncation_invariants",
-    "exchange_log_delegates_repaired_projection"
+    "exchange_log_delegates_repaired_projection",
+    "forced_secret_integer_redacted",
+    "forced_secret_float_redacted",
+    "forced_secret_boolean_redacted",
+    "forced_secret_null_redacted",
+    "forced_secret_nested_mixed_container_redacted",
+    "explicit_model_output_scalar_redacted",
+    "benign_scalar_types_preserved",
+    "omitted_sensitive_key_count_role_preserved"
   ],
   "test_files": [
     "tests/core/test_tool_result.py",

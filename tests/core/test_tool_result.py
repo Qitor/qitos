@@ -825,6 +825,95 @@ def test_contract_hardening_fixture_is_consumable_by_lanes_b_and_d() -> None:
         field["redacted_keys"]
         for field in omitted_trace["loss"]["fields"].values()
     )
+    scalar_qualification = fixture["scalar_projection_qualification"]
+    redacted_count_values = [
+        value
+        for key, value in omitted_trace["omitted"].items()
+        if key.startswith("[REDACTED_KEY_")
+    ]
+    assert scalar_qualification["omitted_count_preserved"] in redacted_count_values
+    assert all(type(value) is int for value in redacted_count_values)
+
+    scalar_canonical = ToolResult.from_value(fixture["forced_secret_scalar_source"])
+    scalar_model = scalar_canonical.to_model_dict(max_chars=4000)
+    scalar_trace = scalar_canonical.to_trace_safe_dict(max_chars=4000)
+    scalar_output = json.loads(scalar_model["model_output"])
+    secret_output = next(
+        value
+        for key, value in scalar_output.items()
+        if key.startswith("[REDACTED_KEY_") and isinstance(value, dict)
+    )
+    secret_action = next(
+        value
+        for key, value in scalar_model["next_action"]["args"].items()
+        if key.startswith("[REDACTED_KEY_")
+    )
+    assert set(_scalar_leaves(secret_output)) == {"[REDACTED]"}
+    assert set(_scalar_leaves(secret_action)) == {"[REDACTED]"}
+    assert scalar_output["benign"] == {
+        "integer": 42,
+        "float": 2.5,
+        "boolean": False,
+        "null": None,
+    }
+    assert scalar_model["next_action"]["args"]["benign"] == {
+        "integer": 9,
+        "boolean": True,
+        "null": None,
+    }
+    assert scalar_qualification["host_path_value_preserved"] in scalar_output.values()
+    scalar_rendered = json.dumps(
+        {"model": scalar_model, "trace": scalar_trace}, sort_keys=True
+    )
+    for sentinel in scalar_qualification["forced_content_sentinels"][:-1]:
+        assert sentinel not in scalar_rendered
+    scalar_loss = scalar_trace["loss"]["fields"]
+    assert scalar_loss["model_output"]["secret_values"] == (
+        scalar_qualification["forced_output_secret_values"]
+    )
+    assert scalar_loss["next_action"]["secret_values"] == (
+        scalar_qualification["forced_next_action_secret_values"]
+    )
+    assert scalar_trace["loss"]["redacted_secret_values"] == sum(
+        field["secret_values"] for field in scalar_loss.values()
+    )
+    scalar_persistence = scalar_canonical.to_persistence_dict()
+    assert scalar_persistence["output"] == fixture["forced_secret_scalar_source"][
+        "output"
+    ]
+    assert scalar_persistence["next_action"] == fixture[
+        "forced_secret_scalar_source"
+    ]["next_action"]
+    assert ToolResult.from_canonical_dict(
+        scalar_persistence
+    ).to_persistence_dict() == scalar_persistence
+
+    explicit_canonical = ToolResult.from_value(
+        fixture["explicit_model_output_scalar_source"]
+    )
+    explicit_model = explicit_canonical.to_model_dict(max_chars=4000)
+    explicit_trace = explicit_canonical.to_trace_safe_dict(max_chars=4000)
+    explicit_output = json.loads(explicit_model["model_output"])
+    explicit_secret = next(
+        value
+        for key, value in explicit_output.items()
+        if key.startswith("[REDACTED_KEY_")
+    )
+    assert explicit_secret == "[REDACTED]"
+    assert explicit_output["benign"] == 3.25
+    assert scalar_qualification["forced_content_sentinels"][-1] not in json.dumps(
+        {"model": explicit_model, "trace": explicit_trace}, sort_keys=True
+    )
+    assert explicit_trace["loss"]["fields"]["model_output"][
+        "secret_values"
+    ] == scalar_qualification["explicit_model_output_secret_values"]
+    explicit_persistence = explicit_canonical.to_persistence_dict()
+    assert explicit_persistence["model_output"] == fixture[
+        "explicit_model_output_scalar_source"
+    ]["model_output"]
+    assert ToolResult.from_canonical_dict(
+        explicit_persistence
+    ).to_persistence_dict() == explicit_persistence
     assert evidence["contract_id"] == "qitos.tool_result"
     assert evidence["contract_version"] == TOOL_RESULT_SCHEMA_VERSION
     assert evidence["fixture_path"].endswith("contract_hardening.json")
@@ -834,4 +923,4 @@ def test_contract_hardening_fixture_is_consumable_by_lanes_b_and_d() -> None:
         "tests/core/test_tool_result.py",
         "tests/core/test_conversation.py",
     }
-    assert len(evidence["probes"]) == 21
+    assert len(evidence["probes"]) == 29

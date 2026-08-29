@@ -142,6 +142,18 @@ def _fixture_manifest() -> dict[str, Any]:
     return _validate_fixture_manifest(manifest)
 
 
+def _scalar_leaves(value: object) -> list[object]:
+    if isinstance(value, dict):
+        return [
+            leaf
+            for item in value.values()
+            for leaf in _scalar_leaves(item)
+        ]
+    if isinstance(value, list):
+        return [leaf for item in value for leaf in _scalar_leaves(item)]
+    return [value]
+
+
 def test_multimodal_content_and_assistant_part_order_round_trip() -> None:
     log = ExchangeLog(log_id="log_order")
     log.append(
@@ -640,6 +652,66 @@ def test_exchange_log_inherits_collision_safe_canonical_key_projections() -> Non
     assert trace["loss"]["fields"]["model_output"]["redacted_keys"] == 2
     assert trace["loss"]["fields"]["next_action"]["redacted_keys"] == 1
     assert trace["loss"]["fields"]["omitted"]["redacted_keys"] == 1
+
+
+def test_exchange_log_inherits_forced_secret_scalar_projection_without_runtime_changes() -> None:
+    call = _call("scalar_projection", batch_id="scalar_projection_batch")
+    unique_integer = 918273641
+    canonical = ToolResult(
+        tool_name=call.name,
+        action_id=call.identity.call_id,
+        output={
+            "token": {
+                "integer": unique_integer,
+                "float": 765432.125,
+                "boolean": True,
+                "null": None,
+            },
+            "benign": {"integer": 4, "boolean": False, "null": None},
+        },
+        next_action={"name": "read", "args": {"api_key": 1123581321}},
+        omitted={"token=hidden-field": 7},
+    )
+    log = ExchangeLog(log_id="scalar_projection_log")
+    builder = log.append(
+        _assistant_with_calls(
+            call,
+            item_id="scalar_projection_assistant",
+            exchange_id="scalar_projection_exchange",
+        )
+    )
+    assert builder is not None
+    builder.record_result(
+        ToolResultItem(
+            item_id="scalar_projection_result",
+            exchange_id="scalar_projection_exchange",
+            identity=call.identity,
+            batch_id=call.batch_id,
+            result=canonical,
+        )
+    )
+
+    persistence = log.to_persistence_dict()["items"][1]["result"]
+    model = log.to_model_dict()["items"][1]["result"]
+    trace = log.to_trace_safe_dict()["items"][1]["result"]
+    projected = json.loads(model["model_output"])
+    secret_subtree = next(
+        value
+        for key, value in projected.items()
+        if key.startswith("[REDACTED_KEY_")
+    )
+    omitted_key = next(
+        key for key in trace["omitted"] if key.startswith("[REDACTED_KEY_")
+    )
+
+    assert persistence == canonical.to_persistence_dict()
+    assert model == canonical.to_model_dict()
+    assert trace == canonical.to_trace_safe_dict()
+    assert set(_scalar_leaves(secret_subtree)) == {"[REDACTED]"}
+    assert projected["benign"] == {"integer": 4, "boolean": False, "null": None}
+    assert trace["omitted"][omitted_key] == 7
+    assert str(unique_integer) not in json.dumps(model, sort_keys=True)
+    assert str(unique_integer) not in json.dumps(trace, sort_keys=True)
 
 
 def test_out_of_order_completion_persists_immediately_in_completion_order() -> None:
