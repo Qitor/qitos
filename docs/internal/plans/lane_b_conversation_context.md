@@ -1,6 +1,6 @@
 # Lane B conversation and context plan
 
-Status: B1-R integrated and converged on canonical C; combined G1 gate open
+Status: B1-R integrated candidate; await C-P3 and rerun delegated projections
 Work package: B1-R Phase 1 / Task 02A contract integrity
 Integration baseline: `8441bef2f2024fd6c2ec01784708512222382471`
 B1 source HEAD: `69a961f6f50656dff308db7a2f3e400439ef20d0`

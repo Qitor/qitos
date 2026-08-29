@@ -1,6 +1,6 @@
 # G1 final convergence plan
 
-Status: complete — G1 closed
+Status: integrated candidate; G1 reopened on C-P3 after independent audit
 Updated: 2026-08-29
 Owner: G1 integration owner
 Branch: `codex/v4-g1-convergence`
@@ -30,6 +30,11 @@ integrated qualification.
 
 Full SHAs remain authoritative; abbreviations above are display-only. Every
 cherry-pick is checked against the supplied full identity before execution.
+The integrated commits intentionally have new SHAs. Post-convergence patch-id
+comparison found 18 of the 26 source/integrated pairs exact; the remaining eight
+are shared documentation/evidence commits with manual conflict resolutions.
+The original 26 source SHAs are not ancestors of the convergence HEAD, so
+“source identity preserved” is not used as a reachability claim.
 
 ## Current stage
 
@@ -43,7 +48,7 @@ cherry-pick is checked against the supplied full identity before execution.
 - [x] Integrate Lane D and close D-R1 against accepted B/C fixtures.
 - [x] Run combined reviewer probes and qualification matrix.
 - [x] Synchronize progress/task evidence, README EN/zh, and changelog.
-- [x] Close G1 only if every checklist item passes and the worktree is clean.
+- [ ] Reclose G1 only after C-P3 and the combined requalification pass.
 
 ## Conflict policy
 
@@ -103,9 +108,10 @@ map. The integration repair then closed all three reviewed blockers:
   NaN, Infinity, and -Infinity before interceptor, permission, or execution;
 - C-I1: construction, strict canonical read, named legacy adaptation, canonical
   serialization, and explicit legacy serialization recursively detach values;
-- C-P2: every model/trace-visible field uses one bounded redaction path, with
+- C-P2: scalar model/trace-visible values use one bounded redaction path, with
   aggregate and per-field loss facts covering model output, error, recovery
-  hint, identifiers, and next action.
+  hint, identifiers, and next action. The stronger mapping-key/omitted-key
+  invariant was not covered and is reopened below as C-P3.
 
 Producer-owned qualification evidence is published beside the C fixture for
 Lane D's later commit/path/digest/authority verification. C-J1 fixing commit:
@@ -174,8 +180,10 @@ controlled invalid spec exited 1 with `invalid_tool_name`.
 - [x] A controlled invalid tool spec fails the same entrypoint.
 - [x] Nested arbitrary objects, NaN, Infinity, and -Infinity fail pre-execution.
 - [x] ToolResult caller/serialization mutations are isolated in both directions.
-- [x] Tokens and host paths cannot survive any model/trace-visible field.
-- [x] Trace loss accounts for output, error, hint, next action, and identifiers.
+- [ ] Tokens and host paths cannot survive mapping keys in any
+      model/trace-visible field (`C-P3`).
+- [ ] Trace loss accounts for sensitive mapping keys and trace-safe omitted
+      projection as well as output, error, hint, next action, and identifiers.
 - [x] Every malformed ExchangeLog v2 input fails with the typed conversation error.
 - [x] ExchangeLog directly round-trips the exact C canonical fixture.
 - [x] Forged receipt digest/path/commit/version/authority cannot clear a blocker.
@@ -194,11 +202,13 @@ server 149, and regenerated substitute source commits are prohibited.
 
 ## G1 checklist
 
-- [x] All supplied Lane commits are present with source identity preserved.
+- [x] All supplied Lane changes were applied in order by cherry-pick; source and
+      integrated identities are recorded separately.
 - [x] A-CI1 has an executable shared entrypoint and controlled failure proof.
 - [x] Pinned ratchet and stable flake8/mypy are green on the combined tree.
 - [x] ToolResult is the only canonical outcome and has strict JSON/ownership rules.
-- [x] Model/trace views are allowlisted, bounded, redacted, and loss-accounted.
+- [ ] Model/trace views redact sensitive keys and account for every projected
+      loss (`C-P3`).
 - [x] ExchangeLog uses C serializers and has a typed strict v2 reader.
 - [x] D receipts verify exact committed producer evidence and clear one blocker only.
 - [x] Cross-lane fixture tests consume real producer artifacts.
@@ -206,9 +216,31 @@ server 149, and regenerated substitute source commits are prohibited.
 - [x] Required documentation is synchronized without implementing Task 12/13.
 - [x] Final branch status is clean.
 
-## Remaining blockers
+## Post-convergence independent audit
 
-No G1 blocker remains. G1 is closed and S1 capability-lane dispatch is
-authorized. Task 02B, 03B–E, 04/05A, Task 12/13 runtime, trajectory v2, qita
-redesign, provider-default changes, and packaging work remain separate future
-packages and were not started here.
+The code and gate evidence above were independently rerun at
+`587f34b76245e71fe3362a51dbad40895d7c43c5`. The 179 targeted tests, full suite
+(`1863 passed, 50 skipped`), pinned ratchet, stable lint/type gates,
+tool-schema qualification, and both trajectory readiness modes passed.
+
+Two report corrections are required:
+
+1. ordered cherry-picks do not make the 26 original source SHAs ancestors of
+   the convergence HEAD. Eighteen integrated commits are patch-id equivalent;
+   eight documentation/evidence commits contain manual conflict resolutions and
+   therefore have distinct patches and SHAs;
+2. adversarial probes found that `_redact_value()` preserves mapping keys and
+   trace-safe serialization copies `omitted` keys outside the shared projection.
+   Host paths and token-like text can remain visible with zero reported loss.
+
+## Remaining blocker
+
+`C-P3` is the sole newly reproduced G1 blocker. Lane C must sanitize sensitive
+mapping keys recursively, define a safe trace representation for omitted data,
+and include both in loss accounting. B must rerun delegated projection tests;
+D must refresh exact receipts if C producer fixtures/evidence change. The full
+combined matrix must then pass again. Until that record exists, G1 is open and
+S1 capability-lane dispatch is not authorized.
+
+Task 02B, 03B–E, 04/05A, Task 12/13 runtime, trajectory v2, qita redesign,
+provider-default changes, and packaging work remain separate future packages.

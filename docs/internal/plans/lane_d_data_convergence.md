@@ -1,6 +1,6 @@
 # Lane D data convergence
 
-Status: D1 census and D1-R evidence gates implemented and validated
+Status: D1/D1-R integrated candidate; refresh exact C receipt only if C-P3 evidence changes
 Updated: 2026-08-29
 Work package: Lane D / D1-R — strict fixture manifests, portable evidence, and contract readiness gates
 Integration baseline: `8441bef2f2024fd6c2ec01784708512222382471`

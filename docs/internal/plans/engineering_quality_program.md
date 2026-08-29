@@ -65,7 +65,7 @@ The implementation program runs through four semantic owners:
 Task 09 and Task 10 are split across these owners. The full file-lease, fixture-
 handoff, merge-wave, and stop-gate rules are in the dispatch playbook.
 
-This mapping is retained through the current G1 closure. After G1, quality and
+This mapping is retained through the current G1 repair. After G1 reclosure, quality and
 release trust become integration-owner gates and the four capability lanes are:
 
 1. Lane A — Task 12 session runtime and checkpoint persistence;
@@ -75,28 +75,29 @@ release trust become integration-owner gates and the four capability lanes are:
 
 ## Current integration decision
 
-The first repair wave produced A1/A2, B1-R Phase 1, C1-R, and D1-R. It closed
-most first-wave findings, but the integration-owner re-review found one broken
-workflow import, incomplete JSON/aliasing/projection boundaries in ToolResult,
-the intentionally deferred B/C result convergence, and a self-attested receipt
-trust boundary. Exact probes, source identities, and dispositions are maintained
-in [`docs/progress.md`](../../progress.md).
+The A -> C -> B -> D convergence candidate now contains A2-R, C1-R2, B1-R
+Phase 2, D1-R2, and their fixing commits. Independent reruns confirm the pinned
+ratchet, stable lint/type gates, tool-schema qualification, targeted consumers,
+full suite, and honest trajectory readiness behavior. Provenance is recorded as
+ordered source-to-integrated cherry-pick mappings rather than claiming the
+original SHAs are ancestors.
 
-The required order is now:
+An adversarial post-convergence audit reopened G1 on one C-owned issue: sensitive
+mapping keys and trace-safe omitted keys can bypass redaction and loss
+accounting. The required order is now:
 
-1. A2-R makes workflow-owned Python executable under repository tests, then A
-   is integrated and the pinned ratchet is run;
-2. C1-R2 closes recursive JSON validation, nested ownership isolation, and
-   complete safe-projection/loss semantics on the accepted A HEAD;
-3. B1-R Phase 2 rebases onto accepted C, removes the temporary result
-   representation, and makes its versioned external reader strictly typed;
-4. D1-R2 consumes producer-owned, digest-bound B/C receipts and proves manifest
-   schema/validator parity while preserving all honest blockers;
-5. combined G1 qualification runs before any 02B/03B/05A behavior wave.
+1. C1-R3 closes key/omitted projection and loss semantics with nested regression
+   probes;
+2. B reruns its delegated canonical consumer; D refreshes exact receipts only if
+   C producer evidence changes;
+3. the integration owner reruns the combined G1 gates and records the new exact
+   accepted baseline;
+4. only then may the contract-only S1 wave begin: 12A, 02B, Task 03 recovery
+   handoff plus 13A, and Task 05 lineage intake.
 
-After G1, the first concurrent wave is contract-only: 12A, 02B, Task 03 recovery
-handoff plus 13A, and Task 05 lineage intake. Behavior starts only after these
-fixtures converge. The next end-to-end target is deliberately user-facing:
+The conditional package specification lives in
+[`s1_contract_wave.md`](s1_contract_wave.md). Behavior starts only after these
+fixtures converge. The next end-to-end target remains deliberately user-facing:
 start -> parallel tools -> pause -> process exit -> fresh-process restore ->
 steer -> finish, with no duplicate committed effect. Durable multi-agent recovery
 follows that single-agent proof.

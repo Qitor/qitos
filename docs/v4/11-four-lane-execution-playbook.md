@@ -7,6 +7,11 @@ Source tasks: Tasks 02–05 and 08–13
 Baseline: Task 01 complete; exact current integration status lives in
 [`docs/progress.md`](../progress.md)
 
+Current dispatch state: the A -> C -> B -> D convergence candidate exists and
+passes the established engineering gates, but an independent audit reopened G1
+on C-P3 sensitive mapping-key/omitted-key projection. Only that bounded repair
+and dependent requalification are active; S1 remains blocked.
+
 ---
 
 ## 1. Purpose
@@ -40,7 +45,7 @@ The program has two lane maps separated by G1. This avoids rewriting the
 historical completion evidence while moving future capacity from audit work to
 researcher-visible runtime capabilities.
 
-### 2.1 G1 repair ownership (historical/current until G1 closes)
+### 2.1 G1 repair ownership (historical, plus current C-P3 repair)
 
 | Lane | Mission | Canonical tasks | Primary code ownership |
 |---|---|---|---|
@@ -58,11 +63,12 @@ Task 10 is not handed wholesale to Lane D. Cleanup follows semantic ownership:
 - Lane D maintains the shared removal ledger and release order.
 
 Sections 5–8 preserve the complete instructions used by the G1 branches. They
-remain authoritative for bounded G1 repair only.
+remain historical except where the integration ledger assigns a bounded repair
+to the same semantic owner.
 
 ### 2.2 Post-G1 capability ownership
 
-After the integration owner records G1 closure, new branches use this mapping:
+After the integration owner records G1 reclosure, new branches use this mapping:
 
 | Lane | Mission | Canonical tasks | Primary code ownership |
 |---|---|---|---|
@@ -84,13 +90,13 @@ in small packages through one closure wave and four capability waves.
 
 | Wave | Lane A | Lane B | Lane C | Lane D | Exit gate |
 |---|---|---|---|---|---|
-| G1-R — current closure | integrate trusted ratchet/CI evidence | converge ExchangeLog on canonical ToolResult | close canonical ToolResult boundaries | verify producer-owned readiness receipts | G1: integrated, one canonical outcome, cross-lane fixtures and ratchet green |
+| G1-R — reopened closure | retain trusted ratchet/CI evidence | rerun canonical consumer after C-P3 | close projection-key and loss accounting gap | refresh producer receipt only if evidence changes | G1: all adversarial projections and combined gates green |
 | S1 — contracts | 12A identity/lifecycle/snapshot ADR | 02B RequestView + 04A/04B contract handoffs | 03 recovery fields + 13A graph ADR | session/work lineage schema proposal only | G2: identities, ownership, snapshots, effects, and resolver contracts reviewed |
 | S2 — single-agent vertical slice | 12B/C/D session head, safe pause, clean-process restore | 02C/D + context/artifact snapshot components | 03B/C effects and partial-batch recovery | observe the slice; no v2 freeze | G3: start -> parallel tools -> pause -> process exit -> restore -> finish, no duplicate committed effect |
 | S3 — durable multi-agent | Task 12 fork/ownership support | context/continuation transfer receipts | 13B/C/D handoff, delegate, spawn, fan-out/join | graph/timeline dual-read records | G4: partial child graph and ownership transfer survive process restart |
 | S4 — DX and convergence | 12E compatibility/CLI | 02E/04C/D rollout | 03D/E + 13E adapters | 05 schema freeze/store/export/qita rollout | G5: public example, two independent consumers, release and migration gates green |
 
-No S1 behavior branch starts until G1 is recorded on the integration branch.
+No S1 branch starts until G1 is reclosed on the integration branch.
 Planning/fixtures may be prepared, but a lane must rebase on the exact accepted
 head before implementation. Task 05 census, privacy qualification, and benchmark
 readiness may continue; trajectory v2 freeze remains blocked through S3 contract
@@ -843,7 +849,7 @@ before v2 becomes default.
 
 ## 9. Post-G1 capability-lane instructions
 
-These instructions become active only after G1 closure is recorded in
+These instructions become active only after G1 reclosure is recorded in
 `docs/progress.md`. Each lane starts with one work package and exact integration
 baseline; no agent receives authorization for a whole Task at once.
 
@@ -941,10 +947,10 @@ fifth implementation. Its responsibilities are:
 
 | Lane | Current package | Branch/PR | Lease | Tests | Handoff produced | Blocker/decision | Gate status |
 |---|---|---|---|---|---|---|---|
-| A | — | — | — | — | — | — | G1 pending |
-| B | — | — | — | — | — | — | G1 pending |
-| C | — | — | — | — | — | — | G1 pending |
-| D | — | — | — | — | — | — | G1 pending |
+| A | A1/A2 + A-CI1 | `f145cbe` | quality gates | independently green | ratchet/workflow evidence | stand by | accepted candidate |
+| B | B1-R + B-C1/B-V1 | `2e46fc8` | ExchangeLog | independently green | canonical C consumer | rerun after C-P3 | accepted candidate |
+| C | C1-R3 / C-P3 | to be created from repaired baseline | ToolResult projection | adversarial probes currently fail | safe-key/loss evidence required | only active code repair | G1 reopened |
+| D | D1-R2 | `30c1823` | readiness receipts | independently green | exact B/C receipts | refresh only if C evidence changes | accepted candidate |
 
 ### 10.2 Merge rule
 
@@ -963,20 +969,22 @@ Do not patch the producer's private fields in the consumer PR.
 
 ## 11. Immediate dispatch order
 
-The agents report the G1 repair branches complete, but branch-local completion is
-not integration. The next action is one integration-owner closure pass:
+The convergence candidate is integrated, but independent review reproduced one
+new C-owned privacy/loss blocker. Dispatch exactly one repair package now:
 
-1. verify exact branch HEADs/clean status and review the actual diffs;
-2. merge/cherry-pick in the order A -> C -> B -> D, resolving shared release
-   documents manually and rebasing each consumer on accepted producer commits;
-3. run the pinned ratchet, stable lint/type, full suite, architecture/public
-   surface, cross-lane consumers, workflow executable tests, readiness/privacy,
-   and diff checks on the combined tree;
-4. record fixing commit identities and close or reopen each G1 checkbox in
-   `docs/progress.md`.
+1. **Lane C / C1-R3:** recursively sanitize sensitive mapping keys in model and
+   trace views, replace raw trace-safe omitted keys with an explicitly safe
+   representation, account for key/omitted losses, and add nested adversarial
+   regression tests. Do not start 03B–E, Task 09 behavior, or Task 13 behavior.
+2. **Lane B / requalification only:** after C lands, rerun ExchangeLog's
+   delegated projection consumers; edit B only if a consumer defect is proven.
+3. **Lane D / conditional receipt refresh:** update exact producer evidence only
+   if the accepted C fixture/evidence bytes changed.
+4. **Integration owner:** rerun the full G1 matrix and update
+   `docs/progress.md`. Lane A contributes gates, not a new feature branch.
 
-Only after that record says G1 closed, dispatch these four S1 packages in
-parallel:
+Only after that record says G1 closed again, dispatch these four S1 packages in
+parallel from the new exact baseline:
 
 1. **Lane A / 12A:** session identity, lifecycle, safe-boundary, snapshot, and
    resolver ADR plus versioned fixtures; no runtime behavior yet.
@@ -989,6 +997,9 @@ parallel:
 
 These packages are deliberately contract-first and low-conflict. S2 behavior
 begins only after their versioned handoffs are reviewed.
+
+The detailed conditional S1 plan is
+[`docs/internal/plans/s1_contract_wave.md`](../internal/plans/s1_contract_wave.md).
 
 For direct dispatch, give each coding agent this entire playbook and state its
 single lane/package (for example, `Lane A / 12A`). The agent must follow the

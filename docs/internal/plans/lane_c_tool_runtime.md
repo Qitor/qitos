@@ -1,6 +1,6 @@
 # Lane C C1 — canonical tool outcome and runtime ownership
 
-Status: integrated G1 boundary repair implemented; combined G1 gate open
+Status: integrated candidate; C-P3 projection-key repair required for G1 reclosure
 Integration baseline: `8441bef2f2024fd6c2ec01784708512222382471`
 C1 source HEAD: `1a36349b425e8c39d87b89e71ad4dcabd23d9e30`
 Branch: `codex/v4-lane-c-contract-hardening`
@@ -57,10 +57,17 @@ changes, or a universal lifecycle interface.
   per-field trace loss facts.
 - [x] Publish producer-owned qualification evidence beside the versioned fixture
   for Lane D to verify against an exact committed producer source.
+- [ ] C-P3: sanitize sensitive mapping keys recursively in model/trace views,
+  replace raw trace-safe omitted keys with a safe representation, and include
+  both in aggregate/per-field loss facts.
+- [ ] Prove C-P3 through nested output, next-action, omitted, and ExchangeLog
+  consumer regression tests, then republish exact producer evidence if changed.
 
 The earlier source-branch rebase gate is satisfied by the G1 integration branch:
 the Lane A ratchet passed with 399 baselined findings (377 active and 22
-vendored/generated). Combined B/D and full-suite qualification remain open.
+vendored/generated). The combined gates are green at the reviewed convergence
+source, but G1 remains open until the later C-P3 adversarial finding is repaired
+and the matrix is rerun.
 
 ## Shared-file leases
 

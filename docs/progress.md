@@ -2,8 +2,9 @@
 
 Status: active integration ledger
 Updated: 2026-08-29
-Integration branch: `feat/campaign-absorption`
-Reviewed integration source: `8441bef2f2024fd6c2ec01784708512222382471`
+Integration branch: `codex/v4-g1-convergence`
+Reviewed convergence source: `587f34b76245e71fe3362a51dbad40895d7c43c5`
+Current gate: **G1 reopened on C-P3; S1 dispatch blocked**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md)
 and [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md)
@@ -28,18 +29,27 @@ Maintain it with these rules:
 
 ## 2. Current decision
 
-Gate G1 is **not closed**. The four convergence-wave branches are clean and
-close most first-wave findings, but none of their commits is present in the
-integration branch. Completion reports and branch-local green suites therefore
-remain candidate evidence, not integrated qualification.
+The A -> C -> B -> D convergence tree is materially integrated at
+`587f34b76245e71fe3362a51dbad40895d7c43c5`. The pinned ratchet, stable
+flake8/mypy, targeted contracts, full suite, architecture/public-surface gates,
+tool-schema qualification, and trajectory readiness behavior all passed an
+independent rerun. The previously recorded A-CI1, C-J1/C-I1/C-P2, B-C1/B-V1,
+and D-R1 blockers have executable fixing commits.
 
-The current integration source is clean at `8441bef2...`. Lane A's ratchet
-transitions, Lane B's ExchangeLog integrity, Lane C's strict result parser, and
-Lane D's typed readiness output are substantive improvements. Code-level probes
-nevertheless found one executable CI failure, three remaining ToolResult
-boundary failures, the intentionally deferred B/C result convergence, and an
-unverified receipt trust boundary in D. Those findings require one bounded
-repair wave before the first merge.
+Gate G1 is nevertheless **reopened** on `C-P3`. A post-convergence adversarial
+probe found that ToolResult mapping keys bypass the recursive redactor, and
+trace-safe `omitted` keys bypass projection entirely. Host paths and token-like
+text can therefore survive in model/trace-visible keys while the loss report
+remains zero. This contradicts the claimed privacy/loss invariant. S1 remains
+blocked until a bounded C-owned repair, D receipt requalification when producer
+evidence changes, and a combined rerun close this finding.
+
+The convergence report's provenance wording is also corrected: all 26 reviewed
+source commits were applied by ordered cherry-pick, but the original source SHAs
+are not ancestors of the convergence HEAD. Eighteen integrated commits are
+patch-id equivalent; eight documentation/evidence commits were conflict-resolved
+and therefore have new, non-equivalent patch identities. The resulting code and
+evidence are present, but source identity was not literally preserved.
 
 The v4 architecture now explicitly includes Codex-like durable sessions,
 process-independent pause/resume/fork, and a native durable multi-agent work
@@ -49,12 +59,12 @@ interrupt/resume, handoff, delegate, and fan-out paths are recorded as useful bu
 fragmented primitives. The next capability phase converges them into one
 checkpoint-backed session truth and one generation-checked work graph.
 
-| Lane | Reviewed HEAD | Package | Integration disposition | Next package |
+| Lane | Integrated fixing HEAD | Package | Integration disposition | Next package |
 |---|---|---|---|---|
-| A | `ec43f09c1d6926a146b2c3f80a4b351861c5ea87` | A1/A2 qualification | Changes requested: advisory workflow is not executable | A2-R executable workflow contracts |
-| B | `5b0e8d54ab9dc95746b9e30fb2ce97a6165f0390` | B1-R Phase 1 | Phase 1 accepted as input; not merge-ready while temporary result contract remains | B1-R Phase 2 on accepted C HEAD |
-| C | `86ad165cef56262d0d5b58e095a1452f8201bc79` | C1-R | Changes requested: JSON, aliasing, and projection/loss boundaries | C1-R2 boundary closure |
-| D | `d80f4cc7e7c1532c33ea0cf057435447bf9261e7` | D1-R | Strict blocked scaffold accepted; not a contract qualification authority | D1-R2 verified B/C receipt consumption |
+| A | `f145cbe2df5f74418c9ccaae2f0a5cf5555b8daf` | A1/A2 + A-CI1 | Accepted in convergence tree | Stand by; retain cross-lane gates |
+| B | `2e46fc8e0228af42d6eaeaa6a665ffe5998c0bd5` | B1-R + B-C1/B-V1 | Accepted in convergence tree | Stand by; rerun consumer tests after C-P3 |
+| C | `ab1c501400fc2a8c47fcef1b4fe85c4e4db8d8f6` | C1-R2 | Changes requested: C-P3 mapping-key/omitted-key privacy and loss accounting | C1-R3 bounded projection repair |
+| D | `30c182392d7392b2c74446102893b2f10f1666e3` | D1-R2 | Accepted; exact receipts may need producer refresh after C-P3 | Conditional receipt requalification only |
 
 ## 3. Source and validation evidence
 
@@ -95,7 +105,12 @@ content conflicts in `CHANGELOG.md`, `README.md`, and `README.zh.md` for every
 lane pair; no other textual conflict was reported. These documentation conflicts
 must be hand-merged, but they are secondary to the semantic blockers below.
 
-## 4. Review findings
+## 4. Historical review findings
+
+This section preserves the blockers as they were discovered in the first and
+convergence-wave branch reviews. Their old “open” wording is audit history, not
+the current dashboard. The fixing commits and the new C-P3 disposition are
+authoritative in Sections 2, 5–7, and the append-only entries below.
 
 ### 4.1 Lane A — quality ratchet
 
@@ -436,72 +451,51 @@ reviewed authority before any contract becomes qualified.
 
 ## 5. Contract convergence and merge order
 
-Use this order; later lanes rebase onto the accepted semantic owner rather than
-resolving incompatible contracts in an integration merge:
+The historical A -> C -> B -> D order is complete in the convergence tree. It
+correctly placed the execution-outcome owner before its conversation consumer
+and then qualified D against accepted producer artifacts. The only active merge
+sequence is now:
 
-1. **A2-R:** repair and executable-test the workflow script, then integrate A
-   onto `8441bef2...`; hand-merge all three shared release documents and run the
-   pinned ratchet plus repository gates.
-2. **C1-R2:** close C-J1, C-I1, and C-P2 on the accepted A integration HEAD;
-   publish corrected canonical/model/trace fixtures and integrate C.
-3. **B1-R Phase 2:** rebase B Phase 1 onto integrated C; remove the temporary
-   outcome status/envelope, add strict typed external parsing, and prove exact C
-   fixture consumption before integrating B.
-4. **D1-R2:** rebase D onto integrated B/C; pin reviewed contract versions and
-   verify producer-owned receipt identity/digests plus schema-validator parity;
-   keep all unsatisfied Task 02/04/09 dependencies typed blocked.
-5. **G1 qualification:** run the full suite, architecture/public-surface gates,
-   workflow executable tests, stable flake8/mypy, the full-package ratchet,
-   cross-lane fixture consumers, privacy/portability scans, and
+1. **C1-R3:** repair C-P3 on the exact convergence HEAD, without starting 03B–E.
+2. **B consumer rerun:** prove ExchangeLog's delegated model/trace projections
+   inherit the repaired behavior; change B only if a real consumer defect is
+   exposed.
+3. **D receipt refresh:** if the C fixture/evidence bytes or producer commit
+   change, publish and consume a new exact producer-owned receipt; otherwise
+   record why the current receipt remains valid.
+4. **G1 requalification:** rerun the pinned ratchet, stable lint/type, targeted
+   cross-lane suites, adversarial key probes, full suite, readiness modes, and
    `git diff --check` on the combined tree.
 
-This order deliberately places the execution outcome owner before its
-conversation consumer. Textual conflicts in README/CHANGELOG are resolved by
-the integration owner; lane agents should not discard another lane's entries.
+No A, B, or D feature work is authorized inside this repair. Shared release
+documents remain integration-owner leases.
 
-## 6. Next four-lane work
+## 6. Next work
 
-The next dispatch is the final G1 repair wave, not the full W2 feature wave.
+The immediate dispatch is one bounded C-owned repair, not four concurrent
+feature branches.
 
-### Lane A — A2-R executable workflow trust
+### Lane C — C1-R3 / C-P3 projection-key closure
 
-- fix the `ToolSpec` import and put non-trivial schema validation in a normal
-  repository module/script;
-- execute the same entrypoint in a deterministic test, including a controlled
-  invalid-spec failure and the real tool inventory;
-- preserve the 20 ratchet transition tests and required/advisory matrix;
-- do not broaden scope into packaging, runtime behavior, or GitHub ruleset
-  claims before A is integrated.
+- recursively sanitize or replace mapping keys in model output and nested
+  `next_action` arguments; raw host paths, token/header/secret-like text, and
+  other sensitive identifiers must not survive as keys;
+- make trace-safe `omitted` data use an explicitly safe representation instead
+  of copying canonical keys verbatim;
+- count key redactions and omitted-field projection losses in aggregate and
+  per-field loss facts;
+- add nested probes for host paths and secrets in keys, including model output,
+  next-action arguments, trace-safe omitted data, and ExchangeLog delegation;
+- preserve canonical persistence bytes and strict readers unless a versioned
+  migration is genuinely required;
+- publish updated C evidence/fixtures if their bytes change, then hand the exact
+  identity to D; do not start coding tools, durability, MCP, or Task 13 behavior.
 
-### Lane B — B1-R Phase 2 canonical outcome consumption
-
-- wait for the exact accepted C1-R2 HEAD, then rebase and consume its
-  persistence/model/trace contracts without copying its status vocabulary;
-- retain call, batch, completion-order, and closure-provenance facts while
-  removing the temporary duplicate outcome envelope;
-- make malformed versioned persistence payloads fail with stable typed errors;
-- add real C serializer/reader fixture tests; do not begin RequestView/provider
-  default work until this package is integrated.
-
-### Lane C — C1-R2 JSON, ownership, and projection closure
-
-- reject nested non-JSON objects and all non-finite numbers at the runtime
-  argument boundary, before permission or tool execution;
-- deep-isolate construction, canonical parsing, adapters, and persistence
-  serialization, with mutation probes in both directions;
-- constrain/redact every model-visible identity/code and aggregate trace loss
-  across output, error, hint, next action, and identifiers;
-- publish corrected fixtures for B/D; do not start coding tools, durability, or
-  MCP work in this repair package.
-
-### Lane D — D1-R2 verified receipt convergence
-
-- define the trust source for `qualified`, require a reviewed authority, and
-  bind every accepted receipt digest to exact committed producer fixture bytes;
-- consume the final B/C versions only after those branches are accepted;
-- prove parity between the documented manifest schema and executable validator;
-- preserve `schema_not_ready`, empty measurements/claims, and typed blockers for
-  RequestView, ArtifactRef, compaction, hook failure, and full redaction.
+Lanes A, B, and D remain on standby. B reruns its consumer suite after the C
+fix; D only refreshes exact receipts when producer evidence changes; A provides
+the integrated quality gate. The conditional S1 packages are specified in
+[`docs/internal/plans/s1_contract_wave.md`](internal/plans/s1_contract_wave.md)
+and become dispatchable only after G1 is reclosed.
 
 ### Post-G1 capability remap (planned, not dispatched)
 
@@ -525,22 +519,24 @@ freeze until Task 12/13 lineage is available.
 
 ### G1 — trustworthy change surface
 
-- [ ] A1 commits are in the integration branch.
-- [ ] Pinned full-package ratchet passes on the integrated tree.
-- [ ] Stable flake8/mypy remain zero-debt.
-- [ ] B and C use one canonical tool outcome.
-- [ ] ExchangeLog persistence cannot be mutated through returned references.
-- [ ] Persistence and model/public projections have explicit privacy contracts.
-- [ ] D manifests reject malformed, unlicensed, unsanitized, or host-bound
+- [x] A1 changes are in the integration branch through ordered cherry-picks.
+- [x] Pinned full-package ratchet passes on the integrated tree.
+- [x] Stable flake8/mypy remain zero-debt.
+- [x] B and C use one canonical tool outcome.
+- [x] ExchangeLog persistence cannot be mutated through returned references.
+- [x] Persistence and model/public projections have explicit privacy contracts.
+- [x] D manifests reject malformed, unlicensed, unsanitized, or host-bound
       publication evidence.
-- [ ] Cross-lane fixtures have actual consumer tests, not labels alone.
-- [ ] Full suite, architecture boundaries, public surface, and diff checks pass.
-- [ ] Workflow-owned Python checks are executed by repository tests, not merely
+- [x] Cross-lane fixtures have actual consumer tests, not labels alone.
+- [x] Full suite, architecture boundaries, public surface, and diff checks pass.
+- [x] Workflow-owned Python checks are executed by repository tests, not merely
       parsed as YAML strings.
-- [ ] Tool arguments reject every recursively non-JSON/non-finite value.
-- [ ] ToolResult canonical serialization has no caller-visible nested aliases.
+- [x] Tool arguments reject every recursively non-JSON/non-finite value.
+- [x] ToolResult canonical serialization has no caller-visible nested aliases.
 - [ ] Trace-safe loss facts cover every redacted or omitted projected field.
-- [ ] Cross-lane qualification receipts bind to reviewed producer artifacts.
+- [ ] Model/trace-safe projections sanitize sensitive mapping keys at every
+      nesting level, including trace-safe omitted data (`C-P3`).
+- [x] Cross-lane qualification receipts bind to reviewed producer artifacts.
 
 ### G2 prerequisites exposed by this review
 
@@ -610,25 +606,27 @@ freeze until Task 12/13 lineage is available.
   the clean-process single-agent vertical slice a prerequisite for multi-agent
   behavior and trajectory-v2 schema freeze.
 
-### 2026-08-29 — G1 final convergence closed
+### 2026-08-29 — G1 final convergence provisionally closed (superseded below)
 
 - Created `codex/v4-g1-convergence` in the isolated `WhitzardOS-g1` worktree
   directly from fixed baseline
   `a02ce05e9a364eb484ef339fe5cbd623910cf525`.
 - Integrated every supplied source commit in the fixed A → C → B → D order,
-  preserving reviewed heads `ec43f09c1d6926a146b2c3f80a4b351861c5ea87`,
+  using reviewed heads `ec43f09c1d6926a146b2c3f80a4b351861c5ea87`,
   `86ad165cef56262d0d5b58e095a1452f8201bc79`,
   `5b0e8d54ab9dc95746b9e30fb2ce97a6165f0390`, and
-  `d80f4cc7e7c1532c33ea0cf057435447bf9261e7` without squashing or amending the
-  source identities.
+  `d80f4cc7e7c1532c33ea0cf057435447bf9261e7` as ordered cherry-pick sources.
+  The resulting integrated commits have new SHAs; later audit records exact
+  patch-equivalence and conflict-resolution facts.
 - Closed A-CI1 in `f145cbe`: the workflow and tests execute one checked-in real
   tool-schema qualification entrypoint; 61 modules, 74 class definitions, and
   62 qualified/registered class tools passed, while the controlled invalid
   input exited 1 with `invalid_tool_name`.
 - Closed C-J1 in `c509bd0` and C-I1/C-P2 in `ab1c501`: recursive JSON admission
   precedes interceptor/permission/tool execution, canonical and legacy result
-  values are deeply ownership-isolated, and all model/trace-visible result
-  fields are bounded, redacted, and covered by aggregate/per-field loss facts.
+  values are deeply ownership-isolated, and scalar model/trace-visible result
+  values are bounded and redacted. A later adversarial audit reopened the
+  stronger all-fields/loss claim as C-P3.
 - Closed B-C1/B-V1 in `2e46fc8`: ExchangeLog v2 embeds the sole canonical
   ToolResult, delegates persistence/model/trace views to C, preserves completion
   and recovery semantics, strictly normalizes malformed reads to
@@ -649,7 +647,36 @@ freeze until Task 12/13 lineage is available.
   `schema_not_ready`, zero publication-qualified fixtures, empty measurements
   and claims; dry-run exits 0 and normal execution exits 2. Trajectory v2 remains
   unfrozen.
-- Decision: **G1 CLOSED**. S1 capability-lane dispatch is authorized. This does
+- Provisional decision at this point in the audit trail: **G1 CLOSED** and S1
+  capability-lane dispatch authorized. The independent entry immediately below
+  supersedes this decision. This does
   not mark Task 02B, 03B–E, 04/05A, Task 12/13 runtime, provider defaults,
   trajectory v2, qita redesign, packaging migration, or deprecated-surface
   removal as implemented.
+
+### 2026-08-29 — independent post-convergence audit reopens G1
+
+- Verified the convergence worktree was clean at
+  `587f34b76245e71fe3362a51dbad40895d7c43c5`, with the fixed baseline as its
+  merge base and the documented A -> C -> B -> D integration history present.
+- Corrected provenance: none of the 26 original source SHAs is an ancestor of
+  the convergence HEAD because the work used cherry-picks. Patch-id comparison
+  found 18 exact patch equivalents; eight shared documentation/evidence commits
+  were manually conflict-resolved and therefore have new patch identities.
+- Independently reran the fixed Python 3.12.7 toolchain: 179 targeted tests,
+  tool-schema qualification (61 modules, 74 classes, 62 qualified/registered),
+  the 399-finding ratchet, stable flake8, stable mypy on 77 files, and the full
+  suite (`1863 passed, 50 skipped`) all passed.
+- Independently verified trajectory readiness: normal execution exits 2,
+  dry-run exits 0, both remain `schema_not_ready`, measurements/claims remain
+  empty, default input qualifies no contracts, and the exact receipt input
+  clears only the B ExchangeLog and C ToolResult contracts.
+- Reproduced `C-P3`: sensitive host-path and token-like text in mapping keys
+  survives `ToolResult.to_model_dict()` and `to_trace_safe_dict()`; nested
+  `next_action` argument keys and trace-safe `omitted` keys also survive. The
+  corresponding loss counters remain zero because `_redact_value()` processes
+  mapping values but preserves keys, while trace-safe `omitted` is copied
+  outside the shared projection path.
+- Decision: the convergence tree remains a strong integration candidate, but
+  **G1 is reopened and S1 is blocked**. Only the bounded C1-R3 repair, dependent
+  B/D requalification, and combined gate rerun are authorized next.

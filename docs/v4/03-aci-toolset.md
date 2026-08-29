@@ -1,6 +1,6 @@
 # Task 03 — tool outcome contract and coding-toolset consolidation
 
-Status: 03A contract and C1-R hardening integrated for G1 repair; 03B–E remain staged
+Status: 03A integrated candidate; C-P3 projection-key repair required before G1 reclosure; 03B–E remain staged
 Depends on: Task 01
 Feeds: Task 04 artifacts, Task 12 recovery, Task 13 work outcomes, and v4 DX
 Risk: medium — broad kit surface, stable tool-result compatibility
@@ -156,6 +156,16 @@ verification.
 This evidence completes the C1/03A contract layer only. Coding-tool behavior,
 durability implementation, MCP replacement, and executor lifecycle refactors
 remain explicitly deferred.
+
+Post-convergence audit finding C-P3 (2026-08-29): the shared redactor processes
+mapping values but preserves their keys, and the trace-safe `omitted` mapping is
+copied outside that projection path. A host path or token-like string used as a
+key in output, nested next-action arguments, or omitted data can therefore enter
+model/trace-visible JSON while loss remains zero. G1 is reopened until Lane C
+recursively sanitizes sensitive keys, gives omitted data an explicitly safe
+trace representation, accounts for both losses, and adds independent
+ExchangeLog consumer coverage. This is a bounded 03A correction, not
+authorization to begin 03B–E.
 
 ### 03B — filesystem and search foundations
 
