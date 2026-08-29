@@ -56,21 +56,24 @@ handoff, merge-wave, and stop-gate rules are in the dispatch playbook.
 
 ## Current integration decision
 
-The first-wave branches have produced A1, B1, C1, and D1 artifacts, but the
-integration review found contract-convergence work that must precede Gate G1.
-The evidence and exact blockers are maintained in
-[`docs/progress.md`](../../progress.md).
+The first repair wave produced A1/A2, B1-R Phase 1, C1-R, and D1-R. It closed
+most first-wave findings, but the integration-owner re-review found one broken
+workflow import, incomplete JSON/aliasing/projection boundaries in ToolResult,
+the intentionally deferred B/C result convergence, and a self-attested receipt
+trust boundary. Exact probes, source identities, and dispositions are maintained
+in [`docs/progress.md`](../../progress.md).
 
-The required order is:
+The required order is now:
 
-1. integrate and qualify Lane A's ratchet;
-2. harden Lane C's canonical result serialization, model projection, and
-   structural validator;
-3. make Lane B consume that result contract while closing ExchangeLog
-   immutability, privacy-projection, and partial-batch persistence gaps;
-4. harden Lane D's fixture/readiness gates and rebase its dependency ledger onto
-   the accepted B/C contracts;
-5. run combined G1 qualification before beginning the full W2 feature wave.
+1. A2-R makes workflow-owned Python executable under repository tests, then A
+   is integrated and the pinned ratchet is run;
+2. C1-R2 closes recursive JSON validation, nested ownership isolation, and
+   complete safe-projection/loss semantics on the accepted A HEAD;
+3. B1-R Phase 2 rebases onto accepted C, removes the temporary result
+   representation, and makes its versioned external reader strictly typed;
+4. D1-R2 consumes producer-owned, digest-bound B/C receipts and proves manifest
+   schema/validator parity while preserving all honest blockers;
+5. combined G1 qualification runs before any 02B/03B/05A behavior wave.
 
 Lane work may continue in isolated branches, but no completion report closes a
 gate until its fixing commits and integrated verification are recorded in the

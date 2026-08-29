@@ -3,7 +3,7 @@
 Status: active integration ledger
 Updated: 2026-08-29
 Integration branch: `feat/campaign-absorption`
-Reviewed integration source: `fb75cd5902fedf50d5e67dd617e62cd981c3128f`
+Reviewed integration source: `8441bef2f2024fd6c2ec01784708512222382471`
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 
 ## 1. Purpose and maintenance rule
@@ -26,23 +26,25 @@ Maintain it with these rules:
 
 ## 2. Current decision
 
-Gate G1 is **not closed**. All four first-wave branches are clean descendants of
-the W1 baseline and contain useful work, but none is present in the integration
-branch yet.
+Gate G1 is **not closed**. The four convergence-wave branches are clean and
+close most first-wave findings, but none of their commits is present in the
+integration branch. Completion reports and branch-local green suites therefore
+remain candidate evidence, not integrated qualification.
 
-Lane A is the first integration candidate. Lanes B, C, and D require a short
-contract-convergence package before they may be described as merge-ready. The
-important issue is semantic, not a textual merge problem: pairwise branch
-inspection found only `CHANGELOG.md`, `README.md`, and `README.zh.md` as shared
-changed files, but Lane B and Lane C currently define incompatible tool-result
-representations.
+The current integration source is clean at `8441bef2...`. Lane A's ratchet
+transitions, Lane B's ExchangeLog integrity, Lane C's strict result parser, and
+Lane D's typed readiness output are substantive improvements. Code-level probes
+nevertheless found one executable CI failure, three remaining ToolResult
+boundary failures, the intentionally deferred B/C result convergence, and an
+unverified receipt trust boundary in D. Those findings require one bounded
+repair wave before the first merge.
 
 | Lane | Reviewed HEAD | Package | Integration disposition | Next package |
 |---|---|---|---|---|
-| A | `ab25edf9c6457ee40054aaaab4596d7bed30cbe5` | 08A / A1 | Candidate; rerun pinned ratchet after integration | A1-I, then 08E / A2 |
-| B | `69a961f6f50656dff308db7a2f3e400439ef20d0` | 02A / B1 | Changes requested | B1-R contract integrity and C alignment |
-| C | `1a36349b425e8c39d87b89e71ad4dcabd23d9e30` | 03A + 09A / C1 | Changes requested | C1-R canonical serialization and projection safety |
-| D | `ad03cb0b63c62e2067a222d654f3879ba7c01bb5` | 10A + 05A readiness / D1 | Evidence useful; changes requested before integration | D1-R evidence-gate hardening |
+| A | `ec43f09c1d6926a146b2c3f80a4b351861c5ea87` | A1/A2 qualification | Changes requested: advisory workflow is not executable | A2-R executable workflow contracts |
+| B | `5b0e8d54ab9dc95746b9e30fb2ce97a6165f0390` | B1-R Phase 1 | Phase 1 accepted as input; not merge-ready while temporary result contract remains | B1-R Phase 2 on accepted C HEAD |
+| C | `86ad165cef56262d0d5b58e095a1452f8201bc79` | C1-R | Changes requested: JSON, aliasing, and projection/loss boundaries | C1-R2 boundary closure |
+| D | `d80f4cc7e7c1532c33ea0cf057435447bf9261e7` | D1-R | Strict blocked scaffold accepted; not a contract qualification authority | D1-R2 verified B/C receipt consumption |
 
 ## 3. Source and validation evidence
 
@@ -63,6 +65,25 @@ integration-owner shell uses Python 3.13.3 and does not have the pinned flake8
 distribution, so it could not independently rerun Lane A's Python 3.12.7
 ratchet. This is an environment limitation, not a replacement for the reported
 ratchet result; the pinned command remains an integration gate.
+
+The convergence-wave review used the shared integration baseline
+`8441bef2f2024fd6c2ec01784708512222382471`. All four worktrees were clean and
+their reported HEADs matched the commits reviewed.
+
+| Lane | Worktree | Agent-reported full suite | Integration-owner targeted rerun |
+|---|---|---:|---:|
+| A | `WhitzardOS-lane-a2` | 1,720 passed, 50 skipped | 34 passed; separate executable import probe failed |
+| B | `WhitzardOS-lane-b2` | 1,720 passed, 50 skipped | 34 passed |
+| C | `WhitzardOS-lane-c2` | 1,756 passed, 50 skipped | 277 passed; separate boundary probes failed |
+| D | `WhitzardOS-lane-d2` | 1,720 passed, 50 skipped | 34 passed |
+
+The reruns covered ratchet/workflow contracts, ExchangeLog, ToolResult and
+structural validation, Engine action execution, trajectory readiness,
+exact-source evidence, architecture boundaries, and public surface. Diff checks
+passed for all four reviewed ranges. Pairwise merge-tree simulation found
+content conflicts in `CHANGELOG.md`, `README.md`, and `README.zh.md` for every
+lane pair; no other textual conflict was reported. These documentation conflicts
+must be hand-merged, but they are secondary to the semantic blockers below.
 
 ## 4. Review findings
 
@@ -272,22 +293,157 @@ validator and portable evidence, correct D15, then rebase onto the accepted B/C
 contracts. Do not start a v2 schema merely because fixture filenames now
 exist.
 
+### 4.5 Convergence-wave re-review
+
+The earlier findings remain historical evidence. This section records which
+ones the repair branches actually closed and which new boundary probes prevent
+integration.
+
+#### Lane A — ratchet improved; executable CI still broken
+
+Closed from the first review:
+
+- `A-Q1`: twenty deterministic tests now exercise new/stale findings,
+  base-reference growth, exceptions, expiry, bootstrap, rules upgrades, and
+  explicit update behavior;
+- the required/advisory/stale ownership table and workflow path repairs are
+  documented without claiming knowledge of GitHub branch protection.
+
+New blocker `A-CI1`:
+
+- `.github/workflows/contribution-test.yml` imports `ToolSpec` from
+  `qitos.core.tool_schema`;
+- the class is defined and exported from `qitos.core.tool`, and the workflow's
+  exact import raises `ImportError`;
+- `tests/test_workflow_contracts.py` parses YAML and checks paths/tokens, but
+  does not execute or import-check embedded Python, so all 34 targeted tests
+  pass while the job itself fails before validating any schema.
+
+Disposition: keep A first in merge order, but require A2-R to move non-trivial
+inline code into a repository script or otherwise execute it in tests. Correct
+the import and prove that the schema check discovers real registered/class tool
+specs rather than merely walking modules without assertions.
+
+#### Lane C — strict parser improved; the safe boundary is incomplete
+
+Closed from the first review:
+
+- the canonical parser now rejects unknown versions/fields, malformed lists,
+  contradictory terminal states, and non-JSON canonical values;
+- legacy flattening is explicit, model fields are allowlisted, and unsupported
+  schema keywords/types fail closed;
+- argument validation is repeated after permission/interceptor rewriting.
+
+New blocker `C-J1` — runtime arguments are not required to be JSON values:
+
+- `validate_tool_arguments({"x": float("nan")}, {"type": "object"})` returns
+  valid;
+- an arbitrary `object()` under an open object schema also returns valid;
+- a declared `number` accepts `NaN`, despite the gate being described as a JSON
+  structural boundary.
+
+New blocker `C-I1` — canonical result ownership is aliased:
+
+- construction and `from_canonical_dict()` retain nested caller-owned values;
+- `to_persistence_dict()` returns nested output/metadata references rather than
+  an isolated JSON tree;
+- mutating either the source payload or serialized result changed the existing
+  `ToolResult` in reviewer probes.
+
+New blocker `C-P2` — allowlisted projections still leak and under-report loss:
+
+- `tool_name`, `action_id`, and `error_code` are emitted without identifier
+  validation or redaction; token-like values and host paths survive unchanged;
+- error and recovery-hint strings are redacted, but `to_trace_safe_dict()`
+  reports loss counters only from `model_output`, producing zero redactions for
+  redacted error/hint content;
+- the trace-safe receipt therefore cannot yet qualify Lane D's full redaction
+  dependency.
+
+Disposition: C1-R2 must deep-isolate canonical inputs/outputs, reject every
+non-finite/non-JSON runtime argument recursively, validate or redact all
+model-visible identifiers, and aggregate loss facts across every projected
+field.
+
+#### Lane B — Phase 1 integrity is sound; C convergence remains deliberately open
+
+Closed from the first review:
+
+- `B-I1`: append, read, restore, and serialization boundaries now use isolated
+  snapshots for nested values;
+- `B-P1`: the old safe-name overclaim is replaced by an explicitly
+  continuation-only redacted diagnostic projection;
+- `B-R1`: each terminal result is appended immediately in completion order,
+  partial logs round-trip, missing slots resume, and queued steering commits
+  once after final closure.
+
+Still-open blocker `B-C1`:
+
+- `ToolResultStatus` and `ToolResultItem` remain explicitly temporary and still
+  encode a second status/content/provenance result representation;
+- this was an intentional Phase 1 stop, so B cannot be merged as the canonical
+  conversation result contract until it consumes the accepted C serializer,
+  model view, status/error mapping, and artifact slot.
+
+New blocker `B-V1`:
+
+- malformed persisted values do not consistently fail with
+  `ConversationValidationError`; for example a string-valued item `metadata`
+  escapes as a built-in `ValueError` from `dict(...)`;
+- Phase 2 must make the versioned external reader mechanically strict while
+  keeping any permissive legacy conversion behind a named adapter.
+
+`B-T1` also remains open: the current consumer simulations are useful, but
+actual Engine/request and trajectory consumers arrive in later packages.
+
+#### Lane D — strict default blocking is sound; receipts are not yet verified
+
+Closed from the first review:
+
+- `D-G1`: manifest fields, state consistency, publication evidence, identities,
+  coverage, receipts, and blocker categories now have typed checks;
+- `D-P1`: readiness output no longer emits fixture roots or rejected raw values;
+- `D-E1`: D15 exact sources are corrected and D01-D16 symbols are AST-checked.
+
+Remaining blocker `D-R1`:
+
+- a caller can supply any syntactically valid 64-hex digest with
+  `qualified=true` and remove the corresponding contract blocker;
+- `qualification_authority` is optional, the digest is not resolved against a
+  committed B/C artifact, and no producer-owned qualification proof is
+  verified;
+- this is safe while the default remains blocked and no receipts are supplied,
+  but it is not yet a trustworthy cross-lane qualification mechanism.
+
+Follow-up `D-S1`: the JSON Schema file and the stdlib typed validator are two
+representations. Current tests compare a few constants but do not prove that
+the documented schema and executable validator accept/reject the same fixture
+corpus. Add parity fixtures or make one representation generated/authoritative.
+
+Disposition: D1-R may be preserved as a strict blocked scaffold, but D1-R2 must
+consume producer-owned receipts bound to exact fixture bytes/versions and a
+reviewed authority before any contract becomes qualified.
+
 ## 5. Contract convergence and merge order
 
 Use this order; later lanes rebase onto the accepted semantic owner rather than
 resolving incompatible contracts in an integration merge:
 
-1. **A1-I:** integrate Lane A, resolve README/CHANGELOG once, install the pinned
-   quality toolchain, and run ratchet plus repository gates.
-2. **C1-R:** rebase Lane C onto A1-I; close C-P1, C-S1, and C-V1; publish the
-   strict outcome/model-view fixtures; integrate C.
-3. **B1-R:** rebase Lane B onto integrated C; close B-C1, B-I1, B-P1, and B-R1;
-   make conversation results consume canonical `ToolResult`; integrate B.
-4. **D1-R:** rebase Lane D onto integrated B/C; close D-G1, D-P1, and D-E1;
-   record which required contracts are genuinely satisfied; integrate D.
+1. **A2-R:** repair and executable-test the workflow script, then integrate A
+   onto `8441bef2...`; hand-merge all three shared release documents and run the
+   pinned ratchet plus repository gates.
+2. **C1-R2:** close C-J1, C-I1, and C-P2 on the accepted A integration HEAD;
+   publish corrected canonical/model/trace fixtures and integrate C.
+3. **B1-R Phase 2:** rebase B Phase 1 onto integrated C; remove the temporary
+   outcome status/envelope, add strict typed external parsing, and prove exact C
+   fixture consumption before integrating B.
+4. **D1-R2:** rebase D onto integrated B/C; pin reviewed contract versions and
+   verify producer-owned receipt identity/digests plus schema-validator parity;
+   keep all unsatisfied Task 02/04/09 dependencies typed blocked.
 5. **G1 qualification:** run the full suite, architecture/public-surface gates,
-   stable flake8/mypy, the full-package ratchet, fixture privacy/portability
-   scans, and `git diff --check` on the combined tree.
+   workflow executable tests, stable flake8/mypy, the full-package ratchet,
+   cross-lane fixture consumers, privacy/portability scans, and
+   `git diff --check` on the combined tree.
 
 This order deliberately places the execution outcome owner before its
 conversation consumer. Textual conflicts in README/CHANGELOG are resolved by
@@ -295,46 +451,47 @@ the integration owner; lane agents should not discard another lane's entries.
 
 ## 6. Next four-lane work
 
-The next dispatch is a convergence wave, not the full W2 feature wave.
+The next dispatch is the final G1 repair wave, not the full W2 feature wave.
 
-### Lane A — A1-I and A2 / Task 08E
+### Lane A — A2-R executable workflow trust
 
-- qualify and integrate A1;
-- add deterministic end-to-end ratchet tests for new, stale, growth, expiry,
-  toolchain, and base-ref cases;
-- repair invalid changed-file predicates and masked intended checks;
-- publish a required/advisory CI job table;
-- do not change runtime semantics to make a diagnostic disappear.
+- fix the `ToolSpec` import and put non-trivial schema validation in a normal
+  repository module/script;
+- execute the same entrypoint in a deterministic test, including a controlled
+  invalid-spec failure and the real tool inventory;
+- preserve the 20 ratchet transition tests and required/advisory matrix;
+- do not broaden scope into packaging, runtime behavior, or GitHub ruleset
+  claims before A is integrated.
 
-### Lane B — B1-R, then 02B
+### Lane B — B1-R Phase 2 canonical outcome consumption
 
-- make ExchangeLog facts externally immutable or return isolated snapshots;
-- define crash-safe partial batch persistence and recovery fixtures;
-- replace the second result envelope with an adapter to Lane C's canonical
-  outcome;
-- rename or implement the purported safe projection with a policy/loss report;
-- after B1-R integration, implement ephemeral RequestView and transport/API-mode
-  capabilities in 02B; do not begin provider default flips.
+- wait for the exact accepted C1-R2 HEAD, then rebase and consume its
+  persistence/model/trace contracts without copying its status vocabulary;
+- retain call, batch, completion-order, and closure-provenance facts while
+  removing the temporary duplicate outcome envelope;
+- make malformed versioned persistence payloads fail with stable typed errors;
+- add real C serializer/reader fixture tests; do not begin RequestView/provider
+  default work until this package is integrated.
 
-### Lane C — C1-R, then 03B/09C
+### Lane C — C1-R2 JSON, ownership, and projection closure
 
-- split strict canonical serialization from legacy and model projections;
-- use an allowlist for model-visible result fields and add secret/path/size
-  regression tests;
-- reject unsupported result versions, contradictory outcomes, malformed list
-  fields, and unsupported/malformed schema constraints;
-- after contract integration, start filesystem/search foundations and honest
-  timeout/late-result semantics; do not claim hard thread cancellation.
+- reject nested non-JSON objects and all non-finite numbers at the runtime
+  argument boundary, before permission or tool execution;
+- deep-isolate construction, canonical parsing, adapters, and persistence
+  serialization, with mutation probes in both directions;
+- constrain/redact every model-visible identity/code and aggregate trace loss
+  across output, error, hint, next action, and identifiers;
+- publish corrected fixtures for B/D; do not start coding tools, durability, or
+  MCP work in this repair package.
 
-### Lane D — D1-R, then 09E preparation
+### Lane D — D1-R2 verified receipt convergence
 
-- turn fixture manifests into versioned, strict, portable validation inputs;
-- accept verifiable B/C contract receipts rather than a permanent hardcoded
-  blocker;
-- correct exact-source evidence and add a public-evidence path scan;
-- prepare hook/trace completeness receipts, but keep trajectory v2 schema
-  frozen only after RequestView/ArtifactRef/compaction and redaction contracts
-  exist.
+- define the trust source for `qualified`, require a reviewed authority, and
+  bind every accepted receipt digest to exact committed producer fixture bytes;
+- consume the final B/C versions only after those branches are accepted;
+- prove parity between the documented manifest schema and executable validator;
+- preserve `schema_not_ready`, empty measurements/claims, and typed blockers for
+  RequestView, ArtifactRef, compaction, hook failure, and full redaction.
 
 ## 7. Gate checklist
 
@@ -350,6 +507,12 @@ The next dispatch is a convergence wave, not the full W2 feature wave.
       publication evidence.
 - [ ] Cross-lane fixtures have actual consumer tests, not labels alone.
 - [ ] Full suite, architecture boundaries, public surface, and diff checks pass.
+- [ ] Workflow-owned Python checks are executed by repository tests, not merely
+      parsed as YAML strings.
+- [ ] Tool arguments reject every recursively non-JSON/non-finite value.
+- [ ] ToolResult canonical serialization has no caller-visible nested aliases.
+- [ ] Trace-safe loss facts cover every redacted or omitted projected field.
+- [ ] Cross-lane qualification receipts bind to reviewed producer artifacts.
 
 ### G2 prerequisites exposed by this review
 
@@ -373,3 +536,18 @@ The next dispatch is a convergence wave, not the full W2 feature wave.
 - Kept all lane implementation commits out of the integration branch while
   review blockers remain open; only this integration-owned review ledger and
   its documentation pointers were committed.
+
+### 2026-08-29 — convergence-wave branch audit
+
+- Verified the exact A2/B2/C2/D2 worktrees, branches, clean status, common
+  `8441bef2...` baseline, and reported final HEADs.
+- Re-ran 34 Lane A, 34 Lane B, 277 Lane C, and 34 Lane D targeted tests; all
+  selected suites passed after correcting one nonexistent path in the supplied
+  C validation list to the repository's real test layout.
+- Executed reviewer probes that reproduced A-CI1, C-J1, C-I1, C-P2, B-V1, and
+  D-R1 rather than inferring them from prose.
+- Confirmed the original B integrity/privacy/persistence findings and original
+  D strictness/portability/source findings are materially closed.
+- Simulated every pairwise merge and recorded the three shared release-document
+  conflicts; no lane commit was merged into integration while executable and
+  semantic blockers remain.

@@ -39,6 +39,7 @@ How to update:
 
 ### Changed
 
+- Extended the v4 integration ledger with the convergence-wave code audit: exact A2/B2/C2/D2 identities, integration-owner reruns, executable boundary probes, newly discovered CI/JSON/aliasing/projection/receipt blockers, and the revised final-G1 repair order.
 - Replaced the original commit-oriented v4 drafts with dependency-ordered coding-agent specifications: a closed capability-based baseline; model I/O, tool, context/artifact, and lossless trajectory contracts; plus quality gates, lifecycle/error semantics, and consolidation. The old batch briefs and internal campaign workstream plan are explicitly archived.
 - Made `qitos.kit.toolset` security-research compatibility exports lazy so importing `qitos.kit` remains a safe default while explicit legacy imports continue to work.
 - `qitos.kit` no longer depends on the deprecated `qitos.benchmark` layer (D6/V5): the CyBench evaluator, guided/unguided metrics, and the `submit_answer` tool moved from `qitos.kit.{evaluate,metric,tool}` into `qitos.recipes.benchmarks.cybench` — import them from the recipe module now. The `{benchmark, kit, recipes}` import cycle shrank to `{benchmark, recipes}`.
