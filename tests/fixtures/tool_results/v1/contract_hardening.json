@@ -1,0 +1,82 @@
+{
+  "fixture_version": "qitos.tool_result.contract_hardening.fixtures/v1",
+  "canonical_schema_version": "qitos.tool_result/v1",
+  "model_view_version": "qitos.tool_result.model_view/v1",
+  "trace_safe_version": "qitos.tool_result.trace_safe/v1",
+  "invalid_canonical_cases": [
+    {
+      "case": "unknown_version",
+      "expected_error_code": "unknown_schema_version",
+      "result": {
+        "schema_version": "qitos.tool_result/v2",
+        "status": "success"
+      }
+    },
+    {
+      "case": "contradictory_success_error",
+      "expected_error_code": "contradictory_outcome",
+      "result": {
+        "schema_version": "qitos.tool_result/v1",
+        "status": "success",
+        "success": true,
+        "error_kind": "execution",
+        "error_code": "tool_failed"
+      }
+    },
+    {
+      "case": "malformed_effect_list",
+      "expected_error_code": "invalid_canonical_field",
+      "result": {
+        "schema_version": "qitos.tool_result/v1",
+        "status": "success",
+        "declared_effects": ["filesystem_write"]
+      }
+    },
+    {
+      "case": "malformed_metadata_object",
+      "expected_error_code": "invalid_canonical_field",
+      "result": {
+        "schema_version": "qitos.tool_result/v1",
+        "status": "success",
+        "metadata": []
+      }
+    }
+  ],
+  "model_safe_source": {
+    "schema_version": "qitos.tool_result/v1",
+    "status": "success",
+    "tool_name": "inspect",
+    "action_id": "call-safe",
+    "output": {
+      "token": "fixture-secret",
+      "host_path": "/Users/example/private/result.json"
+    },
+    "metadata": {
+      "authorization": "Bearer fixture-secret"
+    },
+    "normalized_request": {
+      "path": "/Users/example/private/result.json"
+    },
+    "provenance": {
+      "exception_repr": "RuntimeError(fixture-secret)"
+    },
+    "artifact_refs": [
+      {
+        "artifact_id": "sha256:0123456789abcdef",
+        "media_type": "application/json",
+        "byte_length": 512,
+        "sensitivity": "internal"
+      }
+    ]
+  },
+  "expected_trace_loss": {
+    "canonical_output_included": false,
+    "excluded_fields": [
+      "output",
+      "metadata",
+      "normalized_request",
+      "provenance",
+      "artifact_refs"
+    ]
+  }
+}

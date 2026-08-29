@@ -316,9 +316,11 @@ def test_claude_style_hook_preserves_recoverable_tool_error_card() -> None:
             step_id=2,
             payload={
                 "action_results": [
-                    ToolResult(
-                        status="error",
-                        error="The cursor does not match this query or its snapshot is unavailable.",
+                        ToolResult(
+                            status="error",
+                            error="The cursor does not match this query or its snapshot is unavailable.",
+                            error_kind="semantic",
+                            error_code="INVALID_CURSOR",
                         output=(
                             "[GREP:invalid_cursor]\n\n"
                             "Code: `INVALID_CURSOR`\n"

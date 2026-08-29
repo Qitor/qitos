@@ -235,7 +235,10 @@ class EngineResult(Generic[StateT]):
                 tool_result = (
                     ToolResult.from_value(action_results[idx])
                     if idx < len(action_results)
-                    else ToolResult(status="error", error="missing_action_result")
+                    else ToolResult.execution_error(
+                        code="missing_action_result",
+                        error="missing_action_result",
+                    )
                 )
                 preview = tool_result.text
                 items.append(

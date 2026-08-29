@@ -7,7 +7,7 @@ from typing import Any, Dict, Generic, List, Optional, TypeVar, cast
 
 from ..core.action import Action
 from ..core.decision import Decision
-from ..core.tool_result import ToolResult
+from ..core.tool_result import ToolResult, ToolResultContractError
 from ._protocol import _EngineProtocol
 from .states import RuntimePhase, StepRecord
 
@@ -19,15 +19,6 @@ ActionT = TypeVar("ActionT")
 class _ActionRuntime(Generic[StateT, ActionT]):
     def __init__(self, engine: _EngineProtocol):
         self.engine = engine
-
-    @staticmethod
-    def _tool_output_for_budget(output: Any) -> tuple[Any, bool]:
-        has_summary = (
-            isinstance(output, dict)
-            and isinstance(output.get("model_summary"), str)
-            and bool(output["model_summary"].strip())
-        )
-        return (output["model_summary"].strip(), True) if has_summary else (output, False)
 
     def run_act(
         self, state: StateT, decision: Decision[ActionT], record: StepRecord
@@ -115,11 +106,12 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                 engine._memory_append("action_result", blocked_result, record.step_id)
                 if record.decision_source == "native_tool_calls" and record.native_tool_call_used:
                     tool_call_id = normalized_action.action_id or f"call_{record.step_id}_{i}"
+                    blocked_view = blocked_result.to_model_dict()
                     engine._history_append(
                         "tool",
                         self._serialize_for_tool_message(
-                            blocked_result.output,
-                            blocked_result.error,
+                            blocked_view["model_output"],
+                            blocked_view["error"],
                         ),
                         record.step_id,
                         metadata={
@@ -227,7 +219,10 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                     phase=RuntimePhase.ACT,
                     state=state,
                     decision=decision,
-                    action_results=[r.to_dict() for r in all_blocked_results],
+                    action_results=[
+                        self._model_visible_tool_result_dict(r, r.tool_name or "")
+                        for r in all_blocked_results
+                    ],
                     record=record,
                 ),
             )
@@ -265,11 +260,25 @@ class _ActionRuntime(Generic[StateT, ActionT]):
         if exec_stats:
             record.action_execution = exec_stats
         results: List[ToolResult] = []
-        max_chars = int(getattr(engine.context_config, "tool_result_max_chars", 0) or 0)
-        per_message_max = int(getattr(engine.context_config, "tool_result_per_message_max_chars", 0) or 0)
-        message_total_chars = 0
         for item in execution:
-            result = ToolResult.from_action_result(item)
+            try:
+                result = ToolResult.from_action_result(item)
+            except ToolResultContractError as exc:
+                result = ToolResult.execution_error(
+                    code=exc.code,
+                    error=(
+                        "Tool returned a value that violates the canonical result "
+                        f"contract ({exc.code})."
+                    ),
+                    tool_name=item.name,
+                    action_id=item.action_id,
+                    attempts=item.attempts,
+                    latency_ms=item.latency_ms,
+                    metadata={
+                        "source": "tool_result_boundary",
+                        "contract_error_code": exc.code,
+                    },
+                )
             output = result.output
             output_status = ""
             output_error = None
@@ -289,38 +298,6 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                     metadata=result.metadata,
                 )
 
-            # Budget only the model projection. Canonical structured output is
-            # retained for reducers/trace replay and truncation is explicit.
-            if result.status == "success" and max_chars > 0 and output is not None:
-                visible_for_budget = (
-                    result.model_output
-                    if result.model_output is not None
-                    else output
-                )
-                output_str = (
-                    visible_for_budget
-                    if isinstance(visible_for_budget, str)
-                    else json.dumps(visible_for_budget, ensure_ascii=False, default=str)
-                )
-                effective_max = max_chars
-                if per_message_max > 0 and message_total_chars + len(output_str) > per_message_max:
-                    remaining = max(0, per_message_max - message_total_chars)
-                    effective_max = min(max_chars, remaining)
-                if len(output_str) > effective_max and result.model_output is None:
-                    head = int(effective_max * 0.7)
-                    tail = effective_max - head
-                    suffix = output_str[-tail:] if tail else ""
-                    result.model_output = (
-                        output_str[:head]
-                        + f"\n... [truncated, {len(output_str)} chars total] ...\n"
-                        + suffix
-                    )
-                    result.complete = False
-                    result.truncated = True
-                    result.omitted["characters"] = len(output_str) - effective_max
-                    message_total_chars += len(result.model_output)
-                else:
-                    message_total_chars += len(output_str)
             results.append(result)
 
         # Merge blocked results and execution results back into original action order
@@ -392,6 +369,7 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                     )
                 )
         record.action_results = results
+        model_views = self._model_visible_tool_result_dicts(results)
         for item in results:
             engine._memory_append("action_result", item, record.step_id)
         for normalized_action in executable_actions:
@@ -411,10 +389,10 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                     native_call_id = actions[idx].action_id
                 if not native_call_id:
                     native_call_id = f"call_{record.step_id}_{idx}"
-                model_payload = self._model_visible_tool_output(
-                    tool_name, payload, result=result
+                view = model_views[idx]
+                serialized = self._serialize_for_tool_message(
+                    view.get("model_output"), view.get("error")
                 )
-                serialized = self._serialize_for_tool_message(model_payload, result.error)
                 engine._history_append(
                     "tool",
                     serialized[
@@ -431,13 +409,7 @@ class _ActionRuntime(Generic[StateT, ActionT]):
             payload={
                 "stage": "action_results",
                 "tool_invocations": record.tool_invocations,
-                "action_results": [
-                    self._model_visible_tool_result_dict(
-                        item,
-                        actions[idx].name if idx < len(actions) else "",
-                    )
-                    for idx, item in enumerate(results)
-                ],
+                "action_results": model_views,
             },
         )
         # Keep every human-visible surface on the exact same projection as
@@ -450,20 +422,14 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                 phase=RuntimePhase.ACT,
                 state=state,
                 decision=decision,
-                action_results=[
-                    self._model_visible_tool_result_dict(
-                        item,
-                        actions[idx].name if idx < len(actions) else "",
-                    )
-                    for idx, item in enumerate(results)
-                ],
+                action_results=model_views,
                 record=record,
             ),
         )
         return [item.to_dict() for item in results]
 
     def _serialize_for_tool_message(self, output: Any, error: str | None) -> str:
-        # ``output`` has already passed through ``_model_visible_tool_output``.
+        # ``output`` has already passed through ``ToolResult.to_model_dict``.
         # When a tool supplies a model-facing recovery card as a string, it is
         # the exact text that provider history, TUI, and assembled messages
         # must share. Do not wrap it in {"error": ..., "output": ...}: JSON
@@ -504,44 +470,47 @@ class _ActionRuntime(Generic[StateT, ActionT]):
         *,
         result: ToolResult | None = None,
     ) -> Any:
-        """Project a bounded tool summary into native tool-call history.
-
-        Reducers and trace writers retain the canonical structured result. A
-        tool may provide ``model_summary`` when the raw result is an
-        artifact-heavy machine contract whose useful facts need a compact
-        model-facing representation; the tool owns its privacy boundary by
-        choosing what the summary exposes. This is intentionally generic: it
-        is not a benchmark-specific rendering path.
-        """
+        """Project through the single bounded/redacted ToolResult model view."""
         _ = tool_name
-        if result is not None and result.model_output is not None:
-            return result.model_output
-        if isinstance(output, dict) and isinstance(output.get("model_summary"), str):
-            summary = output["model_summary"].strip()
-            if summary:
-                return summary
-        return output
+        canonical = result if result is not None else ToolResult.from_legacy_value(output)
+        return canonical.to_model_dict()["model_output"]
+
+    def _model_visible_tool_result_dicts(
+        self, results: List[ToolResult]
+    ) -> List[Dict[str, Any]]:
+        engine = self.engine
+        per_result = int(
+            getattr(engine.context_config, "tool_result_max_chars", 4000) or 4000
+        )
+        aggregate = int(
+            getattr(
+                engine.context_config,
+                "tool_result_per_message_max_chars",
+                0,
+            )
+            or 0
+        )
+        remaining: int | None = aggregate if aggregate > 0 else None
+        views: List[Dict[str, Any]] = []
+        for result in results:
+            allowance = max(0, per_result)
+            if remaining is not None:
+                allowance = min(allowance, remaining)
+            view = result.to_model_dict(max_chars=allowance)
+            used = sum(
+                len(value)
+                for key in ("model_output", "error", "recovery_hint")
+                if isinstance((value := view.get(key)), str)
+            )
+            if remaining is not None:
+                remaining = max(0, remaining - used)
+            views.append(view)
+        return views
 
     def _model_visible_tool_result_dict(
         self,
         result: ToolResult,
         tool_name: str,
     ) -> Dict[str, Any]:
-        payload = result.to_dict()
-        if result.model_output is None:
-            return payload
-        visible_output = self._model_visible_tool_output(
-            tool_name, result.output, result=result
-        )
-        payload["output"] = visible_output
-        # ``to_dict`` preserves legacy flattened fields. They belong to the
-        # canonical record, not to an explicitly redacted model projection.
-        if isinstance(result.output, dict):
-            for key in result.output:
-                if key not in ToolResult().to_dict():
-                    payload.pop(str(key), None)
-        payload["metadata"] = {
-            **dict(payload.get("metadata") or {}),
-            "model_visible": True,
-        }
-        return payload
+        _ = tool_name
+        return result.to_model_dict()

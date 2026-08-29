@@ -109,7 +109,7 @@ class _HarnessAgent(AgentModule[_State, Observation, Action]):
         return state
 
 
-def test_native_tool_chain_preserves_tool_call_history_and_non_json_result() -> None:
+def test_native_tool_chain_reports_non_json_result_as_typed_contract_failure() -> None:
     llm = _NativeToolModel()
     agent = _NativeToolAgent(llm=llm)
     result = Engine(agent=agent, budget=RuntimeBudget(max_steps=3)).run("native")
@@ -123,7 +123,8 @@ def test_native_tool_chain_preserves_tool_call_history_and_non_json_result() -> 
     assert assistant_msgs[-1].get("tool_calls")
     assert tool_msgs[-1].get("tool_call_id") == "call_native_1"
     tool_content = str(tool_msgs[-1].get("content", ""))
-    assert "1" in tool_content and "2" in tool_content
+    assert "non_serializable_value" in tool_content
+    assert "{1, 2, 3}" not in tool_content
 
 
 def test_default_history_window_never_sends_orphan_parallel_tool_results() -> None:

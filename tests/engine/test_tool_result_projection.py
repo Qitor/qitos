@@ -16,11 +16,12 @@ def test_explicit_model_projection_hides_canonical_output_fields() -> None:
 
     visible = runtime._model_visible_tool_result_dict(result, "inspect")
 
-    assert visible["output"] == "fact"
     assert visible["model_output"] == "fact"
+    assert visible["model_output"] == "fact"
+    assert "output" not in visible
     assert "private_host_path" not in visible
     assert result.output["private_host_path"] == "/private/tmp/raw"
-    assert visible["artifact_refs"] == [{"artifact_id": "sha256:abc"}]
+    assert "artifact_refs" not in visible
 
 
 def test_action_adapter_keeps_skip_timeout_and_cancel_statuses() -> None:
@@ -49,6 +50,7 @@ def test_legacy_model_summary_projects_without_mutating_canonical_output() -> No
 
     visible = runtime._model_visible_tool_result_dict(result, "legacy")
 
-    assert visible["output"] == "bounded"
+    assert visible["model_output"] == "bounded"
+    assert "output" not in visible
     assert "raw" not in visible
     assert result.output["raw"] == "retained"

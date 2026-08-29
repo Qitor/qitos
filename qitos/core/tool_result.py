@@ -1,36 +1,67 @@
-"""Canonical action/tool outcome used by execution, observations, and replay."""
+"""Canonical action/tool outcome and its explicitly separated projections."""
 
 from __future__ import annotations
 
 import json
+import math
+import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, Literal, Mapping, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .action import ActionResult
 
-
-ToolResultStatus = Literal[
-    "success",
-    "error",
-    "skipped",
-    "timed_out",
-    "cancelled",
-]
+ToolResultStatus = Literal["success", "error", "skipped", "timed_out", "cancelled"]
 ToolErrorKind = Literal["semantic", "execution", "policy"]
 
 TOOL_RESULT_SCHEMA_VERSION = "qitos.tool_result/v1"
-_TERMINAL_STATUSES = frozenset(
-    {"success", "error", "skipped", "timed_out", "cancelled"}
-)
+TOOL_RESULT_MODEL_VIEW_VERSION = "qitos.tool_result.model_view/v1"
+TOOL_RESULT_TRACE_SAFE_VERSION = "qitos.tool_result.trace_safe/v1"
+
+_STATUSES = frozenset({"success", "error", "skipped", "timed_out", "cancelled"})
 _ERROR_KINDS = frozenset({"semantic", "execution", "policy"})
+_FIELDS = frozenset(
+    {
+        "schema_version", "status", "success", "tool_name", "action_id",
+        "output", "model_output", "error", "error_kind", "error_code",
+        "recoverable", "recovery_hint", "next_action", "complete", "truncated",
+        "omitted", "attempts", "latency_ms", "declared_effects",
+        "filesystem_changes", "artifact_refs", "normalized_request", "provenance",
+        "worker_still_running", "metadata",
+    }
+)
+_ARTIFACT_FIELDS = frozenset(
+    {"artifact_id", "media_type", "byte_length", "encoding", "sensitivity", "provenance"}
+)
+_SENSITIVE_KEY = re.compile(
+    r"(?:authorization|cookie|credential|password|passwd|secret|token|api[_-]?key|headers?)",
+    re.IGNORECASE,
+)
+_HOST_PATH = re.compile(
+    r"(?<![\w.])(?:/(?:Users|home|private|var/folders|tmp)/[^\s,;:'\"<>]+|[A-Za-z]:\\[^\s,;:'\"<>]+)"
+)
+_SECRET_TEXT = re.compile(
+    r"(?i)(authorization\s*[:=]\s*(?:bearer\s+)?|bearer\s+|(?:api[_-]?key|token|password|secret)\s*[:=]\s*)[^\s,;]+"
+)
 
 
-def _copy_dict(value: Any) -> Dict[str, Any]:
+class ToolResultContractError(ValueError):
+    """Typed canonical serialization/parse boundary failure."""
+
+    def __init__(self, code: str, message: str):
+        self.code = str(code)
+        super().__init__(f"{self.code}: {message}")
+
+
+def _fail(code: str, message: str) -> ToolResultContractError:
+    return ToolResultContractError(code, message)
+
+
+def _legacy_dict(value: Any) -> Dict[str, Any]:
     return dict(value) if isinstance(value, Mapping) else {}
 
 
-def _copy_dict_list(value: Any) -> list[Dict[str, Any]]:
+def _legacy_dict_list(value: Any) -> list[Dict[str, Any]]:
     if not isinstance(value, (list, tuple)):
         return []
     return [dict(item) for item in value if isinstance(item, Mapping)]
@@ -46,35 +77,151 @@ def _model_projection(output: Any, explicit: Any = None) -> Any:
     return None
 
 
-def _validated_next_action(value: Any) -> Dict[str, Any] | None:
+def _require_json(value: Any, path: str) -> None:
+    if value is None or isinstance(value, (str, bool, int)):
+        return
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise _fail("non_serializable_value", f"{path} must be finite")
+        return
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            _require_json(item, f"{path}[{index}]")
+        return
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise _fail("non_serializable_value", f"{path} keys must be strings")
+            _require_json(item, f"{path}.{key}")
+        return
+    raise _fail(
+        "non_serializable_value",
+        f"{path} contains non-JSON value {type(value).__name__}",
+    )
+
+
+def _require_optional_string(value: Any, path: str) -> None:
+    if value is not None and not isinstance(value, str):
+        raise _fail("invalid_canonical_field", f"{path} must be a string or null")
+
+
+def _validate_next_action(value: Any) -> Dict[str, Any] | None:
     if value is None:
         return None
-    if not isinstance(value, Mapping):
-        raise ValueError("next_action must be an object")
-    name = value.get("name")
-    args = value.get("args", {})
-    action_id = value.get("action_id")
+    if not isinstance(value, dict):
+        raise _fail("invalid_canonical_field", "next_action must be an object")
+    unknown = sorted(set(value) - {"name", "args", "action_id"})
+    if unknown:
+        raise _fail("invalid_canonical_field", f"next_action has unknown field {unknown[0]!r}")
+    name, args, action_id = value.get("name"), value.get("args", {}), value.get("action_id")
     if not isinstance(name, str) or not name.strip():
-        raise ValueError("next_action.name must be a non-empty string")
-    if not isinstance(args, Mapping):
-        raise ValueError("next_action.args must be an object")
+        raise _fail("invalid_canonical_field", "next_action.name must be a non-empty string")
+    if not isinstance(args, dict):
+        raise _fail("invalid_canonical_field", "next_action.args must be an object")
     if action_id is not None and not isinstance(action_id, str):
-        raise ValueError("next_action.action_id must be a string when provided")
-    normalized: Dict[str, Any] = {"name": name.strip(), "args": dict(args)}
+        raise _fail("invalid_canonical_field", "next_action.action_id must be a string")
+    result: Dict[str, Any] = {"name": name.strip(), "args": dict(args)}
     if action_id is not None:
-        normalized["action_id"] = action_id
-    return normalized
+        result["action_id"] = action_id
+    _require_json(result, "next_action")
+    return result
+
+
+def _validate_dict(value: Any, path: str) -> Dict[str, Any]:
+    if not isinstance(value, dict):
+        raise _fail("invalid_canonical_field", f"{path} must be an object")
+    result = dict(value)
+    _require_json(result, path)
+    return result
+
+
+def _validate_dict_list(value: Any, path: str) -> list[Dict[str, Any]]:
+    if not isinstance(value, list):
+        raise _fail("invalid_canonical_field", f"{path} must be an array")
+    result: list[Dict[str, Any]] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, dict):
+            raise _fail("invalid_canonical_field", f"{path}[{index}] must be an object")
+        result.append(_validate_dict(item, f"{path}[{index}]"))
+    return result
+
+
+def _validate_artifacts(value: Any) -> list[Dict[str, Any]]:
+    refs = _validate_dict_list(value, "artifact_refs")
+    for index, ref in enumerate(refs):
+        unknown = sorted(set(ref) - _ARTIFACT_FIELDS)
+        if unknown:
+            raise _fail("invalid_artifact_ref", f"artifact_refs[{index}] has unknown field {unknown[0]!r}")
+        artifact_id = ref.get("artifact_id")
+        if not isinstance(artifact_id, str) or not artifact_id.strip():
+            raise _fail("invalid_artifact_ref", f"artifact_refs[{index}].artifact_id must be non-empty")
+        for key in ("media_type", "encoding", "sensitivity"):
+            if key in ref and not isinstance(ref[key], str):
+                raise _fail("invalid_artifact_ref", f"artifact_refs[{index}].{key} must be a string")
+        if "byte_length" in ref and (
+            not isinstance(ref["byte_length"], int)
+            or isinstance(ref["byte_length"], bool)
+            or ref["byte_length"] < 0
+        ):
+            raise _fail("invalid_artifact_ref", f"artifact_refs[{index}].byte_length is invalid")
+        if "provenance" in ref and not isinstance(ref["provenance"], dict):
+            raise _fail("invalid_artifact_ref", f"artifact_refs[{index}].provenance must be an object")
+    return refs
+
+
+def _new_facts() -> Dict[str, int]:
+    return {"secret_values": 0, "host_paths": 0, "non_json_values": 0, "omitted_characters": 0}
+
+
+def _redact_text(value: str, facts: Dict[str, int]) -> str:
+    redacted, count = _SECRET_TEXT.subn(r"\1[REDACTED]", value)
+    facts["secret_values"] += count
+    redacted, count = _HOST_PATH.subn("[REDACTED_PATH]", redacted)
+    facts["host_paths"] += count
+    return redacted
+
+
+def _redact_value(value: Any, facts: Dict[str, int]) -> Any:
+    if isinstance(value, str):
+        return _redact_text(value, facts)
+    if isinstance(value, list):
+        return [_redact_value(item, facts) for item in value]
+    if isinstance(value, dict):
+        result: Dict[str, Any] = {}
+        for key, item in value.items():
+            if _SENSITIVE_KEY.search(str(key)):
+                result[str(key)] = "[REDACTED]"
+                facts["secret_values"] += 1
+            else:
+                result[str(key)] = _redact_value(item, facts)
+        return result
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    facts["non_json_values"] += 1
+    return f"[REDACTED_{type(value).__name__.upper()}]"
+
+
+def _projection_text(value: Any, facts: Dict[str, int]) -> str:
+    safe = _redact_value(value, facts)
+    if isinstance(safe, str):
+        return safe
+    return json.dumps(safe, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _bounded_text(value: str, max_chars: int, facts: Dict[str, int]) -> str:
+    budget = max(0, int(max_chars))
+    if len(value) <= budget:
+        return value
+    facts["omitted_characters"] += len(value) - budget
+    marker = "...[TRUNCATED]"
+    if budget <= len(marker):
+        return marker[:budget]
+    return value[: budget - len(marker)] + marker
 
 
 @dataclass
 class ToolResult:
-    """Lossless terminal outcome for one declared action/tool slot.
-
-    ``output`` is the canonical structured value. ``model_output`` is an
-    explicit, possibly redacted/bounded projection and never replaces it.
-    ``ActionResult`` is accepted only through :meth:`from_action_result` as an
-    executor compatibility boundary.
-    """
+    """Lossless terminal outcome for one declared action/tool slot."""
 
     status: ToolResultStatus = "success"
     output: Any = None
@@ -102,26 +249,64 @@ class ToolResult:
     schema_version: str = TOOL_RESULT_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
-        if self.status not in _TERMINAL_STATUSES:
-            raise ValueError(f"unsupported ToolResult status: {self.status!r}")
+        if self.schema_version != TOOL_RESULT_SCHEMA_VERSION:
+            raise _fail("unknown_schema_version", f"unsupported schema version: {self.schema_version!r}")
+        if not isinstance(self.status, str) or self.status not in _STATUSES:
+            raise _fail("invalid_terminal_status", f"unsupported status: {self.status!r}")
         if self.error_kind is not None and self.error_kind not in _ERROR_KINDS:
-            raise ValueError(f"unsupported ToolResult error_kind: {self.error_kind!r}")
-        if self.attempts < 0:
-            raise ValueError("attempts must be non-negative")
-        if self.latency_ms < 0:
-            raise ValueError("latency_ms must be non-negative")
+            raise _fail("invalid_error_kind", f"unsupported error_kind: {self.error_kind!r}")
+        for path, value in (
+            ("tool_name", self.tool_name), ("action_id", self.action_id),
+            ("error", self.error), ("error_code", self.error_code),
+            ("recovery_hint", self.recovery_hint),
+        ):
+            _require_optional_string(value, path)
+        for bool_path, bool_value in (
+            ("recoverable", self.recoverable), ("complete", self.complete),
+            ("truncated", self.truncated), ("worker_still_running", self.worker_still_running),
+        ):
+            if not isinstance(bool_value, bool):
+                raise _fail("invalid_canonical_field", f"{bool_path} must be boolean")
+        if not isinstance(self.attempts, int) or isinstance(self.attempts, bool) or self.attempts < 0:
+            raise _fail("invalid_canonical_field", "attempts must be a non-negative integer")
+        if (
+            not isinstance(self.latency_ms, (int, float)) or isinstance(self.latency_ms, bool)
+            or not math.isfinite(float(self.latency_ms)) or self.latency_ms < 0
+        ):
+            raise _fail("invalid_canonical_field", "latency_ms must be a finite non-negative number")
+        if not isinstance(self.omitted, dict):
+            raise _fail("invalid_canonical_field", "omitted must be an object")
         for key, count in self.omitted.items():
-            if not isinstance(key, str) or not isinstance(count, int) or count < 0:
-                raise ValueError("omitted must map string names to non-negative integers")
-        self.next_action = _validated_next_action(self.next_action)
-        self.metadata = _copy_dict(self.metadata)
+            if not isinstance(key, str) or not isinstance(count, int) or isinstance(count, bool) or count < 0:
+                raise _fail("invalid_canonical_field", "omitted values must be non-negative integers")
+        self.next_action = _validate_next_action(self.next_action)
+        self.metadata = _validate_dict(self.metadata, "metadata")
         self.omitted = dict(self.omitted)
-        self.declared_effects = _copy_dict_list(self.declared_effects)
-        self.filesystem_changes = _copy_dict_list(self.filesystem_changes)
-        self.artifact_refs = _copy_dict_list(self.artifact_refs)
-        self.normalized_request = _copy_dict(self.normalized_request)
-        self.provenance = _copy_dict(self.provenance)
+        self.declared_effects = _validate_dict_list(self.declared_effects, "declared_effects")
+        self.filesystem_changes = _validate_dict_list(self.filesystem_changes, "filesystem_changes")
+        self.artifact_refs = _validate_artifacts(self.artifact_refs)
+        self.normalized_request = _validate_dict(self.normalized_request, "normalized_request")
+        self.provenance = _validate_dict(self.provenance, "provenance")
         self.model_output = _model_projection(self.output, self.model_output)
+        _require_json(self.output, "output")
+        _require_json(self.model_output, "model_output")
+        self._validate_terminal_invariants()
+
+    def _validate_terminal_invariants(self) -> None:
+        if self.status == "success":
+            if self.error is not None or self.error_kind is not None or self.error_code is not None:
+                raise _fail("contradictory_outcome", "success cannot carry error fields")
+            if self.worker_still_running:
+                raise _fail("contradictory_outcome", "success cannot have a running worker")
+            return
+        if self.error_kind is None or not isinstance(self.error_code, str) or not self.error_code:
+            raise _fail("contradictory_outcome", f"{self.status} requires error_kind and error_code")
+        if self.status == "skipped" and self.error_kind != "policy":
+            raise _fail("contradictory_outcome", "skipped requires policy error_kind")
+        if self.status in {"timed_out", "cancelled"} and self.error_kind != "execution":
+            raise _fail("contradictory_outcome", f"{self.status} requires execution error_kind")
+        if self.worker_still_running and self.status != "timed_out":
+            raise _fail("contradictory_outcome", "worker_still_running is only valid for timed_out")
 
     @property
     def is_success(self) -> bool:
@@ -131,265 +316,286 @@ class ToolResult:
     def text(self) -> str:
         if isinstance(self.output, str):
             return self.output
-        try:
-            return json.dumps(self.output, ensure_ascii=False, default=str)
-        except Exception:
-            return str(self.output)
+        return json.dumps(self.output, ensure_ascii=False, sort_keys=True)
 
     @property
     def model_text(self) -> str:
         visible = self.model_output if self.model_output is not None else self.output
-        if isinstance(visible, str):
-            return visible
-        try:
-            return json.dumps(visible, ensure_ascii=False, default=str)
-        except Exception:
-            return str(visible)
+        return _projection_text(visible, _new_facts())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_persistence_dict(self) -> Dict[str, Any]:
+        """Serialize declared canonical v1 fields without legacy flattening."""
+        self.__post_init__()
         payload: Dict[str, Any] = {
-            "schema_version": self.schema_version,
-            "status": str(self.status),
-            "success": self.is_success,
-            "tool_name": self.tool_name,
-            "action_id": self.action_id,
-            "output": self.output,
-            "model_output": self.model_output,
-            "error": self.error,
-            "error_kind": self.error_kind,
-            "error_code": self.error_code,
-            "recoverable": self.recoverable,
-            "recovery_hint": self.recovery_hint,
+            "schema_version": TOOL_RESULT_SCHEMA_VERSION, "status": self.status,
+            "success": self.is_success, "tool_name": self.tool_name,
+            "action_id": self.action_id, "output": self.output,
+            "model_output": self.model_output, "error": self.error,
+            "error_kind": self.error_kind, "error_code": self.error_code,
+            "recoverable": self.recoverable, "recovery_hint": self.recovery_hint,
             "next_action": dict(self.next_action) if self.next_action is not None else None,
-            "complete": self.complete,
-            "truncated": self.truncated,
-            "omitted": dict(self.omitted),
-            "attempts": self.attempts,
+            "complete": self.complete, "truncated": self.truncated,
+            "omitted": dict(self.omitted), "attempts": self.attempts,
             "latency_ms": self.latency_ms,
-            "declared_effects": list(self.declared_effects),
-            "filesystem_changes": list(self.filesystem_changes),
-            "artifact_refs": list(self.artifact_refs),
+            "declared_effects": [dict(item) for item in self.declared_effects],
+            "filesystem_changes": [dict(item) for item in self.filesystem_changes],
+            "artifact_refs": [dict(item) for item in self.artifact_refs],
             "normalized_request": dict(self.normalized_request),
             "provenance": dict(self.provenance),
             "worker_still_running": self.worker_still_running,
             "metadata": dict(self.metadata),
         }
-        if isinstance(self.output, dict):
+        _require_json(payload, "ToolResult")
+        return payload
+
+    def to_dict(self) -> Dict[str, Any]:
+        return self.to_persistence_dict()
+
+    def to_legacy_dict(self, *, flatten_output: bool = True) -> Dict[str, Any]:
+        payload = self.to_persistence_dict()
+        if flatten_output and isinstance(self.output, dict):
             for key, value in self.output.items():
-                if key in payload:
-                    continue
-                payload[str(key)] = value
+                payload.setdefault(str(key), value)
+        return payload
+
+    def _safe_projection(self, max_chars: int) -> tuple[str, Dict[str, int]]:
+        facts = _new_facts()
+        source = self.model_output
+        if source is None:
+            source = self.output if self.output is not None else self.error or ""
+        return _bounded_text(_projection_text(source, facts), max_chars, facts), facts
+
+    def to_model_dict(self, *, max_chars: int = 4000) -> Dict[str, Any]:
+        """Return the allowlist view permitted in model messages."""
+        self.__post_init__()
+        budget = max(0, int(max_chars))
+        model_text, _ = self._safe_projection(budget)
+        remaining = max(0, budget - len(model_text))
+        error_facts, hint_facts, action_facts = _new_facts(), _new_facts(), _new_facts()
+        safe_error = (
+            _bounded_text(_redact_text(self.error, error_facts), remaining, error_facts)
+            if self.error is not None and remaining > 0 else None
+        )
+        remaining = max(0, remaining - len(safe_error or ""))
+        safe_hint = (
+            _bounded_text(_redact_text(self.recovery_hint, hint_facts), remaining, hint_facts)
+            if self.recovery_hint is not None and remaining > 0 else None
+        )
+        remaining = max(0, remaining - len(safe_hint or ""))
+        safe_next_action = (
+            _redact_value(self.next_action, action_facts)
+            if self.next_action is not None else None
+        )
+        if safe_next_action is not None:
+            rendered_action = json.dumps(
+                safe_next_action, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            )
+            if len(rendered_action) > remaining:
+                safe_next_action = None
+        payload: Dict[str, Any] = {
+            "schema_version": TOOL_RESULT_MODEL_VIEW_VERSION,
+            "status": self.status,
+            "tool_name": self.tool_name,
+            "action_id": self.action_id,
+            "model_output": model_text,
+            "error": safe_error,
+            "error_code": self.error_code,
+            "recoverable": self.recoverable,
+            "recovery_hint": safe_hint,
+            "next_action": safe_next_action,
+        }
+        _require_json(payload, "model_view")
+        return payload
+
+    def to_trace_safe_dict(self, *, max_chars: int = 4000) -> Dict[str, Any]:
+        """Return the bounded ToolResult-only Lane D handoff projection."""
+        model_text, facts = self._safe_projection(max_chars)
+        excluded = [
+            name for name, value in (
+                ("output", self.output), ("metadata", self.metadata),
+                ("normalized_request", self.normalized_request), ("provenance", self.provenance),
+                ("declared_effects", self.declared_effects),
+                ("filesystem_changes", self.filesystem_changes), ("artifact_refs", self.artifact_refs),
+            ) if value not in (None, {}, [])
+        ]
+        payload = self.to_model_dict(max_chars=max_chars)
+        payload.update(
+            {
+                "schema_version": TOOL_RESULT_TRACE_SAFE_VERSION,
+                "complete": self.complete, "truncated": self.truncated,
+                "omitted": dict(self.omitted), "attempts": self.attempts,
+                "latency_ms": self.latency_ms,
+                "worker_still_running": self.worker_still_running,
+                "model_output": model_text,
+                "loss": {
+                    "canonical_output_included": False,
+                    "excluded_fields": excluded,
+                    "redacted_secret_values": facts["secret_values"],
+                    "redacted_host_paths": facts["host_paths"],
+                    "redacted_non_json_values": facts["non_json_values"],
+                    "omitted_characters": facts["omitted_characters"],
+                },
+            }
+        )
+        _require_json(payload, "trace_safe_view")
         return payload
 
     @classmethod
     def semantic_error(
-        cls,
-        *,
-        code: str,
-        error: str,
-        output: Any = None,
-        recoverable: bool = True,
-        recovery_hint: str | None = None,
-        next_action: Mapping[str, Any] | None = None,
-        complete: bool = True,
-        **kwargs: Any,
+        cls, *, code: str, error: str, output: Any = None, recoverable: bool = True,
+        recovery_hint: str | None = None, next_action: Mapping[str, Any] | None = None,
+        complete: bool = True, **kwargs: Any,
     ) -> "ToolResult":
         return cls(
-            status="error",
-            output=output,
-            error=error,
-            error_kind="semantic",
-            error_code=code,
-            recoverable=recoverable,
-            recovery_hint=recovery_hint,
+            status="error", output=output, error=error, error_kind="semantic",
+            error_code=code, recoverable=recoverable, recovery_hint=recovery_hint,
             next_action=dict(next_action) if next_action is not None else None,
-            complete=complete,
-            **kwargs,
+            complete=complete, **kwargs,
         )
 
     @classmethod
     def execution_error(
-        cls,
-        *,
-        code: str,
-        error: str,
-        output: Any = None,
-        recoverable: bool = False,
-        recovery_hint: str | None = None,
-        **kwargs: Any,
+        cls, *, code: str, error: str, output: Any = None, recoverable: bool = False,
+        recovery_hint: str | None = None, **kwargs: Any,
     ) -> "ToolResult":
         return cls(
-            status="error",
-            output=output,
-            error=error,
-            error_kind="execution",
-            error_code=code,
-            recoverable=recoverable,
-            recovery_hint=recovery_hint,
-            **kwargs,
+            status="error", output=output, error=error, error_kind="execution",
+            error_code=code, recoverable=recoverable, recovery_hint=recovery_hint, **kwargs,
         )
 
     @classmethod
     def from_action_result(cls, payload: "ActionResult") -> "ToolResult":
-        """Adapt the executor compatibility record into the canonical result."""
         from .action import ActionResult
-
         if not isinstance(payload, ActionResult):
             raise TypeError("from_action_result() expects ActionResult")
-
         metadata = dict(payload.metadata or {})
         nested = payload.output if isinstance(payload.output, ToolResult) else None
         if nested is not None:
             return cls(
-                status=nested.status,
-                output=nested.output,
-                error=nested.error,
-                metadata={**metadata, **nested.metadata},
-                tool_name=nested.tool_name or payload.name,
-                action_id=nested.action_id or payload.action_id,
-                model_output=nested.model_output,
-                error_kind=nested.error_kind,
-                error_code=nested.error_code,
-                recoverable=nested.recoverable,
-                recovery_hint=nested.recovery_hint,
-                next_action=nested.next_action,
-                complete=nested.complete,
-                truncated=nested.truncated,
-                omitted=nested.omitted,
-                attempts=payload.attempts,
-                latency_ms=payload.latency_ms,
-                declared_effects=nested.declared_effects,
-                filesystem_changes=nested.filesystem_changes,
-                artifact_refs=nested.artifact_refs,
-                normalized_request=nested.normalized_request,
-                provenance=nested.provenance,
+                status=nested.status, output=nested.output, error=nested.error,
+                metadata={**metadata, **nested.metadata}, tool_name=nested.tool_name or payload.name,
+                action_id=nested.action_id or payload.action_id, model_output=nested.model_output,
+                error_kind=nested.error_kind, error_code=nested.error_code,
+                recoverable=nested.recoverable, recovery_hint=nested.recovery_hint,
+                next_action=nested.next_action, complete=nested.complete,
+                truncated=nested.truncated, omitted=nested.omitted, attempts=payload.attempts,
+                latency_ms=payload.latency_ms, declared_effects=nested.declared_effects,
+                filesystem_changes=nested.filesystem_changes, artifact_refs=nested.artifact_refs,
+                normalized_request=nested.normalized_request, provenance=nested.provenance,
                 worker_still_running=nested.worker_still_running,
             )
-
         status = str(getattr(payload.status, "value", payload.status))
-        if status not in _TERMINAL_STATUSES:
+        if status not in _STATUSES:
             status = "error"
-        output = payload.output
         error_code = metadata.get("error_code") or metadata.get("error_category")
         error_kind: ToolErrorKind | None = None
         if status == "skipped":
-            error_kind = "policy"
+            error_kind, error_code = "policy", error_code or "skipped"
         elif status != "success":
-            error_kind = "execution"
+            error_kind, error_code = "execution", error_code or status
         return cls(
             status=status,  # type: ignore[arg-type]
-            output=output,
-            error=payload.error,
-            metadata=metadata,
-            tool_name=payload.name,
-            action_id=payload.action_id,
-            model_output=_model_projection(output, metadata.get("model_output")),
+            output=payload.output, error=payload.error, metadata=metadata,
+            tool_name=payload.name, action_id=payload.action_id,
+            model_output=_model_projection(payload.output, metadata.get("model_output")),
             error_kind=error_kind,
             error_code=str(error_code) if error_code not in (None, "") else None,
             recoverable=bool(metadata.get("recoverable", False)),
-            recovery_hint=(
-                str(metadata["recovery_hint"])
-                if metadata.get("recovery_hint") not in (None, "")
-                else None
-            ),
-            next_action=metadata.get("next_action"),
-            complete=bool(metadata.get("complete", True)),
-            truncated=bool(metadata.get("truncated", False)),
-            omitted=_copy_dict(metadata.get("omitted")),
-            attempts=payload.attempts,
-            latency_ms=payload.latency_ms,
-            declared_effects=_copy_dict_list(metadata.get("declared_effects")),
-            filesystem_changes=_copy_dict_list(metadata.get("filesystem_changes")),
-            artifact_refs=_copy_dict_list(
-                metadata.get("artifact_refs", metadata.get("artifacts"))
-            ),
-            normalized_request=_copy_dict(metadata.get("normalized_request")),
-            provenance=_copy_dict(metadata.get("provenance")),
+            recovery_hint=str(metadata["recovery_hint"]) if metadata.get("recovery_hint") not in (None, "") else None,
+            next_action=metadata.get("next_action"), complete=bool(metadata.get("complete", True)),
+            truncated=bool(metadata.get("truncated", False)), omitted=_legacy_dict(metadata.get("omitted")),
+            attempts=payload.attempts, latency_ms=payload.latency_ms,
+            declared_effects=_legacy_dict_list(metadata.get("declared_effects")),
+            filesystem_changes=_legacy_dict_list(metadata.get("filesystem_changes")),
+            artifact_refs=_legacy_dict_list(metadata.get("artifact_refs", metadata.get("artifacts"))),
+            normalized_request=_legacy_dict(metadata.get("normalized_request")),
+            provenance=_legacy_dict(metadata.get("provenance")),
             worker_still_running=bool(metadata.get("worker_still_running", False)),
         )
 
     @classmethod
-    def from_value(cls, payload: Any) -> "ToolResult":
+    def from_canonical_dict(cls, payload: Mapping[str, Any]) -> "ToolResult":
+        if not isinstance(payload, Mapping):
+            raise _fail("invalid_canonical_payload", "canonical payload must be an object")
+        data = dict(payload)
+        version = data.get("schema_version")
+        if version != TOOL_RESULT_SCHEMA_VERSION:
+            raise _fail("unknown_schema_version", f"unsupported schema version: {version!r}")
+        unknown = sorted(set(data) - _FIELDS)
+        if unknown:
+            raise _fail("unknown_canonical_field", f"unknown canonical field {unknown[0]!r}")
+        if "status" not in data:
+            raise _fail("invalid_canonical_field", "canonical status is required")
+        success_present = "success" in data
+        success = data.pop("success", None)
+        result = cls(**data)  # type: ignore[arg-type]
+        if success_present and (
+            not isinstance(success, bool) or success != result.is_success
+        ):
+            raise _fail("contradictory_outcome", "success must exactly match terminal status")
+        return result
+
+    @classmethod
+    def from_legacy_value(cls, payload: Any) -> "ToolResult":
         if isinstance(payload, ToolResult):
             return payload
-
         from .action import ActionResult
-
         if isinstance(payload, ActionResult):
             return cls.from_action_result(payload)
-        if isinstance(payload, Mapping):
-            schema_version = str(payload.get("schema_version") or "")
-            raw_status = str(payload.get("status") or "success")
-            if raw_status not in _TERMINAL_STATUSES:
-                if schema_version == TOOL_RESULT_SCHEMA_VERSION:
-                    raise ValueError(f"unsupported ToolResult status: {raw_status!r}")
-                raw_status = "error" if payload.get("error") else "success"
-            output = payload.get("output", payload)
-            metadata = _copy_dict(payload.get("metadata"))
-            error = payload.get("error")
-            if error in (None, "") and raw_status == "error":
-                error = payload.get("message")
-            error_kind = payload.get("error_kind")
-            if error_kind not in _ERROR_KINDS:
-                error_kind = None
-            return cls(
-                status=raw_status,  # type: ignore[arg-type]
-                output=output,
-                error=str(error) if error not in (None, "") else None,
-                metadata=metadata,
-                tool_name=(
-                    str(payload["tool_name"])
-                    if payload.get("tool_name") not in (None, "")
-                    else metadata.get("tool_name")
-                ),
-                action_id=(
-                    str(payload["action_id"])
-                    if payload.get("action_id") not in (None, "")
-                    else None
-                ),
-                model_output=_model_projection(output, payload.get("model_output")),
-                error_kind=error_kind,  # type: ignore[arg-type]
-                error_code=(
-                    str(payload["error_code"])
-                    if payload.get("error_code") not in (None, "")
-                    else (
-                        str(metadata["error_category"])
-                        if metadata.get("error_category") not in (None, "")
-                        else None
-                    )
-                ),
-                recoverable=bool(
-                    payload.get("recoverable", metadata.get("recoverable", False))
-                ),
-                recovery_hint=(
-                    str(payload["recovery_hint"])
-                    if payload.get("recovery_hint") not in (None, "")
-                    else None
-                ),
-                next_action=payload.get("next_action"),
-                complete=bool(payload.get("complete", True)),
-                truncated=bool(payload.get("truncated", False)),
-                omitted=_copy_dict(payload.get("omitted")),
-                attempts=int(payload.get("attempts", metadata.get("attempts", 1))),
-                latency_ms=float(
-                    payload.get("latency_ms", metadata.get("latency_ms", 0.0))
-                ),
-                declared_effects=_copy_dict_list(payload.get("declared_effects")),
-                filesystem_changes=_copy_dict_list(payload.get("filesystem_changes")),
-                artifact_refs=_copy_dict_list(payload.get("artifact_refs")),
-                normalized_request=_copy_dict(payload.get("normalized_request")),
-                provenance=_copy_dict(payload.get("provenance")),
-                worker_still_running=bool(payload.get("worker_still_running", False)),
-                schema_version=schema_version or TOOL_RESULT_SCHEMA_VERSION,
-            )
-        if isinstance(payload, str):
+        if not isinstance(payload, Mapping):
             return cls(status="success", output=payload)
-        return cls(status="success", output=payload)
+        data, metadata = dict(payload), _legacy_dict(payload.get("metadata"))
+        raw_status = str(data.get("status") or "success")
+        error = data.get("error")
+        if error in (None, "") and raw_status in {"error", "failed"}:
+            error = data.get("message")
+        if raw_status not in _STATUSES:
+            raw_status = "error" if error not in (None, "") else "success"
+        if raw_status == "success" and error not in (None, ""):
+            raw_status = "error"
+        error_kind, error_code = data.get("error_kind"), data.get("error_code") or metadata.get("error_category")
+        if raw_status == "success":
+            error, error_kind, error_code = None, None, None
+        elif raw_status == "skipped":
+            error_kind, error_code = "policy", error_code or "skipped"
+        elif raw_status in {"timed_out", "cancelled"}:
+            error_kind, error_code = "execution", error_code or raw_status
+        else:
+            error_kind = error_kind if error_kind in _ERROR_KINDS else "execution"
+            error_code = error_code or "legacy_error"
+        output = data.get("output", data)
+        return cls(
+            status=raw_status,  # type: ignore[arg-type]
+            output=output, error=str(error) if error not in (None, "") else None,
+            metadata=metadata,
+            tool_name=str(data["tool_name"]) if data.get("tool_name") not in (None, "") else metadata.get("tool_name"),
+            action_id=str(data["action_id"]) if data.get("action_id") not in (None, "") else None,
+            model_output=_model_projection(output, data.get("model_output")),
+            error_kind=error_kind,  # type: ignore[arg-type]
+            error_code=str(error_code) if error_code not in (None, "") else None,
+            recoverable=bool(data.get("recoverable", metadata.get("recoverable", False))),
+            recovery_hint=str(data["recovery_hint"]) if data.get("recovery_hint") not in (None, "") else None,
+            next_action=data.get("next_action"), complete=bool(data.get("complete", True)),
+            truncated=bool(data.get("truncated", False)), omitted=_legacy_dict(data.get("omitted")),
+            attempts=int(data.get("attempts", metadata.get("attempts", 1))),
+            latency_ms=float(data.get("latency_ms", metadata.get("latency_ms", 0.0))),
+            declared_effects=_legacy_dict_list(data.get("declared_effects")),
+            filesystem_changes=_legacy_dict_list(data.get("filesystem_changes")),
+            artifact_refs=_legacy_dict_list(data.get("artifact_refs")),
+            normalized_request=_legacy_dict(data.get("normalized_request")),
+            provenance=_legacy_dict(data.get("provenance")),
+            worker_still_running=bool(data.get("worker_still_running", False)),
+        )
+
+    @classmethod
+    def from_value(cls, payload: Any) -> "ToolResult":
+        if isinstance(payload, Mapping) and "schema_version" in payload:
+            return cls.from_canonical_dict(payload)
+        return cls.from_legacy_value(payload)
 
 
 __all__ = [
-    "TOOL_RESULT_SCHEMA_VERSION",
-    "ToolErrorKind",
-    "ToolResult",
-    "ToolResultStatus",
+    "TOOL_RESULT_MODEL_VIEW_VERSION", "TOOL_RESULT_SCHEMA_VERSION",
+    "TOOL_RESULT_TRACE_SAFE_VERSION", "ToolErrorKind", "ToolResult",
+    "ToolResultContractError", "ToolResultStatus",
 ]

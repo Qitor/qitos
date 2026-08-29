@@ -34,9 +34,17 @@ class Observation(dict):
             "metadata": dict(self.metadata),
         }
 
+    def to_legacy_dict(self) -> Dict[str, Any]:
+        """Compatibility view for reducers that consume flattened tool outputs."""
+        payload = self.to_dict()
+        payload["action_results"] = [
+            item.to_legacy_dict() for item in self.action_results
+        ]
+        return payload
+
     def _sync_mapping(self) -> None:
         self.clear()
-        self.update(self.to_dict())
+        self.update(self.to_legacy_dict())
 
     @classmethod
     def from_value(cls, payload: Any) -> "Observation":

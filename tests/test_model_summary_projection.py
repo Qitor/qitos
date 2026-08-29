@@ -24,21 +24,10 @@ def test_action_history_projects_model_summary_without_losing_raw_result() -> No
 
     assert runtime._model_visible_tool_output("STATIC_ROUTE", result.output) == result.output["model_summary"]
     visible = runtime._model_visible_tool_result_dict(result, "STATIC_ROUTE")
-    assert visible["output"] == result.output["model_summary"]
+    assert visible["model_output"] == result.output["model_summary"]
+    assert "output" not in visible
     assert "artifact_path" not in str(visible)
     assert result.output["artifact_path"].endswith("raw.json")
-
-
-def test_large_raw_result_budgets_summary_before_truncation() -> None:
-    runtime = _ActionRuntime.__new__(_ActionRuntime)
-    payload = {
-        **_summary_payload(),
-        "findings": [{"body": "x" * 100_000}],
-    }
-    visible, has_summary = runtime._tool_output_for_budget(payload)
-    assert has_summary is True
-    assert visible == payload["model_summary"]
-    assert "artifact_path" not in visible
 
 
 def test_env_observation_projects_model_summary() -> None:
@@ -47,7 +36,7 @@ def test_env_observation_projects_model_summary() -> None:
         output=_summary_payload(), metadata={"tool_name": "gdb_debug"}
     )
     visible = runtime._model_visible_tool_result_dict(result)
-    assert visible["output"] == result.output["model_summary"]
+    assert visible["model_output"] == result.output["model_summary"]
     assert "artifact_path" not in str(visible)
 
 
@@ -64,7 +53,9 @@ def test_projection_is_tool_agnostic_after_special_case_removal() -> None:
     assert visible == "expose exactly this"
 
     no_summary = {"status": "success", "raw_output": "passthrough"}
-    assert runtime._model_visible_tool_output("submit_poc", no_summary) is no_summary
+    assert runtime._model_visible_tool_output("submit_poc", no_summary) == (
+        '{"raw_output":"passthrough","status":"success"}'
+    )
 
 
 @dataclass
@@ -127,5 +118,5 @@ def test_after_act_hook_uses_same_gdb_projection_as_provider_history() -> None:
 
     assert len(hook.results) == 1
     visible = hook.results[0]
-    assert visible["output"] == "## gdb_debug · route_trace\n- Target hit: `True`"
+    assert visible["model_output"] == "## gdb_debug · route_trace\n- Target hit: `True`"
     assert "raw_artifact_path" not in str(visible)
