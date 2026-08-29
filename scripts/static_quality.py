@@ -504,7 +504,18 @@ def _finding_map(baseline: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return result
 
 
-def _validate_exception(value: dict[str, Any], finding_ids: set[str]) -> dict[str, Any]:
+def _today() -> date:
+    """Return the policy date through a testable clock boundary."""
+
+    return date.today()
+
+
+def _validate_exception(
+    value: dict[str, Any],
+    finding_ids: set[str],
+    *,
+    today: date | None = None,
+) -> dict[str, Any]:
     if value.get("schema_version") != 1:
         raise RatchetError("exception schema_version must be 1")
     maintainer = value.get("maintainer")
@@ -521,7 +532,7 @@ def _validate_exception(value: dict[str, Any], finding_ids: set[str]) -> dict[st
         expiry = date.fromisoformat(expires_on)
     except ValueError as exc:
         raise RatchetError("exception expires_on must be YYYY-MM-DD") from exc
-    if expiry <= date.today():
+    if expiry <= (today or _today()):
         raise RatchetError(f"exception expired or expires today: {expires_on}")
     if not isinstance(declared_ids, list) or not all(
         isinstance(item, str) for item in declared_ids
@@ -607,7 +618,8 @@ def _validate_baseline_growth(baseline: dict[str, Any]) -> None:
 def _format_finding(item: dict[str, Any]) -> str:
     return (
         f"{item['path']}:{item['line']}:{item['column']}: "
-        f"{item['tool']}:{item['rule']} [{item['category']}] {item['message']}"
+        f"{item['tool']}:{item['rule']} [{item['category']}] "
+        f"symbol={item.get('symbol', '<unknown>')} {item['message']}"
     )
 
 

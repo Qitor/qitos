@@ -1,9 +1,45 @@
 # Lane A quality and release trust plan
 
-Status: complete
+Status: in progress
 Updated: 2026-08-29
-Work package: Lane A / A1 — Task 08A repository-wide static quality ratchet
-Source baseline: `fb75cd5902fedf50d5e67dd617e62cd981c3128f`
+Work package: Lane A / A1-I + A2 — static ratchet qualification and CI trust repair
+Integration baseline: `8441bef2f2024fd6c2ec01784708512222382471`
+A1 source: `ab25edf9c6457ee40054aaaab4596d7bed30cbe5`
+
+## A1-I / A2 qualification scope
+
+This round rebases the completed A1 package onto the reviewed integration
+source, qualifies the pinned ratchet with deterministic transition tests, and
+repairs Task 08E workflow predicates and result masking. It does not change
+runtime behavior, public APIs, packaging metadata/extras, architecture
+allowlists, or the integration-owned `docs/progress.md` ledger.
+
+Source and target identity:
+
+- integration branch/source: `feat/campaign-absorption` at
+  `8441bef2f2024fd6c2ec01784708512222382471`;
+- A1 source commits, in order: `00b23ef`, `67a7487`, `208860a`, `ab25edf`;
+- qualification worktree: `/Users/morinop/Desktop/WhitzardOS-lane-a2`;
+- qualification branch: `codex/v4-lane-a-ci-trust`;
+- cherry-pick conflict scope: only `README.md`, `README.zh.md`, and
+  `CHANGELOG.md`, resolved manually while preserving both the integration
+  progress-ledger entry and A1 evidence.
+
+Current leases:
+
+- `scripts/static_quality.py`, `tests/test_static_quality_ratchet.py`: Lane A
+  owns deterministic ratchet-transition qualification;
+- `.github/workflows/*.yml`, `tests/test_workflow_contracts.py`: Lane A owns
+  Task 08E predicate, masking, missing-path, and job-role contracts;
+- `quality/README.md`, `docs/v4/08-quality-gates-and-packaging.md`, this plan,
+  and the CI ownership evidence: Lane A owns qualification documentation;
+- `README.md`, `README.zh.md`, and `CHANGELOG.md`: minimal synchronized closeout
+  only; `docs/progress.md` remains read-only and integration-owner managed.
+
+Qualification is complete only if Python 3.12.7, the pinned toolchain, the
+full ratchet, stable zero-debt gates, targeted suites, and the full suite all
+pass. That outcome may be called an A1/A2 integration candidate, never a claim
+that the cross-lane G1 gate is closed.
 
 ## Outcome
 
