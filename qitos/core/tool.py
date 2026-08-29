@@ -64,6 +64,120 @@ class ToolValidationResult:
         )
 
 
+def _matches_json_type(value: Any, declared: str) -> bool:
+    if declared in {"any", ""}:
+        return True
+    if declared == "null":
+        return value is None
+    if declared == "boolean":
+        return isinstance(value, bool)
+    if declared == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if declared == "number":
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if declared == "string":
+        return isinstance(value, str)
+    if declared == "array":
+        return isinstance(value, list)
+    if declared == "object":
+        return isinstance(value, dict)
+    return True
+
+
+def _validate_schema_value(
+    value: Any,
+    schema: Dict[str, Any],
+    *,
+    path: str,
+) -> ToolValidationResult:
+    alternatives = schema.get("anyOf") or schema.get("oneOf")
+    if isinstance(alternatives, list) and alternatives:
+        for alternative in alternatives:
+            if not isinstance(alternative, dict):
+                continue
+            if _validate_schema_value(value, alternative, path=path).valid:
+                return ToolValidationResult.ok()
+        return ToolValidationResult.fail(
+            f"Argument '{path}' does not match any declared schema variant",
+            code="invalid_argument_type",
+        )
+
+    declared = schema.get("type")
+    declared_types = declared if isinstance(declared, list) else [declared]
+    normalized_types = [str(item) for item in declared_types if item is not None]
+    if normalized_types and not any(
+        _matches_json_type(value, item) for item in normalized_types
+    ):
+        expected = "|".join(normalized_types)
+        return ToolValidationResult.fail(
+            f"Argument '{path}' must have JSON type {expected}",
+            code="invalid_argument_type",
+        )
+
+    if isinstance(value, dict):
+        properties = schema.get("properties")
+        properties = properties if isinstance(properties, dict) else {}
+        required = schema.get("required")
+        required = required if isinstance(required, list) else []
+        for key in required:
+            if isinstance(key, str) and key not in value:
+                child = f"{path}.{key}" if path else key
+                return ToolValidationResult.fail(
+                    f"Missing required argument '{child}'",
+                    code="missing_required_argument",
+                )
+        if schema.get("additionalProperties") is False:
+            extra = sorted(str(key) for key in value if key not in properties)
+            if extra:
+                return ToolValidationResult.fail(
+                    f"Unexpected argument '{extra[0]}'",
+                    code="unexpected_argument",
+                )
+        for key, item in value.items():
+            item_schema = properties.get(key)
+            if not isinstance(item_schema, dict):
+                continue
+            child = f"{path}.{key}" if path else str(key)
+            result = _validate_schema_value(item, item_schema, path=child)
+            if not result.valid:
+                return result
+
+    if isinstance(value, list) and isinstance(schema.get("items"), dict):
+        for index, item in enumerate(value):
+            result = _validate_schema_value(
+                item,
+                schema["items"],
+                path=f"{path}[{index}]",
+            )
+            if not result.valid:
+                return result
+    return ToolValidationResult.ok()
+
+
+def validate_tool_arguments(
+    args: Any,
+    schema: Optional[Dict[str, Any]],
+) -> ToolValidationResult:
+    """Apply the non-bypassable structural JSON-schema subset for tool calls.
+
+    This gate validates object shape, required keys, declared primitive and
+    container types, nested properties/items, and ``additionalProperties``.
+    Semantic problems discovered by a running tool belong in ``ToolResult``.
+    """
+    if not isinstance(args, dict):
+        return ToolValidationResult.fail(
+            "Tool arguments must be a JSON object",
+            code="invalid_arguments_shape",
+        )
+    effective_schema = schema or {"type": "object"}
+    if not isinstance(effective_schema, dict):
+        return ToolValidationResult.fail(
+            "Tool input schema must be an object",
+            code="schema_contract_violation",
+        )
+    return _validate_schema_value(args, effective_schema, path="")
+
+
 @dataclass
 class ToolPermissionRule:
     effect: str  # allow | deny | ask
@@ -346,6 +460,10 @@ class BaseTool:
         _ = args
         _ = runtime_context
         return ToolValidationResult.ok()
+
+    def validate_structure(self, args: Any) -> ToolValidationResult:
+        """Validate the declared JSON shape before any tool code executes."""
+        return validate_tool_arguments(args, self.spec.input_schema)
 
     def check_permissions(
         self,
@@ -711,4 +829,5 @@ __all__ = [
     "build_tool_spec",
     "get_tool_meta",
     "tool",
+    "validate_tool_arguments",
 ]

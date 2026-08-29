@@ -446,7 +446,12 @@ class ActionExecutor:
             action_id=action.action_id,
             attempts=1,
             latency_ms=0.0,
-            metadata={"error_category": "concurrent_execution_error"},
+            metadata={
+                "error_category": "concurrent_execution_error",
+                "error_code": "TOOL_RESULT_MISSING",
+                "recoverable": True,
+                "executed": False,
+            },
         )
 
     # ── Timeout resolution ─────────────────────────────────────────────────────
@@ -624,7 +629,11 @@ class ActionExecutor:
                 extra_metadata={
                     "error_category": "tool_not_found",
                     "raw_tool_name": action.name,
-                    "raw_arguments": dict(action.args),
+                    "raw_arguments": (
+                        dict(action.args)
+                        if isinstance(action.args, dict)
+                        else action.args
+                    ),
                     "available_tools": available,
                     "recoverable": True,
                     "executed": False,
@@ -640,6 +649,33 @@ class ActionExecutor:
         if _timeout_s is not None:
             ordering_meta["timeout_s"] = _timeout_s
             ordering_meta["timeout_source"] = _timeout_source
+
+        structural = (
+            tool_preview.validate_structure(action.args)
+            if tool_preview is not None
+            else ToolValidationResult.ok()
+        )
+        if not structural.valid:
+            return self._finish_result(
+                action=action,
+                status=ActionStatus.ERROR,
+                start=start,
+                attempts=0,
+                tool_meta=tool_meta,
+                error=structural.message or "tool argument structure is invalid",
+                extra_metadata={
+                    **ordering_meta,
+                    "error_category": structural.code or "validation_error",
+                    "error_code": structural.code or "validation_error",
+                    "validation": {
+                        "valid": False,
+                        "boundary": "structural",
+                        "message": structural.message,
+                        "code": structural.code,
+                    },
+                    "executed": False,
+                },
+            )
 
         # 1. Interceptor before_execute — can modify action args
         interceptor_context = InterceptorContext(
@@ -1030,6 +1066,9 @@ class ActionExecutor:
     ) -> ToolValidationResult:
         if tool is None or not hasattr(tool, "validate_input"):
             return ToolValidationResult.ok()
+        structural = tool.validate_structure(args)
+        if not structural.valid:
+            return structural
         result = tool.validate_input(dict(args), runtime_context=runtime_context)
         if isinstance(result, ToolValidationResult):
             return result

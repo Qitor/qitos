@@ -239,6 +239,69 @@ class ToolRegistry:
                 "suggestions": suggestions,
             }
             raise ValueError(str(payload))
+        structural = tool.validate_structure(kwargs)
+        if not structural.valid:
+            raise ValueError(
+                str(
+                    {
+                        "status": "error",
+                        "error_category": structural.code,
+                        "message": structural.message,
+                        "tool_name": name,
+                        "executed": False,
+                    }
+                )
+            )
+        validation = tool.validate_input(
+            dict(kwargs), runtime_context=runtime_context or {}
+        )
+        if isinstance(validation, dict):
+            valid = bool(validation.get("valid", validation.get("result", True)))
+            message = str(validation.get("message", "tool input validation failed"))
+            code = str(validation.get("code", "validation_failed"))
+        else:
+            valid = bool(getattr(validation, "valid", validation is not False))
+            message = str(
+                getattr(validation, "message", "tool input validation failed")
+            )
+            code = str(getattr(validation, "code", "validation_failed"))
+        if not valid:
+            raise ValueError(
+                str(
+                    {
+                        "status": "error",
+                        "error_category": code,
+                        "message": message,
+                        "tool_name": name,
+                        "executed": False,
+                    }
+                )
+            )
+        permission = tool.check_permissions(
+            dict(kwargs), runtime_context=runtime_context or {}
+        )
+        decision = str(
+            permission.get("decision", "allow")
+            if isinstance(permission, dict)
+            else getattr(permission, "decision", "allow")
+        )
+        permission_message = str(
+            permission.get("message", "")
+            if isinstance(permission, dict)
+            else getattr(permission, "message", "")
+        )
+        if decision != "allow":
+            raise PermissionError(
+                str(
+                    {
+                        "status": "skipped",
+                        "error_category": f"permission_{decision}",
+                        "message": permission_message,
+                        "tool_name": name,
+                        "executed": False,
+                    }
+                )
+            )
         return tool.execute(kwargs, runtime_context=runtime_context)
 
     def setup(self, context: Optional[Dict[str, Any]] = None) -> None:
