@@ -1,0 +1,22 @@
+{
+  "evidence_version": "qitos.contract_qualification_evidence/v1",
+  "contract_id": "qitos.exchange_log",
+  "contract_version": "qitos.exchange_log.v2",
+  "producer": "lane-b-conversation-context",
+  "fixture_path": "tests/fixtures/conversation/v3/semantic_fixtures.json",
+  "qualification_authority": "qitos.g1.integration_owner/v1",
+  "qualified": true,
+  "probes": [
+    "tool_result_is_sole_outcome",
+    "canonical_tool_result_fixture_consumed",
+    "strict_v2_reader_typed_failures",
+    "partial_batch_recovery",
+    "completion_order_preserved",
+    "model_projection_delegated_to_tool_result",
+    "trace_projection_delegated_to_tool_result"
+  ],
+  "test_files": [
+    "tests/core/test_conversation.py",
+    "tests/core/test_tool_result.py"
+  ]
+}

@@ -1,6 +1,6 @@
 # Task 02 — model I/O transaction kernel
 
-Status: Task 02A/B1-R candidate integrated for G1 convergence; C alignment pending; Tasks 02B–02E remain pending
+Status: Task 02A/B1-R converged on canonical C for G1; Tasks 02B–02E remain pending
 Depends on: Task 01
 Unblocks: Task 04, Task 12 durable snapshots, and Task 05
 Risk: high — core persistence and every provider adapter
@@ -104,7 +104,7 @@ ActionExecutor. This task does not create a scheduler. It closes protocol gaps:
   `docs/internal/plans/lane_b_conversation_context.md` (`B1-ADR-001`).
 - Module-level contract: `qitos/core/conversation.py`; it is intentionally not
   exported from `qitos.core.__init__` or the root package in this wave.
-- Schema `qitos.exchange_log.v1` preserves ordered multimodal/assistant items,
+- Schema `qitos.exchange_log.v2` preserves ordered multimodal/assistant items,
   provider-scoped call IDs, raw and parsed argument states, batch identities,
   typed terminal results, synthetic provenance, queued steering, and opaque
   continuation attachments.
@@ -126,14 +126,15 @@ ActionExecutor. This task does not create a scheduler. It closes protocol gaps:
   a privacy-safe/public exporter. Signed or encrypted reasoning is never
   converted into assistant text.
 - Versioned semantic handoff fixtures live in
-  `tests/fixtures/conversation/v2/semantic_fixtures.json`; execution-side and
-  persistence-side fixture consumer simulations exercise them in
-  `tests/core/test_conversation.py`. They are not real independent Lane C/D
-  consumers.
-- `ToolResultItem` remains a temporary conversation closure representation.
-  The exact C1-R HEAD must supply its strict serializer/reader, model view,
-  status/error mapping, and artifact slot in a separate follow-up before B1 can
-  be called canonical or merge-ready; `qitos/core/tool_result.py` is untouched.
+  `tests/fixtures/conversation/v3/semantic_fixtures.json`; their producer-owned
+  qualification evidence is adjacent. Tests directly consume Lane C's exact
+  canonical fixture rather than a locally simulated result shape.
+- `ToolResult` is the sole outcome. `ToolResultItem` owns correlation and
+  closure facts only; persistence, model, trace-safe, artifact, status, error,
+  and provenance semantics come directly from C's public contract entrypoints.
+- The strict v2 reader rejects unknown fields, malformed nested shapes,
+  non-JSON/non-finite data, and invalid canonical results using the typed
+  `ConversationValidationError` hierarchy.
 - Engine/provider/checkpoint/request-view paths and defaults remain unchanged.
   The branch must still rebase onto the integration HEAD containing Lane A/A1
   and pass its ratchet before it can be described as merge-ready.

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 from typing import Any
@@ -12,7 +13,6 @@ from qitos.core.conversation import (
     AssistantContent,
     AssistantItem,
     CallIdentity,
-    ClosureProvenance,
     ConversationValidationError,
     DuplicateCallIdError,
     DuplicateItemIdError,
@@ -25,7 +25,6 @@ from qitos.core.conversation import (
     ToolCall,
     ToolBatchBuilder,
     ToolResultItem,
-    ToolResultStatus,
     UnsupportedSchemaVersionError,
     UnsupportedReasoningReplayError,
     UnsafeHistoryConversionError,
@@ -35,17 +34,32 @@ from qitos.core.conversation import (
 )
 from qitos.core.history import HistoryMessage
 from qitos.core.multimodal import ContentBlock
+from qitos.core.tool_result import ToolResult
+from qitos.core.tool_result import (
+    TOOL_RESULT_MODEL_VIEW_VERSION,
+    TOOL_RESULT_SCHEMA_VERSION,
+    TOOL_RESULT_TRACE_SAFE_VERSION,
+)
 
 
 FIXTURE_PATH = (
     Path(__file__).parents[1]
     / "fixtures"
     / "conversation"
-    / "v2"
+    / "v3"
     / "semantic_fixtures.json"
 )
 
-FIXTURE_SCHEMA_VERSION = "qitos.conversation.fixture.v2"
+FIXTURE_SCHEMA_VERSION = "qitos.conversation.fixture.v3"
+QUALIFICATION_EVIDENCE_PATH = FIXTURE_PATH.with_name("qualification-evidence.json")
+
+C_FIXTURE_PATH = (
+    Path(__file__).parents[1]
+    / "fixtures"
+    / "tool_results"
+    / "v1"
+    / "contract_hardening.json"
+)
 
 
 def _call(
@@ -80,22 +94,37 @@ def _result(
     call: ToolCall,
     *,
     item_id: str,
-    status: ToolResultStatus = ToolResultStatus.SUCCEEDED,
+    status: str = "success",
     synthetic: bool = False,
     exchange_id: str = "exchange_1",
 ) -> ToolResultItem:
+    canonical = (
+        ToolResult(
+            status="success",
+            output=f"result for {call.name}",
+            tool_name=call.name,
+            action_id=call.identity.call_id,
+            provenance={"source": "tests.worker"},
+        )
+        if status == "success"
+        else ToolResult(
+            status=status,  # type: ignore[arg-type]
+            tool_name=call.name,
+            action_id=call.identity.call_id,
+            error=f"result for {call.name}",
+            error_kind="policy" if status == "skipped" else "execution",
+            error_code=status,
+            provenance={"source": "tests.worker"},
+        )
+    )
     return ToolResultItem(
         item_id=item_id,
         exchange_id=exchange_id,
         identity=call.identity,
         batch_id=call.batch_id,
-        status=status,
-        content=[ContentBlock(type="text", text=f"result for {call.name}")],
-        provenance=ClosureProvenance(
-            source="tests.worker",
-            synthetic=synthetic,
-            reason="test closure" if synthetic else None,
-        ),
+        result=canonical,
+        synthetic=synthetic,
+        closure_reason="test closure" if synthetic else None,
     )
 
 
@@ -226,7 +255,7 @@ def test_append_and_read_boundaries_isolate_all_nested_mutable_values() -> None:
     attachment_metadata["nested"]["value"] = "attachment-mutated"
     assistant_metadata["nested"]["value"] = "assistant-mutated"
 
-    result_content_metadata = {"nested": {"value": "result-content-original"}}
+    result_output = {"nested": {"value": "result-output-original"}}
     provenance_details = {"nested": {"value": "provenance-original"}}
     result_metadata = {"nested": {"value": "result-original"}}
     result = ToolResultItem(
@@ -234,22 +263,20 @@ def test_append_and_read_boundaries_isolate_all_nested_mutable_values() -> None:
         exchange_id="exchange_nested",
         identity=call.identity,
         batch_id=call.batch_id,
-        status=ToolResultStatus.SUCCEEDED,
-        content=[
-            ContentBlock(
-                type="text", text="done", metadata=result_content_metadata
-            )
-        ],
-        provenance=ClosureProvenance(
-            source="tests.worker", details=provenance_details
+        result=ToolResult(
+            output=result_output,
+            metadata=result_metadata,
+            provenance={
+                "source": "tests.worker",
+                "details": provenance_details,
+            },
         ),
-        metadata=result_metadata,
     )
     builder.record_result(result)
-    result_content_metadata["nested"]["value"] = "result-content-mutated"
+    result_output["nested"]["value"] = "result-output-mutated"
     provenance_details["nested"]["value"] = "provenance-mutated"
     result_metadata["nested"]["value"] = "result-mutated"
-    result.content.append(ContentBlock(type="text", text="late mutation"))
+    result.result.output["nested"]["value"] = "late mutation"
 
     snapshot = log.items
     assistant = snapshot[0]
@@ -261,9 +288,11 @@ def test_append_and_read_boundaries_isolate_all_nested_mutable_values() -> None:
         "snapshot-mutated"
     )
     assistant.metadata["nested"]["value"] = "snapshot-mutated"
-    recorded_result.content.clear()
-    recorded_result.provenance.details["nested"]["value"] = "snapshot-mutated"
-    recorded_result.metadata["nested"]["value"] = "snapshot-mutated"
+    recorded_result.result.output["nested"]["value"] = "snapshot-mutated"
+    recorded_result.result.provenance["details"]["nested"][
+        "value"
+    ] = "snapshot-mutated"
+    recorded_result.result.metadata["nested"]["value"] = "snapshot-mutated"
 
     persisted = log.to_persistence_dict()
     assert len(persisted["items"][0]["parts"]) == 3
@@ -288,19 +317,22 @@ def test_append_and_read_boundaries_isolate_all_nested_mutable_values() -> None:
     assert persisted["items"][0]["metadata"]["nested"]["value"] == (
         "assistant-original"
     )
-    assert persisted["items"][1]["provenance"]["details"]["nested"][
+    assert persisted["items"][1]["result"]["provenance"]["details"]["nested"][
         "value"
     ] == "provenance-original"
-    assert persisted["items"][1]["content"][0]["metadata"]["nested"][
+    assert persisted["items"][1]["result"]["output"]["nested"][
         "value"
-    ] == "result-content-original"
-    assert len(persisted["items"][1]["content"]) == 1
+    ] == "result-output-original"
 
     persisted["items"][0]["parts"].clear()
-    persisted["items"][1]["metadata"]["nested"]["value"] = "serialized-mutated"
+    persisted["items"][1]["result"]["metadata"]["nested"][
+        "value"
+    ] = "serialized-mutated"
     fresh = log.to_persistence_dict()
     assert len(fresh["items"][0]["parts"]) == 3
-    assert fresh["items"][1]["metadata"]["nested"]["value"] == "result-original"
+    assert fresh["items"][1]["result"]["metadata"]["nested"][
+        "value"
+    ] == "result-original"
 
 
 def test_user_and_queued_steering_inputs_and_snapshots_are_isolated() -> None:
@@ -355,7 +387,7 @@ def test_user_and_queued_steering_inputs_and_snapshots_are_isolated() -> None:
 
 def test_from_dict_copies_nested_input_values() -> None:
     payload = {
-        "schema_version": "qitos.exchange_log.v1",
+        "schema_version": "qitos.exchange_log.v2",
         "log_id": "log_from_dict_isolation",
         "queued_steering": [],
         "items": [
@@ -392,6 +424,162 @@ def test_from_dict_copies_nested_input_values() -> None:
         ],
         "metadata": {"nested": ["original"]},
     }
+
+
+def test_strict_v2_reader_normalizes_all_malformed_payloads_to_typed_errors() -> None:
+    base = ExchangeLog(log_id="strict_v2")
+    base.append(
+        UserItem(
+            item_id="strict_user",
+            exchange_id="strict_exchange",
+            content=[ContentBlock(type="text", text="hello")],
+        )
+    )
+    valid = base.to_persistence_dict()
+    malformed: list[Any] = [None, [], "not-an-object"]
+
+    def changed(*path_and_value: Any) -> dict[str, Any]:
+        payload = copy.deepcopy(valid)
+        *path, value = path_and_value
+        target: Any = payload
+        for key in path[:-1]:
+            target = target[key]
+        target[path[-1]] = value
+        return payload
+
+    malformed.extend(
+        [
+            {**valid, "unknown": True},
+            {key: value for key, value in valid.items() if key != "items"},
+            changed("schema_version", "qitos.exchange_log.v999"),
+            changed("log_id", 7),
+            changed("items", {}),
+            changed("queued_steering", {}),
+            changed("items", 0, "unknown", True),
+            changed("items", 0, "kind", "unknown"),
+            changed("items", 0, "content", {}),
+            changed("items", 0, "content", 0, "unknown", True),
+            changed("items", 0, "content", 0, "text", object()),
+            changed("items", 0, "metadata", {"value": float("nan")}),
+            changed("items", 0, "metadata", {1: "non-string-key"}),
+        ]
+    )
+
+    call = _call("strict_call", batch_id="strict_batch")
+    result_log = ExchangeLog(log_id="strict_result")
+    builder = result_log.append(
+        _assistant_with_calls(
+            call,
+            item_id="strict_assistant",
+            exchange_id="strict_result_exchange",
+        )
+    )
+    assert builder is not None
+    builder.record_result(
+        _result(
+            call,
+            item_id="strict_result_item",
+            exchange_id="strict_result_exchange",
+        )
+    )
+    result_payload = result_log.to_persistence_dict()
+    old_envelope = copy.deepcopy(result_payload)
+    old_item = old_envelope["items"][1]
+    old_item["status"] = old_item.pop("result")["status"]
+    malformed.append(old_envelope)
+    unknown_canonical = copy.deepcopy(result_payload)
+    unknown_canonical["items"][1]["result"]["unknown"] = True
+    malformed.append(unknown_canonical)
+    wrong_result_shape = copy.deepcopy(result_payload)
+    wrong_result_shape["items"][1]["result"] = []
+    malformed.append(wrong_result_shape)
+
+    for payload in malformed:
+        with pytest.raises(ConversationValidationError):
+            ExchangeLog.from_dict(payload)
+
+
+def test_exchange_log_consumes_exact_c_fixture_without_outcome_duplication() -> None:
+    fixture = json.loads(C_FIXTURE_PATH.read_text(encoding="utf-8"))
+    canonical_payload = fixture["model_safe_source"]
+    canonical = ToolResult.from_canonical_dict(canonical_payload)
+    call = ToolCall(
+        identity=CallIdentity("fixture:c", canonical.action_id or "call-safe"),
+        batch_id="fixture_c_batch",
+        name=canonical.tool_name or "inspect",
+        raw_arguments="{}",
+        parsed_arguments={},
+        parse_status=ArgumentParseStatus.PARSED,
+    )
+    log = ExchangeLog(log_id="c_fixture_consumer")
+    builder = log.append(
+        _assistant_with_calls(
+            call,
+            item_id="c_fixture_assistant",
+            exchange_id="c_fixture_exchange",
+        )
+    )
+    assert builder is not None
+    builder.record_result(
+        ToolResultItem(
+            item_id="c_fixture_result",
+            exchange_id="c_fixture_exchange",
+            identity=call.identity,
+            batch_id=call.batch_id,
+            result=canonical,
+        )
+    )
+
+    persisted = log.to_persistence_dict()
+    result_payload = persisted["items"][1]["result"]
+    assert result_payload == canonical.to_persistence_dict()
+    assert "status" not in persisted["items"][1]
+    assert "content" not in persisted["items"][1]
+    assert "provenance" not in persisted["items"][1]
+    assert ExchangeLog.from_dict(persisted).to_persistence_dict() == persisted
+
+
+def test_exchange_log_delegates_result_persistence_model_and_trace_views() -> None:
+    call = _call("projection", batch_id="projection_batch")
+    canonical = ToolResult.execution_error(
+        tool_name=call.name,
+        action_id=call.identity.call_id,
+        code="tool_failed",
+        error="token=result-secret /Users/example/private/error.log",
+        output="token=output-secret /Users/example/private/output.log",
+        recovery_hint="password=hint-secret /Users/example/private/hint.txt",
+    )
+    log = ExchangeLog(log_id="projection_log")
+    builder = log.append(
+        _assistant_with_calls(
+            call,
+            item_id="projection_assistant",
+            exchange_id="projection_exchange",
+        )
+    )
+    assert builder is not None
+    builder.record_result(
+        ToolResultItem(
+            item_id="projection_result",
+            exchange_id="projection_exchange",
+            identity=call.identity,
+            batch_id=call.batch_id,
+            result=canonical,
+        )
+    )
+
+    persistence = log.to_persistence_dict()["items"][1]["result"]
+    model = log.to_model_dict()["items"][1]["result"]
+    trace = log.to_trace_safe_dict()["items"][1]["result"]
+
+    assert persistence["schema_version"] == TOOL_RESULT_SCHEMA_VERSION
+    assert model["schema_version"] == TOOL_RESULT_MODEL_VIEW_VERSION
+    assert trace["schema_version"] == TOOL_RESULT_TRACE_SAFE_VERSION
+    assert persistence == canonical.to_persistence_dict()
+    assert model == canonical.to_model_dict()
+    assert trace == canonical.to_trace_safe_dict()
+    assert "result-secret" not in json.dumps(model)
+    assert "result-secret" not in json.dumps(trace)
 
 
 def test_out_of_order_completion_persists_immediately_in_completion_order() -> None:
@@ -526,42 +714,45 @@ def test_recovery_synthetic_closure_never_overwrites_completed_slots() -> None:
     recovered = ExchangeLog.from_dict(log.to_persistence_dict())
     recovered_builder = ToolBatchBuilder(recovered, "batch_synthetic_recovery")
     recovered_builder.close_missing(
-        status=ToolResultStatus.MISSING_WORKER,
-        reason="worker_missing_after_reload",
+        status="error",
+        reason="missing_worker",
     )
 
     results = recovered.results_for_batch("batch_synthetic_recovery")
     assert [result.identity.call_id for result in results] == ["second", "first"]
     assert results[0].item_id == "result_completed"
-    assert results[0].provenance.synthetic is False
-    assert results[1].provenance.synthetic is True
-    assert results[1].status is ToolResultStatus.MISSING_WORKER
+    assert results[0].synthetic is False
+    assert results[1].synthetic is True
+    assert results[1].result.status == "error"
+    assert results[1].result.error_code == "missing_worker"
 
 
 @pytest.mark.parametrize(
-    "status",
+    ("status", "reason"),
     [
-        ToolResultStatus.FAILED,
-        ToolResultStatus.PERMISSION_BLOCKED,
-        ToolResultStatus.TIMED_OUT,
-        ToolResultStatus.CANCELLED,
-        ToolResultStatus.MISSING_WORKER,
+        ("error", "failed"),
+        ("skipped", "permission_blocked"),
+        ("timed_out", "timed_out"),
+        ("cancelled", "cancelled"),
+        ("error", "missing_worker"),
     ],
 )
 def test_every_non_success_terminal_state_can_close_a_slot(
-    status: ToolResultStatus,
+    status: str,
+    reason: str,
 ) -> None:
     call = _call("terminal")
-    log = ExchangeLog(log_id=f"log_{status.value}")
+    log = ExchangeLog(log_id=f"log_{reason}")
     builder = log.append(_assistant_with_calls(call))
     assert builder is not None
 
-    builder.close_missing(status=status, reason=status.value)
+    builder.close_missing(status=status, reason=reason)  # type: ignore[arg-type]
 
     result = log.results_for_batch("batch_1")[0]
-    assert result.status is status
-    assert result.provenance.synthetic is True
-    assert result.provenance.reason == status.value
+    assert result.result.status == status
+    assert result.result.error_code == reason
+    assert result.synthetic is True
+    assert result.closure_reason == reason
     log.assert_ready_for_model_transaction()
 
 
@@ -579,7 +770,7 @@ def test_duplicate_call_id_is_scoped_and_typed() -> None:
         )
     )
     assert builder is not None
-    builder.close_missing(status=ToolResultStatus.CANCELLED, reason="test")
+    builder.close_missing(status="cancelled", reason="test")
     cross_scope.assert_ready_for_model_transaction()
 
     across_batches = ExchangeLog(log_id="log_across_batches")
@@ -798,7 +989,7 @@ def test_history_projection_rejects_reasoning_and_interleaving_loss() -> None:
         )
     )
     assert builder is not None
-    builder.close_missing(status=ToolResultStatus.CANCELLED, reason="test")
+    builder.close_missing(status="cancelled", reason="test")
     with pytest.raises(UnsafeHistoryConversionError):
         exchange_log_to_history_messages(interleaved)
 
@@ -835,11 +1026,20 @@ def test_versioned_semantic_fixture_manifest_exercises_all_required_cases() -> N
     assert manifest["fixture_version"] == FIXTURE_SCHEMA_VERSION
     assert set(fixtures) == required
     for case in fixtures.values():
-        assert case["schema_version"] == "qitos.exchange_log.v1"
+        assert case["schema_version"] == "qitos.exchange_log.v2"
         assert case["expected_invariant"]
         assert "expected_error" in case
         assert case["consumer_simulations"]
         assert isinstance(case["lossless"], bool)
+
+    evidence = json.loads(
+        QUALIFICATION_EVIDENCE_PATH.read_text(encoding="utf-8")
+    )
+    assert evidence["contract_id"] == "qitos.exchange_log"
+    assert evidence["contract_version"] == "qitos.exchange_log.v2"
+    assert evidence["fixture_path"].endswith("v3/semantic_fixtures.json")
+    assert evidence["qualification_authority"] == "qitos.g1.integration_owner/v1"
+    assert evidence["qualified"] is True
 
 
 def test_old_fixture_envelope_is_rejected_with_typed_version_error() -> None:

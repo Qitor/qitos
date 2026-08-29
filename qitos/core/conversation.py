@@ -8,16 +8,32 @@ from __future__ import annotations
 
 import copy
 import json
+import math
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Union
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Literal,
+    Mapping,
+    Optional,
+    Sequence,
+    Union,
+)
 from uuid import uuid4
 
 from .history import HistoryMessage
 from .multimodal import ContentBlock, normalize_content_block
+from .tool_result import (
+    ToolResult,
+    ToolResultContractError,
+    ToolResultStatus as _ToolResultStatus,
+)
 
 
-EXCHANGE_LOG_SCHEMA_VERSION = "qitos.exchange_log.v1"
+EXCHANGE_LOG_SCHEMA_VERSION = "qitos.exchange_log.v2"
 CONTINUATION_REDACTED_DIAGNOSTIC_VERSION = (
     "qitos.exchange_log.diagnostic.continuation_redacted.v1"
 )
@@ -30,17 +46,6 @@ class ArgumentParseStatus(str, Enum):
     PARSED = "parsed"
     MALFORMED_RAW = "malformed_raw"
     PARSED_INVALID = "parsed_invalid"
-
-
-class ToolResultStatus(str, Enum):
-    """Temporary conversation closure states pending canonical ToolResult alignment."""
-
-    SUCCEEDED = "succeeded"
-    FAILED = "failed"
-    PERMISSION_BLOCKED = "permission_blocked"
-    TIMED_OUT = "timed_out"
-    CANCELLED = "cancelled"
-    MISSING_WORKER = "missing_worker"
 
 
 class ConversationValidationError(ValueError):
@@ -301,27 +306,6 @@ AssistantPart = Union[AssistantContent, ReasoningReference, ToolCall]
 
 
 @dataclass(frozen=True)
-class ClosureProvenance:
-    """Why and by whom a result slot was closed."""
-
-    source: str
-    synthetic: bool = False
-    reason: Optional[str] = None
-    details: Dict[str, Any] = field(default_factory=dict)
-
-    def validate(self, status: ToolResultStatus) -> None:
-        _require_id(self.source, "closure provenance source")
-        if self.synthetic and not self.reason:
-            raise InvalidExchangeItemError(
-                "synthetic closure requires provenance reason"
-            )
-        if status is ToolResultStatus.MISSING_WORKER and not self.synthetic:
-            raise InvalidExchangeItemError(
-                "missing_worker must be an explicit synthetic closure"
-            )
-
-
-@dataclass(frozen=True)
 class UserItem:
     item_id: str
     exchange_id: str
@@ -402,16 +386,15 @@ class AssistantItem:
 
 @dataclass(frozen=True)
 class ToolResultItem:
-    """Temporary durable closure record, not the canonical tool outcome contract."""
+    """Conversation correlation and closure facts around one canonical result."""
 
     item_id: str
     exchange_id: str
     identity: CallIdentity
     batch_id: str
-    status: ToolResultStatus
-    content: List[ContentBlock]
-    provenance: ClosureProvenance
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    result: ToolResult
+    synthetic: bool = False
+    closure_reason: Optional[str] = None
     kind: str = field(default="tool_result", init=False)
 
     def validate(self) -> None:
@@ -419,8 +402,46 @@ class ToolResultItem:
         _require_id(self.exchange_id, "exchange_id", item_id=self.item_id)
         self.identity.validate()
         _require_id(self.batch_id, "batch_id", item_id=self.item_id)
-        _validate_content(self.content, item_id=self.item_id)
-        self.provenance.validate(self.status)
+        if not isinstance(self.result, ToolResult):
+            raise InvalidExchangeItemError(
+                "tool result item must contain canonical ToolResult",
+                item_id=self.item_id,
+                batch_id=self.batch_id,
+                call_id=self.identity.call_id,
+            )
+        try:
+            self.result.to_persistence_dict()
+        except ToolResultContractError as exc:
+            raise InvalidExchangeItemError(
+                f"invalid canonical ToolResult: {exc}",
+                item_id=self.item_id,
+                batch_id=self.batch_id,
+                call_id=self.identity.call_id,
+            ) from exc
+        if self.synthetic and not self.closure_reason:
+            raise InvalidExchangeItemError(
+                "synthetic closure requires closure_reason",
+                item_id=self.item_id,
+                batch_id=self.batch_id,
+                call_id=self.identity.call_id,
+            )
+        if self.result.error_code == "missing_worker" and not self.synthetic:
+            raise InvalidExchangeItemError(
+                "missing_worker must be an explicit synthetic closure",
+                item_id=self.item_id,
+                batch_id=self.batch_id,
+                call_id=self.identity.call_id,
+            )
+        if (
+            self.result.action_id is not None
+            and self.result.action_id != self.identity.call_id
+        ):
+            raise ToolBatchMismatchError(
+                "canonical result action_id does not match call identity",
+                item_id=self.item_id,
+                batch_id=self.batch_id,
+                call_id=self.identity.call_id,
+            )
 
 
 ExchangeItem = Union[UserItem, SteeringItem, AssistantItem, ToolResultItem]
@@ -561,6 +582,17 @@ class ExchangeLog:
                 if key not in declared:
                     raise UnknownCallIdError(
                         "tool result references an undeclared call",
+                        item_id=item.item_id,
+                        batch_id=item.batch_id,
+                        call_id=item.identity.call_id,
+                    )
+                declared_call = declared[key]
+                if (
+                    item.result.tool_name is not None
+                    and item.result.tool_name != declared_call.name
+                ):
+                    raise ToolBatchMismatchError(
+                        "canonical result tool_name does not match declaration",
                         item_id=item.item_id,
                         batch_id=item.batch_id,
                         call_id=item.identity.call_id,
@@ -742,29 +774,77 @@ class ExchangeLog:
             ],
         }
 
+    def to_model_dict(self) -> Dict[str, Any]:
+        """Project canonical results through ToolResult's public model view."""
+
+        self.validate()
+        return {
+            "schema_version": self.schema_version,
+            "log_id": self.log_id,
+            "items": [
+                _item_to_dict(
+                    item,
+                    redact_continuation=True,
+                    result_projection="model",
+                )
+                for item in self._items
+            ],
+            "queued_steering": [
+                _item_to_dict(
+                    item,
+                    redact_continuation=True,
+                    result_projection="model",
+                )
+                for item in self._queued_steering
+            ],
+        }
+
+    def to_trace_safe_dict(self) -> Dict[str, Any]:
+        """Project canonical results through ToolResult's trace-safe view."""
+
+        self.validate()
+        return {
+            "schema_version": self.schema_version,
+            "log_id": self.log_id,
+            "items": [
+                _item_to_dict(
+                    item,
+                    redact_continuation=True,
+                    result_projection="trace_safe",
+                )
+                for item in self._items
+            ],
+            "queued_steering": [
+                _item_to_dict(
+                    item,
+                    redact_continuation=True,
+                    result_projection="trace_safe",
+                )
+                for item in self._queued_steering
+            ],
+        }
+
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> "ExchangeLog":
-        version = str(payload.get("schema_version") or "")
-        if version != EXCHANGE_LOG_SCHEMA_VERSION:
-            raise UnsupportedSchemaVersionError(
-                f"unsupported exchange schema: {version!r}"
+        try:
+            data = _validate_persistence_payload(payload)
+            version = data["schema_version"]
+            log = cls(
+                log_id=data["log_id"],
+                items=[_item_from_dict(item) for item in data["items"]],
+                queued_steering=[
+                    _steering_from_dict(item) for item in data["queued_steering"]
+                ],
+                schema_version=version,
             )
-        items_payload = payload.get("items")
-        queued_payload = payload.get("queued_steering", [])
-        if not isinstance(items_payload, list) or not isinstance(queued_payload, list):
+            log.validate()
+            return log
+        except ConversationValidationError:
+            raise
+        except (KeyError, TypeError, ValueError, ToolResultContractError) as exc:
             raise InvalidExchangeItemError(
-                "items and queued_steering must be lists"
-            )
-        log = cls(
-            log_id=str(payload.get("log_id") or ""),
-            items=[_item_from_dict(item) for item in items_payload],
-            queued_steering=[
-                _steering_from_dict(item) for item in queued_payload
-            ],
-            schema_version=version,
-        )
-        log.validate()
-        return log
+                f"invalid exchange persistence payload: {exc}"
+            ) from exc
 
 
 class ToolBatchBuilder:
@@ -858,36 +938,41 @@ class ToolBatchBuilder:
     def close_missing(
         self,
         *,
-        status: ToolResultStatus,
+        status: _ToolResultStatus,
         reason: str,
         source: str = "qitos.tool_batch_builder",
         message: Optional[str] = None,
         details: Optional[Dict[str, Any]] = None,
     ) -> None:
-        if status is ToolResultStatus.SUCCEEDED:
+        if status == "success":
             raise InvalidExchangeItemError(
-                "synthetic closure cannot report succeeded", batch_id=self.batch_id
+                "synthetic closure cannot report success", batch_id=self.batch_id
             )
         for call in list(self.missing_calls):
+            error_kind: Literal["policy", "execution"] = (
+                "policy" if status == "skipped" else "execution"
+            )
             result = ToolResultItem(
                 item_id=_new_id("tool_result"),
                 exchange_id=self._exchange_id(),
                 identity=call.identity,
                 batch_id=self.batch_id,
-                status=status,
-                content=[
-                    ContentBlock(
-                        type="text",
-                        text=message
-                        or f"Tool call closed synthetically: {reason}",
-                    )
-                ],
-                provenance=ClosureProvenance(
-                    source=source,
-                    synthetic=True,
-                    reason=reason,
-                    details=dict(details or {}),
+                result=ToolResult(
+                    status=status,
+                    tool_name=call.name,
+                    action_id=call.identity.call_id,
+                    error=message or f"Tool call closed synthetically: {reason}",
+                    error_kind=error_kind,
+                    error_code=reason,
+                    provenance={
+                        "source": source,
+                        "synthetic": True,
+                        "closure_reason": reason,
+                        "details": dict(details or {}),
+                    },
                 ),
+                synthetic=True,
+                closure_reason=reason,
             )
             self.record_result(result)
 
@@ -972,14 +1057,18 @@ def _part_from_dict(payload: Any) -> AssistantPart:
 
 
 def _item_to_dict(
-    item: ExchangeItem, *, redact_continuation: bool
+    item: ExchangeItem,
+    *,
+    redact_continuation: bool,
+    result_projection: str = "persistence",
 ) -> Dict[str, Any]:
     base: Dict[str, Any] = {
         "kind": item.kind,
         "item_id": item.item_id,
         "exchange_id": item.exchange_id,
-        "metadata": copy.deepcopy(item.metadata),
     }
+    if not isinstance(item, ToolResultItem):
+        base["metadata"] = copy.deepcopy(item.metadata)
     if isinstance(item, (UserItem, SteeringItem)):
         base["content"] = [copy.deepcopy(block.to_dict()) for block in item.content]
     elif isinstance(item, AssistantItem):
@@ -991,24 +1080,294 @@ def _item_to_dict(
             for attachment in item.continuation_attachments
         ]
     else:
+        if result_projection == "model":
+            canonical_result = item.result.to_model_dict()
+        elif result_projection == "trace_safe":
+            canonical_result = item.result.to_trace_safe_dict()
+        else:
+            canonical_result = item.result.to_persistence_dict()
         base.update(
             {
                 "provider_scope": item.identity.provider_scope,
                 "call_id": item.identity.call_id,
                 "batch_id": item.batch_id,
-                "status": item.status.value,
-                "content": [
-                    copy.deepcopy(block.to_dict()) for block in item.content
-                ],
-                "provenance": {
-                    "source": item.provenance.source,
-                    "synthetic": item.provenance.synthetic,
-                    "reason": item.provenance.reason,
-                    "details": copy.deepcopy(item.provenance.details),
-                },
+                "result": canonical_result,
+                "synthetic": item.synthetic,
+                "closure_reason": item.closure_reason,
             }
         )
     return base
+
+
+_TOP_LEVEL_FIELDS = frozenset(
+    {"schema_version", "log_id", "items", "queued_steering"}
+)
+_CONTENT_FIELDS = frozenset(
+    {"type", "text", "url", "data", "path", "mime_type", "detail", "metadata"}
+)
+_ITEM_FIELDS = {
+    "user": frozenset({"kind", "item_id", "exchange_id", "content", "metadata"}),
+    "steering": frozenset(
+        {"kind", "item_id", "exchange_id", "content", "metadata"}
+    ),
+    "assistant": frozenset(
+        {
+            "kind",
+            "item_id",
+            "exchange_id",
+            "parts",
+            "continuation_attachments",
+            "metadata",
+        }
+    ),
+    "tool_result": frozenset(
+        {
+            "kind",
+            "item_id",
+            "exchange_id",
+            "provider_scope",
+            "call_id",
+            "batch_id",
+            "result",
+            "synthetic",
+            "closure_reason",
+        }
+    ),
+}
+_PART_FIELDS = {
+    "content": frozenset({"kind", "block"}),
+    "reasoning_reference": frozenset(
+        {"kind", "provider_scope", "reference_id", "attachment_id", "metadata"}
+    ),
+    "tool_call": frozenset(
+        {
+            "kind",
+            "provider_scope",
+            "call_id",
+            "batch_id",
+            "name",
+            "raw_arguments",
+            "parsed_arguments",
+            "parse_status",
+            "parse_error",
+            "metadata",
+        }
+    ),
+}
+_ATTACHMENT_FIELDS = frozenset(
+    {"attachment_id", "provider_scope", "api_mode", "opaque_payload", "metadata"}
+)
+
+
+def _strict_object(value: Any, path: str) -> Dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise InvalidExchangeItemError(f"{path} must be an object")
+    if not all(isinstance(key, str) for key in value):
+        raise InvalidExchangeItemError(f"{path} keys must be strings")
+    return dict(value)
+
+
+def _strict_fields(
+    value: Any,
+    *,
+    path: str,
+    allowed: frozenset[str],
+    required: frozenset[str] = frozenset(),
+) -> Dict[str, Any]:
+    data = _strict_object(value, path)
+    unknown = sorted(set(data) - allowed)
+    if unknown:
+        raise InvalidExchangeItemError(
+            f"{path} has unknown field {unknown[0]!r}"
+        )
+    missing = sorted(required - set(data))
+    if missing:
+        raise InvalidExchangeItemError(
+            f"{path} is missing required field {missing[0]!r}"
+        )
+    return data
+
+
+def _strict_string(value: Any, path: str, *, optional: bool = False) -> None:
+    if optional and value is None:
+        return
+    if not isinstance(value, str):
+        raise InvalidExchangeItemError(f"{path} must be a string")
+
+
+def _strict_json(value: Any, path: str) -> None:
+    if value is None or isinstance(value, (str, bool, int)):
+        return
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise InvalidExchangeItemError(f"{path} must be finite")
+        return
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            _strict_json(item, f"{path}[{index}]")
+        return
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise InvalidExchangeItemError(f"{path} keys must be strings")
+            _strict_json(item, f"{path}.{key}")
+        return
+    raise InvalidExchangeItemError(
+        f"{path} contains non-JSON value {type(value).__name__}"
+    )
+
+
+def _validate_content_payload(value: Any, path: str) -> None:
+    if not isinstance(value, list):
+        raise InvalidExchangeItemError(f"{path} must be an array")
+    for index, block in enumerate(value):
+        block_path = f"{path}[{index}]"
+        data = _strict_fields(
+            block,
+            path=block_path,
+            allowed=_CONTENT_FIELDS,
+            required=frozenset({"type"}),
+        )
+        _strict_string(data["type"], f"{block_path}.type")
+        if "metadata" in data:
+            _strict_object(data["metadata"], f"{block_path}.metadata")
+        for field_name in _CONTENT_FIELDS - {"type", "metadata"}:
+            if field_name in data:
+                _strict_string(
+                    data[field_name],
+                    f"{block_path}.{field_name}",
+                    optional=True,
+                )
+
+
+def _validate_part_payload(value: Any, path: str) -> None:
+    data = _strict_object(value, path)
+    kind = data.get("kind")
+    if not isinstance(kind, str) or kind not in _PART_FIELDS:
+        raise InvalidExchangeItemError(f"{path}.kind is unsupported")
+    required = {
+        "content": frozenset({"kind", "block"}),
+        "reasoning_reference": frozenset(
+            {"kind", "provider_scope", "reference_id", "metadata"}
+        ),
+        "tool_call": frozenset(
+            {
+                "kind",
+                "provider_scope",
+                "call_id",
+                "batch_id",
+                "name",
+                "raw_arguments",
+                "parsed_arguments",
+                "parse_status",
+                "parse_error",
+                "metadata",
+            }
+        ),
+    }[kind]
+    data = _strict_fields(
+        data,
+        path=path,
+        allowed=_PART_FIELDS[kind],
+        required=required,
+    )
+    if kind == "content":
+        _validate_content_payload([data["block"]], f"{path}.block_array")
+        return
+    for field_name in ("provider_scope", "reference_id"):
+        if field_name in data:
+            _strict_string(data[field_name], f"{path}.{field_name}")
+    if "attachment_id" in data:
+        _strict_string(data["attachment_id"], f"{path}.attachment_id", optional=True)
+    if kind == "tool_call":
+        for field_name in ("call_id", "batch_id", "name", "raw_arguments", "parse_status"):
+            _strict_string(data[field_name], f"{path}.{field_name}")
+        _strict_string(data["parse_error"], f"{path}.parse_error", optional=True)
+        parsed = data["parsed_arguments"]
+        if parsed is not None:
+            _strict_object(parsed, f"{path}.parsed_arguments")
+    _strict_object(data["metadata"], f"{path}.metadata")
+
+
+def _validate_attachment_payload(value: Any, path: str) -> None:
+    data = _strict_fields(
+        value,
+        path=path,
+        allowed=_ATTACHMENT_FIELDS,
+        required=_ATTACHMENT_FIELDS,
+    )
+    for field_name in ("attachment_id", "provider_scope", "api_mode"):
+        _strict_string(data[field_name], f"{path}.{field_name}")
+    _strict_object(data["metadata"], f"{path}.metadata")
+
+
+def _validate_item_payload(value: Any, path: str) -> Dict[str, Any]:
+    initial = _strict_object(value, path)
+    kind = initial.get("kind")
+    if not isinstance(kind, str) or kind not in _ITEM_FIELDS:
+        raise InvalidExchangeItemError(f"{path}.kind is unsupported")
+    data = _strict_fields(
+        initial,
+        path=path,
+        allowed=_ITEM_FIELDS[kind],
+        required=_ITEM_FIELDS[kind],
+    )
+    for field_name in ("item_id", "exchange_id"):
+        _strict_string(data[field_name], f"{path}.{field_name}")
+    if kind in {"user", "steering"}:
+        _validate_content_payload(data["content"], f"{path}.content")
+        _strict_object(data["metadata"], f"{path}.metadata")
+    elif kind == "assistant":
+        if not isinstance(data["parts"], list):
+            raise InvalidExchangeItemError(f"{path}.parts must be an array")
+        for index, part in enumerate(data["parts"]):
+            _validate_part_payload(part, f"{path}.parts[{index}]")
+        attachments = data["continuation_attachments"]
+        if not isinstance(attachments, list):
+            raise InvalidExchangeItemError(
+                f"{path}.continuation_attachments must be an array"
+            )
+        for index, attachment in enumerate(attachments):
+            _validate_attachment_payload(
+                attachment, f"{path}.continuation_attachments[{index}]"
+            )
+        _strict_object(data["metadata"], f"{path}.metadata")
+    else:
+        for field_name in ("provider_scope", "call_id", "batch_id"):
+            _strict_string(data[field_name], f"{path}.{field_name}")
+        if not isinstance(data["synthetic"], bool):
+            raise InvalidExchangeItemError(f"{path}.synthetic must be boolean")
+        _strict_string(
+            data["closure_reason"], f"{path}.closure_reason", optional=True
+        )
+        _strict_object(data["result"], f"{path}.result")
+    return data
+
+
+def _validate_persistence_payload(payload: Any) -> Dict[str, Any]:
+    data = _strict_fields(
+        payload,
+        path="exchange_log",
+        allowed=_TOP_LEVEL_FIELDS,
+        required=_TOP_LEVEL_FIELDS,
+    )
+    version = data["schema_version"]
+    _strict_string(version, "exchange_log.schema_version")
+    if version != EXCHANGE_LOG_SCHEMA_VERSION:
+        raise UnsupportedSchemaVersionError(
+            f"unsupported exchange schema: {version!r}"
+        )
+    _strict_string(data["log_id"], "exchange_log.log_id")
+    for field_name in ("items", "queued_steering"):
+        values = data[field_name]
+        if not isinstance(values, list):
+            raise InvalidExchangeItemError(
+                f"exchange_log.{field_name} must be an array"
+            )
+        for index, item in enumerate(values):
+            _validate_item_payload(item, f"exchange_log.{field_name}[{index}]")
+    _strict_json(data, "exchange_log")
+    return data
 
 
 def _attachment_from_dict(payload: Any) -> OpaqueContinuationAttachment:
@@ -1070,9 +1429,6 @@ def _item_from_dict(payload: Any) -> ExchangeItem:
             metadata=metadata,
         )
     if kind == "tool_result":
-        provenance = payload.get("provenance")
-        if not isinstance(provenance, Mapping):
-            raise InvalidExchangeItemError("tool result provenance must be an object")
         return ToolResultItem(
             item_id=item_id,
             exchange_id=exchange_id,
@@ -1081,23 +1437,9 @@ def _item_from_dict(payload: Any) -> ExchangeItem:
                 call_id=str(payload.get("call_id") or ""),
             ),
             batch_id=str(payload.get("batch_id") or ""),
-            status=_enum_value(
-                ToolResultStatus,
-                payload.get("status") or "",
-                "tool result status",
-            ),
-            content=_content_blocks(payload.get("content", [])),
-            provenance=ClosureProvenance(
-                source=str(provenance.get("source") or ""),
-                synthetic=bool(provenance.get("synthetic", False)),
-                reason=(
-                    str(provenance["reason"])
-                    if provenance.get("reason") is not None
-                    else None
-                ),
-                details=dict(provenance.get("details") or {}),
-            ),
-            metadata=metadata,
+            result=ToolResult.from_canonical_dict(payload["result"]),
+            synthetic=payload["synthetic"],
+            closure_reason=payload["closure_reason"],
         )
     raise InvalidExchangeItemError(f"unsupported exchange item kind: {kind!r}")
 
@@ -1266,32 +1608,72 @@ def history_messages_to_exchange_log(
                 raise UnsafeHistoryConversionError(
                     "legacy tool result has no tool_call_id", item_id=item_id
                 )
-            status = _enum_value(
-                ToolResultStatus,
-                metadata.get("qitos_result_status") or "succeeded",
-                "tool result status",
+            legacy_status = str(
+                metadata.get("qitos_result_status") or "success"
             )
+            status_map = {
+                "succeeded": "success",
+                "failed": "error",
+                "permission_blocked": "skipped",
+                "missing_worker": "error",
+            }
+            status = status_map.get(legacy_status, legacy_status)
+            if status not in {
+                "success",
+                "error",
+                "skipped",
+                "timed_out",
+                "cancelled",
+            }:
+                raise UnsafeHistoryConversionError(
+                    f"unsupported legacy tool result status: {legacy_status!r}",
+                    item_id=item_id,
+                )
             synthetic = bool(metadata.get("qitos_synthetic_closure", False))
+            closure_reason = (
+                str(
+                    metadata.get("qitos_closure_reason")
+                    or metadata.get("qitos_provenance_reason")
+                )
+                if (
+                    metadata.get("qitos_closure_reason") is not None
+                    or metadata.get("qitos_provenance_reason") is not None
+                )
+                else None
+            )
+            error_kind = None
+            error_code = None
+            error = None
+            if status != "success":
+                error_kind = "policy" if status == "skipped" else "execution"
+                error_code = (
+                    "missing_worker"
+                    if legacy_status == "missing_worker"
+                    else str(metadata.get("qitos_error_code") or status)
+                )
+                error = str(message.content or error_code)
             result = ToolResultItem(
                 item_id=item_id,
                 exchange_id=active_builder._exchange_id(),
                 identity=CallIdentity(provider_scope, call_id),
                 batch_id=active_builder.batch_id,
-                status=status,
-                content=_content_blocks(message.content),
-                provenance=ClosureProvenance(
-                    source=str(
-                        metadata.get("qitos_provenance_source")
-                        or "HistoryMessage"
-                    ),
-                    synthetic=synthetic,
-                    reason=(
-                        str(metadata["qitos_provenance_reason"])
-                        if metadata.get("qitos_provenance_reason") is not None
-                        else None
-                    ),
+                result=ToolResult(
+                    status=status,  # type: ignore[arg-type]
+                    output=_content_payload(_content_blocks(message.content)),
+                    error=error,
+                    error_kind=error_kind,  # type: ignore[arg-type]
+                    error_code=error_code,
+                    action_id=call_id,
+                    metadata=metadata,
+                    provenance={
+                        "source": str(
+                            metadata.get("qitos_provenance_source")
+                            or "HistoryMessage"
+                        )
+                    },
                 ),
-                metadata=metadata,
+                synthetic=synthetic,
+                closure_reason=closure_reason,
             )
             closed = active_builder.record_result(result)
             if closed:
@@ -1322,7 +1704,11 @@ def exchange_log_to_history_messages(log: ExchangeLog) -> List[HistoryMessage]:
             projected_batches.add(item.batch_id)
 
     for index, item in enumerate(projection_items):
-        metadata = copy.deepcopy(item.metadata)
+        metadata = (
+            copy.deepcopy(item.result.metadata)
+            if isinstance(item, ToolResultItem)
+            else copy.deepcopy(item.metadata)
+        )
         step_id = int(metadata.pop("_history_step_id", index))
         if isinstance(item, UserItem):
             messages.append(
@@ -1402,19 +1788,23 @@ def exchange_log_to_history_messages(log: ExchangeLog) -> List[HistoryMessage]:
                 )
             )
             continue
+        model_view = item.result.to_model_dict()
+        provenance_source = item.result.provenance.get("source")
         metadata.update(
             {
-                "qitos_result_status": item.status.value,
-                "qitos_synthetic_closure": item.provenance.synthetic,
-                "qitos_provenance_source": item.provenance.source,
-                "qitos_provenance_reason": item.provenance.reason,
+                "qitos_result_status": item.result.status,
+                "qitos_error_code": item.result.error_code,
+                "qitos_synthetic_closure": item.synthetic,
+                "qitos_closure_reason": item.closure_reason,
+                "qitos_provenance_source": provenance_source,
             }
         )
+        content = model_view["model_output"] or model_view["error"] or ""
         messages.append(
             HistoryMessage(
                 role="tool",
                 step_id=step_id,
-                content=_content_payload(item.content),
+                content=content,
                 tool_call_id=item.identity.call_id,
                 metadata=metadata,
             )
@@ -1426,7 +1816,6 @@ __all__ = [
     "EXCHANGE_LOG_SCHEMA_VERSION",
     "CONTINUATION_REDACTED_DIAGNOSTIC_VERSION",
     "ArgumentParseStatus",
-    "ToolResultStatus",
     "ConversationValidationError",
     "UnsupportedSchemaVersionError",
     "InvalidExchangeItemError",
@@ -1443,7 +1832,6 @@ __all__ = [
     "AssistantContent",
     "ReasoningReference",
     "ToolCall",
-    "ClosureProvenance",
     "UserItem",
     "SteeringItem",
     "AssistantItem",

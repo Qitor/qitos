@@ -39,7 +39,7 @@ cherry-pick is checked against the supplied full identity before execution.
       and all four Lane plans/fixtures/evidence.
 - [x] Integrate Lane A and close A-CI1.
 - [x] Integrate Lane C and close C-J1, C-I1, and C-P2.
-- [ ] Integrate Lane B and close B-C1 and B-V1 against accepted C.
+- [x] Integrate Lane B and close B-C1 and B-V1 against accepted C.
 - [ ] Integrate Lane D and close D-R1 against accepted B/C fixtures.
 - [ ] Run combined reviewer probes and qualification matrix.
 - [ ] Synchronize progress/task evidence, README EN/zh, and changelog.
@@ -109,7 +109,7 @@ map. The integration repair then closed all three reviewed blockers:
 
 Producer-owned qualification evidence is published beside the C fixture for
 Lane D's later commit/path/digest/authority verification. C-J1 fixing commit:
-`c509bd0`; the C-I1/C-P2 fixing commit is recorded after this plan update.
+`c509bd0`; C-I1/C-P2 fixing commit: `ab1c501`.
 
 Phase evidence: 75 ToolResult/structural/projection tests passed; the stable
 flake8 gate was clean; the repository ratchet passed with 399 findings (377
@@ -118,9 +118,21 @@ rerun or masked exit was used.
 
 ### Lane B integration and B/C convergence
 
-Pending. Required repairs: ToolResult is the sole outcome; ExchangeLog owns only
-conversation facts and delegates persistence/model/trace mappings to C; malformed
-v2 data always raises `ConversationValidationError`; a real C fixture is consumed.
+Applied all six supplied Lane B commits in order after accepted C. B-C1 removed
+the temporary result enum and the duplicate content/status/error/provenance
+envelope: ToolResultItem now owns only correlation and closure facts around the
+sole canonical ToolResult. Persistence, model, and trace-safe result mappings
+call C's public entrypoints directly.
+
+B-V1 publishes strict `qitos.exchange_log.v2`: prior envelopes, unknown fields,
+wrong shapes/types, non-JSON values, non-finite numbers, and malformed nested C
+results all raise `ConversationValidationError`. The v3 producer fixture and
+evidence directly consume and round-trip C's committed canonical fixture.
+
+Phase evidence: 29 conversation tests and 71 combined B/C projection tests
+passed; stable mypy succeeded on 77 source files; stable flake8 and
+`git diff --check` were clean. The B-C1/B-V1 fixing commit is recorded after
+this plan update.
 
 ### Lane D integration and D-R1
 
@@ -132,13 +144,12 @@ blocked and trajectory v2 remains unfrozen.
 ## Reviewer probes
 
 - [ ] Workflow qualification entrypoint imports and executes successfully.
-- [ ] A controlled invalid tool spec fails the same entrypoint.
 - [x] Nested arbitrary objects, NaN, Infinity, and -Infinity fail pre-execution.
 - [x] ToolResult caller/serialization mutations are isolated in both directions.
 - [x] Tokens and host paths cannot survive any model/trace-visible field.
 - [x] Trace loss accounts for output, error, hint, next action, and identifiers.
-- [ ] Every malformed ExchangeLog v2 input fails with the typed conversation error.
-- [ ] ExchangeLog directly round-trips the exact C canonical fixture.
+- [x] Every malformed ExchangeLog v2 input fails with the typed conversation error.
+- [x] ExchangeLog directly round-trips the exact C canonical fixture.
 - [ ] Forged receipt digest/path/commit/version/authority cannot clear a blocker.
 - [ ] Exact committed B/C receipts clear only their owned blockers.
 
@@ -160,15 +171,15 @@ server 149, and regenerated substitute source commits are prohibited.
 - [ ] Pinned ratchet and stable flake8/mypy are green on the combined tree.
 - [x] ToolResult is the only canonical outcome and has strict JSON/ownership rules.
 - [x] Model/trace views are allowlisted, bounded, redacted, and loss-accounted.
-- [ ] ExchangeLog uses C serializers and has a typed strict v2 reader.
+- [x] ExchangeLog uses C serializers and has a typed strict v2 reader.
 - [ ] D receipts verify exact committed producer evidence and clear one blocker only.
-- [ ] Cross-lane fixture tests consume real producer artifacts.
+- [x] Cross-lane fixture tests consume real producer artifacts.
 - [ ] Full suite, boundary, public surface, no-local-path, and diff checks pass.
 - [ ] Required documentation is synchronized without implementing Task 12/13.
 - [ ] Final branch status is clean.
 
 ## Remaining blockers
 
-Four reviewed blockers (B-C1, B-V1, D-R1, and combined G1 qualification) remain
+Two reviewed blockers (D-R1 and combined G1 qualification) remain
 open until their integration-owned fixing commits and regression evidence are
 recorded above. Consequently G1 is open and S1 dispatch is blocked.

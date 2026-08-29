@@ -1,17 +1,17 @@
 {
-  "fixture_version": "qitos.conversation.fixture.v2",
-  "schema_version": "qitos.exchange_log.v1",
+  "fixture_version": "qitos.conversation.fixture.v3",
+  "schema_version": "qitos.exchange_log.v2",
   "fixtures": [
     {
       "name": "multimodal_exchange",
-      "schema_version": "qitos.exchange_log.v1",
+      "schema_version": "qitos.exchange_log.v2",
       "expected_invariant": "User content blocks retain text and image order without text flattening.",
       "expected_error": null,
       "consumer_simulations": ["history_adapter", "persistence_reader"],
       "lossless": true,
       "operation": "load",
       "exchange_log": {
-        "schema_version": "qitos.exchange_log.v1",
+        "schema_version": "qitos.exchange_log.v2",
         "log_id": "fixture_multimodal",
         "queued_steering": [],
         "items": [
@@ -30,14 +30,14 @@
     },
     {
       "name": "single_tool_call",
-      "schema_version": "qitos.exchange_log.v1",
+      "schema_version": "qitos.exchange_log.v2",
       "expected_invariant": "One declared call has exactly one correlated terminal result.",
       "expected_error": null,
       "consumer_simulations": ["execution", "persistence_reader"],
       "lossless": true,
       "operation": "load",
       "exchange_log": {
-        "schema_version": "qitos.exchange_log.v1",
+        "schema_version": "qitos.exchange_log.v2",
         "log_id": "fixture_single_call",
         "queued_steering": [],
         "items": [
@@ -59,17 +59,16 @@
             "provider_scope": "openai:chat",
             "call_id": "call_single",
             "batch_id": "batch_single",
-            "status": "succeeded",
-            "content": [{"type": "text", "text": "contents"}],
-            "provenance": {"source": "fixture.worker", "synthetic": false, "reason": null, "details": {}},
-            "metadata": {}
+            "result": {"schema_version": "qitos.tool_result/v1", "status": "success", "output": "contents", "provenance": {"source": "fixture.worker"}},
+            "synthetic": false,
+            "closure_reason": null
           }
         ]
       }
     },
     {
       "name": "native_parallel_calls",
-      "schema_version": "qitos.exchange_log.v1",
+      "schema_version": "qitos.exchange_log.v2",
       "expected_invariant": "One assistant item declares multiple ordered calls in one batch.",
       "expected_error": null,
       "consumer_simulations": ["execution", "persistence_reader"],
@@ -77,7 +76,7 @@
       "operation": "complete_batch",
       "completion_order": ["call_beta", "call_alpha"],
       "exchange_log": {
-        "schema_version": "qitos.exchange_log.v1",
+        "schema_version": "qitos.exchange_log.v2",
         "log_id": "fixture_parallel",
         "queued_steering": [],
         "items": [
@@ -97,7 +96,7 @@
     },
     {
       "name": "out_of_order_completion",
-      "schema_version": "qitos.exchange_log.v1",
+      "schema_version": "qitos.exchange_log.v2",
       "expected_invariant": "Execution may finish beta before alpha; persistence retains beta then alpha while a derived query returns declaration order.",
       "expected_error": null,
       "consumer_simulations": ["execution", "persistence_reader"],
@@ -105,7 +104,7 @@
       "operation": "complete_batch",
       "completion_order": ["call_beta", "call_alpha"],
       "exchange_log": {
-        "schema_version": "qitos.exchange_log.v1",
+        "schema_version": "qitos.exchange_log.v2",
         "log_id": "fixture_out_of_order",
         "queued_steering": [],
         "items": [
@@ -125,14 +124,14 @@
     },
     {
       "name": "malformed_raw_args",
-      "schema_version": "qitos.exchange_log.v1",
+      "schema_version": "qitos.exchange_log.v2",
       "expected_invariant": "Malformed raw arguments remain byte-for-byte text with no parsed object.",
       "expected_error": null,
       "consumer_simulations": ["codec_boundary", "persistence_reader"],
       "lossless": true,
       "operation": "assert_parse_status",
       "exchange_log": {
-        "schema_version": "qitos.exchange_log.v1",
+        "schema_version": "qitos.exchange_log.v2",
         "log_id": "fixture_malformed",
         "queued_steering": [],
         "items": [
@@ -151,14 +150,14 @@
     },
     {
       "name": "raw_valid_parsed_failed",
-      "schema_version": "qitos.exchange_log.v1",
+      "schema_version": "qitos.exchange_log.v2",
       "expected_invariant": "Syntactically valid non-object JSON is distinct from malformed raw JSON.",
       "expected_error": null,
       "consumer_simulations": ["codec_boundary", "persistence_reader"],
       "lossless": true,
       "operation": "assert_parse_status",
       "exchange_log": {
-        "schema_version": "qitos.exchange_log.v1",
+        "schema_version": "qitos.exchange_log.v2",
         "log_id": "fixture_parsed_invalid",
         "queued_steering": [],
         "items": [
@@ -177,14 +176,14 @@
     },
     {
       "name": "duplicate_call_id",
-      "schema_version": "qitos.exchange_log.v1",
+      "schema_version": "qitos.exchange_log.v2",
       "expected_invariant": "Call IDs are unique within provider scope.",
       "expected_error": "duplicate_call_id",
       "consumer_simulations": ["execution", "persistence_validator"],
       "lossless": false,
       "operation": "load",
       "exchange_log": {
-        "schema_version": "qitos.exchange_log.v1",
+        "schema_version": "qitos.exchange_log.v2",
         "log_id": "fixture_duplicate",
         "queued_steering": [],
         "items": [
@@ -204,14 +203,14 @@
     },
     {
       "name": "incomplete_batch",
-      "schema_version": "qitos.exchange_log.v1",
+      "schema_version": "qitos.exchange_log.v2",
       "expected_invariant": "An open batch cannot enter the next normal model transaction.",
       "expected_error": "incomplete_tool_batch",
       "consumer_simulations": ["execution", "request_boundary"],
       "lossless": true,
       "operation": "assert_ready",
       "exchange_log": {
-        "schema_version": "qitos.exchange_log.v1",
+        "schema_version": "qitos.exchange_log.v2",
         "log_id": "fixture_incomplete",
         "queued_steering": [],
         "items": [
@@ -230,14 +229,14 @@
     },
     {
       "name": "interrupted_batch_synthetic_closure",
-      "schema_version": "qitos.exchange_log.v1",
+      "schema_version": "qitos.exchange_log.v2",
       "expected_invariant": "Interrupted slots close explicitly and retain synthetic provenance.",
       "expected_error": null,
       "consumer_simulations": ["execution", "persistence_reader"],
       "lossless": true,
       "operation": "load",
       "exchange_log": {
-        "schema_version": "qitos.exchange_log.v1",
+        "schema_version": "qitos.exchange_log.v2",
         "log_id": "fixture_interrupted",
         "queued_steering": [],
         "items": [
@@ -258,17 +257,16 @@
             "provider_scope": "openai:chat",
             "call_id": "call_interrupted",
             "batch_id": "batch_interrupted",
-            "status": "cancelled",
-            "content": [{"type": "text", "text": "Execution interrupted."}],
-            "provenance": {"source": "qitos.recovery", "synthetic": true, "reason": "run_interrupted", "details": {"worker_still_running": false}},
-            "metadata": {}
+            "result": {"schema_version": "qitos.tool_result/v1", "status": "cancelled", "error": "Execution interrupted.", "error_kind": "execution", "error_code": "run_interrupted", "provenance": {"source": "qitos.recovery", "worker_still_running": false}},
+            "synthetic": true,
+            "closure_reason": "run_interrupted"
           }
         ]
       }
     },
     {
       "name": "mid_batch_steering",
-      "schema_version": "qitos.exchange_log.v1",
+      "schema_version": "qitos.exchange_log.v2",
       "expected_invariant": "Human steering received mid-batch remains queued until closure.",
       "expected_error": "incomplete_tool_batch",
       "consumer_simulations": ["execution", "request_boundary"],
@@ -276,7 +274,7 @@
       "operation": "complete_batch",
       "completion_order": ["call_steering"],
       "exchange_log": {
-        "schema_version": "qitos.exchange_log.v1",
+        "schema_version": "qitos.exchange_log.v2",
         "log_id": "fixture_steering",
         "queued_steering": [
           {"kind": "steering", "item_id": "steering_queued", "exchange_id": "exchange_next", "content": [{"type": "text", "text": "Use the smaller file."}], "metadata": {}}
@@ -297,14 +295,14 @@
     },
     {
       "name": "opaque_continuation",
-      "schema_version": "qitos.exchange_log.v1",
+      "schema_version": "qitos.exchange_log.v2",
       "expected_invariant": "The diagnostic projection redacts opaque continuation only; metadata remains unchanged and may still contain secrets.",
       "expected_error": null,
       "consumer_simulations": ["codec_boundary", "persistence_reader"],
       "lossless": true,
       "operation": "continuation_redacted_diagnostic_projection",
       "exchange_log": {
-        "schema_version": "qitos.exchange_log.v1",
+        "schema_version": "qitos.exchange_log.v2",
         "log_id": "fixture_opaque",
         "queued_steering": [],
         "items": [
@@ -325,14 +323,14 @@
     },
     {
       "name": "unsupported_reasoning_replay",
-      "schema_version": "qitos.exchange_log.v1",
+      "schema_version": "qitos.exchange_log.v2",
       "expected_invariant": "Legacy projection rejects reasoning references instead of turning them into text.",
       "expected_error": "unsupported_reasoning_replay",
       "consumer_simulations": ["history_adapter", "persistence_validator"],
       "lossless": false,
       "operation": "history_projection",
       "exchange_log": {
-        "schema_version": "qitos.exchange_log.v1",
+        "schema_version": "qitos.exchange_log.v2",
         "log_id": "fixture_reasoning_replay",
         "queued_steering": [],
         "items": [
@@ -351,14 +349,14 @@
     },
     {
       "name": "genuine_error_prefix_assistant_text",
-      "schema_version": "qitos.exchange_log.v1",
+      "schema_version": "qitos.exchange_log.v2",
       "expected_invariant": "Assistant text beginning with Error: remains ordinary authored content.",
       "expected_error": null,
       "consumer_simulations": ["history_adapter", "persistence_reader"],
       "lossless": true,
       "operation": "history_projection",
       "exchange_log": {
-        "schema_version": "qitos.exchange_log.v1",
+        "schema_version": "qitos.exchange_log.v2",
         "log_id": "fixture_error_text",
         "queued_steering": [],
         "items": [
@@ -377,14 +375,14 @@
     },
     {
       "name": "serialization_round_trip",
-      "schema_version": "qitos.exchange_log.v1",
+      "schema_version": "qitos.exchange_log.v2",
       "expected_invariant": "The versioned persistence representation round-trips exactly.",
       "expected_error": null,
       "consumer_simulations": ["execution", "persistence_reader"],
       "lossless": true,
       "operation": "round_trip",
       "exchange_log": {
-        "schema_version": "qitos.exchange_log.v1",
+        "schema_version": "qitos.exchange_log.v2",
         "log_id": "fixture_round_trip",
         "queued_steering": [],
         "items": [

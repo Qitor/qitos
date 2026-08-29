@@ -1,6 +1,6 @@
 # Lane B conversation and context plan
 
-Status: B1-R Phase 1 complete; C1-R alignment pending
+Status: B1-R integrated and converged on canonical C; combined G1 gate open
 Work package: B1-R Phase 1 / Task 02A contract integrity
 Integration baseline: `8441bef2f2024fd6c2ec01784708512222382471`
 B1 source HEAD: `69a961f6f50656dff308db7a2f3e400439ef20d0`
@@ -21,12 +21,12 @@ provider payload builders, request views, checkpoints, presets, or tracing.
 4. Replace the overbroad safe/public name with a versioned
    continuation-redacted diagnostic view and document that it is not a privacy
    filter.
-5. Migrate the semantic fixture envelope to v2 with typed rejection of v1 and
+5. Migrate the semantic fixture envelope to v3 with a strict ExchangeLog v2
+   reader and typed rejection of malformed or unknown data and prior schemas;
    describe its execution/persistence tests only as consumer simulations.
 6. Run the contract, architecture/public-surface, full-suite, static, and diff
    checks. This branch does not include or claim the Lane A ratchet.
-7. After the exact C1-R HEAD is published, do a separate bounded alignment
-   follow-up before this contract can be called canonical or merge-ready.
+7. Align on the exact accepted C contract before D receipt qualification.
 
 ## API decision record B1-ADR-001
 
@@ -69,12 +69,14 @@ small contract surface. If profiling later shows this is material, a dedicated
 persistent data structure can replace the boundary implementation without
 changing the ownership semantics.
 
-`ToolResultItem` and `ToolResultStatus` remain a temporary conversation closure
-representation, not the canonical outcome contract. This phase does not edit
-or infer from the legacy `qitos.core.tool_result`. The C1-R follow-up must use
-its exact HEAD to obtain and align: the strict persistence serializer/reader,
-the model-facing result view, canonical status/error mapping, and the artifact
-reference slot. No new status or opaque permanent adapter is introduced here.
+`ToolResult` is the sole outcome contract. `ToolResultItem` contains only item,
+exchange, call, batch, synthetic-closure, and closure-reason facts plus the
+canonical result; it has no second content/status/error/provenance envelope.
+ExchangeLog persistence, model, and trace-safe projections call
+`ToolResult.to_persistence_dict()`, `to_model_dict()`, and
+`to_trace_safe_dict()` directly, while strict reads call
+`ToolResult.from_canonical_dict()`. Permissive handling remains confined to the
+named `HistoryMessage` legacy adapter.
 
 `HistoryMessage` remains unchanged. Adapters preserve compatible fields,
 synthesize stable exchange/item/batch identities and explicit parse status,
@@ -96,8 +98,8 @@ deprecation window has elapsed.
 
 ## Invariants and fixture handoff
 
-Schema: `qitos.exchange_log.v1`
-Fixture envelope: `qitos.conversation.fixture.v2`
+Schema: `qitos.exchange_log.v2`
+Fixture envelope: `qitos.conversation.fixture.v3`
 
 The fixture manifest covers multimodal input, single and parallel calls,
 out-of-order completion, both malformed and semantically invalid arguments,
@@ -108,11 +110,28 @@ typed error, consumer simulation, and losslessness. The deterministic recovery
 test serializes a one-of-N completion, reloads it, executes only the missing
 slot, and verifies completion-order persistence plus declaration-order query.
 
-Execution-side simulation: declared calls, partial persistence, recovery, and
-declaration-ordered query.
-Persistence-side simulation: versioned persistence plus continuation-redacted
-diagnostic projection. These are not independent Lane C/D consumers and do not
-satisfy the cross-lane consumer gate.
+Execution-side qualification covers declared calls, partial persistence,
+recovery, and declaration-ordered query. Persistence qualification uses the
+exact committed Lane C fixture, strict v2 parsing, and canonical C serializers.
+Producer-owned qualification evidence is published beside the v3 fixture for
+Lane D to bind to the exact B fixing commit.
+
+## G1 B/C convergence evidence
+
+- [x] B-C1: remove the temporary result enum and duplicated result envelope;
+  conversation owns only correlation, ordering, closure, and steering facts.
+- [x] B-V1: strict v2 parsing rejects unknown fields at every declared layer,
+  wrong shapes/types, non-JSON values, non-finite numbers, prior envelopes, and
+  malformed canonical results with `ConversationValidationError`.
+- [x] Round-trip the exact Lane C `contract_hardening.json` canonical source.
+- [x] Verify persistence/model/trace views are byte-for-byte the corresponding
+  public ToolResult serializer outputs.
+- [x] Publish `tests/fixtures/conversation/v3/qualification-evidence.json`.
+
+Integrated targeted evidence: 29 conversation tests and 71 combined
+conversation/ToolResult/projection tests passed; stable mypy succeeded on 77
+source files and stable flake8 was clean. Full combined G1 qualification remains
+open until Lane D is integrated.
 
 ## File leases
 
@@ -143,8 +162,7 @@ No lease is requested for `qitos/core/__init__.py`, root exports,
 - forbidden Engine/provider/RequestView/checkpoint/trace/qita/runtime delta: zero;
 - `docs/progress.md` delta: zero;
 - Lane A ratchet: not present and not claimed;
-- C1-R alignment: pending exact C1-R HEAD, so this phase is neither canonical
-  nor merge-ready.
+- C1-R alignment: historical Phase 1 gate, now closed by the G1 section above.
 
 ## Original B1 evidence (historical)
 
