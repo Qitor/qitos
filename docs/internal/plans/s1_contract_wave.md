@@ -1,6 +1,6 @@
 # S1 contract wave plan
 
-Status: blocked pending G1-R4 forced-secret scalar closure
+Status: ready only from final G1-R4 baseline; no S1 branch or behavior exists
 Updated: 2026-08-29
 Owner: v4 integration owner
 Source gates: [`docs/progress.md`](../../progress.md) and
@@ -18,10 +18,14 @@ schema, provider default, or distributed scheduler.
 
 Do not create S1 implementation branches from
 `587f34b76245e71fe3362a51dbad40895d7c43c5` or the pre-repair
-`acb491bd822baf6ca429e81639aadbde72a626f0`. G1-R3 has now established the
-later accepted baseline reported by the integration owner, containing:
+`acb491bd822baf6ca429e81639aadbde72a626f0`, the accepted-then-reopened R3
+baseline, or the R4 starting commit
+`6b5f293aa9f4c9a2e5e3190dd95b3ae8611d598e`. The final R4 baseline reported by
+the integration owner contains:
 
 - the C-P3 sensitive-key and omitted-key projection repair;
+- the C-P4 role-aware forced-secret scalar repair, including preserved omitted
+  counts and loss conservation;
 - B's canonical consumer requalification;
 - refreshed D producer receipts when fixture/evidence bytes changed;
 - the pinned 399-finding ratchet, stable flake8/mypy, adversarial projection
@@ -30,10 +34,10 @@ later accepted baseline reported by the integration owner, containing:
 - a clean three-worktree fast-forward and explicit **G1 CLOSED** decision in
   `docs/progress.md` and the final integration report.
 
-The R3 authorization is superseded by C-P4 review. No S1 branch may be created
-until the integration owner reports the new scalar-safe R4 baseline SHA after
-all gates and three fast-forwards. That later authorization will remain limited
-to each lane's first contract package.
+The R3 authorization was superseded by C-P4 review. The new authorization is
+effective only at the exact scalar-safe R4 SHA after all gates and the three
+fast-forwards. It remains limited to each lane's first contract package. This
+closure did not create an S1 branch or implement 02B, 03B-E, 05A, 12A, or 13A.
 
 ## Shared contracts
 

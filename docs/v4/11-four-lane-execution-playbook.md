@@ -7,10 +7,10 @@ Source tasks: Tasks 02–05 and 08–13
 Baseline: Task 01 complete; exact current integration status lives in
 [`docs/progress.md`](../progress.md)
 
-Current dispatch state: independent review reopened G1 on C-P4 because
-forced-secret numeric, boolean, and null leaves can remain visible beneath a
-sensitive key. Only the bounded role-aware scalar repair plus B/D and combined
-requalification is active. S1 dispatch is blocked and no S1 branch exists.
+Current dispatch state: G1-R4 closed C-P4 with a role-aware forced-secret scalar
+repair and exact B/C/D requalification. S1 has not been dispatched and may
+start only from the final promoted R4 baseline reported by the integration
+owner.
 
 ---
 
@@ -90,7 +90,7 @@ in small packages through one closure wave and four capability waves.
 
 | Wave | Lane A | Lane B | Lane C | Lane D | Exit gate |
 |---|---|---|---|---|---|
-| G1-R — closed | retained trusted ratchet/CI evidence | canonical consumer green | C-P3 closed | exact C receipt refreshed | G1 passed; accepted baseline promoted |
+| G1-R — closed | retained trusted ratchet/CI evidence | canonical consumer green | C-P3 and C-P4 closed | exact scalar-safe C receipt refreshed | G1 passed; scalar-safe baseline promoted |
 | S1 — contracts | 12A identity/lifecycle/snapshot ADR | 02B RequestView + 04A/04B contract handoffs | 03 recovery fields + 13A graph ADR | session/work lineage schema proposal only | G2: identities, ownership, snapshots, effects, and resolver contracts reviewed |
 | S2 — single-agent vertical slice | 12B/C/D session head, safe pause, clean-process restore | 02C/D + context/artifact snapshot components | 03B/C effects and partial-batch recovery | observe the slice; no v2 freeze | G3: start -> parallel tools -> pause -> process exit -> restore -> finish, no duplicate committed effect |
 | S3 — durable multi-agent | Task 12 fork/ownership support | context/continuation transfer receipts | 13B/C/D handoff, delegate, spawn, fan-out/join | graph/timeline dual-read records | G4: partial child graph and ownership transfer survive process restart |
@@ -1000,6 +1000,19 @@ begins only after their versioned handoffs are reviewed.
 
 The detailed conditional S1 plan is
 [`docs/internal/plans/s1_contract_wave.md`](../internal/plans/s1_contract_wave.md).
+
+### G1-R4 scalar-safe acceptance
+
+R3 remains recorded as accepted and subsequently reopened. R4 repaired the
+forced-secret scalar leak in core commit
+`89806df415f8a14da11db4427e4682f44e650c03`, requalified B without a runtime
+change, accepted C producer
+`9a0c5ed5d6c1c959ff277d3888f54c927be3e183`, and refreshed D in
+`e41eb6ea68375b1064b30044e66ae58bcba67c67`. Content and omission-count roles
+are deliberately distinct; canonical data is unchanged. Targeted, readiness,
+ratchet, lint/type, and `1872 passed, 50 skipped` full-suite evidence closed G1.
+This authorizes only contract-first S1 dispatch from the final R4 SHA; it does
+not itself implement 02B, 03B-E, 05A, 12A, or 13A.
 
 For direct dispatch, give each coding agent this entire playbook and state its
 single lane/package (for example, `Lane A / 12A`). The agent must follow the

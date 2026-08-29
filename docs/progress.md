@@ -4,7 +4,7 @@ Status: active integration ledger
 Updated: 2026-08-29
 Integration branch: `codex/v4-g1-convergence`
 G1-R4 source: `6b5f293aa9f4c9a2e5e3190dd95b3ae8611d598e`
-Current gate: **G1 reopened on C-P4; S1 dispatch blocked**
+Current gate: **G1 CLOSED on the scalar-safe R4 baseline; S1 not dispatched**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md)
 and [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md)
@@ -703,3 +703,35 @@ freeze until Task 12/13 lineage is available.
   final accepted baseline reported by the integration owner. No S1 branch,
   Task 02B, 03B-E, 05A, 12A, 13A, trajectory-v2 freeze, qita redesign, provider
   default, packaging, push, deployment, or live-model work occurred.
+
+### 2026-08-29 — G1-R4 forced-secret scalar closure accepted
+
+- Independent review reopened the accepted R3 baseline after reproducing C-P4:
+  `_redact_value(force_secret=True)` redacted strings but returned integer,
+  float, boolean, and null leaves unchanged below a sensitive mapping key.
+- Core fix `89806df415f8a14da11db4427e4682f44e650c03` introduced private projection
+  roles. Secret-bearing content replaces every JSON scalar leaf and counts it
+  exactly once; trace-safe omitted data redacts a sensitive key while retaining
+  its validated non-negative integer count. Benign typed values and canonical
+  persistence remain unchanged; no public version or root export changed.
+- B remained a direct consumer of C's projection and required no runtime code
+  change. New C producer `9a0c5ed5d6c1c959ff277d3888f54c927be3e183`
+  publishes fixture SHA-256
+  `b7f4dc6dfe8958bcd9c47617869a14bc8114629038d3428e6a623642fd2e5415`
+  and evidence SHA-256
+  `96b0e641ccca7e049a90658496a19964217aa7c359a29c6b6e6b345fb7cf99f5`.
+- D receipt commit `e41eb6ea68375b1064b30044e66ae58bcba67c67`
+  binds those exact committed bytes; a regression test proves the old R3 C
+  receipt fails with `producer_source_commit_mismatch`. The B receipt is
+  unchanged.
+- Qualification passed: 112 combined C/B tests, 56 D/readiness/boundary tests,
+  four dedicated C-P4 adversarial nodes, tool qualification (61 modules, 74
+  classes, 62 qualified/registered), the 399-finding ratchet (377 active, 22
+  vendored/generated), stable flake8, stable mypy on 77 files, and the full
+  suite (`1872 passed, 50 skipped`). Readiness still qualifies only B/C; it
+  remains `schema_not_ready`, trajectory v2 remains unfrozen, measurements and
+  claims remain empty, and publication-qualified count remains zero.
+- Decision: **G1 CLOSED** on the final scalar-safe R4 baseline. R3 remains in
+  this ledger as an accepted-then-reopened audit event. S1 was not created or
+  implemented and may start only from the exact final R4 baseline reported by
+  the integration owner. Task 02B, 03B-E, 05A, 12A, and 13A remain unimplemented.

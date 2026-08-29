@@ -1,6 +1,6 @@
 # Tool outcome and runtime ownership (ADR C1)
 
-Status: accepted; C1-R3 collision-safe projection hardening qualified
+Status: accepted; C1-R4 role-aware scalar projection hardening qualified
 Schema versions: `qitos.tool_result/v1`, `qitos.tool_result.model_view/v1`,
 `qitos.tool_result.trace_safe/v1`, `qitos.runtime_lifecycle/v1`,
 `qitos.durability_receipt/v1`
@@ -117,6 +117,17 @@ remaining per-result character budget. Every redacted key, omitted entry, and
 omitted character is recorded in the `omitted` field facts and aggregate totals.
 Canonical `qitos.tool_result/v1` persistence remains lossless and unchanged;
 model-view and trace-safe version identifiers remain v1.
+
+C1-R4 adds a private role distinction inside that projection. When content is
+forced secret by a sensitive key, every JSON scalar leaf—string, integer,
+finite float, boolean, or null—is replaced with the redaction marker and
+charged exactly once to that field's `secret_values`. Lists and mappings retain
+shape while inheriting the role. Benign content keeps its exact JSON type and
+value. Trace-safe `omitted` is different: values are schema-validated
+non-negative counts, so a sensitive omitted key is replaced but its integer
+count remains typed and is not treated as secret content. Aggregate loss facts
+continue to equal the sum of per-field facts. Canonical persistence is outside
+both projection roles and stays lossless.
 
 Until Lane B publishes `ArtifactRef`, canonical `artifact_refs` is an array of
 objects with required non-empty `artifact_id` and optional `media_type`,
@@ -241,7 +252,7 @@ Fixtures live under `tests/fixtures/tool_results/v1/`:
 - `contract_hardening.json`: unknown-version, contradictory-state and malformed
   canonical rejections plus executable host-path/token key, nested mapping,
   collision, pre-existing placeholder, next-action, omitted-budget, and loss
-  expectations.
+  expectations, including forced-secret scalar and omitted-count roles.
 - `qualification-evidence.json`: producer-owned G1 probes for recursive JSON
   admission, nested ownership isolation, all-field redaction, and per-field loss
   accounting. Lane D must bind this exact committed file and fixture rather than
@@ -263,8 +274,10 @@ ToolResult owns a recursive copy of all accepted JSON trees, and every serialize
 returns another recursive copy. Model and trace-safe projections share one text
 budget and account redaction or omission separately for model output, errors,
 recovery hints, identifiers, next actions, and trace-safe omitted data. The
-accepted C producer commit is
-`d50f41fb3b8190a953f9f37f278bf0b197af286b`.
+accepted scalar-safe C producer commit is
+`9a0c5ed5d6c1c959ff277d3888f54c927be3e183`; fixture/evidence SHA-256 values
+are `b7f4dc6dfe8958bcd9c47617869a14bc8114629038d3428e6a623642fd2e5415`
+and `96b0e641ccca7e049a90658496a19964217aa7c359a29c6b6e6b345fb7cf99f5`.
 
 ## Consequences and deferred behavior
 

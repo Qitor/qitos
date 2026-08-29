@@ -1,6 +1,6 @@
 # G1 final convergence plan
 
-Status: G1-R4 in progress; G1 reopened on forced-secret scalar projection
+Status: G1-R4 qualified; G1 closed on scalar-safe baseline
 Updated: 2026-08-29
 Owner: G1 integration owner
 Branch: `codex/v4-g1-final-baseline`
@@ -63,13 +63,13 @@ all S1 implementation remains blocked.
 
 - [x] Verify all three R3 sources at the exact clean baseline and create R4.
 - [x] Read all required rules, plans, code, tests, and fixtures.
-- [ ] Demonstrate pre-fix integer/float/bool/null leaks with dedicated nodes.
-- [ ] Implement role-aware scalar projection without changing public schemas.
-- [ ] Requalify B without a runtime change.
-- [ ] Commit updated C fixture/evidence and resolve producer SHA/digests.
-- [ ] Refresh D's exact C requirement/receipt and reject the old R3 receipt.
-- [ ] Run adversarial, targeted, readiness, static, lint/type, and full gates.
-- [ ] Reclose documentation and rerun post-documentation gates.
+- [x] Demonstrate pre-fix integer/float/bool/null leaks with dedicated nodes.
+- [x] Implement role-aware scalar projection without changing public schemas.
+- [x] Requalify B without a runtime change.
+- [x] Commit updated C fixture/evidence and resolve producer SHA/digests.
+- [x] Refresh D's exact C requirement/receipt and reject the old R3 receipt.
+- [x] Run adversarial, targeted, readiness, static, lint/type, and full gates.
+- [x] Reclose documentation; post-documentation gates remain the promotion gate.
 - [ ] Fast-forward G1-final, convergence, and official integration after exact
       clean identity rechecks; verify four clean worktrees share one HEAD.
 
@@ -391,3 +391,29 @@ in G1-R3.
 
 Task 02B, 03B–E, 04/05A, Task 12/13 runtime, trajectory v2, qita redesign,
 provider-default changes, and packaging work remain separate future packages.
+
+## G1-R4 accepted closure
+
+C-P4 is closed by core commit
+`89806df415f8a14da11db4427e4682f44e650c03`. A private content role redacts
+string, integer, finite-float, boolean, and null leaves below a forced-secret
+node; a distinct omitted-count role preserves only the validated non-negative
+integer count while redacting its sensitive key. Nested containers recurse
+under the active role, benign types remain typed, aggregate loss equals the sum
+of per-field facts, and canonical v1 persistence remains lossless.
+
+B consumed the repair through its existing public C delegation without a
+runtime change. C producer
+`9a0c5ed5d6c1c959ff277d3888f54c927be3e183` owns fixture digest
+`b7f4dc6dfe8958bcd9c47617869a14bc8114629038d3428e6a623642fd2e5415`
+and evidence digest
+`96b0e641ccca7e049a90658496a19964217aa7c359a29c6b6e6b345fb7cf99f5`.
+D commit `e41eb6ea68375b1064b30044e66ae58bcba67c67` binds those bytes and rejects
+the superseded R3 C receipt.
+
+Qualification passed with 112 C/B tests, 56 D/readiness/boundary tests, four
+dedicated C-P4 nodes, all three readiness modes, tool qualification, the
+399-finding ratchet, stable flake8, stable mypy on 77 files, and `1872 passed,
+50 skipped` repository-wide. **G1 CLOSED**. S1 was not dispatched and may use
+only the final R4 baseline reported after promotion; no deferred behavior was
+implemented.

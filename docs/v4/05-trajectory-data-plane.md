@@ -168,6 +168,14 @@ evidence bytes while retaining the exact B producer binding. Exact-receipt
 readiness still qualifies only B/C, reports `schema_not_ready`, emits no
 measurements or claims, and leaves trajectory v2 unfrozen.
 
+G1-R4 refreshes that C binding again after forced-secret scalar qualification.
+D receipt `e41eb6ea68375b1064b30044e66ae58bcba67c67` accepts only producer
+`9a0c5ed5d6c1c959ff277d3888f54c927be3e183` and its committed fixture/evidence
+digests; the prior R3 receipt is explicitly rejected. Exact-receipt readiness
+still has nine contract blockers, qualifies only B/C and zero publications,
+reports `schema_not_ready`, emits no measurements or claims, and keeps
+trajectory v2 unfrozen. This is not 05A implementation or schema freeze.
+
 ### 05B — store, artifacts, and v1 bridge
 
 - Implement atomic writer/reader and integrity validation.

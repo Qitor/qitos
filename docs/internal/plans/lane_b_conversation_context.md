@@ -1,6 +1,6 @@
 # Lane B conversation and context plan
 
-Status: B1-R accepted; canonical C-P3 consumer requalification green
+Status: B1-R accepted; canonical C-P4 scalar-safe consumer requalification green
 Work package: B1-R Phase 1 / Task 02A contract integrity
 Integration baseline: `8441bef2f2024fd6c2ec01784708512222382471`
 B1 source HEAD: `69a961f6f50656dff308db7a2f3e400439ef20d0`
@@ -144,6 +144,16 @@ The 108-test combined ToolResult/structural/projection/conversation command
 passed, including typed malformed reads, partial completion, completion order,
 recovery, and one-time steering. The B producer fixture/evidence bytes did not
 change, so D correctly retains B's `2e46fc8...` receipt.
+
+## G1-R4 forced-secret scalar consumer requalification
+
+ExchangeLog again required no runtime change. The C-P4 adversarial consumer
+probe demonstrates that its public model/trace views inherit C's role-aware
+redaction for forced-secret integer, float, boolean, null, and nested leaves,
+while persistence retains the exact canonical typed values. The combined C/B
+command passed 112 tests. The B producer and receipt remain byte-for-byte
+unchanged; Task 02B, provider codecs/defaults, Engine history migration, and
+checkpoint integration remain unstarted.
 
 ## File leases
 

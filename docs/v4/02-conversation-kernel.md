@@ -143,6 +143,11 @@ ActionExecutor. This task does not create a scheduler. It closes protocol gaps:
   and omitted-budget projections. No B runtime or persistence shape changed;
   malformed v2 reads, partial completion, recovery, completion order, and
   steering stayed green. Task 02B remains unstarted.
+- G1-R4 requalified the same delegation against C's forced-secret scalar roles.
+  Integer, float, boolean, null, and nested scalar leaves beneath a sensitive
+  key are absent from model/trace views, while canonical persistence retains
+  their exact types and values. ExchangeLog runtime code and its producer
+  fixture did not change. Task 02B remains unstarted.
 
 ### 02B — request-view and capability policy
 

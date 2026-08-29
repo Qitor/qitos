@@ -1,6 +1,6 @@
 # Task 03 — tool outcome contract and coding-toolset consolidation
 
-Status: 03A/C-P3 accepted on the G1 baseline; 03B–E remain staged
+Status: 03A/C-P4 accepted on the scalar-safe G1 baseline; 03B–E remain staged
 Depends on: Task 01
 Feeds: Task 04 artifacts, Task 12 recovery, Task 13 work outcomes, and v4 DX
 Risk: medium — broad kit surface, stable tool-result compatibility
@@ -177,6 +177,16 @@ characters in field and aggregate loss facts. Canonical persistence remains
 lossless. Producer commit `d50f41fb3b8190a953f9f37f278bf0b197af286b`
 publishes the executable fixture/evidence consumed by B and D. Tasks 03B–E are
 still unstarted.
+
+G1-R4 closure (2026-08-29): independent review found that forced-secret mode
+handled strings but preserved numeric, boolean, and null leaves. The repaired
+private projection distinguishes secret-bearing content from trace-safe
+omitted-count values. Content recursively redacts every JSON scalar leaf and
+accounts it once; omitted data redacts the sensitive key but retains its
+validated non-negative integer count. Benign types and canonical persistence
+remain unchanged. Producer
+`9a0c5ed5d6c1c959ff277d3888f54c927be3e183` supplies the exact fixtures used by
+B and D. No 03B–E behavior was started.
 
 ### 03B — filesystem and search foundations
 

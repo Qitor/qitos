@@ -1,6 +1,6 @@
 # Lane D data convergence
 
-Status: D1-R2 accepted; exact C-P3 producer receipt refreshed and verified
+Status: D1-R3 accepted; exact C-P4 producer receipt refreshed and verified
 Updated: 2026-08-29
 Work package: Lane D / D1-R — strict fixture manifests, portable evidence, and contract readiness gates
 Integration baseline: `8441bef2f2024fd6c2ec01784708512222382471`
@@ -374,6 +374,17 @@ the mechanical D receipt refresh is commit
 remains typed blocked. Manifest schema parity is exercised across the complete
 accepted/rejected corpus against both the published Draft 2020-12 JSON Schema
 and executable validator.
+
+G1-R4 replaces only C's producer identity and artifact digests. Producer
+`9a0c5ed5d6c1c959ff277d3888f54c927be3e183` binds fixture
+`b7f4dc6dfe8958bcd9c47617869a14bc8114629038d3428e6a623642fd2e5415`
+and evidence
+`96b0e641ccca7e049a90658496a19964217aa7c359a29c6b6e6b345fb7cf99f5`;
+D receipt commit `e41eb6ea68375b1064b30044e66ae58bcba67c67` verifies the committed bytes
+and retains the B receipt. The old R3 C receipt is rejected with
+`producer_source_commit_mismatch`. Exact readiness still qualifies only B/C,
+has nine contract blockers, remains `schema_not_ready`, emits no measurements
+or claims, qualifies zero publications, and leaves trajectory v2 unfrozen.
 
 ## Storage benchmark specification
 

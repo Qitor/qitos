@@ -1,6 +1,6 @@
 # Lane C C1 — canonical tool outcome and runtime ownership
 
-Status: C1-R4 in progress; C-P4 forced-secret scalar repair required
+Status: C1-R4 accepted; C-P4 forced-secret scalar repair qualified
 Integration baseline: `8441bef2f2024fd6c2ec01784708512222382471`
 C1 source HEAD: `1a36349b425e8c39d87b89e71ad4dcabd23d9e30`
 Branch: `codex/v4-lane-c-contract-hardening`
@@ -74,6 +74,25 @@ omitted facts reconcile per field and in aggregate. The C fixture/evidence
 SHA-256 values are respectively
 `a3eccdbf4d0c5da282c8118ea8308b901216415e4e26bd44bb9c2f3dde8e5775`
 and `16ace4464b4c5325f63ed9a9092eef00701cc15f35d0f691a07f5043dc438a19`.
+
+## G1-R4 projection-role closure
+
+C-P4 was reproduced before the fix: strings were redacted below a sensitive
+key, but integer, finite-float, boolean, and null leaves remained visible in
+model and trace-safe projections. Core commit
+`89806df415f8a14da11db4427e4682f44e650c03` adds only private projection roles.
+The content role redacts every forced-secret scalar recursively and counts each
+replacement once; the omission-count role redacts the key but preserves the
+validated non-negative integer count. Benign typed values and canonical
+`qitos.tool_result/v1` persistence are unchanged.
+
+Producer commit `9a0c5ed5d6c1c959ff277d3888f54c927be3e183` publishes scalar, nested,
+explicit-model-output, next-action, benign-value, omitted-count, loss, and
+ExchangeLog probes. Its fixture/evidence SHA-256 values are
+`b7f4dc6dfe8958bcd9c47617869a14bc8114629038d3428e6a623642fd2e5415`
+and `96b0e641ccca7e049a90658496a19964217aa7c359a29c6b6e6b345fb7cf99f5`.
+No schema version, root export, Engine loop, tool behavior, durability, MCP,
+trace-v1, or qita behavior changed.
 
 ## Shared-file leases
 
