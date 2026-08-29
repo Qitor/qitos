@@ -3,7 +3,7 @@
 Status: active integration ledger
 Updated: 2026-08-29
 Integration branch: `feat/campaign-absorption`
-Integration HEAD: `fb75cd5902fedf50d5e67dd617e62cd981c3128f`
+Reviewed integration source: `fb75cd5902fedf50d5e67dd617e62cd981c3128f`
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 
 ## 1. Purpose and maintenance rule
@@ -370,4 +370,6 @@ The next dispatch is a convergence wave, not the full W2 feature wave.
 - Re-ran 17 Lane A, 28 Lane B, 28 Lane C, and 107 Lane D targeted tests.
 - Confirmed pairwise textual conflicts are limited to README/README.zh and
   CHANGELOG; identified the independent semantic conflicts above.
-- Kept the integration branch unchanged while review blockers remain open.
+- Kept all lane implementation commits out of the integration branch while
+  review blockers remain open; only this integration-owned review ledger and
+  its documentation pointers were committed.
