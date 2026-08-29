@@ -1,6 +1,6 @@
 # Lane A quality and release trust plan
 
-Status: implemented; final commit/status verification pending
+Status: complete
 Updated: 2026-08-29
 Work package: Lane A / A1 — Task 08A repository-wide static quality ratchet
 Source baseline: `fb75cd5902fedf50d5e67dd617e62cd981c3128f`
@@ -212,3 +212,16 @@ install matrix (08C), high-value route/provider/resource tests (08D), and the
 complete contribution/zoo workflow repair (08E). Existing masked commands in
 those legacy workflows were not copied into the new blocking jobs and are not
 claimed fixed by A1.
+
+## Commits
+
+1. `00b23ef` — static toolchain, baseline format, generator/ratchet, handoffs,
+   and unit tests;
+2. `67a7487` — distinct full-package ratchet and architecture-boundary CI jobs;
+3. `208860a` — Task 08A evidence, contributor docs, README/README.zh, and
+   changelog.
+
+Final review confirmed that no runtime file, public API, packaging/extra
+declaration, historical `docs/v4/06-*`/`07-*` record, or other lane worktree was
+modified. The controlled probe is absent. The final branch status is clean
+after the evidence-closeout commit.
