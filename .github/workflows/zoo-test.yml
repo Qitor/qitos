@@ -1,13 +1,16 @@
-name: zoo-test
+name: stale zoo migration inventory (advisory)
 
 on:
   pull_request:
     paths:
-      - 'plans/qitos_zoo_migration/**'
+      - 'docs/internal/plans/qitos_zoo_migration/**'
       - 'qitos_zoo/**'
+      - '.github/workflows/zoo-test.yml'
+  workflow_dispatch:
 
 jobs:
-  zoo-smoke:
+  stale-zoo-inventory:
+    name: advisory - stale zoo migration inventory
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -18,29 +21,21 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Record out-of-tree migration staging
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[dev,models]"
+          python - <<'PY'
+          from pathlib import Path
 
-      - name: Validate zoo structure
-        run: |
-          python -c "
-          import os
-          zoo_dir = 'plans/qitos_zoo_migration/apps'
-          if not os.path.isdir(zoo_dir):
-              print('No zoo directory found, skipping')
-              exit(0)
-          apps = [d for d in os.listdir(zoo_dir) if os.path.isdir(os.path.join(zoo_dir, d))]
-          print(f'Found {len(apps)} zoo apps: {apps}')
-          for app in apps:
-              app_dir = os.path.join(zoo_dir, app)
-              files = os.listdir(app_dir)
-              py_files = [f for f in files if f.endswith('.py')]
-              print(f'  {app}: {len(py_files)} Python files')
-          "
+          staging = Path("docs/internal/plans/qitos_zoo_migration")
+          manifest = staging / "MIGRATION_MANIFEST.md"
+          if not staging.is_dir() or not manifest.is_file():
+              raise SystemExit("zoo migration inventory is missing")
 
-      - name: Run zoo-related tests
-        run: |
-          pytest tests/test_whitzard_agent.py -q --tb=short 2>/dev/null || true
-          pytest tests/ -q -k "zoo or coder or cyber or auditor or pentagi" --tb=short 2>/dev/null || true
+          apps = sorted(
+              path.relative_to(staging).as_posix()
+              for path in (staging / "apps").iterdir()
+              if path.is_dir()
+          )
+          print(f"Advisory stale inventory only; staged apps: {apps}")
+          print("Runtime and product tests belong to the out-of-tree qitos-zoo repository.")
+          PY

@@ -1,4 +1,4 @@
-name: contribution-test
+name: contribution checks (advisory)
 
 on:
   pull_request:
@@ -9,11 +9,16 @@ on:
       - 'qitos/kit/embedding/**'
       - 'qitos/protocols.py'
       - 'qitos/core/**'
+      - 'qitos/engine/critic_decorator.py'
+      - 'tests/core/**'
+      - 'tests/engine/**'
+      - 'tests/kit/**'
+      - '.github/workflows/contribution-test.yml'
 
 jobs:
   tool-schema-check:
+    name: advisory - tool schema
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.changed_files.*.filename, 'kit/tool')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,8 +54,8 @@ jobs:
           "
 
   parser-contract-check:
+    name: advisory - parser contract
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.changed_files.*.filename, 'kit/parser') || contains(github.event.pull_request.changed_files.*.filename, 'protocols.py')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -77,6 +82,7 @@ jobs:
           "
 
   affected-tests:
+    name: advisory - contribution-focused tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -93,15 +99,11 @@ jobs:
           python -m pip install -e ".[dev,models]"
 
       - name: Run affected test subsets
-        run: |
-          # Run tests for each changed area
-          CHANGED="${{ github.event.pull_request.changed_files }}"
-          pytest tests/core/ tests/engine/ tests/kit/ -q --tb=short 2>/dev/null || true
-          pytest -q --tb=short
+        run: pytest tests/core/ tests/engine/ tests/kit/ -q --tb=short
 
   critic-test:
+    name: advisory - critic integration
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.changed_files.*.filename, 'kit/critic') || contains(github.event.pull_request.changed_files.*.filename, 'critic_decorator')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
