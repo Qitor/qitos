@@ -1,6 +1,6 @@
 # Task 05 — trajectory store v2 and observability migration
 
-Status: D1 census/readiness integrated; schema freeze waits for Tasks 12–13
+Status: D1/D1-R readiness integrated; 05A schema freeze waits for Task 04 and Tasks 12–13
 Depends on: Task 02 exchanges; Task 04 artifacts; Tasks 12–13 lineage
 Milestone: final v4 data-plane migration
 Risk: high — frozen v1 compatibility, replay, and research data fidelity
@@ -31,12 +31,19 @@ The migration order is:
 
 No existing reader is pointed at a new layout without an adapter.
 
-### D1 evidence status (2026-08-29)
+### D1 / D1-R evidence status (2026-08-29)
 
 The exact-source producer/writer/reader census, canonical-versus-derived
 decisions, fixture source manifests, privacy gates, and schema-neutral benchmark
 specification are recorded in
 `docs/internal/plans/lane_d_data_convergence.md`.
+
+D1-R turns the source manifests into a strict versioned contract with an
+executable stdlib validator and a matching repository schema. It adds typed
+publication checks for license, deterministic transformation, privacy and loss
+policy, secret/PII/path/artifact scans, and payload inventory digests. It also
+uses a portable fixture-set identity, never serializes the local fixture root,
+and rejects host-specific evidence without echoing inspected values.
 
 D1 selected one independent 200-step campaign source for scale and one
 repository-owned deterministic native-tool agent source for call/result shape.
@@ -44,7 +51,10 @@ Only provenance/sanitization manifests are committed: the campaign payload is
 blocked on redistribution authorization and secret/path sanitization, while the
 unrelated payload waits for versioned Lane B/C fixtures. The benchmark scaffold
 therefore emits a typed `TRAJECTORY_SCHEMA_NOT_READY` result with no measurements
-or compression claims.
+or compression claims. Contract readiness is now reported per stable Lane B/C
+contract ID from caller-supplied version/digest/fixture qualification receipts;
+missing fixture files do not become implicit qualifications, and the repository
+contains no fabricated passing receipt.
 
 Still blocked on Lane B: versioned ExchangeLog, RequestView, CodecReport,
 provider-continuation opaque fields, ArtifactRef, and compaction report. Still
@@ -132,12 +142,16 @@ Task 05 does not rewrite the whole qita CLI in the same PR as the store.
 
 ### 05A — schema, benchmark, and decision record
 
-- Inventory all current event/artifact paths and readers. **D1 complete.**
+- Inventory all current event/artifact paths and readers. **D1 census complete;
+  D1-R link/symbol checks guard D01–D16 against drift.**
 - Prepare v2 schemas and privacy modes with fixtures, but freeze them only after
   Task 12 session lineage and Task 13 work-graph receipts are reviewed.
 - Commit the storage-size benchmark before choosing compression/index features.
-  **Readiness scaffold complete; measurements wait for sanitized, versioned
-  fixtures.**
+  **Strict readiness scaffold complete; measurements wait for sanitized,
+  contract-qualified fixtures.**
+
+05A is not complete: its schema freeze, representative fixtures, benchmark
+measurements, and decision record remain open.
 
 ### 05B — store, artifacts, and v1 bridge
 

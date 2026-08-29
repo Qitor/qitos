@@ -48,7 +48,7 @@ where available. Record confidence and unknowns.
 Inventory work may start after Task 08. Removal work waits for replacement
 contracts and maintainer approval.
 
-#### D1 inventory evidence (2026-08-29)
+#### D1 / D1-R inventory evidence (2026-08-29)
 
 Lane D completed the first repository evidence pass in
 `docs/internal/plans/lane_d_data_convergence.md`. It inventories root/module
@@ -64,6 +64,15 @@ not authorize a removal. All warning and earliest-removal releases remain
 unannounced/TBD where external usage or a canonical replacement is unknown.
 Trajectory v2 schema is not frozen, so trace v1 and its readers remain outside
 the removal set.
+
+D1-R adds an executable source-link check for every D01–D16 ledger row and
+corrects the current action/result sources to
+`qitos/core/action.py::ActionResult` and
+`qitos/core/tool_result.py::ToolResult`. It also replaces the former coarse
+Lane B/C readiness blocker with one typed blocker per stable contract ID. A
+caller-supplied qualification receipt can clear only its exact contract; it
+cannot authorize removal, auto-qualify another contract, or complete Task 05A.
+All existing removal decisions and unknown-external-use gates remain unchanged.
 
 ### 10B — finish benchmark-to-recipes migration
 

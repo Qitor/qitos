@@ -27,7 +27,7 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 - **仓库全包静态质量 ratchet**：固定版本的 Python/flake8/mypy 单一命令会用提交态分类 baseline 检查所有 active `qitos` package。新 finding 会阻断 CI，已修复 finding 会强制缩小 baseline，core/engine/models/trace 稳定层继续保持零债务；correctness finding 按语义交给对应产线，而不会被降级成普通清理。
 - **工程质量审计与证据门禁**：[证据化审计](docs/engineering-quality-audit.md)覆盖全包质量门禁、错误与持久化语义、资源生命周期、重复抽象、可选依赖和测试可信度。首轮质量保障、对话/上下文、工具/运行时、轨迹/架构收敛四线被保留为 G1 收口历史；G1 之后，同一套 ratchet 与证据规则将作为四条能力线的强制门禁。
 - **规范对话事务契约**：模块级 `qitos.core.conversation` 不再复制 outcome 字段，而是嵌入唯一 canonical `ToolResult`；persistence/model/trace view 全部委托给 C，ExchangeLog v2 严格读取并统一返回类型化错误，同时保留面向崩溃恢复的部分完成顺序与 steering，且直接用已提交的 C fixture 完成资格验证。Engine/provider 默认路径与 Task 02B 仍未启动。
-- **迁移前先完成轨迹数据平面证据**：[Lane D D1 计划](docs/internal/plans/lane_d_data_convergence.md)现已逐条映射 runtime/trace/tracing/render/qita/checkpoint 与分发链路，登记公共表面移除阻塞项，选择两类受隐私门禁保护的 fixture 来源，并提供类型化 benchmark readiness 预检。本轮不修改 trace v1 或 qita、不发布敏感 fixture、不宣称压缩收益，也不冻结 trajectory v2。
+- **迁移前先完成轨迹数据平面证据**：[Lane D D1/D1-R 计划](docs/internal/plans/lane_d_data_convergence.md)现已逐条映射 runtime/trace/tracing/render/qita/checkpoint 与分发链路，登记公共表面移除阻塞项，选择两类受隐私门禁保护的 fixture 来源，并提供严格 manifest/发布/可移植性校验与逐合同类型化 readiness receipt。本轮不修改 trace v1 或 qita、不发布敏感 fixture、不宣称压缩收益、不完成 05A，也不冻结 trajectory v2。
 - **中性的传输与容器控制**：OpenAI-compatible 模型支持由调用方管理的 `default_headers`；`DockerEnv` 支持显式 `container_env` 映射，并正确保留容器内绝对路径，不吸收实战任务专属的路由或环境策略。
 - **立即取消状态保持一致**：Engine 识别立即取消后，State、任务/运行结果、END event 与 trace manifest 现在都会记录 `cancelled_immediate`；qita 会将该 manifest 视为 `stopped`，不再误判为正常完成。
 - **结构化动作文本不再假完成**：当原生工具模型没有返回 `tool_calls`、却以文本输出了格式错误的动作字段时，QitOS 现在会保留 parser 恢复路径，而不会把动作文本当成最终答案；普通自然语言结论的行为保持不变。
