@@ -141,6 +141,15 @@ runtime refactors; it will destroy reviewability and hide behavior changes.
 
 **Execution:** Task 08A, 08B, 08E.
 
+**Status update (2026-08-29, Task 08A).** Lane A established the pinned
+full-`qitos` ratchet at `quality/static_baseline.json` with one local/CI command,
+stable source anchors, strict shrink behavior, and expiring itemized exceptions
+for any future growth. The W1 baseline records 204 flake8 findings and 195 mypy
+errors under the expanded no-exclude diagnostic config. Stable zero-debt gates
+remain separate. Correctness findings are assigned in
+`quality/correctness_handoffs.md`; semantic fixes, baseline retirement, and the
+broader Task 08E workflow repair remain open.
+
 ### [P0] EQ2. Deprecated benchmark and replacement recipes form a dual mainline
 
 **Directions:** duplicate implementations, boundaries, accidental complexity

@@ -1,6 +1,6 @@
 # Task 08 — quality gates, packaging, and test trust
 
-Status: ready for implementation planning
+Status: in progress — 08A implemented on Lane A; 08B–08E remain open
 Depends on: Task 01
 Unblocks: Task 09 and safe large-scale work in Tasks 02–05
 Risk: medium — CI policy and contributor workflow
@@ -176,3 +176,62 @@ the semantic fixes exposed by those gates:
 - context/token behavior goes to Task 02/04;
 - trace schema goes to Task 05;
 - deletions and surface reduction go to Task 10.
+
+## 9. Task 08A evidence — 2026-08-29
+
+Source identity:
+
+- W1 commit: `fb75cd5902fedf50d5e67dd617e62cd981c3128f`;
+- branch: `codex/v4-lane-a-quality-ratchet`;
+- local/CI entrypoint: `python scripts/static_quality.py check`.
+
+Pinned diagnostic toolchain:
+
+- Python 3.12.7;
+- flake8 7.0.0, pyflakes 3.2.0, pycodestyle 2.11.1, mccabe 0.7.0;
+- mypy 1.19.1 with Python 3.11 as its source-language target.
+
+The committed baseline contains 399 findings: 204 flake8 and 195 mypy. It
+contains 377 active findings and 22 vendored/generated findings. Semantic
+classification is 36 correctness, 163 contract, and 200 hygiene findings; one
+correctness finding belongs to the vendored Tau port and therefore has the
+top-level `vendored/generated` classification while retaining its correctness
+kind. `quality/correctness_handoffs.md` assigns all correctness findings to
+Lanes B, C, or D. Lane A did not downgrade or fix runtime correctness debt.
+
+The baseline identity uses rule, path, enclosing symbol, normalized source-line
+hash, message, and occurrence. Line/column values remain evidence but are not
+matching keys. Baseline checks fail on new findings and on stale allowances
+after a finding is fixed. Additions require an itemized maintainer exception,
+reason, and future expiry. A tool-version mismatch fails separately as a rules-
+upgrade event.
+
+Controlled failure proof:
+
+1. a temporary active `qitos/_quality_ratchet_probe.py` with one unused import
+   caused the ratchet to exit 1 and report exactly one new `flake8:F401`;
+2. the probe was deleted without updating the baseline;
+3. the same command then exited 0 with all 399 findings matched;
+4. the probe is absent from the final diff and baseline.
+
+Stable and test evidence:
+
+- `flake8 qitos/core qitos/engine qitos/models qitos/trace`: clean;
+- `mypy qitos/core qitos/engine qitos/models qitos/trace`: 76 source files,
+  no issues;
+- `pytest -q tests/test_architecture_boundaries.py`: 4 passed;
+- `pytest -q tests/test_public_surface.py`: 4 passed;
+- `pytest -q`: 1,703 passed, 50 skipped.
+
+Test-trust investigation: 50 independent, targeted invocations of
+`test_durability_manager_flush_full_queue_logs_warning` produced 50 passes and
+zero failures without a rerun plugin. This does not retire the historical
+failure: worker dequeue timing can still free a slot before `flush()` attempts
+the sentinel. Lane C / Task 09D owns deterministic durability-contract tests
+and the semantic resolution. Task 08A did not modify checkpoint runtime or the
+warning assertion.
+
+08A changes only the static baseline, ratchet tooling, pinned diagnostic
+environment, the `ci.yml` ratchet/architecture jobs, and contributor evidence.
+Optional installs, high-value route tests, baseline retirement, and the full
+Task 08E workflow repair remain open.

@@ -31,6 +31,12 @@ pip install -r requirements-dev.txt
 pre-commit install
 ```
 
+Install the pinned static-analysis toolchain with Python 3.12.7:
+
+```bash
+python -m pip install -r requirements/quality.txt
+```
+
 ## Common Commands
 
 Run tests:
@@ -50,6 +56,18 @@ Run stable-surface type checks:
 ```bash
 python -m mypy qitos/core qitos/engine qitos/models qitos/trace
 ```
+
+Run the full-package no-regression ratchet:
+
+```bash
+python scripts/static_quality.py check
+```
+
+The stable commands must remain at zero errors. The ratchet covers all active
+`qitos` packages and compares existing findings with the committed baseline.
+It fails on new findings and stale baseline entries. See
+`quality/README.md` before shrinking the baseline or requesting an expiring
+maintainer exception.
 
 Run coverage gate:
 

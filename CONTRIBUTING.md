@@ -28,6 +28,13 @@ pip install -r requirements-dev.txt
 pre-commit install
 ```
 
+Static diagnostics use a pinned Python 3.12.7 toolchain. Install it in that
+interpreter environment:
+
+```bash
+python -m pip install -r requirements/quality.txt
+```
+
 See [DEVELOPMENT.md](DEVELOPMENT.md) for common commands, coverage, troubleshooting, and docs workflow.
 
 ## Branch Naming
@@ -75,10 +82,17 @@ Before requesting review, run:
 python -m pytest -q
 python -m flake8 qitos/core qitos/engine qitos/models qitos/trace
 python -m mypy qitos/core qitos/engine qitos/models qitos/trace
+python scripts/static_quality.py check
 pytest --cov=qitos.core --cov=qitos.engine --cov=qitos.trace --cov-report=term --cov-fail-under=80 -q
 python -m build
 pip-audit
 ```
+
+The first two static commands keep the stable surface at zero debt. The ratchet
+command checks every active `qitos` package against the committed baseline and
+fails on either new findings or a stale allowance that should be removed. Do
+not add a baseline entry without the maintainer, reason, and expiry exception
+described in [quality/README.md](quality/README.md).
 
 ## Review Criteria
 

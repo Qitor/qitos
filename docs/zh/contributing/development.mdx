@@ -31,6 +31,12 @@ pip install -r requirements-dev.txt
 pre-commit install
 ```
 
+使用 Python 3.12.7 安装固定版本的静态分析工具链：
+
+```bash
+python -m pip install -r requirements/quality.txt
+```
+
 ## 常用命令
 
 运行测试：
@@ -50,6 +56,17 @@ python -m flake8 qitos/core qitos/engine qitos/models qitos/trace
 ```bash
 python -m mypy qitos/core qitos/engine qitos/models qitos/trace
 ```
+
+运行全包 no-regression ratchet：
+
+```bash
+python scripts/static_quality.py check
+```
+
+稳定层命令必须保持零错误。ratchet 覆盖所有 active `qitos` package，并将
+现有 finding 与提交态 baseline 比较；出现新 finding 或本应删除的陈旧
+baseline 条目时都会失败。缩小 baseline 或申请带到期日的 maintainer
+exception 前，请阅读 `quality/README.md`。
 
 运行覆盖率门槛：
 
