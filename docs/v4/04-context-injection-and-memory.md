@@ -2,7 +2,7 @@
 
 Status: design approved; implementation waits for Tasks 02A–02B and 03A
 Depends on: Task 02 request views; Task 03 tool outcomes
-Unblocks: Task 05 content-addressed trajectory storage
+Unblocks: Task 12 complete snapshots, Task 13 context transfer, and Task 05
 Risk: high — context survival and model-visible behavior
 
 ---
@@ -24,6 +24,10 @@ bucket.
 | `ArtifactRef` | Addressable large/raw content | artifact store service |
 
 Tool execution's existing `runtime_context` remains a separate concept and name.
+Task 12 snapshots references and policy/digests for these concepts, not live
+provider/store objects. Task 13 transfers an explicit selection of immutable
+references between work items and records the omissions; it does not mutate the
+source history to manufacture child context.
 
 ## 3. `ContextBlock` contract
 
@@ -120,6 +124,8 @@ store operation, not hidden prompt expansion.
 - Integrate existing Memdir/Markdown memory rather than replacing all memory
   classes.
 - Demonstrate one run-scoped and one cross-run memory consumer.
+- Supply resolver references, retention facts, and versioned snapshot/transfer
+  receipts to Tasks 12 and 13.
 
 ## 7. Acceptance criteria
 
@@ -133,6 +139,10 @@ store operation, not hidden prompt expansion.
 - [ ] Oversized tool results retain model-visible completeness and retrieval
   guidance.
 - [ ] Existing memory APIs continue to work through documented adapters.
+- [ ] A fresh-process Task 12 restore resolves context/artifact/memory references
+      without persisting live stores, secrets, or host paths.
+- [ ] A Task 13 handoff/delegate fixture reports selected and omitted context,
+      preserving the source ExchangeLog unchanged.
 
 ## 8. Verification
 
@@ -154,4 +164,6 @@ Stop for review before:
 - storing raw secrets without an explicit at-rest policy;
 - externalizing content without a retrieval path;
 - replacing semantic-memory implementations as part of compaction work;
-- choosing protected-window defaults from campaign constants without a benchmark.
+- choosing protected-window defaults from campaign constants without a benchmark;
+- serializing live context providers, memory objects, artifact stores, or secrets
+  into a session or work-graph snapshot.

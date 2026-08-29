@@ -2,7 +2,7 @@
 
 Status: ready after Task 08A planning
 Depends on: Task 01 and Task 08A
-Coordinates with: Tasks 02, 03, and 05
+Coordinates with: Tasks 02, 03, 05, 12, and 13
 Risk: high — failure, timeout, durability, and shutdown behavior
 
 ---
@@ -17,7 +17,10 @@ closed external resource.
 
 Task 09 is a semantic contract, not a second execution kernel. Changes to model
 transactions land in Task 02-owned modules; tool execution changes land in Task
-03-owned modules; trace event changes land in Task 05-owned schemas.
+03-owned modules; trace event changes land in Task 05-owned schemas. Task 12 owns
+the durable session lifecycle and safe pause/restore protocol; Task 13 owns
+multi-agent ownership and child-work semantics. Task 09 supplies the shared
+resource, timeout, failure, and durability receipts they consume.
 
 ## 2. Lifecycle vocabulary
 
@@ -30,6 +33,13 @@ receipts:
 - shutdown guarantees: `drained`, `abandoned`, `still_running`, and deadline;
 - failure fields: phase, category, retryable, safe-to-retry, source exception,
   redacted diagnostic, and correlation IDs.
+
+Session states (`created`, `running`, `pause_requested`, `paused`,
+`waiting_input`, `restoring`, and terminal states) are defined in Task 12. Work
+ownership operations and child/join states are defined in Task 13. They may
+reuse Task 09 receipts but must not overload generic `work states` until
+submission, durability, session lifecycle, and ownership are indistinguishable
+in every consumer—which they are not today.
 
 Public names are a Task 09A decision. Do not export a universal enum before the
 model/tool/checkpoint cases prove that the vocabulary is coherent.
@@ -96,6 +106,9 @@ Coordinate with Task 03.
    rely on a sentinel that can itself be dropped.
 5. Test queue saturation, failed writes, slow writes, repeated flush/shutdown,
    EXIT-mode exception behavior, and interpreter/process exit assumptions.
+6. Supply Task 12 with typed accepted/persisted/failed/dropped/incomplete
+   receipts and a deterministic drain boundary. Task 12 owns immutable snapshot
+   content, atomic session-head advancement, and stale-owner conflicts.
 
 Decision gate: changing the existing `put()` return type requires a compatibility
 adapter and migration plan. An internal receipt plus a new explicit method may
@@ -124,6 +137,8 @@ Coordinate with Task 05.
    resources keep caller ownership.
 4. Resolve functional API and unsupported integrations through Task 10 rather
    than adding lifecycle surface to code selected for deprecation.
+5. Provide resolver/ownership contracts needed for Task 12 clean-process restore
+   and Task 13 child workers without serializing live clients or handles.
 
 ## 4. Required test matrix
 
@@ -137,6 +152,8 @@ Coordinate with Task 05.
 | Retry | disabled, retryable, non-retryable, prior worker still running |
 | Durability | sync, async accepted, full queue, failed store, exit flush |
 | Hooks | best effort, strict, trace sink failure |
+| Session consumer | pause boundary, clean-process restore, stale owner, missing resolver |
+| Multi-agent consumer | handoff, child timeout, parent cancellation, late join result |
 
 Tests must use bounded deadlines and deterministic fakes; no test may rely on a
 real network or an unbounded sleep.
@@ -156,6 +173,8 @@ real network or an unbounded sleep.
 - [ ] Hook failures are counted and visible; strict mode is tested.
 - [ ] No new global thread pool, background thread, or event loop is created
   without an owner in the lifecycle inventory.
+- [ ] Task 12/13 can state whether a worker/resource is quiesced, still running,
+  failed to close, or unsafe to restore without inventing duplicate receipts.
 - [ ] Full tests, architecture boundaries, and Task 08 ratchet stay green.
 
 ## 6. Verification
@@ -182,4 +201,6 @@ Stop for review before:
 - adding process isolation to the base path;
 - coupling provider-native error types into `qitos.core`;
 - replacing MCP transports without a pinned compatibility report;
-- making observability failures fatal by default.
+- making observability failures fatal by default;
+- putting session identity/snapshot or multi-agent ownership semantics into a
+  generic lifecycle enum owned solely by Task 09.

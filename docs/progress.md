@@ -5,6 +5,8 @@ Updated: 2026-08-29
 Integration branch: `feat/campaign-absorption`
 Reviewed integration source: `8441bef2f2024fd6c2ec01784708512222382471`
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
+Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md)
+and [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md)
 
 ## 1. Purpose and maintenance rule
 
@@ -38,6 +40,14 @@ nevertheless found one executable CI failure, three remaining ToolResult
 boundary failures, the intentionally deferred B/C result convergence, and an
 unverified receipt trust boundary in D. Those findings require one bounded
 repair wave before the first merge.
+
+The v4 architecture now explicitly includes Codex-like durable sessions,
+process-independent pause/resume/fork, and a native durable multi-agent work
+graph. This is a planning decision, not an implementation claim and not a reason
+to bypass G1. Existing `init_session`, `RunState`, checkpoint v2,
+interrupt/resume, handoff, delegate, and fan-out paths are recorded as useful but
+fragmented primitives. The next capability phase converges them into one
+checkpoint-backed session truth and one generation-checked work graph.
 
 | Lane | Reviewed HEAD | Package | Integration disposition | Next package |
 |---|---|---|---|---|
@@ -493,6 +503,24 @@ The next dispatch is the final G1 repair wave, not the full W2 feature wave.
 - preserve `schema_not_ready`, empty measurements/claims, and typed blockers for
   RequestView, ArtifactRef, compaction, hook failure, and full redaction.
 
+### Post-G1 capability remap (planned, not dispatched)
+
+After the integration owner closes G1, quality becomes a mandatory cross-lane
+gate and the four implementation lanes change to:
+
+| Lane | First package | Scope |
+|---|---|---|
+| A — Session Runtime & Persistence | Task 12A | identity, lifecycle, safe boundaries, one snapshot truth, resolver references |
+| B — Conversation, Context & Continuation | Task 02B | RequestView, steering, provider capabilities, Task 12 snapshot handoff |
+| C — Tools & Durable Multi-Agent | Task 03 recovery handoff + Task 13A | effects/quiescence and work-graph ownership/join contracts |
+| D — Trajectory, qita & DX | lineage intake | session/work graph reader census and readiness only; no v2 freeze |
+
+S2's required vertical slice is: start -> parallel tools -> pause -> process exit
+-> restore through a fresh Engine/composition root -> apply steering once ->
+finish, with no duplicate committed effect. Multi-agent behavior starts only
+after this single-agent continuity proof. Task 05 v2 remains blocked from schema
+freeze until Task 12/13 lineage is available.
+
 ## 7. Gate checklist
 
 ### G1 — trustworthy change surface
@@ -522,6 +550,16 @@ The next dispatch is the final G1 repair wave, not the full W2 feature wave.
 - [ ] Timeout receipts state whether work continues and prevent late commit.
 - [ ] Durability callers distinguish accepted, persisted, failed, and dropped.
 - [ ] Hook/trace incompleteness is visible without recursive failure.
+- [ ] Session/run/work-item/checkpoint/exchange/tool-call/agent identities are
+      distinct and versioned.
+- [ ] Checkpoint v2 is the only session persistence truth; `RunState` has an
+      adapter/retirement decision and no parallel SessionStore exists.
+- [ ] A fresh process restores task, concrete state, ExchangeLog, partial tool
+      batch, steering, context/artifacts, budgets, owner, and trace cursor.
+- [ ] Stale owners and late workers cannot advance a newer session head.
+- [ ] Handoff, delegate, fan-out, spawn, fork, and steering have distinct
+      ownership semantics over one durable work graph.
+- [ ] Task 05 schema freeze waits for explicit session/work/ownership lineage.
 
 ## 8. Append-only integration log
 
@@ -551,3 +589,23 @@ The next dispatch is the final G1 repair wave, not the full W2 feature wave.
 - Simulated every pairwise merge and recorded the three shared release-document
   conflicts; no lane commit was merged into integration while executable and
   semantic blockers remain.
+
+### 2026-08-29 — durable session and multi-agent architecture expansion
+
+- Inspected the existing Engine session/step API, `RunState`, checkpoint v2,
+  interrupt/resume, handoff, delegate, fan-out, trace, and qita ownership paths.
+- Recorded that they are fragmented primitives rather than a complete
+  process-independent session protocol: checkpoint content and identity are
+  incomplete for a fresh-process reconstruction, and child work is not durable.
+- Added Task 12 for one checkpoint-backed session head/snapshot model, safe
+  pause, clean-process restore, fork, resolver references, and honest effect
+  recovery.
+- Added Task 13 for distinct handoff/delegate/fan-out/spawn/fork/steer semantics,
+  single-owner work items, durable children/joins, budget/capability boundaries,
+  and qita graph lineage.
+- Remapped post-G1 concurrency to four capability lanes while keeping the static
+  ratchet, full tests, architecture/public surface, packaging, and docs parity as
+  cross-lane acceptance gates.
+- Made G1 closure an explicit prerequisite for implementation dispatch and made
+  the clean-process single-agent vertical slice a prerequisite for multi-agent
+  behavior and trajectory-v2 schema freeze.

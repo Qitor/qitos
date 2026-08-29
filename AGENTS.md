@@ -66,6 +66,8 @@ Add a model provider          -> qitos/models/<provider>.py (subclass Model, @Mo
 Add a model family preset     -> qitos/harness/_presets.py
 Add/change parser or protocol -> qitos/protocols.py + qitos/kit/parser/
 Change execution semantics    -> qitos/engine/ (read qitos/engine/AGENTS.md first)
+Change sessions/checkpoints   -> qitos/engine + qitos/checkpoint (follow docs/v4/12; checkpoint v2 is canonical)
+Change multi-agent ownership  -> core/agent_spec + engine handoff + kit adapters (follow docs/v4/13)
 Change prompts/context        -> qitos/prompting.py + core/agent_module.py assembly
 Add memory / env / critic     -> contract in qitos/core, implementation in qitos/kit
 Change trace/trajectory       -> qitos/trace (v1 format is frozen; v2 = qitos/tracing)
@@ -118,4 +120,6 @@ Every meaningful change updates, in the same task:
 - `docs/engineering-quality-audit.md` — implementation quality, lifecycle, dependency, and test findings
 - `docs/progress.md` — active v4 integration ledger, review blockers, merge order, and qualification evidence
 - `docs/v4/11-four-lane-execution-playbook.md` — four-lane ownership, dispatch, handoff, and merge gates
+- `docs/v4/12-session-runtime-and-persistence.md` — durable session identity, pause/resume/fork, and clean-process recovery
+- `docs/v4/13-durable-multi-agent-work-graph.md` — handoff/delegate/fan-out/spawn/join ownership and recovery
 - `docs/internal/plans/` — active plans (incl. v0.7 native agent kernel and `docs/v4/` tasks)

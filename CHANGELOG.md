@@ -19,6 +19,7 @@ How to update:
 
 ### Added
 
+- Added the v4 durable-session and native multi-agent architecture: Task 12 defines distinct session/run/work/checkpoint identities, one checkpoint-v2-backed snapshot truth, safe pause, fresh-process resume, fork, resolver references, and honest effect recovery; Task 13 defines a generation-checked durable work graph for handoff, delegate, fan-out, spawn, fork, steering, join, cancellation, budget/capability boundaries, and qita lineage.
 - Added a continuously maintained v4 integration ledger (`docs/progress.md`) that distinguishes lane completion from integrated qualification and records exact source identities, review findings, contract blockers, merge order, and evidence gates.
 - Added neutral per-client `default_headers` support to OpenAI and OpenAI-compatible synchronous/asynchronous transports, plus `DockerEnv(container_env=...)` and correct absolute container-path handling.
 - Added an explicit, opt-in model-layer retry policy: `Model(retry=RetryPolicy(...))` and `build_model_for_preset(..., retry=...)` re-use the `qitos.core.tool.RetryPolicy` shape (max attempts, exponential backoff with cap and jitter, retryable-exception filter) around chat-completions and raw provider dispatch. Default stays `None` — no silent retries; engine recovery remains the safety net.
@@ -39,6 +40,7 @@ How to update:
 
 ### Changed
 
+- Remapped post-G1 four-lane execution from a permanent quality implementation lane to four capability lanes—Session/Persistence, Conversation/Context, Tools/Multi-Agent, and Trajectory/qita/DX—while retaining the repository ratchet, tests, packaging, and documentation parity as mandatory cross-lane integration gates. Trajectory v2 schema freeze now waits for durable session and work-graph lineage.
 - Extended the v4 integration ledger with the convergence-wave code audit: exact A2/B2/C2/D2 identities, integration-owner reruns, executable boundary probes, newly discovered CI/JSON/aliasing/projection/receipt blockers, and the revised final-G1 repair order.
 - Replaced the original commit-oriented v4 drafts with dependency-ordered coding-agent specifications: a closed capability-based baseline; model I/O, tool, context/artifact, and lossless trajectory contracts; plus quality gates, lifecycle/error semantics, and consolidation. The old batch briefs and internal campaign workstream plan are explicitly archived.
 - Made `qitos.kit.toolset` security-research compatibility exports lazy so importing `qitos.kit` remains a safe default while explicit legacy imports continue to work.

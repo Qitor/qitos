@@ -1,8 +1,8 @@
 # Task 03 — tool outcome contract and coding-toolset consolidation
 
-Status: ready for implementation planning
+Status: contract candidate exists on a reviewed lane; integration/convergence pending
 Depends on: Task 01
-Feeds: Task 04 artifact externalization and the v4 DX example
+Feeds: Task 04 artifacts, Task 12 recovery, Task 13 work outcomes, and v4 DX
 Risk: medium — broad kit surface, stable tool-result compatibility
 
 ---
@@ -39,11 +39,19 @@ The target contract must represent:
 - completeness and explicit truncation/omission counts;
 - declared effects, including filesystem changes;
 - artifact references;
-- normalized request and timing metadata.
+- normalized request and timing metadata;
+- attempt/effect identity, idempotency/reconciliation facts, and explicit
+  `outcome_unknown` when execution may have escaped without a trustworthy
+  terminal receipt.
 
 `model_summary` remains readable during migration, then becomes a compatibility
 projection into the formal model-facing field. Trace/replay always retains the
 canonical result subject to the configured privacy policy.
+
+Task 12 persists terminal results per completed slot. Recovery must not rerun a
+completed slot merely because another call in the batch is open, and a late
+worker cannot commit to a superseded session generation. Task 13 uses the same
+`ToolResult` for a child work outcome; it does not add another result envelope.
 
 ## 4. Validation decision
 
@@ -109,6 +117,8 @@ Each defect gets a failing regression test before its fix.
 - Extend `ToolResult` and registry/executor projection paths.
 - Add structural schema validation and typed semantic-error helpers.
 - Preserve old result dictionaries and `model_summary` through adapters.
+- Publish persistence/model/trace fixtures and effect-recovery fields for Tasks
+  12 and 13.
 
 ### 03B — filesystem and search foundations
 
@@ -145,6 +155,9 @@ Each defect gets a failing regression test before its fix.
 - [ ] Existing `coding_tools()` callers have a documented migration path.
 - [ ] The compact example uses only public APIs.
 - [ ] A non-campaign repository fixture exercises the same tools.
+- [ ] A Task 12 recovery fixture distinguishes not-started, committed, failed,
+      still-running, and outcome-unknown attempts without duplicating effects.
+- [ ] Task 13 consumes the canonical result directly for child outcomes.
 
 ## 10. Verification
 
@@ -168,4 +181,7 @@ Stop for review before:
 - weakening schema, permission, or security validation;
 - introducing process-global registries;
 - changing workspace escape/absolute-path policy;
-- placing task-specific ranking or submission logic in the default toolset.
+- placing task-specific ranking or submission logic in the default toolset;
+- claiming exactly-once external execution from a checkpoint without an
+  idempotency or reconciliation receipt;
+- creating a separate result envelope for session or multi-agent work.

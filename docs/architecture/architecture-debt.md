@@ -45,6 +45,11 @@ Legend: **P0** structural risk (blocks refactors / can break imports), **P1** im
 - Why P0: callers cannot distinguish model output from infrastructure failure, timeout from cancellation, accepted from persisted work, or complete from degraded observability.
 - Exit: `docs/v4/09-runtime-lifecycle-and-error-semantics.md`, coordinated with Tasks 02, 03, and 05, defines typed failures, resource ownership, checkpoint receipts, and hook completeness.
 
+### D32. Session and multi-agent continuity are fragmented across in-process primitives
+- Where: `Engine.init_session`/`step`, `RunState`, checkpoint v2 `thread_id`, interrupt/resume, qita fork, `_handoff_runtime`, `DelegateTool`, and `FanOutTool` each carry part of session or child-work state.
+- Why P0: a fresh process cannot reconstruct one authoritative execution head with task, concrete state schema, exchanges, partial tool batch, context/artifacts, owner, children, budgets, and trace cursor. Handoff mutates live ownership and delegate/fan-out workers have no durable work graph, so restart can duplicate or orphan work.
+- Exit: Task 12 converges checkpoint v2 into one session-head/immutable-snapshot protocol and proves clean-process resume; Task 13 builds handoff/delegate/fan-out/spawn/fork/join over generation-checked work items. Task 05 does not freeze trajectory v2 before their lineage contracts land.
+
 ## P1 — Important architecture debt
 
 ### D6. Benchmark-specific code inside `kit` — RESOLVED

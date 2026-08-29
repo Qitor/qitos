@@ -65,6 +65,7 @@ Boundary rules behind this table: [module-boundaries.md](module-boundaries.md). 
 
 **Multi-agent / handoff**
 → `core/agent_spec.py` (`AgentSpec`/`AgentRegistry`), `engine/_handoff_runtime.py`, tools `kit/tool/{delegate,fanout,handoff_tool}.py`; scope guard: `docs/internal/plans/v0.7_handoff_scope.md`.
+→ Durable ownership, child work, spawn/join, and process recovery follow `docs/v4/13-durable-multi-agent-work-graph.md`; do not extend the in-process helpers as a second protocol.
 → Tests: `tests/test_handoff.py`, `tests/engine/test_handoff_context.py`, `tests/test_delegate_tool.py`, `tests/test_fanout_tool.py`.
 
 ## Observability
@@ -80,6 +81,7 @@ Boundary rules behind this table: [module-boundaries.md](module-boundaries.md). 
 
 **Change checkpointing / interrupts**
 → `qitos/checkpoint/` (v2 stores; v1 `checkpoint.py` is deprecated), engine side `engine/engine.py` (`_save_checkpoint_if_needed`, `resume_from_checkpoint`) + `engine/interrupt.py`.
+→ Durable session identity, safe pause, fresh-process restore, and fork follow `docs/v4/12-session-runtime-and-persistence.md`; checkpoint v2 remains the single persistence mechanism.
 → Avoid: new v1 CheckpointManager usage (experiment still does — debt D10).
 → Tests: `tests/checkpoint/`, `tests/test_checkpoint.py`, `tests/engine/test_interrupt.py`, `tests/e2e/test_checkpoint_resume.py`.
 

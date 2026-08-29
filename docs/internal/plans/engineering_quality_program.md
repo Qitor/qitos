@@ -8,6 +8,8 @@ Execution specs: [`docs/v4/08`](../../v4/08-quality-gates-and-packaging.md),
 [`docs/v4/10`](../../v4/10-consolidation-and-surface-reduction.md)
 Dispatch playbook:
 [`docs/v4/11`](../../v4/11-four-lane-execution-playbook.md)
+Runtime expansion: [`docs/v4/12`](../../v4/12-session-runtime-and-persistence.md)
+and [`docs/v4/13`](../../v4/13-durable-multi-agent-work-graph.md)
 
 ## Objective
 
@@ -15,6 +17,9 @@ Turn the engineering-quality audit into reviewable work without creating a
 parallel architecture program. Tasks 02–05 continue to own conversation, tool,
 context/artifact, and trajectory contracts. Tasks 08–10 own the gates,
 cross-cutting lifecycle semantics, and eventual removal of superseded surfaces.
+Tasks 12–13 now define the next capability phase: a process-independent durable
+session and one durable multi-agent work graph. Quality remains their admission
+gate rather than becoming their architecture.
 
 ## Program sequence
 
@@ -27,6 +32,12 @@ cross-cutting lifecycle semantics, and eventual removal of superseded surfaces.
 5. **Task 10A:** collect external/public usage evidence while the contracts land.
 6. **Task 10B–10F:** consolidate only after a tested canonical replacement and
    migration window exist.
+7. **Task 12A–12D:** define identity/snapshot contracts, converge checkpoint v2,
+   and prove the single-agent clean-process vertical slice.
+8. **Task 13A–13D:** add ownership transfer and durable child/join recovery only
+   after Task 12 can restore one work item.
+9. **Tasks 12E/13E/05:** expose public/qita workflows and freeze trajectory v2
+   only after session/work-graph lineage is available.
 
 ## Coordination rules
 
@@ -54,6 +65,14 @@ The implementation program runs through four semantic owners:
 Task 09 and Task 10 are split across these owners. The full file-lease, fixture-
 handoff, merge-wave, and stop-gate rules are in the dispatch playbook.
 
+This mapping is retained through the current G1 closure. After G1, quality and
+release trust become integration-owner gates and the four capability lanes are:
+
+1. Lane A — Task 12 session runtime and checkpoint persistence;
+2. Lane B — Tasks 02/04 conversation, continuation, context, memory, artifacts;
+3. Lane C — Tasks 03/13 tools, effects, handoff, delegate, spawn, fan-out/join;
+4. Lane D — Task 05 trajectory, qita, replay, export, and developer experience.
+
 ## Current integration decision
 
 The first repair wave produced A1/A2, B1-R Phase 1, C1-R, and D1-R. It closed
@@ -75,6 +94,13 @@ The required order is now:
    schema/validator parity while preserving all honest blockers;
 5. combined G1 qualification runs before any 02B/03B/05A behavior wave.
 
+After G1, the first concurrent wave is contract-only: 12A, 02B, Task 03 recovery
+handoff plus 13A, and Task 05 lineage intake. Behavior starts only after these
+fixtures converge. The next end-to-end target is deliberately user-facing:
+start -> parallel tools -> pause -> process exit -> fresh-process restore ->
+steer -> finish, with no duplicate committed effect. Durable multi-agent recovery
+follows that single-agent proof.
+
 Lane work may continue in isolated branches, but no completion report closes a
 gate until its fixing commits and integrated verification are recorded in the
 progress ledger.
@@ -83,4 +109,5 @@ progress ledger.
 
 This umbrella plan closes when Tasks 08 and 09 meet their acceptance criteria,
 Task 10 has either completed or explicitly scheduled each accepted deprecation,
-and a re-audit shows no unowned P0 engineering-quality item.
+Tasks 12–13 pass their clean-process continuity gates, and a re-audit shows no
+unowned P0 engineering-quality item.

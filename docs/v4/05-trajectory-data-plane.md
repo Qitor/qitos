@@ -1,7 +1,7 @@
 # Task 05 — trajectory store v2 and observability migration
 
-Status: design approved; implementation waits for Tasks 02 and 04 schemas
-Depends on: Task 02 exchanges; Task 04 artifacts
+Status: census/readiness work may proceed; schema freeze waits for Tasks 12–13
+Depends on: Task 02 exchanges; Task 04 artifacts; Tasks 12–13 lineage
 Milestone: final v4 data-plane migration
 Risk: high — frozen v1 compatibility, replay, and research data fidelity
 
@@ -36,12 +36,16 @@ No existing reader is pointed at a new layout without an adapter.
 The v2 store contains:
 
 - run metadata and versioned configuration references;
+- distinct session, run, work-item, checkpoint, agent, exchange, and tool-call
+  identities plus parent/fork/restore lineage;
 - ordered lifecycle/runtime events;
 - Task 02 exchange transactions and provider continuation attachments;
 - step/phase/run correlation IDs;
 - canonical Task 03 tool outcomes;
 - Task 04 content-addressed artifacts;
 - compaction and codec reports;
+- pause/resume, ownership-transfer, child-work, join, cancellation, durability,
+  effect-uncertainty, and trace-completeness receipts;
 - schema version, writer version, integrity hashes, and privacy policy.
 
 Large repeated payloads are stored once by digest. Canonical records reference
@@ -96,6 +100,10 @@ signal generalization follows only after data parity.
   `AgentModule` or core;
 - renderer extensions live in render/qita, avoiding core-to-render coupling;
 - truncation/detail levels are named knobs with conservative defaults.
+- session inspection and work-graph navigation consume explicit Task 12/13
+  records; they never infer parentage from run-ID suffixes;
+- pause/resume/fork commands are thin clients of Task 12 runtime semantics, not
+  qita-owned execution implementations.
 
 Task 05 does not rewrite the whole qita CLI in the same PR as the store.
 
@@ -104,7 +112,8 @@ Task 05 does not rewrite the whole qita CLI in the same PR as the store.
 ### 05A — schema, benchmark, and decision record
 
 - Inventory all current event/artifact paths and readers.
-- Freeze v2 schemas and privacy modes with fixtures.
+- Prepare v2 schemas and privacy modes with fixtures, but freeze them only after
+  Task 12 session lineage and Task 13 work-graph receipts are reviewed.
 - Commit the storage-size benchmark before choosing compression/index features.
 
 ### 05B — store, artifacts, and v1 bridge
@@ -143,6 +152,8 @@ Task 05 does not rewrite the whole qita CLI in the same PR as the store.
 - [ ] Size claims come from the committed benchmark and include both consumers.
 - [ ] qita board/replay/export tests run against v1 and v2.
 - [ ] No domain vocabulary or render dependency enters core/engine.
+- [ ] Clean-process pause/resume and partial multi-agent recovery retain exact
+      lineage and can be navigated without run-name conventions.
 
 ## 10. Verification
 
@@ -168,3 +179,5 @@ Stop for review before:
 - requiring zstd without benchmark and fallback evidence;
 - claiming exact round-trip for a lossy external format;
 - coupling `qitos.core` or `qitos.engine` to qita/render types.
+- freezing v2 while session/run/work-item or ownership-transfer lineage is still
+  represented only by metadata conventions.

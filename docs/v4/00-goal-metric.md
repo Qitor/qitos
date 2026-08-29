@@ -2,7 +2,7 @@
 
 Status: active acceptance anchor
 Updated: 2026-08-29
-Scope: Tasks 01–05 and engineering-quality Tasks 08–10
+Scope: Tasks 01–05 and 08–13
 
 ---
 
@@ -21,7 +21,7 @@ heuristics, and task-specific renderers remain out of tree.
 ## 2. What success means
 
 The old “10% agent” target mixed code size and task performance and could be gamed
-by weakening the reference agent. v4 uses five independent gates instead.
+by weakening the reference agent. v4 uses seven independent gates instead.
 
 ### Gate A — mechanism removal on the same agent
 
@@ -66,12 +66,31 @@ migration tests. Task 08 adds a repository-wide no-regression ratchet so the
 stable-surface gate cannot be mistaken for whole-package coverage. No task is
 complete while its status document disagrees with the code.
 
+### Gate F — durable session continuity
+
+A representative run must pause at a declared safe boundary, terminate its
+process, restore through a fresh Engine/composition root, and continue with the
+same state, exchanges, completed tool slots, queued steering, context/artifact
+references, budgets, and trace lineage. A committed effect is not repeated;
+uncertain effects remain typed `outcome_unknown` rather than being retried or
+reported as exactly once without backend proof.
+
+### Gate G — durable multi-agent composition
+
+Two unrelated multi-agent methods must use the same handoff, delegate, fan-out,
+spawn, fork, and join primitives. A partial child graph survives process restart,
+ownership remains single-writer, and qita can navigate parent/child/transfer
+lineage without decoding run-name conventions. Role strategy and product-specific
+coordination remain out of tree.
+
 ## 3. Demonstration metric
 
 A compact coding-agent example remains a developer-experience smoke test. Target:
 roughly 50–100 lines excluding prompts and configuration, using the public
-coding-toolset factory and no private Engine helpers. It is not a substitute for
-the five gates above and has no standalone pass-rate target.
+coding-toolset and session APIs and no private Engine helpers. It demonstrates
+start, pause, fresh-process resume, one delegated child, and qita inspection. It
+is not a substitute for the seven gates above and has no standalone pass-rate
+target.
 
 ## 4. Architecture decisions fixed for this round
 
@@ -87,6 +106,16 @@ the five gates above and has no standalone pass-rate target.
    and ms-swift shapes are versioned exporters, never the storage schema.
 6. `qitos/trace` v1 stays readable throughout v4. Migration is dual-read or
    dual-write until parity is demonstrated.
+7. Session, run, work item, checkpoint, exchange, tool call, and agent identities
+   are distinct. A resumed execution advances a session/work item with a new run.
+8. Checkpoint v2 is the persistence mechanism: a mutable session-head index
+   points to immutable snapshots. `RunState` is an adapter/view, not a second
+   durable truth, and no parallel `SessionStore` is introduced.
+9. Handoff, delegate, fan-out, spawn, fork, and steering have distinct ownership
+   semantics but share one durable work graph and the existing Engine loop.
+10. Pause is cooperative at declared safe boundaries. QitOS does not serialize
+    Python stacks or claim hard thread cancellation/exactly-once external effects
+    without backend evidence.
 
 ## 5. Delivery sequence
 
@@ -96,6 +125,9 @@ Task 01 baseline ──→ Task 02 model I/O ──→ Task 04 context/artifacts
 
         └─────────→ Task 08 quality gates ──→ Task 09 lifecycle/errors
                                       Tasks 02–05 + 08–09 ──→ Task 10 consolidation
+
+Tasks 02–04 + 09 ──→ Task 12 durable sessions ──→ Task 13 multi-agent work graph
+             Tasks 12–13 lineage ───────────────→ Task 05 schema freeze/qita
 ```
 
 Task 02 and Task 03 may proceed independently after Task 01. Task 04 depends on
@@ -103,7 +135,12 @@ their contracts. Task 05 depends on the exchange and artifact schemas. Task 08
 can start immediately; its first ratchet should land before large implementation
 diffs. Task 09 coordinates semantic changes with Tasks 02, 03, and 05. Task 10
 collects usage evidence early but removes or consolidates surfaces only after
-their canonical replacements are proven.
+their canonical replacements are proven. Task 12 starts with identity/snapshot
+contracts after G1 and then proves a single-agent clean-process vertical slice.
+Task 13 starts only after that vertical slice can durably recover one work item.
+Task 05 may continue its census, fixture qualification, and benchmark scaffold,
+but it does not freeze trajectory v2 until session/run/work-item/ownership
+lineage from Tasks 12–13 is available.
 
 The authoritative multi-agent dispatch and merge sequence is
 [`11-four-lane-execution-playbook.md`](11-four-lane-execution-playbook.md). It
@@ -138,12 +175,17 @@ Do not report framework LOC growth or cherry-picked commit ancestry as progress.
 ## 8. Four-lane dispatch rule
 
 When more than one coding agent is active, assign work through the four-lane
-playbook:
+playbook. The G1 repair wave keeps its historical A/B/C/D ownership. After G1,
+the four capability lanes are:
 
-- Lane A owns quality/release trust;
-- Lane B owns conversation/providers/context;
-- Lane C owns tool execution/runtime safety;
-- Lane D owns trajectories/observability/convergence.
+- Lane A — session runtime and persistence (Task 12 plus owned Task 09 work);
+- Lane B — conversation, providers, context, memory, and artifacts (Tasks 02/04);
+- Lane C — tools and the durable multi-agent work graph (Tasks 03/13);
+- Lane D — trajectory, qita, replay, and developer experience (Task 05).
+
+Quality/release trust becomes a cross-lane merge gate run by the integration
+owner, not a place to park all framework behavior. Task 10 cleanup returns to
+the semantic owner of the replacement.
 
 Cross-cutting Task 09 and Task 10 work returns to its semantic lane. No agent may
 create a parallel abstraction merely to avoid a shared-file lease or contract

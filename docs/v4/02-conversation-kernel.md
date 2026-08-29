@@ -1,8 +1,8 @@
 # Task 02 — model I/O transaction kernel
 
-Status: ready for implementation planning
+Status: contract candidate exists on a reviewed lane; integration/convergence pending
 Depends on: Task 01
-Unblocks: Task 04 and Task 05
+Unblocks: Task 04, Task 12 durable snapshots, and Task 05
 Risk: high — core persistence and every provider adapter
 
 ---
@@ -116,7 +116,10 @@ ActionExecutor. This task does not create a scheduler. It closes protocol gaps:
 ### 02D — Engine and checkpoint migration
 
 - Make `_model_runtime` consume the new layers and delete duplicated assembly.
-- Persist exchange logs in a versioned checkpoint schema with a v1 adapter.
+- Supply a versioned ExchangeLog snapshot component to Task 12; do not write an
+  independent conversation checkpoint or use `run_id` as session identity.
+- Persist queued steering, open/partial batch state, completion order, and opaque
+  continuation references with a v1 adapter.
 - Preserve old public model-call behavior until deprecation is announced.
 - Update trace events to include request/codec reports without sensitive data.
 
@@ -139,6 +142,8 @@ ActionExecutor. This task does not create a scheduler. It closes protocol gaps:
   boundary.
 - [ ] Persistent history is unchanged by provider-specific context placement.
 - [ ] v1 checkpoint/history fixtures migrate and resume.
+- [ ] Task 12 can restore the ExchangeLog and queued steering through a fresh
+      process without retaining the original Engine/provider object.
 - [ ] Existing parallel executor behavior and ordering tests remain green.
 - [ ] Two independent consumers exercise the public contract.
 
@@ -165,4 +170,6 @@ Stop for review before:
 - exposing provider-native encrypted/signed fields through public serialization;
 - flipping any family preset default;
 - adding a provider-neutral field that only one codec consumes;
-- rewriting checkpoint formats without a tested migration path.
+- rewriting checkpoint formats without a tested migration path;
+- introducing a conversation-owned session store or persisting a live provider
+  client instead of a typed resolver/continuation reference.

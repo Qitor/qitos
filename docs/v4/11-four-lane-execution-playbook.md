@@ -3,8 +3,9 @@
 Status: active dispatch specification
 Updated: 2026-08-29
 Nature: orchestration document, not a fifth architecture or a new public API
-Source tasks: Tasks 02–05 and 08–10
-Baseline: Task 01 complete, 1,694 tests passed and 50 skipped
+Source tasks: Tasks 02–05 and 08–13
+Baseline: Task 01 complete; exact current integration status lives in
+[`docs/progress.md`](../progress.md)
 
 ---
 
@@ -20,7 +21,7 @@ questions that the individual task designs intentionally do not:
 4. what a coding agent must verify before handing work back.
 
 The lanes are delivery boundaries, not new runtime layers. They must implement
-the canonical contracts already described in Tasks 02–05 and 08–10. They may
+the canonical contracts already described in Tasks 02–05 and 08–13. They may
 not create `V2`, `Next`, parallel tool hierarchies, alternate trace formats, or
 generic utility packages to avoid coordination.
 
@@ -34,6 +35,12 @@ hide it with rerun-only CI or weaken the assertion without defining the intended
 flush contract.
 
 ## 2. The four lanes
+
+The program has two lane maps separated by G1. This avoids rewriting the
+historical completion evidence while moving future capacity from audit work to
+researcher-visible runtime capabilities.
+
+### 2.1 G1 repair ownership (historical/current until G1 closes)
 
 | Lane | Mission | Canonical tasks | Primary code ownership |
 |---|---|---|---|
@@ -50,17 +57,44 @@ Task 10 is not handed wholesale to Lane D. Cleanup follows semantic ownership:
 - Lane A owns packaging and gate cleanup;
 - Lane D maintains the shared removal ledger and release order.
 
+Sections 5–8 preserve the complete instructions used by the G1 branches. They
+remain authoritative for bounded G1 repair only.
+
+### 2.2 Post-G1 capability ownership
+
+After the integration owner records G1 closure, new branches use this mapping:
+
+| Lane | Mission | Canonical tasks | Primary code ownership |
+|---|---|---|---|
+| A — Session Runtime & Persistence | Make execution pauseable, process-independent, recoverable, and forkable | Task 12; Task 09A/C/D/F integration | Engine session lifecycle, checkpoint v2 session head/snapshot, restore/resolver integration |
+| B — Conversation, Context & Continuation | Complete model transactions, steering, provider continuation, context, memory, and artifacts | Tasks 02 and 04; Task 09B | ExchangeLog/RequestView/codecs, context/history/memory/artifact contracts |
+| C — Tools & Durable Multi-Agent | Harden ACI/tool outcomes and build handoff/delegate/fan-out/spawn on one work graph | Tasks 03 and 13; Task 09C integration | tool/action runtime, effects, work graph, local worker/join adapters |
+| D — Trajectory, qita & Developer Experience | Make session/work lineage inspectable, replayable, compact, and easy to use | Task 05; Task 09E; owned Task 10 cleanup | trace/tracing/qita/render, exporters, examples and migration evidence |
+
+Quality/release trust is a cross-lane gate after G1. The integration owner runs
+the pinned ratchet, stable lint/type checks, architecture/public-surface tests,
+full suite, packaging matrix where relevant, and documentation parity for every
+accepted package. Quality findings return to the semantic lane that owns the
+code; they do not recreate a permanent fifth implementation lane.
+
 ## 3. Global delivery waves
 
 Four lanes do not mean four uncontrolled long-lived branches. Work is delivered
-in small packages through four merge waves.
+in small packages through one closure wave and four capability waves.
 
 | Wave | Lane A | Lane B | Lane C | Lane D | Exit gate |
 |---|---|---|---|---|---|
-| W1 — Trust and decisions | 08A static ratchet + 08E CI repair | 02A plan, ADR, fixtures | 09A ownership matrix + 03A ADR/fixtures | 10A census + trace-reader inventory only | G1: ratchet green; contracts reviewed; file leases recorded |
-| W2 — Core semantics | 08C extras + 08D high-value tests | 02A/B, then 02C + 09B | 03A/B/C + 09C/D | 09E hook policy; prepare 05A fixtures/benchmark | G2: exchange and tool outcomes stable; failures/timeout/durability explicit |
-| W3 — Integration | 08B baseline retirement | 02D/E, then all Task 04 packages | 03D/E + 09F lifecycle integrations | 05A/B/C/D after exchange/artifact handoff | G3: one representative run round-trips exchanges, outcomes, artifacts, and v1/v2 trace |
-| W4 — Convergence | PEP 621/build parity; final ratchet | owned Task 10D/F cleanup | Task 10C/D/F cleanup | 05E + Task 10B/E and removal ledger | G4: release candidate, compatibility and migration evidence complete |
+| G1-R — current closure | integrate trusted ratchet/CI evidence | converge ExchangeLog on canonical ToolResult | close canonical ToolResult boundaries | verify producer-owned readiness receipts | G1: integrated, one canonical outcome, cross-lane fixtures and ratchet green |
+| S1 — contracts | 12A identity/lifecycle/snapshot ADR | 02B RequestView + 04A/04B contract handoffs | 03 recovery fields + 13A graph ADR | session/work lineage schema proposal only | G2: identities, ownership, snapshots, effects, and resolver contracts reviewed |
+| S2 — single-agent vertical slice | 12B/C/D session head, safe pause, clean-process restore | 02C/D + context/artifact snapshot components | 03B/C effects and partial-batch recovery | observe the slice; no v2 freeze | G3: start -> parallel tools -> pause -> process exit -> restore -> finish, no duplicate committed effect |
+| S3 — durable multi-agent | Task 12 fork/ownership support | context/continuation transfer receipts | 13B/C/D handoff, delegate, spawn, fan-out/join | graph/timeline dual-read records | G4: partial child graph and ownership transfer survive process restart |
+| S4 — DX and convergence | 12E compatibility/CLI | 02E/04C/D rollout | 03D/E + 13E adapters | 05 schema freeze/store/export/qita rollout | G5: public example, two independent consumers, release and migration gates green |
+
+No S1 behavior branch starts until G1 is recorded on the integration branch.
+Planning/fixtures may be prepared, but a lane must rebase on the exact accepted
+head before implementation. Task 05 census, privacy qualification, and benchmark
+readiness may continue; trajectory v2 freeze remains blocked through S3 contract
+handoff.
 
 ### 3.1 Gate G1 — trustworthy change surface
 
@@ -76,7 +110,7 @@ Required before large implementation PRs:
 Planning, fixtures, and failing regression tests may be prepared before G1.
 Behavior implementation must not bypass G1 merely because another lane is slow.
 
-### 3.2 Gate G2 — canonical runtime semantics
+### 3.2 Gate G2 — canonical contracts and ownership
 
 Required before Task 04 and Task 05 integration:
 
@@ -85,21 +119,39 @@ Required before Task 04 and Task 05 integration:
 - provider failures are typed and cannot become assistant text;
 - thread timeout is explicitly non-cancelling and late results cannot commit;
 - checkpoint callers can distinguish accepted, persisted, failed, and dropped;
-- no second scheduler, message stack, result envelope, or lifecycle enum exists.
+- session/run/work-item/checkpoint identities and the immutable snapshot contract
+  are reviewed;
+- handoff/delegate/fan-out/spawn/fork semantics and single-owner generation rules
+  are reviewed;
+- no second scheduler, message stack, result envelope, checkpoint store, or
+  lifecycle truth exists.
 
-### 3.3 Gate G3 — end-to-end data integrity
+### 3.3 Gate G3 — single-agent process-independent continuity
 
 Required before default flips or compatibility deletion:
 
 - Task 04 artifacts are content-addressed and retrieval-tested;
 - compaction preserves complete exchanges and parallel tool batches;
-- trajectory v2 consumes, rather than copies, Tasks 02–04 contracts;
-- qita reads both v1 and v2 fixtures;
-- one campaign-derived run and one unrelated run prove round-trip and storage
-  measurements;
-- hook/trace incompleteness is visible in run receipts.
+- a fresh process reconstructs the session from checkpoint v2 and resolver
+  references without live objects from the original process;
+- completed parallel slots, queued steering, budgets, context/artifacts, and
+  trace cursor survive restore without duplicate committed effects;
+- stale owners/late workers cannot advance the head;
+- hook/trace/durability/effect uncertainty is visible in receipts.
 
-### 3.4 Gate G4 — release convergence
+### 3.4 Gate G4 — durable multi-agent continuity
+
+Required before freezing trajectory v2 or rolling out graph-aware defaults:
+
+- handoff commits one ownership transfer and cannot leave two active owners;
+- delegate/spawn children have durable identity, budgets, capabilities,
+  checkpoints, outcomes, and parent lineage;
+- a partial fan-out/join restores without recreating completed children;
+- parent cancellation, detachment, timeout, late-result, and unknown-outcome
+  semantics are typed and tested;
+- qita can navigate the graph without parsing run-name conventions.
+
+### 3.5 Gate G5 — release convergence
 
 Required before declaring v4 complete:
 
@@ -108,6 +160,10 @@ Required before declaring v4 complete:
 - deprecated imports have documented replacements and removal versions;
 - architecture allowlists and static baselines strictly shrink;
 - v1 trace remains readable; no lossy exporter claims exact round-trip;
+- trajectory v2 consumes Task 12/13 lineage and receipts rather than copying or
+  inferring them;
+- the public reference flow demonstrates pause/restart, fork, one child-work
+  operation, and qita inspection without private Engine helpers;
 - README, CHANGELOG, user docs, examples, and EN/zh counterparts match code.
 
 ## 4. Shared operating contract for every lane
@@ -144,6 +200,8 @@ The following files are high-conflict integration points:
 
 - `qitos/core/__init__.py` and root public exports;
 - `qitos/engine/engine.py`, `_protocol.py`, and `async_engine.py`;
+- `qitos/engine/run_state.py`, `interrupt.py`, and `_handoff_runtime.py`;
+- `qitos/core/conversation.py`, `tool_result.py`, and `agent_spec.py`;
 - `qitos/checkpoint/__init__.py` and `store.py`;
 - `qitos/trace/schema.py` and `writer.py`;
 - `qitos/qita/_cli_app.py`;
@@ -193,6 +251,8 @@ current path and the planned path explicitly.
 
 Cross-lane communication is by a versioned fixture/contract, not by prose alone.
 
+G1 repair handoffs:
+
 | Producer | Consumer | Required handoff |
 |---|---|---|
 | Lane A | B/C/D | ratchet command, baseline file, tool versions, clean-CI proof |
@@ -202,6 +262,21 @@ Cross-lane communication is by a versioned fixture/contract, not by prose alone.
 | Lane C | D | action outcome/durability/hook-facing receipt fixtures |
 | Lane D | A | v1/v2 install/test matrix and release-required jobs |
 | Lane D | B/C | removal ledger naming canonical replacement and earliest removal version |
+
+Post-G1 capability handoffs:
+
+| Producer | Consumer | Required handoff |
+|---|---|---|
+| Lane A | B/C/D | identity/schema version, snapshot envelope, resolver protocol, lifecycle/durability receipts, clean-process fixture |
+| Lane B | A | ExchangeLog/steering/continuation snapshot component with exact version and migration receipt |
+| Lane B | C | immutable context/state/artifact transfer fixture and declared losses |
+| Lane C | A | canonical effect/attempt/child outcome and quiescence receipts |
+| Lane C | D | work graph, ownership transfer, join, cancellation, and outcome-unknown fixtures |
+| Lane A | D | pause/resume/fork/restore lineage fixtures and trace completeness fields |
+| Lane D | A/B/C | reader/export compatibility report, qita navigation evidence, and release migration matrix |
+
+The integration owner—not a producer lane—attaches pinned ratchet/full-suite and
+documentation evidence to every accepted package.
 
 Any incompatible fixture change stops consumers until migration adapters and
 updated fixtures are reviewed.
@@ -322,8 +397,9 @@ or migrating package metadata without wheel equivalence.
 ### 5.8 Completion handoff
 
 Hand all lanes the ratchet command/baseline and Lane D the release job matrix.
-Lane A stays active through W4; it is the integration signal owner, not a one-
-time cleanup team.
+For the historical G1 program, this quality lane remains the integration signal
+owner through closure. After G1, that responsibility moves to the integration
+owner as a cross-lane gate; post-G1 Lane A is Task 12.
 
 ## 6. Lane B instruction — Conversation, Providers & Context
 
@@ -620,7 +696,8 @@ the parity report.
 
 Lane B receives the result/artifact-ref contract before Task 04B. Lane D receives
 outcome, durability, lifecycle, and hook-facing receipt fixtures before Task
-05A schema freeze. Lane C owns runtime-semantic questions through G4.
+05A readiness work. In the post-G1 map, Task 13/work-graph questions remain with
+Lane C while session/checkpoint ownership moves to Lane A.
 
 ## 8. Lane D instruction — Trajectory, Observability & Convergence
 
@@ -665,7 +742,7 @@ Forbidden without handoff:
 
 ### 8.4 Work packages
 
-#### D1 — early census and inventory (W1)
+#### D1 — early census and inventory (historical W1)
 
 1. Create/update `docs/internal/plans/lane_d_data_convergence.md`.
 2. Execute Task 10A census of exports, commands, extras, registry entries,
@@ -675,7 +752,7 @@ Forbidden without handoff:
 4. Prepare representative campaign-derived and unrelated trajectory fixtures.
 5. Prepare the storage-size benchmark without freezing v2 schema early.
 
-#### D2 — Task 09E: observability failure semantics (W2)
+#### D2 — Task 09E: observability failure semantics (historical W2)
 
 1. Consume Lane C's lifecycle vocabulary.
 2. Classify hooks/processors as critical or best effort.
@@ -685,10 +762,13 @@ Forbidden without handoff:
    failure.
 5. Hand required trace fields back to B/C; do not duplicate their receipts.
 
-#### D3 — Task 05A/B: schema, store, and v1 bridge (after B5/C handoff)
+#### D3 — Task 05A/B: schema, store, and v1 bridge (superseded sequencing)
 
-1. Freeze v2 schema using Lane B exchange/artifact and Lane C outcome/durability
-   fixtures by reference/import.
+This historical package is no longer authorized to freeze v2 after only B/C.
+Post-G1 it follows S3 and must also consume Task 12/13 lineage and receipts.
+
+1. Freeze v2 schema using Lane B exchange/artifact, Lane C outcome/work-graph,
+   and Lane A session/restore fixtures by reference/import.
 2. Define privacy modes, integrity hashes, schema/writer versions, and
    correlation invariants.
 3. Run the committed size benchmark before choosing compression/index features.
@@ -705,7 +785,7 @@ Forbidden without handoff:
 6. Make v2 default only after parity, performance, privacy, migration docs, and
    release review.
 
-#### D5 — Task 10B/E and shared convergence (W4)
+#### D5 — Task 10B/E and shared convergence (historical W4)
 
 1. Finish benchmark-to-recipes migration family by family with compatibility
    imports and an announced removal version.
@@ -716,7 +796,7 @@ Forbidden without handoff:
    canonical owner.
 5. Coordinate evaluate/metric, leaderboard, hf, and other peripheral admission
    decisions using evidence.
-6. Remove duplicate JSONL writers and compatibility planes only after G4.
+6. Remove duplicate JSONL writers and compatibility planes only after G5.
 
 ### 8.5 Acceptance criteria
 
@@ -761,7 +841,91 @@ v1 compatibility evidence, storage benchmark, and release sequence. Lane A uses
 that matrix for final required checks; B/C confirm their fixtures round-trip
 before v2 becomes default.
 
-## 9. Integration-owner instruction
+## 9. Post-G1 capability-lane instructions
+
+These instructions become active only after G1 closure is recorded in
+`docs/progress.md`. Each lane starts with one work package and exact integration
+baseline; no agent receives authorization for a whole Task at once.
+
+### 9.1 Lane A — Session Runtime & Persistence
+
+Mission: implement Task 12 on checkpoint v2 and the existing Engine loop.
+
+First package: **12A identity/lifecycle/snapshot ADR**. It may edit plans,
+versioned fixtures, and new contract-test scaffolds. It must census
+`init_session`, `RunState`, checkpoint v1/v2, interrupt/resume, trace IDs, qita
+fork, and resolver construction before proposing API names. No behavior or root
+export changes land in 12A.
+
+Later packages 12B–12E own atomic session-head generation, immutable snapshots,
+safe pause, clean-process restore, fork, compatibility, and thin qita/CLI
+adapters. They must consume B's ExchangeLog/context components and C's
+effect/quiescence receipts. They may not create a parallel SessionStore, second
+Engine, or serialize live runtime objects.
+
+Acceptance focus: one fresh-process vertical slice; partial parallel completion;
+exactly-once head commit; honest `outcome_unknown`; stale-owner/late-worker
+rejection; resolver-only secrets/clients; isolated fork lineage.
+
+### 9.2 Lane B — Conversation, Context & Continuation
+
+Mission: finish Tasks 02/04 so every model/context fact required by a durable
+session has one versioned component and migration path.
+
+First package: **02B RequestView contract** after canonical B/C outcome
+convergence. Produce RequestView/CodecReport fixtures, queued-steering semantics,
+transport/API-mode capabilities, and the snapshot fields/reader that Lane A can
+consume. Do not implement a conversation-owned session store.
+
+Then deliver provider codecs/typed failures, context and ArtifactRef contracts,
+compaction, and memory integration. For Lane C, provide immutable transfer
+fixtures with selected/omitted/loss facts. Live providers, stores, secret values,
+and host paths remain resolver-owned.
+
+Acceptance focus: provider-neutral persistent facts; loss-explicit native
+continuation; steering once at a safe boundary; fresh-process restoration;
+non-destructive handoff/delegate context selection.
+
+### 9.3 Lane C — Tools & Durable Multi-Agent
+
+Mission: finish Task 03 and then implement Task 13 over Task 12 sessions.
+
+First package: **03 recovery/effect contract handoff plus 13A ADR**. Complete
+attempt/effect/idempotency/outcome-unknown/quiescence fields without introducing
+a child-result wrapper. Census all existing handoff/delegate/fan-out nested
+Engine and trace paths; freeze exact operation/ownership/join distinctions and
+fixtures. No behavior changes land before Task 12A handoff is reviewed.
+
+Then harden coding tools and implement generation-checked handoff, durable
+delegate/spawn, fan-out/join recovery, capability/budget allocation, and adapters
+for existing model-callable tools. The local executor is the reference; no
+distributed service or role strategy enters the base framework.
+
+Acceptance focus: one active owner; completed child/slot never recreated;
+explicit parent cancellation/detachment/late-result behavior; direct API and
+tools share semantics; no authority escalation.
+
+### 9.4 Lane D — Trajectory, qita & Developer Experience
+
+Mission: continue Task 05 readiness work, then make Task 12/13 continuity
+observable and pleasant to use.
+
+First package: **lineage proposal and fixture intake only**. Extend the D1
+reader/writer census and readiness contract for distinct session/run/work-item/
+checkpoint/agent IDs, pause/restore receipts, ownership transfer, child/join
+state, and uncertainty. Do not freeze v2 or claim a benchmark while A/C producer
+contracts are absent.
+
+After S3, freeze v2 by consuming producer fixtures, add dual-read store/export
+paths, qita session/work-graph timelines, and the compact public reference flow.
+qita remains a client of runtime semantics and never infers graph edges from
+run-ID suffixes.
+
+Acceptance focus: exact lineage and declared losses; v1 compatibility; private
+raw versus public redacted views; qita navigation/replay/fork/resume; measured
+storage claims; EN/zh developer documentation.
+
+## 10. Integration-owner instruction
 
 One maintainer or planning agent acts as integration owner. It does not write a
 fifth implementation. Its responsibilities are:
@@ -773,16 +937,16 @@ fifth implementation. Its responsibilities are:
 5. run gate-level verification on the integrated branch;
 6. update task evidence/status and record stop-gate decisions.
 
-### 9.1 Dashboard template
+### 10.1 Dashboard template
 
 | Lane | Current package | Branch/PR | Lease | Tests | Handoff produced | Blocker/decision | Gate status |
 |---|---|---|---|---|---|---|---|
-| A | — | — | — | — | — | — | W1 pending |
-| B | — | — | — | — | — | — | W1 pending |
-| C | — | — | — | — | — | — | W1 pending |
-| D | — | — | — | — | — | — | W1 pending |
+| A | — | — | — | — | — | — | G1 pending |
+| B | — | — | — | — | — | — | G1 pending |
+| C | — | — | — | — | — | — | G1 pending |
+| D | — | — | — | — | — | — | G1 pending |
 
-### 9.2 Merge rule
+### 10.2 Merge rule
 
 Preferred order inside each gate:
 
@@ -797,30 +961,43 @@ Preferred order inside each gate:
 If a consumer requires a contract change, return the change to the owning lane.
 Do not patch the producer's private fields in the consumer PR.
 
-## 10. Immediate dispatch order
+## 11. Immediate dispatch order
 
-The next four assignments are:
+The agents report the G1 repair branches complete, but branch-local completion is
+not integration. The next action is one integration-owner closure pass:
 
-1. **Lane A / A1:** implement the Task 08A ratchet and publish the exact command.
-2. **Lane B / B1:** write/approve Task 02A ADR, fixtures, and compatibility plan;
-   implementation waits for A1 CI integration.
-3. **Lane C / C1:** write the lifecycle ownership matrix and outcome ADR/fixtures;
-   implementation waits for A1 CI integration.
-4. **Lane D / D1:** perform the read/write/consumer census and prepare fixtures
-   and storage benchmark only; do not freeze v2 schema.
+1. verify exact branch HEADs/clean status and review the actual diffs;
+2. merge/cherry-pick in the order A -> C -> B -> D, resolving shared release
+   documents manually and rebasing each consumer on accepted producer commits;
+3. run the pinned ratchet, stable lint/type, full suite, architecture/public
+   surface, cross-lane consumers, workflow executable tests, readiness/privacy,
+   and diff checks on the combined tree;
+4. record fixing commit identities and close or reopen each G1 checkbox in
+   `docs/progress.md`.
 
-These four assignments are intentionally low-conflict and produce the inputs
-for G1. After G1, dispatch A2/A3, B2/B3, C2/C3/C4, and D2 concurrently according
-to the file-lease protocol.
+Only after that record says G1 closed, dispatch these four S1 packages in
+parallel:
+
+1. **Lane A / 12A:** session identity, lifecycle, safe-boundary, snapshot, and
+   resolver ADR plus versioned fixtures; no runtime behavior yet.
+2. **Lane B / 02B:** RequestView/capability/steering contract and Task 12 snapshot
+   handoff; no provider-default flip.
+3. **Lane C / 03 recovery + 13A:** effect/quiescence fields and durable work-graph
+   ADR/fixtures; no multi-agent behavior before Task 12A acceptance.
+4. **Lane D / lineage intake:** extend readiness/census for Task 12/13 identities
+   and receipts; no v2 freeze or performance claim.
+
+These packages are deliberately contract-first and low-conflict. S2 behavior
+begins only after their versioned handoffs are reviewed.
 
 For direct dispatch, give each coding agent this entire playbook and state its
-single lane/package (for example, `Lane B / B1`). The agent must follow the
+single lane/package (for example, `Lane A / 12A`). The agent must follow the
 shared contract in Section 4 and only the ownership/instructions for its lane;
 the other lane sections are dependency context, not authorization to edit them.
 
-## 11. Program completion
+## 12. Program completion
 
-The four-lane program is complete only when G4 passes and the source Tasks have
+The four-lane program is complete only when G5 passes and the source Tasks have
 evidence-backed status updates. Finishing four branches, reducing raw LOC, or
 making v2 the default is not by itself completion.
 
@@ -830,6 +1007,8 @@ The final outcome must be one QitOS mainline with:
 - one action/tool outcome;
 - one explicit runtime lifecycle/error vocabulary;
 - one context/artifact/history policy stack;
+- one durable session identity/snapshot/restore path over checkpoint v2;
+- one durable work graph for handoff, delegate, fan-out, spawn, fork, and join;
 - one canonical trajectory source with compatible v1 reading;
 - one trustworthy repository-wide quality signal;
 - fewer public surfaces and compatibility paths than the starting point.
