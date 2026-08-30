@@ -1,6 +1,6 @@
 # S1 Lane D lineage and readiness plan
 
-Status: in progress
+Status: complete; runtime/readiness remains intentionally typed blocked
 Updated: 2026-08-30
 Owner: Lane D / stable trajectory lineage, readiness, and developer experience
 Source branch: `feat/campaign-absorption`
@@ -91,9 +91,9 @@ separate mechanical commit owned by the integration sequence.
 - [x] Exact source identity and clean isolated worktree verified.
 - [x] Required architecture, wave, Task 05/12/13, prior Lane D, fixture, and
       readiness sources read.
-- [ ] Extended exact-source census and disposition published.
-- [ ] Single Trajectory ADR and qita/DX proposal published.
-- [ ] S1 A/B/C readiness inventory and strict validator implemented.
-- [ ] Scenario fixtures and privacy/portability tests implemented.
-- [ ] Targeted and full validation complete.
-- [ ] Diff, commits, clean status, and exact final HEAD recorded.
+- [x] Extended exact-source census and disposition published.
+- [x] Single Trajectory ADR and qita/DX proposal published.
+- [x] S1 A/B/C readiness inventory and strict validator implemented.
+- [x] Scenario fixtures and privacy/portability tests implemented.
+- [x] Targeted and full validation complete.
+- [x] Diff, commits, clean status, and exact final HEAD recorded in the handoff.
