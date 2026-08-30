@@ -55,8 +55,11 @@ never matched content.
 
 ## Contract readiness input
 
-The benchmark gate accepts an optional pure-data receipt set with version
-`trajectory-contract-qualification-receipts-v1`. Each receipt contains exactly:
+The benchmark gate accepts an optional pure-data receipt set from the stable
+`tests/fixtures/readiness/` directory. The current wrapper uses
+`receipt_type: trajectory_contract_qualification_receipts` with a separate
+payload `schema_version`; the prior G1 wrapper remains a compatibility input.
+Each receipt contains exactly:
 
 - D contract ID, producer contract ID, and schema/version;
 - exact producer source commit;
@@ -73,10 +76,15 @@ mismatches are typed blockers. One verified receipt qualifies only its exact
 contract ID. The checked-in receipt set binds the accepted G1 B/C producers;
 all unimplemented dependencies remain blocked.
 
+S1 session/work/effect contracts remain unestablished until their owners publish
+reviewed versions and exact evidence. Scenario descriptors under
+`tests/fixtures/readiness/` do not fabricate those producer identities; exact
+receipt tests create and commit synthetic evidence in temporary repositories.
+
 ## Stable readiness behavior
 
 Normal execution exits 2. `--dry-run` exits 0 for preflight automation, but both
 emit `status: schema_not_ready`, an empty `measurements` list, and an empty
-`claims` list while trajectory v2 remains unfrozen. This fixture set does not
-establish 05A readiness, storage selection, compression benefit, or a Lane A
-ratchet result.
+`claims` list while the one Trajectory target remains unfrozen and has no
+canonical writer. This fixture set does not establish 05A readiness, storage
+selection, compression benefit, or a Lane A ratchet result.

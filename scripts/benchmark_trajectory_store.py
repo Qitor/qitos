@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Strict, portable readiness gate for the future trajectory benchmark.
+"""Strict, portable readiness gate for the future Trajectory architecture.
 
 This stdlib-only development tool validates publication evidence and caller-
-owned contract receipts.  It never defines v2 records, parses trajectory
+owned contract receipts. It never defines Trajectory records, parses trajectory
 payloads, benchmarks storage, or qualifies a contract from file presence.
 """
 
@@ -18,13 +18,18 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 
-RESULT_VERSION = "trajectory-store-benchmark-readiness-v2"
+RESULT_TYPE = "trajectory_readiness_report"
+RESULT_SCHEMA_VERSION = "1"
 MANIFEST_VERSION = "trajectory-fixture-source-manifest-v1"
-RECEIPT_SET_VERSION = "trajectory-contract-qualification-receipts-v1"
+RECEIPT_SET_TYPE = "trajectory_contract_qualification_receipts"
+RECEIPT_SET_SCHEMA_VERSION = "1"
+COMPAT_RECEIPT_SET_VERSION = "trajectory-contract-qualification-receipts-v1"
 TRANSFORM_RECEIPT_VERSION = "trajectory-fixture-transform-receipt-v1"
 LOSS_REPORT_VERSION = "trajectory-fixture-loss-report-v1"
 MANIFEST_NAME = "fixture-manifest.json"
-DEFAULT_FIXTURE_SET_ID = "qitos-representative-trajectories-v1"
+DEFAULT_FIXTURE_SET_ID = "qitos-representative-trajectories"
+S1_QUALIFICATION_AUTHORITY = "qitos.s1.integration_owner/v1"
+G1_QUALIFICATION_AUTHORITY = "qitos.g1.integration_owner/v1"
 
 SUPPORTED_SOURCE_CLASSES = {"campaign_long", "unrelated_agent"}
 SUPPORTED_STATUSES = {
@@ -70,52 +75,264 @@ OPTIONAL_COVERAGE_KEYS = {
 @dataclass(frozen=True)
 class ContractRequirement:
     contract_id: str
+    owner: str
+    required_artifact: str
+    short_message: str
+    remediation: str
     expected_version: Optional[str]
     producer_contract_id: Optional[str] = None
     producer_source_commit: Optional[str] = None
     fixture_path: Optional[str] = None
+    fixture_sha256: Optional[str] = None
     qualification_evidence_path: Optional[str] = None
+    qualification_evidence_sha256: Optional[str] = None
     qualification_authority: Optional[str] = None
+    compatibility_status: str = "not_established"
+    required_identity_bindings: Tuple[str, ...] = ()
+    requires_lineage_evidence: bool = False
+    runtime_behavior_required: bool = True
+
+    @property
+    def producer_binding_complete(self) -> bool:
+        return all(
+            (
+                self.expected_version,
+                self.producer_contract_id,
+                self.producer_source_commit,
+                self.fixture_path,
+                self.fixture_sha256,
+                self.qualification_evidence_path,
+                self.qualification_evidence_sha256,
+                self.qualification_authority,
+            )
+        )
 
 
-# A version is pinned only when the reviewed B1/C1 fixture publishes it.
-# None means the semantic owner has not published a version D can accept.
+# S1 producer facts remain unestablished until their semantic owner publishes a
+# reviewed commit. None is intentional and must never be filled speculatively.
 CONTRACT_REQUIREMENTS = (
     ContractRequirement(
         "lane_b.exchange_log_fixture_version",
+        "lane_b",
+        "committed ExchangeLog fixture and producer-owned qualification evidence",
+        "The accepted ExchangeLog foundation fixture must remain exactly bound.",
+        "Use the integration-owner-approved G1 receipt; do not infer qualification from file presence.",
         "qitos.exchange_log.v2",
         producer_contract_id="qitos.exchange_log",
         producer_source_commit="2e46fc8e0228af42d6eaeaa6a665ffe5998c0bd5",
         fixture_path="tests/fixtures/conversation/v3/semantic_fixtures.json",
+        fixture_sha256="927e0ace339337fa1a2c2cb5a1a8b03147df3ae4ec97b3b54634908249be8a40",
         qualification_evidence_path=(
             "tests/fixtures/conversation/v3/qualification-evidence.json"
         ),
-        qualification_authority="qitos.g1.integration_owner/v1",
+        qualification_evidence_sha256=(
+            "86d52fd2c6c3d37e33e35dd42a662d556e2fc96422be35e6c9d9a24529419b0a"
+        ),
+        qualification_authority=G1_QUALIFICATION_AUTHORITY,
+        compatibility_status="qualified_foundation",
+        runtime_behavior_required=False,
     ),
-    ContractRequirement("lane_b.request_view_report", None),
-    ContractRequirement("lane_b.codec_report", None),
-    ContractRequirement("lane_b.provider_continuation_opaque_fields", None),
-    ContractRequirement("lane_b.artifact_ref", None),
-    ContractRequirement("lane_b.compaction_report", None),
     ContractRequirement(
         "lane_c.canonical_tool_result_fixture_version",
+        "lane_c",
+        "committed canonical ToolResult fixture and producer-owned qualification evidence",
+        "The accepted ToolResult foundation fixture must remain exactly bound.",
+        "Use the integration-owner-approved G1 receipt; do not infer qualification from file presence.",
         "qitos.tool_result/v1",
         producer_contract_id="qitos.tool_result",
         producer_source_commit="9a0c5ed5d6c1c959ff277d3888f54c927be3e183",
         fixture_path="tests/fixtures/tool_results/v1/contract_hardening.json",
+        fixture_sha256="b7f4dc6dfe8958bcd9c47617869a14bc8114629038d3428e6a623642fd2e5415",
         qualification_evidence_path=(
             "tests/fixtures/tool_results/v1/qualification-evidence.json"
         ),
-        qualification_authority="qitos.g1.integration_owner/v1",
+        qualification_evidence_sha256=(
+            "96b0e641ccca7e049a90658496a19964217aa7c359a29c6b6e6b345fb7cf99f5"
+        ),
+        qualification_authority=G1_QUALIFICATION_AUTHORITY,
+        compatibility_status="qualified_foundation",
+        runtime_behavior_required=False,
     ),
     ContractRequirement(
-        "lane_c.timeout_cancellation_receipt", "qitos.runtime_lifecycle/v1"
+        "lane_a.identity_vocabulary",
+        "lane_a",
+        "identity vocabulary fixture",
+        "Session, run, snapshot, checkpoint, work, attempt, and owner identities are not established.",
+        "Lane A must publish a versioned identity fixture and qualification evidence.",
+        None,
+        qualification_authority=S1_QUALIFICATION_AUTHORITY,
+        required_identity_bindings=(
+            "session",
+            "run",
+            "snapshot",
+            "checkpoint",
+            "work",
+            "attempt",
+            "owner",
+            "owner_generation",
+            "head_generation",
+        ),
     ),
     ContractRequirement(
-        "lane_c.durability_receipt", "qitos.durability_receipt/v1"
+        "lane_a.session_lifecycle",
+        "lane_a",
+        "session lifecycle and safe-transition fixture",
+        "The durable session lifecycle is not established.",
+        "Lane A must publish lifecycle transitions, terminal states, and typed invalid transitions.",
+        None,
+        qualification_authority=S1_QUALIFICATION_AUTHORITY,
     ),
-    ContractRequirement("lane_c.hook_failure_fields", None),
-    ContractRequirement("lane_c.trace_safe_redaction_contract", None),
+    ContractRequirement(
+        "lane_a.session_snapshot",
+        "lane_a",
+        "SessionSnapshot envelope fixture",
+        "The immutable session snapshot envelope is not established.",
+        "Lane A must publish the snapshot envelope with component ownership and compatibility evidence.",
+        None,
+        qualification_authority=S1_QUALIFICATION_AUTHORITY,
+        requires_lineage_evidence=True,
+    ),
+    ContractRequirement(
+        "lane_a.session_head_generation",
+        "lane_a",
+        "session head and generation conflict fixture",
+        "The authoritative head and generation rules are not established.",
+        "Lane A must publish expected-generation commit, stale-owner rejection, and last-safe-snapshot facts.",
+        None,
+        qualification_authority=S1_QUALIFICATION_AUTHORITY,
+        required_identity_bindings=("session", "head_generation"),
+    ),
+    ContractRequirement(
+        "lane_a.resolver_reference",
+        "lane_a",
+        "resolver reference fixture",
+        "Process-independent resolver references are not established.",
+        "Lane A must publish typed resolver references and missing/mismatch failure evidence without secrets or live objects.",
+        None,
+        qualification_authority=S1_QUALIFICATION_AUTHORITY,
+    ),
+    ContractRequirement(
+        "lane_b.request_view",
+        "lane_b",
+        "RequestView fixture",
+        "The provider-facing request projection is not established.",
+        "Lane B must publish a versioned RequestView fixture with selection and loss facts.",
+        None,
+        qualification_authority=S1_QUALIFICATION_AUTHORITY,
+    ),
+    ContractRequirement(
+        "lane_b.provider_codec",
+        "lane_b",
+        "provider transport/API-mode codec fixture",
+        "Provider codec capability facts are not established.",
+        "Lane B must publish transport/API-mode capability and typed failure evidence.",
+        None,
+        qualification_authority=S1_QUALIFICATION_AUTHORITY,
+    ),
+    ContractRequirement(
+        "lane_b.codec_report",
+        "lane_b",
+        "CodecReport fixture",
+        "Codec fidelity and loss reporting are not established.",
+        "Lane B must publish a versioned CodecReport with input/output identity and declared loss.",
+        None,
+        qualification_authority=S1_QUALIFICATION_AUTHORITY,
+    ),
+    ContractRequirement(
+        "lane_b.steering",
+        "lane_b",
+        "queued steering and consume-once fixture",
+        "Queued steering lineage is not established.",
+        "Lane B must publish accepted, queued, applied-once, and restore behavior at an explicit safe boundary.",
+        None,
+        qualification_authority=S1_QUALIFICATION_AUTHORITY,
+        requires_lineage_evidence=True,
+    ),
+    ContractRequirement(
+        "lane_b.provider_continuation",
+        "lane_b",
+        "opaque provider continuation fixture",
+        "Opaque provider continuation policy is not established.",
+        "Lane B must publish storage, replay, display prohibition, and unsupported-transfer evidence.",
+        None,
+        qualification_authority=S1_QUALIFICATION_AUTHORITY,
+    ),
+    ContractRequirement(
+        "lane_b.context_artifact_snapshot",
+        "lane_b",
+        "context, compaction, and ArtifactRef snapshot component",
+        "Context/artifact snapshot facts are not established.",
+        "Lane B must publish referenced context/artifact components, loss facts, and missing/corrupt behavior.",
+        None,
+        qualification_authority=S1_QUALIFICATION_AUTHORITY,
+    ),
+    ContractRequirement(
+        "lane_c.effect_recovery",
+        "lane_c",
+        "attempt/effect/recovery fixture",
+        "Effect and recovery truth is not established.",
+        "Lane C must publish attempt identity, idempotency, effect states, reconciliation, and outcome-unknown evidence.",
+        None,
+        qualification_authority=S1_QUALIFICATION_AUTHORITY,
+        required_identity_bindings=("work", "attempt"),
+    ),
+    ContractRequirement(
+        "lane_c.safe_boundary_matrix",
+        "lane_c",
+        "resource safe-boundary and quiescence matrix",
+        "Resource quiescence rules are not established.",
+        "Lane C must publish safe/unsafe pause conditions for model, thread, process, client, durability, and partial-batch work.",
+        None,
+        qualification_authority=S1_QUALIFICATION_AUTHORITY,
+    ),
+    ContractRequirement(
+        "lane_c.work_graph",
+        "lane_c",
+        "WorkGraph lineage fixture",
+        "The durable work graph is not established.",
+        "Lane C must publish explicit work items, parent/child edges, fan-out groups, join dependencies, and outcome references.",
+        None,
+        qualification_authority=S1_QUALIFICATION_AUTHORITY,
+        required_identity_bindings=("work", "parent_work", "owner"),
+        requires_lineage_evidence=True,
+    ),
+    ContractRequirement(
+        "lane_c.ownership_generation",
+        "lane_c",
+        "ownership generation and transfer fixture",
+        "Single-owner generation rules are not established.",
+        "Lane C must publish transfer, expected generation, current owner, and stale-owner rejection evidence.",
+        None,
+        qualification_authority=S1_QUALIFICATION_AUTHORITY,
+        required_identity_bindings=("work", "owner", "owner_generation"),
+        requires_lineage_evidence=True,
+    ),
+    ContractRequirement(
+        "lane_c.operation_semantics",
+        "lane_c",
+        "handoff/delegate/fan-out/spawn/fork/steer operation fixture",
+        "Multi-agent operation distinctions are not established.",
+        "Lane C must publish distinct operation, cancellation, detachment, budget, capability, and join semantics.",
+        None,
+        qualification_authority=S1_QUALIFICATION_AUTHORITY,
+        requires_lineage_evidence=True,
+    ),
+    ContractRequirement(
+        "lane_c.late_stale_result_behavior",
+        "lane_c",
+        "late result and stale owner rejection fixture",
+        "Late/stale result behavior is not established.",
+        "Lane C must publish generation-checked rejection, uncertainty, and no-head-mutation evidence.",
+        None,
+        qualification_authority=S1_QUALIFICATION_AUTHORITY,
+        required_identity_bindings=(
+            "work",
+            "attempt",
+            "owner_generation",
+            "head_generation",
+        ),
+        requires_lineage_evidence=True,
+    ),
 )
 
 PLANNED_MEASUREMENTS = [
@@ -142,6 +359,16 @@ _POSIX_HOST_PATH_RE = re.compile(
 _LOCAL_ENDPOINT_RE = re.compile(
     r"(?:https?|ssh)://(?:localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0|"
     r"\[?::1\]?|(?:\d{1,3}\.){3}\d{1,3})(?::\d+)?",
+    re.IGNORECASE,
+)
+_SENSITIVE_KEY_RE = re.compile(
+    r"(?:^|[_-])(?:api[_-]?key|authorization|cookie|credential|header|password|"
+    r"raw[_-]?provider[_-]?payload|secret|token)(?:$|[_-])",
+    re.IGNORECASE,
+)
+_SECRET_VALUE_RE = re.compile(
+    r"(?:bearer\s+[A-Za-z0-9._~+/=-]{8,}|sk-[A-Za-z0-9_-]{8,}|"
+    r"(?:api[_-]?key|password|secret|token)\s*[:=]\s*\S+)",
     re.IGNORECASE,
 )
 
@@ -209,8 +436,9 @@ def _strings(value: Any, field: str = "$") -> Iterable[Tuple[str, str]]:
     if isinstance(value, str):
         yield field, value
     elif isinstance(value, Mapping):
-        for key in sorted(value, key=lambda item: str(item)):
-            yield from _strings(value[key], f"{field}.{key}")
+        for index, key in enumerate(sorted(value, key=lambda item: str(item))):
+            # Never place an inspected mapping key into a public finding path.
+            yield from _strings(value[key], f"{field}.mapping[{index}]")
     elif isinstance(value, list):
         for index, item in enumerate(value):
             yield from _strings(item, f"{field}[{index}]")
@@ -224,6 +452,36 @@ def portability_diagnostics(value: Any, subject: str) -> List[Diagnostic]:
             for code in portability_finding_codes(text)
         )
     return findings
+
+
+def privacy_diagnostics(value: Any, subject: str) -> List[Diagnostic]:
+    """Return typed privacy findings without echoing keys or scalar values."""
+
+    findings: List[Diagnostic] = []
+
+    def visit(item: Any, field: str) -> None:
+        if isinstance(item, Mapping):
+            for index, key in enumerate(sorted(item, key=lambda raw: str(raw))):
+                child = f"{field}.mapping[{index}]"
+                token = str(key)
+                if _SENSITIVE_KEY_RE.search(token):
+                    code = (
+                        "raw_provider_payload"
+                        if "provider" in token.lower() and "payload" in token.lower()
+                        else "sensitive_key"
+                    )
+                    findings.append(_diag("privacy", code, subject, child))
+                visit(item[key], child)
+            return
+        if isinstance(item, list):
+            for index, child in enumerate(item):
+                visit(child, f"{field}[{index}]")
+            return
+        if isinstance(item, str) and _SECRET_VALUE_RE.search(item):
+            findings.append(_diag("privacy", "secret_value", subject, field))
+
+    visit(value, "$")
+    return sorted(findings, key=_diag_key)
 
 
 def _object(
@@ -243,8 +501,8 @@ def _object(
         for key in sorted(required - keys)
     )
     diagnostics.extend(
-        _diag("manifest_schema", "unexpected_field", subject, f"{field}.{key}")
-        for key in sorted(keys - required - optional)
+        _diag("manifest_schema", "unexpected_field", subject, f"{field}.<unknown>")
+        for _key in sorted(keys - required - optional)
     )
     return value
 
@@ -913,7 +1171,7 @@ def _validate_producer_evidence(
     }
     if not isinstance(evidence, Mapping):
         return [_diag("contract_receipt", "producer_evidence_not_object", subject)]
-    return [
+    findings = [
         _diag(
             "contract_receipt",
             "producer_evidence_mismatch",
@@ -923,6 +1181,40 @@ def _validate_producer_evidence(
         for field, expected_value in expected.items()
         if evidence.get(field) != expected_value
     ]
+    findings.extend(portability_diagnostics(evidence, subject))
+    findings.extend(privacy_diagnostics(evidence, subject))
+
+    if requirement.required_identity_bindings:
+        bindings = evidence.get("identity_bindings")
+        if not isinstance(bindings, Mapping) or not bindings:
+            findings.append(
+                _diag("contract_receipt", "conflicting_identities", subject)
+            )
+        else:
+            missing = set(requirement.required_identity_bindings) - set(bindings)
+            values = [str(value).strip() for value in bindings.values()]
+            if (
+                missing
+                or any(not value for value in values)
+                or len(values) != len(set(values))
+            ):
+                findings.append(
+                    _diag("contract_receipt", "conflicting_identities", subject)
+                )
+
+    if requirement.requires_lineage_evidence:
+        lineage = evidence.get("lineage_evidence")
+        if not isinstance(lineage, Mapping):
+            findings.append(_diag("contract_receipt", "missing_lineage", subject))
+        elif (
+            lineage.get("status") != "explicit"
+            or lineage.get("edge_source") != "producer_fact"
+        ):
+            findings.append(_diag("contract_receipt", "missing_lineage", subject))
+        elif lineage.get("inferred") is not False:
+            findings.append(_diag("contract_receipt", "inferred_edge", subject))
+
+    return findings
 
 
 def validate_contract_receipts(
@@ -961,7 +1253,14 @@ def validate_contract_receipts(
             out.append(_diag("contract_receipt", "receipt_required_field_missing", subject, field))
             valid = False
         for field in sorted(keys - required):
-            out.append(_diag("contract_receipt", "receipt_unexpected_field", subject, field))
+            out.append(
+                _diag(
+                    "contract_receipt",
+                    "receipt_unexpected_field",
+                    subject,
+                    "<unknown>",
+                )
+            )
             valid = False
         for field in (
             "contract_id",
@@ -995,24 +1294,45 @@ def validate_contract_receipts(
             valid = False
         portability = portability_diagnostics(receipt, subject)
         out.extend(portability)
-        valid = valid and not portability
+        privacy = privacy_diagnostics(receipt, subject)
+        out.extend(privacy)
+        valid = valid and not portability and not privacy
         contract_id = receipt.get("contract_id")
         if _nonempty(contract_id):
             by_id.setdefault(str(contract_id), []).append((receipt, valid))
             if contract_id not in requirements:
-                out.append(_diag("contract_receipt", "unknown_contract_receipt", str(contract_id)))
+                out.append(
+                    _diag(
+                        "contract_receipt",
+                        "unknown_contract_receipt",
+                        subject,
+                    )
+                )
 
     duplicate_ids = {key for key, values in by_id.items() if len(values) > 1}
     out.extend(
-        _diag("contract_receipt", "duplicate_contract_receipt", contract_id)
+        _diag(
+            "contract_receipt",
+            "duplicate_contract_receipt",
+            contract_id if contract_id in requirements else "contract-receipt",
+        )
         for contract_id in sorted(duplicate_ids)
     )
     qualified = []
     for requirement in CONTRACT_REQUIREMENTS:
         values = by_id.get(requirement.contract_id, [])
         if not values:
+            missing_code = (
+                "producer_version_unestablished"
+                if requirement.expected_version is None
+                else (
+                    "exact_fixture_unavailable"
+                    if not requirement.producer_binding_complete
+                    else "contract_receipt_missing"
+                )
+            )
             out.append(
-                _diag("contract_receipt", "contract_receipt_missing", requirement.contract_id)
+                _diag("contract_receipt", missing_code, requirement.contract_id)
             )
             continue
         if requirement.contract_id in duplicate_ids:
@@ -1024,7 +1344,11 @@ def validate_contract_receipts(
             )
         elif requirement.expected_version is None:
             out.append(
-                _diag("contract_receipt", "contract_version_unestablished", requirement.contract_id)
+                _diag(
+                    "contract_receipt",
+                    "producer_version_unestablished",
+                    requirement.contract_id,
+                )
             )
         elif receipt.get("version") != requirement.expected_version:
             out.append(
@@ -1053,6 +1377,26 @@ def validate_contract_receipts(
                         "contract_receipt",
                         "qualification_authority_not_approved",
                         requirement.contract_id,
+                    )
+                )
+            if receipt.get("fixture_sha256") != requirement.fixture_sha256:
+                receipt_findings.append(
+                    _diag(
+                        "contract_receipt",
+                        "producer_digest_mismatch",
+                        requirement.contract_id,
+                        "fixture_sha256",
+                    )
+                )
+            if receipt.get("qualification_evidence_sha256") != (
+                requirement.qualification_evidence_sha256
+            ):
+                receipt_findings.append(
+                    _diag(
+                        "contract_receipt",
+                        "producer_digest_mismatch",
+                        requirement.contract_id,
+                        "qualification_evidence_sha256",
                     )
                 )
             if not receipt_findings and not _commit_exists(repo_root, commit):
@@ -1108,10 +1452,18 @@ def _load_receipts(path: Optional[Path]) -> Tuple[List[Mapping[str, Any]], List[
         return [], [_diag("contract_receipt", "malformed_receipt_set", subject)]
     if not isinstance(raw, Mapping):
         return [], [_diag("contract_receipt", "receipt_set_not_object", subject)]
-    if set(raw) != {"receipt_version", "receipts"}:
+    stable_shape = {"receipt_type", "schema_version", "receipts"}
+    compatibility_shape = {"receipt_version", "receipts"}
+    if set(raw) == stable_shape:
+        if raw.get("receipt_type") != RECEIPT_SET_TYPE:
+            return [], [_diag("contract_receipt", "unsupported_receipt_set_type", subject)]
+        if raw.get("schema_version") != RECEIPT_SET_SCHEMA_VERSION:
+            return [], [_diag("contract_receipt", "unsupported_receipt_set_schema", subject)]
+    elif set(raw) == compatibility_shape:
+        if raw.get("receipt_version") != COMPAT_RECEIPT_SET_VERSION:
+            return [], [_diag("contract_receipt", "unsupported_receipt_set_schema", subject)]
+    else:
         return [], [_diag("contract_receipt", "receipt_set_shape_invalid", subject)]
-    if raw.get("receipt_version") != RECEIPT_SET_VERSION:
-        return [], [_diag("contract_receipt", "unsupported_receipt_set_version", subject)]
     if not isinstance(raw.get("receipts"), list):
         return [], [_diag("contract_receipt", "receipt_list_required", subject)]
     return raw["receipts"], []
@@ -1124,11 +1476,135 @@ def _safe_fixture_set_id(value: str) -> Tuple[str, List[Diagnostic]]:
     return (value, []) if not out else ("invalid-fixture-set", out)
 
 
+_GLOBAL_BLOCKERS = (
+    (
+        "trajectory_schema_not_ready",
+        "The canonical Trajectory record schema is not frozen.",
+        "Accept A, C, then B producer contracts and qualify runtime behavior before schema review.",
+        "reviewed A/B/C lineage fixtures and G2 behavior evidence",
+    ),
+    (
+        "canonical_trajectory_writer_missing",
+        "No authoritative Trajectory writer exists.",
+        "Implement one writer only after the schema and migration gates are accepted.",
+        "canonical writer parity evidence",
+    ),
+    (
+        "trajectory_store_benchmark_missing",
+        "No TrajectoryStore benchmark has run.",
+        "Run the committed benchmark only after representative fixtures and a store exist.",
+        "representative benchmark receipt",
+    ),
+    (
+        "consumer_not_qualified",
+        "Receipt presence does not prove runtime lineage behavior.",
+        "Qualify pause/restore/fork, stale-owner, late-result, and work-graph behavior in runtime consumers.",
+        "runtime behavior qualification evidence",
+    ),
+    (
+        "publication_claim_unavailable",
+        "Publication readiness is not established.",
+        "Qualify license, sanitization, loss, portability, and public projection evidence.",
+        "publication qualification receipt",
+    ),
+    (
+        "compression_claim_unavailable",
+        "No compression claim is supported.",
+        "Measure representative fixtures after the canonical store exists.",
+        "measured compression comparison",
+    ),
+    (
+        "deduplication_claim_unavailable",
+        "No deduplication claim is supported.",
+        "Measure referenced and unique bytes with the committed benchmark protocol.",
+        "measured deduplication report",
+    ),
+    (
+        "performance_claim_unavailable",
+        "No performance claim is supported.",
+        "Measure write, read, replay, and query workloads on both representative sources.",
+        "measured performance report",
+    ),
+    (
+        "qita_migration_not_qualified",
+        "qita migration is not qualified.",
+        "Preserve trace compatibility until reader parity and lineage navigation pass.",
+        "qita compatibility and navigation evidence",
+    ),
+)
+
+
+def _qualification_state(code: str) -> str:
+    if code in {
+        "producer_version_unestablished",
+        "exact_fixture_unavailable",
+        "contract_receipt_missing",
+    }:
+        return "blocked"
+    if code.endswith("_unavailable") or code.endswith("_missing"):
+        return "blocked"
+    if code in {"trajectory_schema_not_ready", "consumer_not_qualified"}:
+        return "blocked"
+    return "rejected"
+
+
+def _enrich_blocker(
+    item: Mapping[str, str],
+    requirements: Mapping[str, ContractRequirement],
+) -> Dict[str, str]:
+    result = dict(item)
+    requirement = requirements.get(str(item.get("subject", "")))
+    if requirement is not None:
+        result.update(
+            {
+                "owner": requirement.owner,
+                "short_message": requirement.short_message,
+                "remediation": requirement.remediation,
+                "required_artifact": requirement.required_artifact,
+            }
+        )
+    else:
+        code = str(item.get("code", ""))
+        global_item = next((entry for entry in _GLOBAL_BLOCKERS if entry[0] == code), None)
+        if global_item is not None:
+            result.update(
+                {
+                    "owner": "lane_d",
+                    "short_message": global_item[1],
+                    "remediation": global_item[2],
+                    "required_artifact": global_item[3],
+                }
+            )
+        elif item.get("category") in {"publication", "manifest_schema", "manifest_identity"}:
+            result.update(
+                {
+                    "owner": "lane_d",
+                    "short_message": "Representative fixture evidence is not qualified.",
+                    "remediation": "Repair the named fixture evidence without exposing rejected values.",
+                    "required_artifact": "portable fixture manifest and qualification evidence",
+                }
+            )
+        else:
+            result.update(
+                {
+                    "owner": "lane_d",
+                    "short_message": "Readiness evidence was rejected.",
+                    "remediation": "Correct the typed finding and rerun the readiness gate.",
+                    "required_artifact": "valid portable readiness evidence",
+                }
+            )
+    result["current_qualification_state"] = _qualification_state(
+        str(item.get("code", ""))
+    )
+    return result
+
+
 def build_readiness_result(
     fixture_root: Path,
     dry_run: bool,
     *,
     fixture_set_id: str = DEFAULT_FIXTURE_SET_ID,
+    repository_root: Optional[Path] = None,
     contract_receipts: Optional[
         Sequence[Mapping[str, Any]] | Mapping[str, Mapping[str, Any]]
     ] = None,
@@ -1137,13 +1613,21 @@ def build_readiness_result(
     """Return deterministic typed blockers without exposing local paths."""
     safe_id, id_findings = _safe_fixture_set_id(fixture_set_id)
     records, root_findings = load_fixture_manifests(fixture_root)
-    qualified_contracts, contract_findings = validate_contract_receipts(contract_receipts)
+    qualified_contracts, contract_findings = validate_contract_receipts(
+        contract_receipts,
+        repository_root=repository_root,
+    )
     blockers = list(id_findings) + list(root_findings) + list(contract_findings)
     for record in records:
         blockers.extend(record.diagnostics)
     blockers.extend(extra_diagnostics or [])
-    blockers.append(_diag("schema_state", "trajectory_v2_schema_not_frozen", "trajectory-v2"))
+    blockers.extend(
+        _diag("readiness_gate", code, "trajectory")
+        for code, _message, _remediation, _artifact in _GLOBAL_BLOCKERS
+    )
     blockers = sorted(blockers, key=_diag_key)
+    requirements = {item.contract_id: item for item in CONTRACT_REQUIREMENTS}
+    public_blockers = [_enrich_blocker(item, requirements) for item in blockers]
     counts: Dict[str, int] = {}
     for item in blockers:
         counts[item["category"]] = counts.get(item["category"], 0) + 1
@@ -1162,11 +1646,15 @@ def build_readiness_result(
         if not any(item["category"] in blocking for item in record.diagnostics):
             publication_qualified += 1
     result = {
-        "result_version": RESULT_VERSION,
+        "result_type": RESULT_TYPE,
+        "schema_version": RESULT_SCHEMA_VERSION,
         "status": "schema_not_ready",
         "reason_code": "TRAJECTORY_SCHEMA_NOT_READY",
         "dry_run": dry_run,
-        "trajectory_v2_schema_frozen": False,
+        "trajectory_schema_frozen": False,
+        "canonical_writer_available": False,
+        "store_benchmark_available": False,
+        "qita_migration_qualified": False,
         "fixture_set_id": safe_id,
         "fixture_manifests_found": len(records),
         "source_classes": source_classes,
@@ -1182,25 +1670,56 @@ def build_readiness_result(
         "required_contracts": [
             {
                 "contract_id": item.contract_id,
-                "expected_version": item.expected_version,
-                "qualified": item.contract_id in qualified_contracts,
+                "owner": item.owner,
+                "producer_commit": item.producer_source_commit,
+                "fixture_path": item.fixture_path,
+                "evidence_path": item.qualification_evidence_path,
+                "schema_version": item.expected_version,
+                "fixture_digest": item.fixture_sha256,
+                "evidence_digest": item.qualification_evidence_sha256,
+                "authority": item.qualification_authority,
+                "compatibility_status": item.compatibility_status,
+                "runtime_behavior_required": item.runtime_behavior_required,
+                "required_artifact": item.required_artifact,
+                "short_message": item.short_message,
+                "remediation": item.remediation,
+                "current_qualification_state": (
+                    "qualified"
+                    if item.contract_id in qualified_contracts
+                    else (
+                        "producer_version_unestablished"
+                        if item.expected_version is None
+                        else (
+                            "exact_fixture_unavailable"
+                            if not item.producer_binding_complete
+                            else "receipt_missing_or_rejected"
+                        )
+                    )
+                ),
             }
             for item in sorted(CONTRACT_REQUIREMENTS, key=lambda item: item.contract_id)
         ],
         "qualified_contract_ids": qualified_contracts,
         "blocker_categories": {key: counts[key] for key in sorted(counts)},
-        "blockers": blockers,
+        "blockers": public_blockers,
         "planned_measurements": PLANNED_MEASUREMENTS,
         "planned_views": PLANNED_VIEWS,
         "measurements": [],
         "claims": [],
     }
     output_findings = portability_diagnostics(result, "readiness-output")
+    output_findings.extend(privacy_diagnostics(result, "readiness-output"))
     if output_findings:
-        result["blockers"] = sorted(blockers + output_findings, key=_diag_key)
-        result["blocker_categories"]["portability"] = (
-            result["blocker_categories"].get("portability", 0) + len(output_findings)
+        enriched = [_enrich_blocker(item, requirements) for item in output_findings]
+        result["blockers"] = sorted(
+            public_blockers + enriched,
+            key=lambda item: _diag_key(item),
         )
+        for finding in output_findings:
+            category = finding["category"]
+            result["blocker_categories"][category] = (
+                result["blocker_categories"].get(category, 0) + 1
+            )
         result["blocker_categories"] = {
             key: result["blocker_categories"][key]
             for key in sorted(result["blocker_categories"])
