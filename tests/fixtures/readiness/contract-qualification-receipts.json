@@ -23,6 +23,193 @@
       "qualification_evidence_path": "tests/fixtures/tool_results/v1/qualification-evidence.json",
       "qualification_evidence_sha256": "96b0e641ccca7e049a90658496a19964217aa7c359a29c6b6e6b345fb7cf99f5",
       "qualification_authority": "qitos.g1.integration_owner/v1"
+    },
+    {
+      "contract_id": "lane_a.identity_vocabulary",
+      "producer_contract_id": "qitos.session_contract_bundle",
+      "version": "qitos.session_contract_bundle/v2",
+      "producer_source_commit": "58864253a169d1bac5749ad2b2de5de6872c0da2",
+      "fixture_path": "tests/fixtures/session/fixture-manifest.json",
+      "fixture_sha256": "952dc20f3c412830ef1f18fe73805cc6d8e04ecc28d89e4991883c983a983466",
+      "qualification_evidence_path": "tests/fixtures/session/qualification-evidence.json",
+      "qualification_evidence_sha256": "7a7dfd831a4da4d45c2645d47404da8827f60aa498b92d9d98d92570cfe28834",
+      "qualification_authority": "qitos.s1.integration_owner/v1"
+    },
+    {
+      "contract_id": "lane_a.session_lifecycle",
+      "producer_contract_id": "qitos.session_contract_bundle",
+      "version": "qitos.session_contract_bundle/v2",
+      "producer_source_commit": "58864253a169d1bac5749ad2b2de5de6872c0da2",
+      "fixture_path": "tests/fixtures/session/fixture-manifest.json",
+      "fixture_sha256": "952dc20f3c412830ef1f18fe73805cc6d8e04ecc28d89e4991883c983a983466",
+      "qualification_evidence_path": "tests/fixtures/session/qualification-evidence.json",
+      "qualification_evidence_sha256": "7a7dfd831a4da4d45c2645d47404da8827f60aa498b92d9d98d92570cfe28834",
+      "qualification_authority": "qitos.s1.integration_owner/v1"
+    },
+    {
+      "contract_id": "lane_a.session_snapshot",
+      "producer_contract_id": "qitos.session_contract_bundle",
+      "version": "qitos.session_contract_bundle/v2",
+      "producer_source_commit": "58864253a169d1bac5749ad2b2de5de6872c0da2",
+      "fixture_path": "tests/fixtures/session/fixture-manifest.json",
+      "fixture_sha256": "952dc20f3c412830ef1f18fe73805cc6d8e04ecc28d89e4991883c983a983466",
+      "qualification_evidence_path": "tests/fixtures/session/qualification-evidence.json",
+      "qualification_evidence_sha256": "7a7dfd831a4da4d45c2645d47404da8827f60aa498b92d9d98d92570cfe28834",
+      "qualification_authority": "qitos.s1.integration_owner/v1"
+    },
+    {
+      "contract_id": "lane_a.session_head_generation",
+      "producer_contract_id": "qitos.session_contract_bundle",
+      "version": "qitos.session_contract_bundle/v2",
+      "producer_source_commit": "58864253a169d1bac5749ad2b2de5de6872c0da2",
+      "fixture_path": "tests/fixtures/session/fixture-manifest.json",
+      "fixture_sha256": "952dc20f3c412830ef1f18fe73805cc6d8e04ecc28d89e4991883c983a983466",
+      "qualification_evidence_path": "tests/fixtures/session/qualification-evidence.json",
+      "qualification_evidence_sha256": "7a7dfd831a4da4d45c2645d47404da8827f60aa498b92d9d98d92570cfe28834",
+      "qualification_authority": "qitos.s1.integration_owner/v1"
+    },
+    {
+      "contract_id": "lane_a.resolver_reference",
+      "producer_contract_id": "qitos.session_contract_bundle",
+      "version": "qitos.session_contract_bundle/v2",
+      "producer_source_commit": "58864253a169d1bac5749ad2b2de5de6872c0da2",
+      "fixture_path": "tests/fixtures/session/fixture-manifest.json",
+      "fixture_sha256": "952dc20f3c412830ef1f18fe73805cc6d8e04ecc28d89e4991883c983a983466",
+      "qualification_evidence_path": "tests/fixtures/session/qualification-evidence.json",
+      "qualification_evidence_sha256": "7a7dfd831a4da4d45c2645d47404da8827f60aa498b92d9d98d92570cfe28834",
+      "qualification_authority": "qitos.s1.integration_owner/v1"
+    },
+    {
+      "contract_id": "lane_b.request_view",
+      "producer_contract_id": "qitos.request_contract_bundle",
+      "version": "qitos.request_contract_bundle/v1",
+      "producer_source_commit": "3cc29bea2bd311a2343862fd0b4f32636524bbb6",
+      "fixture_path": "tests/fixtures/conversation/request_contracts.json",
+      "fixture_sha256": "a42f6c8ede18acf408348b9f38d657095cbe32bd4613659c46258eb18eedc637",
+      "qualification_evidence_path": "tests/fixtures/conversation/request-contracts-evidence.json",
+      "qualification_evidence_sha256": "a72bc8d8627854b2b805a2e8ca762daaf0f50dc10b95b0af64bbd4a5399a04b1",
+      "qualification_authority": "qitos.s1.integration_owner/v1"
+    },
+    {
+      "contract_id": "lane_b.provider_codec",
+      "producer_contract_id": "qitos.request_contract_bundle",
+      "version": "qitos.request_contract_bundle/v1",
+      "producer_source_commit": "3cc29bea2bd311a2343862fd0b4f32636524bbb6",
+      "fixture_path": "tests/fixtures/conversation/request_contracts.json",
+      "fixture_sha256": "a42f6c8ede18acf408348b9f38d657095cbe32bd4613659c46258eb18eedc637",
+      "qualification_evidence_path": "tests/fixtures/conversation/request-contracts-evidence.json",
+      "qualification_evidence_sha256": "a72bc8d8627854b2b805a2e8ca762daaf0f50dc10b95b0af64bbd4a5399a04b1",
+      "qualification_authority": "qitos.s1.integration_owner/v1"
+    },
+    {
+      "contract_id": "lane_b.codec_report",
+      "producer_contract_id": "qitos.request_contract_bundle",
+      "version": "qitos.request_contract_bundle/v1",
+      "producer_source_commit": "3cc29bea2bd311a2343862fd0b4f32636524bbb6",
+      "fixture_path": "tests/fixtures/conversation/request_contracts.json",
+      "fixture_sha256": "a42f6c8ede18acf408348b9f38d657095cbe32bd4613659c46258eb18eedc637",
+      "qualification_evidence_path": "tests/fixtures/conversation/request-contracts-evidence.json",
+      "qualification_evidence_sha256": "a72bc8d8627854b2b805a2e8ca762daaf0f50dc10b95b0af64bbd4a5399a04b1",
+      "qualification_authority": "qitos.s1.integration_owner/v1"
+    },
+    {
+      "contract_id": "lane_b.steering",
+      "producer_contract_id": "qitos.request_contract_bundle",
+      "version": "qitos.request_contract_bundle/v1",
+      "producer_source_commit": "3cc29bea2bd311a2343862fd0b4f32636524bbb6",
+      "fixture_path": "tests/fixtures/conversation/request_contracts.json",
+      "fixture_sha256": "a42f6c8ede18acf408348b9f38d657095cbe32bd4613659c46258eb18eedc637",
+      "qualification_evidence_path": "tests/fixtures/conversation/request-contracts-evidence.json",
+      "qualification_evidence_sha256": "a72bc8d8627854b2b805a2e8ca762daaf0f50dc10b95b0af64bbd4a5399a04b1",
+      "qualification_authority": "qitos.s1.integration_owner/v1"
+    },
+    {
+      "contract_id": "lane_b.provider_continuation",
+      "producer_contract_id": "qitos.request_contract_bundle",
+      "version": "qitos.request_contract_bundle/v1",
+      "producer_source_commit": "3cc29bea2bd311a2343862fd0b4f32636524bbb6",
+      "fixture_path": "tests/fixtures/conversation/request_contracts.json",
+      "fixture_sha256": "a42f6c8ede18acf408348b9f38d657095cbe32bd4613659c46258eb18eedc637",
+      "qualification_evidence_path": "tests/fixtures/conversation/request-contracts-evidence.json",
+      "qualification_evidence_sha256": "a72bc8d8627854b2b805a2e8ca762daaf0f50dc10b95b0af64bbd4a5399a04b1",
+      "qualification_authority": "qitos.s1.integration_owner/v1"
+    },
+    {
+      "contract_id": "lane_b.context_artifact_snapshot",
+      "producer_contract_id": "qitos.request_contract_bundle",
+      "version": "qitos.request_contract_bundle/v1",
+      "producer_source_commit": "3cc29bea2bd311a2343862fd0b4f32636524bbb6",
+      "fixture_path": "tests/fixtures/conversation/request_contracts.json",
+      "fixture_sha256": "a42f6c8ede18acf408348b9f38d657095cbe32bd4613659c46258eb18eedc637",
+      "qualification_evidence_path": "tests/fixtures/conversation/request-contracts-evidence.json",
+      "qualification_evidence_sha256": "a72bc8d8627854b2b805a2e8ca762daaf0f50dc10b95b0af64bbd4a5399a04b1",
+      "qualification_authority": "qitos.s1.integration_owner/v1"
+    },
+    {
+      "contract_id": "lane_c.effect_recovery",
+      "producer_contract_id": "qitos.work_effect_contract_bundle",
+      "version": "qitos.work_effect_contract_bundle/v2",
+      "producer_source_commit": "bd7fca95e9ba9acfbbd9e8d0655a14ece066bcb6",
+      "fixture_path": "tests/fixtures/work_graph/g2-contract-manifest.json",
+      "fixture_sha256": "d1112ac60a359af4bf6ff2525621214cea6dc8e52f2a03a8e69254e930a89964",
+      "qualification_evidence_path": "tests/fixtures/work_graph/qualification-evidence.json",
+      "qualification_evidence_sha256": "9ddef7c73b18698e6c9ec69431448b8a63501ac4527a4e64e44ee9d35596e26d",
+      "qualification_authority": "qitos.s1.integration_owner/v1"
+    },
+    {
+      "contract_id": "lane_c.safe_boundary_matrix",
+      "producer_contract_id": "qitos.work_effect_contract_bundle",
+      "version": "qitos.work_effect_contract_bundle/v2",
+      "producer_source_commit": "bd7fca95e9ba9acfbbd9e8d0655a14ece066bcb6",
+      "fixture_path": "tests/fixtures/work_graph/g2-contract-manifest.json",
+      "fixture_sha256": "d1112ac60a359af4bf6ff2525621214cea6dc8e52f2a03a8e69254e930a89964",
+      "qualification_evidence_path": "tests/fixtures/work_graph/qualification-evidence.json",
+      "qualification_evidence_sha256": "9ddef7c73b18698e6c9ec69431448b8a63501ac4527a4e64e44ee9d35596e26d",
+      "qualification_authority": "qitos.s1.integration_owner/v1"
+    },
+    {
+      "contract_id": "lane_c.work_graph",
+      "producer_contract_id": "qitos.work_effect_contract_bundle",
+      "version": "qitos.work_effect_contract_bundle/v2",
+      "producer_source_commit": "bd7fca95e9ba9acfbbd9e8d0655a14ece066bcb6",
+      "fixture_path": "tests/fixtures/work_graph/g2-contract-manifest.json",
+      "fixture_sha256": "d1112ac60a359af4bf6ff2525621214cea6dc8e52f2a03a8e69254e930a89964",
+      "qualification_evidence_path": "tests/fixtures/work_graph/qualification-evidence.json",
+      "qualification_evidence_sha256": "9ddef7c73b18698e6c9ec69431448b8a63501ac4527a4e64e44ee9d35596e26d",
+      "qualification_authority": "qitos.s1.integration_owner/v1"
+    },
+    {
+      "contract_id": "lane_c.ownership_generation",
+      "producer_contract_id": "qitos.work_effect_contract_bundle",
+      "version": "qitos.work_effect_contract_bundle/v2",
+      "producer_source_commit": "bd7fca95e9ba9acfbbd9e8d0655a14ece066bcb6",
+      "fixture_path": "tests/fixtures/work_graph/g2-contract-manifest.json",
+      "fixture_sha256": "d1112ac60a359af4bf6ff2525621214cea6dc8e52f2a03a8e69254e930a89964",
+      "qualification_evidence_path": "tests/fixtures/work_graph/qualification-evidence.json",
+      "qualification_evidence_sha256": "9ddef7c73b18698e6c9ec69431448b8a63501ac4527a4e64e44ee9d35596e26d",
+      "qualification_authority": "qitos.s1.integration_owner/v1"
+    },
+    {
+      "contract_id": "lane_c.operation_semantics",
+      "producer_contract_id": "qitos.work_effect_contract_bundle",
+      "version": "qitos.work_effect_contract_bundle/v2",
+      "producer_source_commit": "bd7fca95e9ba9acfbbd9e8d0655a14ece066bcb6",
+      "fixture_path": "tests/fixtures/work_graph/g2-contract-manifest.json",
+      "fixture_sha256": "d1112ac60a359af4bf6ff2525621214cea6dc8e52f2a03a8e69254e930a89964",
+      "qualification_evidence_path": "tests/fixtures/work_graph/qualification-evidence.json",
+      "qualification_evidence_sha256": "9ddef7c73b18698e6c9ec69431448b8a63501ac4527a4e64e44ee9d35596e26d",
+      "qualification_authority": "qitos.s1.integration_owner/v1"
+    },
+    {
+      "contract_id": "lane_c.late_stale_result_behavior",
+      "producer_contract_id": "qitos.work_effect_contract_bundle",
+      "version": "qitos.work_effect_contract_bundle/v2",
+      "producer_source_commit": "bd7fca95e9ba9acfbbd9e8d0655a14ece066bcb6",
+      "fixture_path": "tests/fixtures/work_graph/g2-contract-manifest.json",
+      "fixture_sha256": "d1112ac60a359af4bf6ff2525621214cea6dc8e52f2a03a8e69254e930a89964",
+      "qualification_evidence_path": "tests/fixtures/work_graph/qualification-evidence.json",
+      "qualification_evidence_sha256": "9ddef7c73b18698e6c9ec69431448b8a63501ac4527a4e64e44ee9d35596e26d",
+      "qualification_authority": "qitos.s1.integration_owner/v1"
     }
   ]
 }
