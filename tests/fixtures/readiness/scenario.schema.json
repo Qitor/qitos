@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "qitos://trajectory-readiness-scenarios",
+  "title": "QitOS Trajectory readiness behavior scenarios",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "scenarios"],
+  "properties": {
+    "schema_version": {"const": "1"},
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "provided_lanes", "mutation", "expected_codes", "trajectory_ready"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+          "provided_lanes": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {"enum": ["a", "b", "c"]}
+          },
+          "mutation": {
+            "enum": [
+              "none",
+              "stale_producer",
+              "wrong_digest",
+              "conflicting_ownership",
+              "missing_lineage",
+              "late_without_generation",
+              "inferred_parent_edge",
+              "unknown_schema",
+              "exact_one",
+              "runtime_behavior_absent"
+            ]
+          },
+          "expected_codes": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"type": "string", "minLength": 1}
+          },
+          "trajectory_ready": {"const": false}
+        }
+      }
+    }
+  }
+}
