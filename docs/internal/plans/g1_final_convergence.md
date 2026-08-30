@@ -1,13 +1,15 @@
 # G1 final convergence plan
 
 Status: G1-R4 qualified; G1 closed on scalar-safe baseline
-Updated: 2026-08-29
+Updated: 2026-08-30
 Owner: G1 integration owner
 Branch: `codex/v4-g1-final-baseline`
 Worktree: `/Users/morinop/Desktop/WhitzardOS-g1-final`
 Fixed baseline: `a02ce05e9a364eb484ef339fe5cbd623910cf525`
 G1-R3 source: `acb491bd822baf6ca429e81639aadbde72a626f0`
 G1-R4 source: `6b5f293aa9f4c9a2e5e3190dd95b3ae8611d598e`
+Promoted and independently reviewed runtime baseline:
+`5ef8ab657f6452ae48c931beea79106e2cca34c6`
 
 ## Objective and scope guard
 
@@ -70,8 +72,26 @@ all S1 implementation remains blocked.
 - [x] Refresh D's exact C requirement/receipt and reject the old R3 receipt.
 - [x] Run adversarial, targeted, readiness, static, lint/type, and full gates.
 - [x] Reclose documentation; post-documentation gates remain the promotion gate.
-- [ ] Fast-forward G1-final, convergence, and official integration after exact
+- [x] Fast-forward G1-final, convergence, and official integration after exact
       clean identity rechecks; verify four clean worktrees share one HEAD.
+
+### G1-R4 independent acceptance audit
+
+The integration owner independently checked the implementation and promoted
+references on 2026-08-30. Official integration, convergence, G1-final, and R4
+were clean at `5ef8ab657f6452ae48c931beea79106e2cca34c6`. A dedicated scalar-role
+matrix confirmed that all forced-secret JSON scalar types redact while omitted
+counts retain their integer meaning; canonical persistence remained unchanged.
+The C fixture/evidence digests and D exact-producer receipt were recomputed from
+committed bytes.
+
+The independent gate set passed: 168 combined tests, full suite
+`1872 passed, 50 skipped`, the 399-finding static ratchet, stable flake8/mypy,
+tool-schema qualification, and all three readiness cases. Readiness remains
+honestly blocked outside B/C, with no trajectory-v2, publication, measurement,
+or performance claim. No new G1 blocker was found. This closes R4 review and
+authorizes only the four S1 contract packages from the final post-audit
+integration HEAD; no S1 runtime behavior was added by this audit.
 
 ## G1-R3 final projection closure
 

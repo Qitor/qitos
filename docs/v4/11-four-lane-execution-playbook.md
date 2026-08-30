@@ -1,16 +1,17 @@
 # v4 four-lane execution playbook
 
 Status: active dispatch specification
-Updated: 2026-08-29
+Updated: 2026-08-30
 Nature: orchestration document, not a fifth architecture or a new public API
 Source tasks: Tasks 02–05 and 08–13
 Baseline: Task 01 complete; exact current integration status lives in
 [`docs/progress.md`](../progress.md)
 
 Current dispatch state: G1-R4 closed C-P4 with a role-aware forced-secret scalar
-repair and exact B/C/D requalification. S1 has not been dispatched and may
-start only from the final promoted R4 baseline reported by the integration
-owner.
+repair and exact B/C/D requalification. An independent integration-owner audit
+confirmed promoted runtime baseline
+`5ef8ab657f6452ae48c931beea79106e2cca34c6`. S1 has not been dispatched; four
+contract-first packages are ready from the final post-audit integration HEAD.
 
 ---
 
@@ -45,7 +46,7 @@ The program has two lane maps separated by G1. This avoids rewriting the
 historical completion evidence while moving future capacity from audit work to
 researcher-visible runtime capabilities.
 
-### 2.1 G1 repair ownership (historical, plus current C-P3 repair)
+### 2.1 G1 repair ownership (historical)
 
 | Lane | Mission | Canonical tasks | Primary code ownership |
 |---|---|---|---|
@@ -946,10 +947,10 @@ fifth implementation. Its responsibilities are:
 
 | Lane | Current package | Branch/PR | Lease | Tests | Handoff produced | Blocker/decision | Gate status |
 |---|---|---|---|---|---|---|---|
-| A | A1/A2 + A-CI1 | `f145cbe` | quality gates | independently green | ratchet/workflow evidence | stand by | accepted candidate |
-| B | B1-R + B-C1/B-V1 | `2e46fc8` | ExchangeLog | 108 combined tests green | direct repaired C consumer | no runtime delta | accepted |
-| C | C1-R3 / C-P3 | `d50f41f` producer | ToolResult projection | adversarial and full gates green | collision-safe fixture/evidence | closed | accepted |
-| D | D1-R2 | `72d5d11` receipt refresh | readiness receipts | exact receipt gates green | exact B/C receipts | remaining dependencies typed blocked | accepted |
+| A | 12A session contracts | not created | session identity/snapshot | pending | identity vocabulary and snapshot envelope | owns shared identity vocabulary | ready for S1 |
+| B | 02B RequestView | not created | conversation/context | pending | RequestView, CodecReport, snapshot component | may draft; freeze waits for reviewed A producer | ready for S1 |
+| C | recovery/effects + 13A | not created | outcome/work graph | pending | quiescence and ownership fixtures | may draft; freeze waits for reviewed A producer | ready for S1 |
+| D | lineage intake | not created | readiness/evidence | pending | exact A/B/C receipt matrix | consumes reviewed A/B/C producers | ready for S1 |
 
 ### 10.2 Merge rule
 
@@ -968,23 +969,18 @@ Do not patch the producer's private fields in the consumer PR.
 
 ## 11. Immediate dispatch order
 
-G1-R3 completed the bounded repair sequence:
+G1-R4 is the accepted repair endpoint. It closed C-P3 and C-P4, requalified B
+without a runtime change, and bound D to C producer
+`9a0c5ed5d6c1c959ff277d3888f54c927be3e183` through receipt refresh
+`e41eb6ea68375b1064b30044e66ae58bcba67c67`. The independent integration-owner
+audit confirmed four clean references at runtime baseline
+`5ef8ab657f6452ae48c931beea79106e2cca34c6`, recomputed the committed digests,
+passed a fresh scalar-role probe, and reran targeted, readiness, ratchet,
+lint/type, tool-qualification, architecture/public-surface, and full-suite
+gates. G1 is closed.
 
-1. **Lane C / C1-R3:** recursively sanitized sensitive mapping keys in model and
-   trace views, replaced raw trace-safe omitted keys with an explicitly safe
-   representation, accounted for key/omitted losses, and added nested
-   adversarial regression tests. It did not start 03B–E, Task 09 behavior, or
-   Task 13 behavior.
-2. **Lane B / requalification only:** ExchangeLog's delegated projection
-   consumers passed without a B runtime change.
-3. **Lane D / receipt refresh:** the changed C fixture/evidence is bound to
-   producer `d50f41fb3b8190a953f9f37f278bf0b197af286b` by receipt refresh
-   `72d5d11bd924466aeff8282a5b0aa5ef8341de9e`.
-4. **Integration owner:** the adversarial, targeted, readiness, ratchet,
-   lint/type, full-suite, and documentation gates passed.
-
-G1 is closed again. The maintainer may dispatch these four S1 packages in
-parallel from the final exact baseline reported with this closure:
+The maintainer may now dispatch these four S1 packages in parallel from the one
+final post-audit integration HEAD reported with the dispatch:
 
 1. **Lane A / 12A:** session identity, lifecycle, safe-boundary, snapshot, and
    resolver ADR plus versioned fixtures; no runtime behavior yet.
@@ -997,6 +993,12 @@ parallel from the final exact baseline reported with this closure:
 
 These packages are deliberately contract-first and low-conflict. S2 behavior
 begins only after their versioned handoffs are reviewed.
+
+Concurrency does not transfer semantic ownership. All four lanes may begin
+census, ADR, fixture, and failing consumer-test work immediately. Lane A owns
+the identity vocabulary; B/C/D may draft provisional adapters but cannot freeze
+or qualify a cross-lane fixture until they consume A's reviewed producer commit.
+The preferred acceptance order remains A -> C -> B -> D.
 
 The detailed conditional S1 plan is
 [`docs/internal/plans/s1_contract_wave.md`](../internal/plans/s1_contract_wave.md).
@@ -1013,6 +1015,10 @@ are deliberately distinct; canonical data is unchanged. Targeted, readiness,
 ratchet, lint/type, and `1872 passed, 50 skipped` full-suite evidence closed G1.
 This authorizes only contract-first S1 dispatch from the final R4 SHA; it does
 not itself implement 02B, 03B-E, 05A, 12A, or 13A.
+
+The 2026-08-30 independent audit found no new blocker and confirmed the promoted
+runtime baseline. The dispatch source is the later post-audit integration HEAD
+that contains the synchronized ledger and plans, not a lane-local R4 commit.
 
 For direct dispatch, give each coding agent this entire playbook and state its
 single lane/package (for example, `Lane A / 12A`). The agent must follow the

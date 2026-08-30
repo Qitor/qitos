@@ -1,10 +1,10 @@
 # v4 integration progress
 
 Status: active integration ledger
-Updated: 2026-08-29
-Integration branch: `codex/v4-g1-convergence`
-G1-R4 source: `6b5f293aa9f4c9a2e5e3190dd95b3ae8611d598e`
-Current gate: **G1 CLOSED on the scalar-safe R4 baseline; S1 not dispatched**
+Updated: 2026-08-30
+Integration branch: `feat/campaign-absorption`
+Independently reviewed runtime baseline: `5ef8ab657f6452ae48c931beea79106e2cca34c6`
+Current gate: **G1 CLOSED; S1 contract lanes ready but not dispatched**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md)
 and [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md)
@@ -29,20 +29,22 @@ Maintain it with these rules:
 
 ## 2. Current decision
 
-The A -> C -> B -> D convergence tree has completed G1-R3 from exact source
-`acb491bd822baf6ca429e81639aadbde72a626f0`. C-P3 is closed by collision-safe
-sensitive-key projection, bounded trace-safe omitted data, and complete
-aggregate/per-field loss facts. B's ExchangeLog direct consumer passed without
-a runtime change, and D binds the changed C fixture/evidence to its exact
-producer commit. The pinned ratchet, stable flake8/mypy, targeted and
-adversarial contracts, readiness cases, architecture/public-surface gates,
-tool-schema qualification, and full suite passed.
+The A -> C -> B -> D convergence tree and the bounded G1-R3/R4 repairs are
+integrated at `5ef8ab657f6452ae48c931beea79106e2cca34c6`. C-P3 collision-safe key
+projection and C-P4 role-aware scalar projection are both closed. Secret-bearing
+content redacts every JSON scalar leaf, trace-safe omitted data preserves only
+validated counts, canonical persistence remains lossless, B delegates directly
+to C, and D binds the exact current C producer artifacts.
 
-An independent scalar audit has since reopened G1 on `C-P4`. Sensitive mapping
-keys correctly enter forced-secret context, but numeric, boolean, and null leaf
-values can remain visible because the scalar base case returns them unchanged.
-S1 dispatch is blocked until content and omitted-count roles are separated, B/D
-are requalified, and the full R4 matrix passes. No S1 branch exists.
+The integration owner independently re-audited the promoted R4 tree on
+2026-08-30. The scalar role matrix, committed digests, receipt identity, 168
+combined tests, `1872 passed, 50 skipped` full suite, 399-finding ratchet,
+stable flake8/mypy, tool qualification, architecture/public-surface checks, and
+all three readiness modes passed. No new G1 blocker was reproduced.
+
+Gate G1 is therefore **closed**. S1 is authorized as four contract-first lanes
+from the final post-audit dispatch HEAD reported by the integration owner. No
+S1 branch or Task 02B/03/05/12/13 behavior exists yet.
 
 The convergence report's provenance wording is also corrected: all 26 reviewed
 source commits were applied by ordered cherry-pick, but the original source SHAs
@@ -62,9 +64,9 @@ checkpoint-backed session truth and one generation-checked work graph.
 | Lane | Integrated fixing HEAD | Package | Integration disposition | Next package |
 |---|---|---|---|---|
 | A | `f145cbe2df5f74418c9ccaae2f0a5cf5555b8daf` | A1/A2 + A-CI1 | Accepted in convergence tree | Stand by; retain cross-lane gates |
-| B | `2e46fc8e0228af42d6eaeaa6a665ffe5998c0bd5` | B1-R + B-C1/B-V1 | Accepted; 108-test direct C consumer green with no runtime delta | Task 02B contract package authorized from final baseline |
-| C | `d50f41fb3b8190a953f9f37f278bf0b197af286b` | C1-R3 / C-P3 | Accepted; collision-safe key/omitted projection and loss accounting | Task 03 recovery + 13A contract package authorized from final baseline |
-| D | `72d5d11bd924466aeff8282a5b0aa5ef8341de9e` | D1-R2 receipt refresh | Accepted; exact B/C receipts, honest typed blockers retained | Lineage intake only; 05A freeze remains blocked |
+| B | `2e46fc8e0228af42d6eaeaa6a665ffe5998c0bd5` | B1-R + B-C1/B-V1 | Accepted; 112-test B/C qualification with no B runtime delta | Task 02B contract package ready |
+| C | `9a0c5ed5d6c1c959ff277d3888f54c927be3e183` | C1-R4 / C-P3/P4 | Accepted; collision-safe keys, role-aware scalars, conserved loss | Task 03 recovery + 13A contract package ready |
+| D | `e41eb6ea68375b1064b30044e66ae58bcba67c67` | D1-R2 receipt refresh | Accepted; exact current B/C receipts, honest typed blockers retained | Lineage intake ready; 05A freeze remains blocked |
 
 ## 3. Source and validation evidence
 
@@ -451,18 +453,18 @@ reviewed authority before any contract becomes qualified.
 
 ## 5. Contract convergence and merge order
 
-The historical A -> C -> B -> D order is complete. G1-R3 then executed the
-bounded C repair, B consumer rerun, D exact-receipt refresh, and combined
-qualification in that order. No A, B, or D feature work was added. Shared
-release documents remain integration-owner leases.
+The historical A -> C -> B -> D order and the G1-R3/R4 repair sequence are
+complete. The promoted runtime baseline and all four mirrored worktrees were
+independently verified at `5ef8ab657f6452ae48c931beea79106e2cca34c6`.
+Shared release documents remain integration-owner leases.
 
 ## 6. Next work
 
-G1-R3 is complete. The next dispatch is the four S1 contract packages described
-below, each based on the final accepted baseline; this ledger does not create
+G1-R4 is complete and independently accepted. The next dispatch is exactly four
+S1 contract packages from one final post-audit HEAD; this ledger does not create
 those branches.
 
-### Accepted Lane C — C1-R3 / C-P3 projection-key closure
+### Accepted Lane C — C1-R4 / C-P3 and C-P4 projection closure
 
 - recursively sanitizes or replaces mapping keys in model output and nested
   `next_action` arguments; raw host paths, token/header/secret-like text, and
@@ -478,6 +480,8 @@ those branches.
 - preserves canonical persistence bytes and strict readers;
 - publishes updated C evidence/fixtures and hands the exact identity to D;
   coding tools, durability, MCP, and Task 13 behavior remain untouched.
+- separates secret-bearing content from omitted-count projection so forced
+  string/int/float/bool/null leaves are redacted without corrupting counts.
 
 The bounded C repair, B consumer rerun, D receipt refresh, and integrated A
 quality gate are complete. The S1 packages are specified in
@@ -523,6 +527,8 @@ freeze until Task 12/13 lineage is available.
 - [x] Trace-safe loss facts cover every redacted or omitted projected field.
 - [x] Model/trace-safe projections sanitize sensitive mapping keys at every
       nesting level, including trace-safe omitted data (`C-P3`).
+- [x] Forced-secret content redacts every JSON scalar while omitted projection
+      preserves validated non-negative integer counts (`C-P4`).
 - [x] Cross-lane qualification receipts bind to reviewed producer artifacts.
 
 ### G2 prerequisites exposed by this review
@@ -735,3 +741,38 @@ freeze until Task 12/13 lineage is available.
   this ledger as an accepted-then-reopened audit event. S1 was not created or
   implemented and may start only from the exact final R4 baseline reported by
   the integration owner. Task 02B, 03B-E, 05A, 12A, and 13A remain unimplemented.
+
+### 2026-08-30 — independent G1-R4 baseline audit confirms S1 dispatch
+
+- Verified official integration, convergence, G1-final, and R4 worktrees were
+  clean at the same runtime HEAD
+  `5ef8ab657f6452ae48c931beea79106e2cca34c6`; merge-base and reachability
+  checks showed no commit delta between the four references.
+- Reviewed the R4 implementation rather than relying on its report. The private
+  projection role distinguishes secret-bearing content from omission counts:
+  forced-secret string, integer, float, boolean, and null leaves are redacted,
+  while validated non-negative omitted counts remain integers. Benign values
+  and canonical persistence bytes remain unchanged.
+- Independently recomputed the C fixture and evidence digests as
+  `b7f4dc6dfe8958bcd9c47617869a14bc8114629038d3428e6a623642fd2e5415`
+  and `96b0e641ccca7e049a90658496a19964217aa7c359a29c6b6e6b345fb7cf99f5`;
+  D's receipt binds those exact bytes and producer
+  `9a0c5ed5d6c1c959ff277d3888f54c927be3e183`.
+- A fresh adversarial scalar-role matrix passed. Independent repository gates
+  passed: 168 combined contract/readiness/boundary tests, full suite
+  `1872 passed, 50 skipped`, the 399-finding ratchet (377 active and 22
+  vendored/generated), stable flake8, stable mypy on 77 files, and tool-schema
+  qualification over 61 modules, 74 class definitions, and 62 registered tools.
+- Re-ran all readiness modes. Dry-run without receipts exits 0 with 14 blockers;
+  dry-run with exact receipts exits 0 with 12 blockers; normal exact-receipt
+  execution exits 2 with the same 12 blockers. Only B/C contracts qualify;
+  `trajectory_v2_ready` stays false, publication-qualified fixtures stay zero,
+  and measurements/claims stay empty.
+- One preliminary reviewer harness addressed the readiness object through an
+  obsolete nested JSON path and was discarded as evidence. The corrected
+  standalone harness used the actual top-level schema and exited 0; no product
+  failure or rerun-only success was hidden.
+- Decision: **G1-R4 independently accepted; G1 remains CLOSED.** Exactly four
+  S1 contract lanes may be created from the final post-audit integration HEAD.
+  This audit did not create those branches or implement session, provider,
+  recovery, multi-agent, trajectory-v2, qita, or packaging behavior.

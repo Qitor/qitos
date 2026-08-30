@@ -1,8 +1,10 @@
 # S1 contract wave plan
 
 Status: ready only from final G1-R4 baseline; no S1 branch or behavior exists
-Updated: 2026-08-29
+Updated: 2026-08-30
 Owner: v4 integration owner
+Independently reviewed runtime baseline:
+`5ef8ab657f6452ae48c931beea79106e2cca34c6`
 Source gates: [`docs/progress.md`](../../progress.md) and
 [`docs/v4/11-four-lane-execution-playbook.md`](../../v4/11-four-lane-execution-playbook.md)
 
@@ -38,6 +40,33 @@ The R3 authorization was superseded by C-P4 review. The new authorization is
 effective only at the exact scalar-safe R4 SHA after all gates and the three
 fast-forwards. It remains limited to each lane's first contract package. This
 closure did not create an S1 branch or implement 02B, 03B-E, 05A, 12A, or 13A.
+
+The 2026-08-30 integration-owner audit independently accepted the promoted
+runtime baseline. New S1 worktrees must use the final post-audit integration
+HEAD containing this ledger synchronization; the integration owner reports that
+full SHA before dispatch. Agents must not substitute the older runtime SHA or a
+lane-local HEAD.
+
+## Parallel start protocol
+
+The four lanes are authorized to start together after the integration owner
+reports one clean final post-audit source identity:
+
+| Lane | Branch | Worktree | First package |
+|---|---|---|---|
+| A | `codex/v4-s1-a-session-contracts` | `/Users/morinop/Desktop/WhitzardOS-s1-a` | 12A session identity/snapshot contract |
+| B | `codex/v4-s1-b-request-view` | `/Users/morinop/Desktop/WhitzardOS-s1-b` | 02B RequestView/continuation contract |
+| C | `codex/v4-s1-c-work-graph-contracts` | `/Users/morinop/Desktop/WhitzardOS-s1-c` | recovery/effect vocabulary plus 13A ADR |
+| D | `codex/v4-s1-d-lineage-intake` | `/Users/morinop/Desktop/WhitzardOS-s1-d` | session/work lineage readiness intake |
+
+All four worktrees start directly from the same final post-audit integration
+HEAD. They may concurrently perform census, ADR, schema, fixture, and failing
+consumer-test work. Lane A owns the shared identity vocabulary. B, C, and D may
+draft provisional adapters while A is active, but they must not freeze or claim
+qualification of a cross-lane fixture until A publishes a reviewed producer
+commit. They must consume that commit after rebase/cherry-pick; copied enums or
+parallel identity definitions are not acceptable handoffs. Acceptance remains
+A -> C -> B -> D, followed by integration-owner G2 qualification.
 
 ## Shared contracts
 

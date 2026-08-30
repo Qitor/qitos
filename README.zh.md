@@ -18,7 +18,7 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 
 ## 最新进展
 
-- **G1 标量安全收敛已验收**：已被接受的 R3 基线经独立 C-P4 审计重新打开后，G1-R4 现已覆盖 forced-secret 整数、浮点、布尔、null 与嵌套标量叶子的脱敏，同时保留类型化 omitted count、良性值、无损 canonical 数据及守恒 loss facts。ExchangeLog 无需运行时代码改动即可继承修复，D 绑定精确 C producer 产物；Python 3.12.7 ratchet、lint/type、定向、readiness、对抗及 `1872 passed, 50 skipped` 全量门禁均通过。S1 尚未实现，只能从最终 R4 基线启动。
+- **G1 标量安全收敛已获独立验收**：promotion 后审计确认四个干净引用位于同一 R4 运行时基线，重新计算并核对 C/D 精确证据链，通过新的 forced-secret 标量角色探针，并复跑 Python 3.12.7 ratchet、lint/type、定向、readiness、工具资格及 `1872 passed, 50 skipped` 全量门禁。G1 已关闭；四条 contract-first S1 产线可从同一最终 post-audit integration HEAD 启动，但目前尚无 S1 分支或运行时行为。
 - **持久会话与原生多智能体 v4 架构**：[Task 12](docs/v4/12-session-runtime-and-persistence.md) 规划了以 checkpoint v2 为唯一持久化真相的安全暂停、跨进程恢复、fork 与 effect-aware recovery；[Task 13](docs/v4/13-durable-multi-agent-work-graph.md) 则把 handoff、delegate、fan-out、spawn、fork、steer、join 明确为一个持久 work graph 上不同的所有权语义。[四产线手册](docs/v4/11-four-lane-execution-playbook.md)也已调整：G1 后工程质量成为跨线合并门禁，四条能力线转为 Session、Conversation/Context、Tools/Multi-Agent、Trajectory/qita/DX。
 - **静态 ratchet 资格验证与可执行贡献门禁**：确定性测试覆盖所有关键 baseline 转换；tool-schema workflow 与仓库测试现在共同执行同一个已提交入口，真实检查已注册 class tools，并包含受控 malformed-spec 失败证明。required-candidate、advisory、stale 与 release-only 角色继续明确记录，同时不声称掌握外部 branch-protection 配置。
 - **证据化 v4 集成进度账本**：[`docs/progress.md`](docs/progress.md) 现在持续记录各产线的准确 HEAD、集成结论、可执行复核探针、跨线契约阻断、合并顺序以及 G1/G2 检查表；收敛波次分支“已完成”与集成分支“已合入并通过资格验证”被明确区分。
