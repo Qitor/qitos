@@ -13,7 +13,7 @@ import hashlib
 import json
 import re
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
@@ -29,6 +29,64 @@ LOSS_REPORT_VERSION = "trajectory-fixture-loss-report-v1"
 MANIFEST_NAME = "fixture-manifest.json"
 DEFAULT_FIXTURE_SET_ID = "qitos-representative-trajectories"
 S1_QUALIFICATION_AUTHORITY = "qitos.s1.integration_owner/v1"
+
+
+@dataclass(frozen=True)
+class ProducerBinding:
+    """One reviewed producer bundle shared by independently receipted contracts."""
+
+    contract_id: str
+    version: str
+    source_commit: str
+    fixture_path: str
+    fixture_sha256: str
+    evidence_path: str
+    evidence_sha256: str
+
+
+G2_PRODUCER_BINDINGS = {
+    "lane_a": ProducerBinding(
+        contract_id="qitos.session_contract_bundle",
+        version="qitos.session_contract_bundle/v2",
+        source_commit="58864253a169d1bac5749ad2b2de5de6872c0da2",
+        fixture_path="tests/fixtures/session/fixture-manifest.json",
+        fixture_sha256=(
+            "952dc20f3c412830ef1f18fe73805cc6d8e04ecc28d89e4991883c983a983466"
+        ),
+        evidence_path="tests/fixtures/session/qualification-evidence.json",
+        evidence_sha256=(
+            "7a7dfd831a4da4d45c2645d47404da8827f60aa498b92d9d98d92570cfe28834"
+        ),
+    ),
+    "lane_b": ProducerBinding(
+        contract_id="qitos.request_contract_bundle",
+        version="qitos.request_contract_bundle/v1",
+        source_commit="3cc29bea2bd311a2343862fd0b4f32636524bbb6",
+        fixture_path="tests/fixtures/conversation/request_contracts.json",
+        fixture_sha256=(
+            "a42f6c8ede18acf408348b9f38d657095cbe32bd4613659c46258eb18eedc637"
+        ),
+        evidence_path=(
+            "tests/fixtures/conversation/request-contracts-evidence.json"
+        ),
+        evidence_sha256=(
+            "a72bc8d8627854b2b805a2e8ca762daaf0f50dc10b95b0af64bbd4a5399a04b1"
+        ),
+    ),
+    "lane_c": ProducerBinding(
+        contract_id="qitos.work_effect_contract_bundle",
+        version="qitos.work_effect_contract_bundle/v2",
+        source_commit="bd7fca95e9ba9acfbbd9e8d0655a14ece066bcb6",
+        fixture_path="tests/fixtures/work_graph/g2-contract-manifest.json",
+        fixture_sha256=(
+            "d1112ac60a359af4bf6ff2525621214cea6dc8e52f2a03a8e69254e930a89964"
+        ),
+        evidence_path="tests/fixtures/work_graph/qualification-evidence.json",
+        evidence_sha256=(
+            "9ddef7c73b18698e6c9ec69431448b8a63501ac4527a4e64e44ee9d35596e26d"
+        ),
+    ),
+}
 G1_QUALIFICATION_AUTHORITY = "qitos.g1.integration_owner/v1"
 
 SUPPORTED_SOURCE_CLASSES = {"campaign_long", "unrelated_agent"}
@@ -108,9 +166,29 @@ class ContractRequirement:
         )
 
 
-# S1 producer facts remain unestablished until their semantic owner publishes a
-# reviewed commit. None is intentional and must never be filled speculatively.
-CONTRACT_REQUIREMENTS = (
+def _bind_g2_requirement(requirement: ContractRequirement) -> ContractRequirement:
+    """Bind a G2 requirement to its reviewed semantic-owner artifact."""
+
+    if requirement.expected_version is not None:
+        return requirement
+    binding = G2_PRODUCER_BINDINGS[requirement.owner]
+    return replace(
+        requirement,
+        expected_version=binding.version,
+        producer_contract_id=binding.contract_id,
+        producer_source_commit=binding.source_commit,
+        fixture_path=binding.fixture_path,
+        fixture_sha256=binding.fixture_sha256,
+        qualification_evidence_path=binding.evidence_path,
+        qualification_evidence_sha256=binding.evidence_sha256,
+        compatibility_status="qualified_g2_contract",
+    )
+
+
+# Every G2 item remains independently receipted even when several items share
+# the same exact semantic-owner bundle. A receipt can therefore clear only its
+# own contract_id, while all producer bytes stay content- and commit-addressed.
+_CONTRACT_REQUIREMENTS = (
     ContractRequirement(
         "lane_b.exchange_log_fixture_version",
         "lane_b",
@@ -333,6 +411,10 @@ CONTRACT_REQUIREMENTS = (
         ),
         requires_lineage_evidence=True,
     ),
+)
+
+CONTRACT_REQUIREMENTS = tuple(
+    _bind_g2_requirement(item) for item in _CONTRACT_REQUIREMENTS
 )
 
 PLANNED_MEASUREMENTS = [

@@ -143,10 +143,10 @@ def test_readiness_scenario_fixture_schema_and_required_matrix() -> None:
     Draft202012Validator(schema).validate(payload)
     ids = {item["id"] for item in payload["scenarios"]}
     assert ids == {
-        "all_producers_missing",
-        "only_a_available",
-        "a_c_available",
-        "exact_a_c_b_available",
+        "all_receipts_missing",
+        "only_a_receipts",
+        "a_c_receipts",
+        "exact_a_c_b_receipts",
         "stale_a",
         "wrong_b_digest",
         "conflicting_ownership",
@@ -168,7 +168,8 @@ def test_stable_receipt_set_matches_its_independent_schema() -> None:
     Draft202012Validator(schema).validate(payload)
     assert payload["receipt_type"] == "trajectory_contract_qualification_receipts"
     assert payload["schema_version"] == "1"
-    assert len(payload["receipts"]) == 2
+    assert len(payload["receipts"]) == 19
+    assert len({item["contract_id"] for item in payload["receipts"]}) == 19
 
 
 @pytest.mark.parametrize(
@@ -207,7 +208,7 @@ def test_receipt_set_wrapper_is_versioned_and_compatibility_is_bounded(
     assert ([item["code"] for item in findings] or [None]) == [expected]
 
 
-def test_s1_inventory_is_complete_unestablished_and_owner_specific() -> None:
+def test_s1_inventory_is_complete_bound_and_owner_specific() -> None:
     module = _load_script()
     result = module.build_readiness_result(TRAJECTORY_FIXTURES, dry_run=True)
     contracts = {item["contract_id"]: item for item in result["required_contracts"]}
@@ -235,13 +236,12 @@ def test_s1_inventory_is_complete_unestablished_and_owner_specific() -> None:
     for contract_id in expected:
         item = contracts[contract_id]
         assert item["owner"] == contract_id.split(".", 1)[0]
-        assert item["producer_commit"] is None
-        assert item["schema_version"] is None
-        assert item["fixture_digest"] is None
-        assert item["evidence_digest"] is None
-        assert item["current_qualification_state"] == (
-            "producer_version_unestablished"
-        )
+        binding = module.G2_PRODUCER_BINDINGS[item["owner"]]
+        assert item["producer_commit"] == binding.source_commit
+        assert item["schema_version"] == binding.version
+        assert item["fixture_digest"] == binding.fixture_sha256
+        assert item["evidence_digest"] == binding.evidence_sha256
+        assert item["current_qualification_state"] == "receipt_missing_or_rejected"
 
 
 def test_exact_receipt_qualifies_only_its_owned_contract(

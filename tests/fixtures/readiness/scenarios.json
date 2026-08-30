@@ -1,10 +1,10 @@
 {
   "schema_version": "1",
   "scenarios": [
-    {"id": "all_producers_missing", "provided_lanes": [], "mutation": "none", "expected_codes": ["producer_version_unestablished"], "trajectory_ready": false},
-    {"id": "only_a_available", "provided_lanes": ["a"], "mutation": "none", "expected_codes": ["producer_version_unestablished", "consumer_not_qualified"], "trajectory_ready": false},
-    {"id": "a_c_available", "provided_lanes": ["a", "c"], "mutation": "none", "expected_codes": ["producer_version_unestablished", "consumer_not_qualified"], "trajectory_ready": false},
-    {"id": "exact_a_c_b_available", "provided_lanes": ["a", "c", "b"], "mutation": "none", "expected_codes": ["consumer_not_qualified", "trajectory_schema_not_ready"], "trajectory_ready": false},
+    {"id": "all_receipts_missing", "provided_lanes": [], "mutation": "none", "expected_codes": ["contract_receipt_missing"], "trajectory_ready": false},
+    {"id": "only_a_receipts", "provided_lanes": ["a"], "mutation": "none", "expected_codes": ["contract_receipt_missing", "consumer_not_qualified"], "trajectory_ready": false},
+    {"id": "a_c_receipts", "provided_lanes": ["a", "c"], "mutation": "none", "expected_codes": ["contract_receipt_missing", "consumer_not_qualified"], "trajectory_ready": false},
+    {"id": "exact_a_c_b_receipts", "provided_lanes": ["a", "c", "b"], "mutation": "none", "expected_codes": ["consumer_not_qualified", "trajectory_schema_not_ready"], "trajectory_ready": false},
     {"id": "stale_a", "provided_lanes": ["a"], "mutation": "stale_producer", "expected_codes": ["producer_source_commit_mismatch"], "trajectory_ready": false},
     {"id": "wrong_b_digest", "provided_lanes": ["b"], "mutation": "wrong_digest", "expected_codes": ["producer_digest_mismatch"], "trajectory_ready": false},
     {"id": "conflicting_ownership", "provided_lanes": ["c"], "mutation": "conflicting_ownership", "expected_codes": ["conflicting_identities"], "trajectory_ready": false},
@@ -12,7 +12,7 @@
     {"id": "late_result_without_generation", "provided_lanes": ["c"], "mutation": "late_without_generation", "expected_codes": ["conflicting_identities"], "trajectory_ready": false},
     {"id": "inferred_parent_edge_rejected", "provided_lanes": ["c"], "mutation": "inferred_parent_edge", "expected_codes": ["inferred_edge"], "trajectory_ready": false},
     {"id": "unknown_schema", "provided_lanes": ["a"], "mutation": "unknown_schema", "expected_codes": ["contract_version_mismatch"], "trajectory_ready": false},
-    {"id": "exact_receipt_clears_one_blocker", "provided_lanes": ["a"], "mutation": "exact_one", "expected_codes": ["producer_version_unestablished"], "trajectory_ready": false},
+    {"id": "exact_receipt_clears_one_blocker", "provided_lanes": ["a"], "mutation": "exact_one", "expected_codes": ["contract_receipt_missing"], "trajectory_ready": false},
     {"id": "all_receipts_runtime_absent", "provided_lanes": ["a", "c", "b"], "mutation": "runtime_behavior_absent", "expected_codes": ["consumer_not_qualified"], "trajectory_ready": false},
     {"id": "trajectory_still_not_ready", "provided_lanes": ["a", "c", "b"], "mutation": "none", "expected_codes": ["canonical_trajectory_writer_missing", "trajectory_store_benchmark_missing", "qita_migration_not_qualified"], "trajectory_ready": false}
   ]

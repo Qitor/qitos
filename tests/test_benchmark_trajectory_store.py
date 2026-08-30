@@ -96,7 +96,6 @@ def test_repository_fixture_set_is_strictly_blocked_and_portable() -> None:
     assert {
         "contract_receipt_missing",
         "publication_status_not_ready",
-        "producer_version_unestablished",
         "trajectory_schema_not_ready",
         "canonical_trajectory_writer_missing",
         "trajectory_store_benchmark_missing",
@@ -428,20 +427,20 @@ def test_exact_qualified_receipt_does_not_auto_qualify_other_contracts() -> None
     )
 
     assert qualified == ["lane_b.exchange_log_fixture_version"]
-    unestablished_subjects = {
+    missing_subjects = {
         item["subject"]
         for item in findings
-        if item["code"] == "producer_version_unestablished"
+        if item["code"] == "contract_receipt_missing"
     }
-    assert "lane_b.request_view" in unestablished_subjects
-    assert "lane_c.effect_recovery" in unestablished_subjects
+    assert "lane_b.request_view" in missing_subjects
+    assert "lane_c.effect_recovery" in missing_subjects
     assert receipt_result["status"] == "schema_not_ready"
     assert receipt_result["blocker_categories"]["contract_receipt"] == (
         default_result["blocker_categories"]["contract_receipt"] - 1
     )
 
 
-def test_exact_committed_b_and_c_receipts_clear_only_owned_contracts() -> None:
+def test_all_exact_committed_receipts_clear_contract_blockers_only() -> None:
     module = _load_script()
 
     qualified, findings = module.validate_contract_receipts(_verified_receipts())
@@ -451,21 +450,16 @@ def test_exact_committed_b_and_c_receipts_clear_only_owned_contracts() -> None:
         contract_receipts=_verified_receipts(),
     )
 
-    assert qualified == [
-        "lane_b.exchange_log_fixture_version",
-        "lane_c.canonical_tool_result_fixture_version",
-    ]
+    assert qualified == sorted(
+        item["contract_id"] for item in _verified_receipts()
+    )
     assert set(result["qualified_contract_ids"]) == set(qualified)
     assert all(
         item["subject"] not in qualified
         for item in findings
         if item["code"] == "contract_receipt_missing"
     )
-    assert any(
-        item["subject"] == "lane_b.request_view"
-        for item in findings
-        if item["code"] == "producer_version_unestablished"
-    )
+    assert not findings
     assert result["status"] == "schema_not_ready"
     assert result["measurements"] == []
     assert result["claims"] == []
@@ -557,8 +551,7 @@ def test_cli_accepts_verified_receipt_set_without_changing_exit_policy(
     ) == 0
     dry = json.loads(capsys.readouterr().out)
     assert set(dry["qualified_contract_ids"]) == {
-        "lane_b.exchange_log_fixture_version",
-        "lane_c.canonical_tool_result_fixture_version",
+        item["contract_id"] for item in _verified_receipts()
     }
     assert dry["status"] == "schema_not_ready"
 

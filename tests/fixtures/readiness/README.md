@@ -2,14 +2,16 @@
 
 This stable directory contains Lane D readiness inputs, not producer schemas or
 Trajectory payloads. `contract-qualification-receipts.json` preserves the two
-accepted G1 foundation bindings. It does not qualify any S1 A/B/C producer and
-does not establish G2 readiness.
+accepted G1 foundation bindings and independently binds all 17 G2 A/B/C
+contracts to their reviewed semantic-owner bundles. These receipts qualify
+contract bytes only; they do not establish runtime or Trajectory readiness.
 
 `scenarios.json` is a schema-checked inventory of required readiness behaviors.
-Scenario availability labels are test instructions only: tests construct a
-temporary Git repository, commit synthetic fixture/evidence bytes, and compute
-their exact identities at runtime. No S1 producer version, commit, path, digest,
-authority, fixture content, or qualified status is fabricated here.
+Scenario availability labels are test instructions. Adversarial tests construct
+a temporary Git repository, commit synthetic fixture/evidence bytes, and
+compute their exact identities at runtime. Repository receipts use only the
+reviewed producer versions, commits, paths, digests, and authority pinned by the
+readiness inventory.
 
 `receipt-set.schema.json` validates the stable receipt wrapper and exact,
 repository-relative receipt fields. `scenario.schema.json` validates the
