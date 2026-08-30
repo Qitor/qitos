@@ -1,6 +1,6 @@
 # S1 Lane B request and continuation contracts
 
-Status: in progress; provisional Lane A integration boundary
+Status: local producer complete; `waiting_on_lane_a`; cross-lane qualification pending
 Updated: 2026-08-30
 Work package: S1 / Lane B / Task 02B contract package
 Source branch: `feat/campaign-absorption`
@@ -179,6 +179,18 @@ specific canonical request type.
 
 ## Validation ledger
 
-Pending until implementation. Required commands and exact results will be
-recorded here without masked exits, live keys, or unavailable-skip claims.
-
+- New request/conversation/codec contract suites plus existing conversation:
+  `58 passed`.
+- Combined conversation, provider/model, context/history/memory, ToolResult
+  consumers, architecture/public-surface, and no-local-path matrix:
+  `219 passed`.
+- `/opt/anaconda3/bin/python3.12 scripts/static_quality.py check`: exit 0.
+- Stable flake8 over `qitos/core qitos/engine qitos/models qitos/trace`: exit 0.
+- Stable mypy over the same surface: success; only the existing unchecked-body
+  note in `qitos/core/state.py` was emitted.
+- Full `/opt/anaconda3/bin/python3.12 -m pytest -q`:
+  `1899 passed, 50 skipped in 24.52s`.
+- `git diff --check`: pending this documentation update, then required clean.
+- Live provider calls/keys: not used.
+- Architecture allowlist delta: zero.
+- Root/public export delta: zero.
