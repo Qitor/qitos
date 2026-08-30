@@ -1,0 +1,37 @@
+{
+  "evidence_version": "qitos.contract_qualification_evidence/v1",
+  "contract_id": "qitos.work_effect_contract_bundle",
+  "contract_version": "qitos.work_effect_contract_bundle/v2",
+  "fixture_path": "tests/fixtures/work_graph/g2-contract-manifest.json",
+  "qualification_authority": "qitos.s1.integration_owner/v1",
+  "qualified": true,
+  "identity_bindings": {
+    "work": "qitos.identity/work_item",
+    "parent_work": "qitos.identity/parent_work_item",
+    "owner": "qitos.identity/agent",
+    "attempt": "qitos.identity/attempt",
+    "owner_generation": "qitos.generation/owner",
+    "head_generation": "qitos.generation/head"
+  },
+  "lineage_evidence": {
+    "status": "explicit",
+    "edge_source": "producer_fact",
+    "inferred": false
+  },
+  "probes": [
+    "typed_attempt_and_work_identity",
+    "effect_recovery_outcome_unknown",
+    "resource_safe_boundary_matrix",
+    "explicit_parent_child_edges",
+    "ownership_generation_compare_and_set",
+    "distinct_multi_agent_operations",
+    "late_and_stale_result_rejection"
+  ],
+  "unsupported_claims": [
+    "engine_pause_runtime",
+    "fresh_process_restore_runtime",
+    "runtime_fork",
+    "external_effect_exactly_once",
+    "trajectory_schema_freeze"
+  ]
+}

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from qitos.core.action import ActionResult, ActionStatus
 from qitos.core.tool_result import ToolResult
+from qitos.core.artifact import ArtifactRef
 from qitos.engine._action_runtime import _ActionRuntime
 
 
@@ -11,7 +12,15 @@ def test_explicit_model_projection_hides_canonical_output_fields() -> None:
         tool_name="inspect",
         output={"public": "fact", "private_host_path": "/private/tmp/raw"},
         model_output="fact",
-        artifact_refs=[{"artifact_id": "sha256:abc"}],
+        artifact_refs=(
+            ArtifactRef(
+                artifact_id="artifact:projection",
+                resolver_key="artifact-resolver:projection",
+                sha256="a" * 64,
+                media_type="application/json",
+                byte_length=3,
+            ),
+        ),
     )
 
     visible = runtime._model_visible_tool_result_dict(result, "inspect")

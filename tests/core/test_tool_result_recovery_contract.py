@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from qitos.core.action import ActionResult, ActionStatus
+from qitos.core.session import AttemptIdentity
 from qitos.core.tool_result import (
     TOOL_BATCH_CLOSURE_SCHEMA_VERSION,
     ToolResult,
@@ -27,7 +28,10 @@ FIXTURE = (
     ids=lambda case: case["name"],
 )
 def test_recovery_fixture_round_trips_through_canonical_tool_result(case: dict) -> None:
-    result = ToolResult(**case["tool_result"])
+    fields = dict(case["tool_result"])
+    if isinstance(fields.get("attempt_id"), dict):
+        fields["attempt_id"] = AttemptIdentity.from_dict(fields["attempt_id"])
+    result = ToolResult(**fields)
     payload = json.loads(json.dumps(result.to_persistence_dict()))
     restored = ToolResult.from_canonical_dict(payload)
 
@@ -57,7 +61,13 @@ def test_partial_batch_closure_is_per_slot_and_strict() -> None:
         "batch_id": "batch:1",
         "slots": [
             {"action_id": "call:1", "state": "success", "result_ref": "result:1"},
-            {"action_id": "call:2", "state": "open", "attempt_id": "attempt:2"},
+            {
+                "action_id": "call:2",
+                "state": "open",
+                "attempt_id": AttemptIdentity(
+                    "attempt_10000000000000000000000000000011"
+                ).to_dict(),
+            },
         ],
     }
     result = ToolResult(batch_closure=closure)
@@ -97,7 +107,7 @@ def test_action_result_adapter_carries_recovery_metadata_without_new_outcome_typ
     result = action.to_tool_result()
 
     assert isinstance(result, ToolResult)
-    assert result.attempt_id == "attempt:remote:1"
+    assert isinstance(result.attempt_id, AttemptIdentity)
     assert result.effect_state == "unknown"
     assert result.outcome_unknown is True
     assert result.worker_still_running is True
@@ -107,7 +117,7 @@ def test_action_result_adapter_carries_recovery_metadata_without_new_outcome_typ
 
 def test_recovery_refs_are_redacted_in_trace_view_but_canonical_is_lossless() -> None:
     result = ToolResult(
-        attempt_id="/Users/alice/private/attempt",
+        attempt_id=AttemptIdentity("attempt_10000000000000000000000000000010"),
         effect_ref="token=effect-secret",
         effect_state="unknown",
         idempotency_ref="secret=idem-secret",
@@ -120,11 +130,10 @@ def test_recovery_refs_are_redacted_in_trace_view_but_canonical_is_lossless() ->
     trace = result.to_trace_safe_dict()
     rendered = json.dumps(trace)
 
-    assert canonical["attempt_id"] == "/Users/alice/private/attempt"
-    assert "/Users/alice" not in rendered
+    assert canonical["attempt_id"]["kind"] == "attempt"
     assert "effect-secret" not in rendered
     assert "idem-secret" not in rendered
-    assert trace["loss"]["redacted_identifiers"] >= 3
+    assert trace["loss"]["redacted_identifiers"] >= 2
 
 
 def test_unknown_new_field_and_non_json_batch_value_fail_strictly() -> None:

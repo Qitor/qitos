@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import math
 import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, Literal, Mapping, TYPE_CHECKING
+
+from .artifact import ArtifactContractError, ArtifactRef
+from .session import AttemptIdentity, SnapshotComponentCodec
 
 if TYPE_CHECKING:
     from .action import ActionResult
@@ -31,10 +35,12 @@ RetryDisposition = Literal[
 ]
 _ProjectionRole = Literal["content", "omission_counts"]
 
-TOOL_RESULT_SCHEMA_VERSION = "qitos.tool_result/v1"
+HISTORICAL_TOOL_RESULT_SCHEMA_VERSION = "qitos.tool_result/v1"
+TOOL_RESULT_SCHEMA_VERSION = "qitos.tool_result/v2"
 TOOL_RESULT_MODEL_VIEW_VERSION = "qitos.tool_result.model_view/v1"
 TOOL_RESULT_TRACE_SAFE_VERSION = "qitos.tool_result.trace_safe/v1"
 TOOL_BATCH_CLOSURE_SCHEMA_VERSION = "qitos.tool_batch_closure/v1"
+TOOL_EFFECTS_COMPONENT_SCHEMA_VERSION = "qitos.tool_effects_component/v1"
 
 _STATUSES = frozenset({"success", "error", "skipped", "timed_out", "cancelled"})
 _ERROR_KINDS = frozenset({"semantic", "execution", "policy"})
@@ -70,9 +76,6 @@ _FIELDS = frozenset(
         "retry_disposition", "reconciliation_required", "outcome_unknown",
         "late_result", "owner_generation", "stale_owner", "batch_closure",
     }
-)
-_ARTIFACT_FIELDS = frozenset(
-    {"artifact_id", "media_type", "byte_length", "encoding", "sensitivity", "provenance"}
 )
 _SENSITIVE_KEY = re.compile(
     r"(?:authorization|cookie|credential|password|passwd|secret|token|api[_-]?key|headers?)",
@@ -231,27 +234,69 @@ def _validate_dict_list(value: Any, path: str) -> list[Dict[str, Any]]:
     return result
 
 
-def _validate_artifacts(value: Any) -> list[Dict[str, Any]]:
-    refs = _validate_dict_list(value, "artifact_refs")
-    for index, ref in enumerate(refs):
-        unknown = sorted(set(ref) - _ARTIFACT_FIELDS)
-        if unknown:
-            raise _fail("invalid_artifact_ref", f"artifact_refs[{index}] has unknown field {unknown[0]!r}")
-        artifact_id = ref.get("artifact_id")
-        if not isinstance(artifact_id, str) or not artifact_id.strip():
-            raise _fail("invalid_artifact_ref", f"artifact_refs[{index}].artifact_id must be non-empty")
-        for key in ("media_type", "encoding", "sensitivity"):
-            if key in ref and not isinstance(ref[key], str):
-                raise _fail("invalid_artifact_ref", f"artifact_refs[{index}].{key} must be a string")
-        if "byte_length" in ref and (
-            not isinstance(ref["byte_length"], int)
-            or isinstance(ref["byte_length"], bool)
-            or ref["byte_length"] < 0
-        ):
-            raise _fail("invalid_artifact_ref", f"artifact_refs[{index}].byte_length is invalid")
-        if "provenance" in ref and not isinstance(ref["provenance"], dict):
-            raise _fail("invalid_artifact_ref", f"artifact_refs[{index}].provenance must be an object")
+def _validate_artifacts(value: Any) -> tuple[ArtifactRef, ...]:
+    if not isinstance(value, (list, tuple)):
+        raise _fail("invalid_artifact_ref", "artifact_refs must be an array")
+    if any(not isinstance(item, ArtifactRef) for item in value):
+        raise _fail("invalid_artifact_ref", "artifact_refs must use canonical ArtifactRef values")
+    refs = tuple(value)
+    if len({item.artifact_id for item in refs}) != len(refs):
+        raise _fail("invalid_artifact_ref", "artifact_refs must be unique")
     return refs
+
+
+def _legacy_artifact_ref(value: Any) -> ArtifactRef:
+    if not isinstance(value, Mapping):
+        raise _fail("invalid_artifact_ref", "historical artifact reference must be an object")
+    raw_id = value.get("artifact_id")
+    if not isinstance(raw_id, str) or not raw_id.strip():
+        raise _fail("invalid_artifact_ref", "historical artifact identity is invalid")
+    fingerprint = hashlib.sha256(
+        json.dumps(dict(value), sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()
+    declared_digest = raw_id.removeprefix("sha256:")
+    sha256 = declared_digest if re.fullmatch(r"[0-9a-f]{64}", declared_digest) else fingerprint
+    try:
+        return ArtifactRef(
+            artifact_id=raw_id,
+            resolver_key=f"legacy-artifact:{fingerprint[:32]}",
+            sha256=sha256,
+            media_type=str(value.get("media_type") or "application/octet-stream"),
+            byte_length=(
+                value["byte_length"]
+                if isinstance(value.get("byte_length"), int)
+                and not isinstance(value.get("byte_length"), bool)
+                and value["byte_length"] >= 0
+                else 0
+            ),
+            encoding=str(value.get("encoding") or "binary"),
+            sensitivity=str(value.get("sensitivity") or "internal"),
+            required=False,
+        )
+    except ArtifactContractError as exc:
+        raise _fail("invalid_artifact_ref", "historical artifact reference is unsafe") from exc
+
+
+def _legacy_artifact_refs(value: Any) -> tuple[ArtifactRef, ...]:
+    if value in (None, []):
+        return ()
+    if not isinstance(value, list):
+        raise _fail("invalid_artifact_ref", "historical artifact_refs must be an array")
+    return tuple(_legacy_artifact_ref(item) for item in value)
+
+
+def _legacy_attempt_identity(value: Any) -> AttemptIdentity | None:
+    if value is None:
+        return None
+    if isinstance(value, Mapping):
+        try:
+            return AttemptIdentity.from_dict(value)
+        except Exception as exc:
+            raise _fail("invalid_attempt_identity", "attempt identity is invalid") from exc
+    if not isinstance(value, str) or not value:
+        raise _fail("invalid_attempt_identity", "attempt identity is invalid")
+    digest = hashlib.sha256(value.encode("utf-8")).hexdigest()[:32]
+    return AttemptIdentity(f"attempt_{digest}")
 
 
 def _validate_batch_closure(value: Any) -> Dict[str, Any]:
@@ -304,12 +349,20 @@ def _validate_batch_closure(value: Any) -> Dict[str, Any]:
                 "invalid_batch_closure",
                 f"batch_closure.slots[{index}].state is invalid",
             )
-        for name in ("result_ref", "attempt_id"):
-            if name in slot and not isinstance(slot[name], str):
+        if "result_ref" in slot and not isinstance(slot["result_ref"], str):
+            raise _fail(
+                "invalid_batch_closure",
+                f"batch_closure.slots[{index}].result_ref must be a string",
+            )
+        if "attempt_id" in slot:
+            try:
+                attempt = AttemptIdentity.from_dict(slot["attempt_id"])
+            except Exception as exc:
                 raise _fail(
                     "invalid_batch_closure",
-                    f"batch_closure.slots[{index}].{name} must be a string",
-                )
+                    f"batch_closure.slots[{index}].attempt_id must be a typed identity",
+                ) from exc
+            slot["attempt_id"] = attempt.to_dict()
     return closure
 
 
@@ -499,11 +552,11 @@ class ToolResult:
     latency_ms: float = 0.0
     declared_effects: list[Dict[str, Any]] = field(default_factory=list)
     filesystem_changes: list[Dict[str, Any]] = field(default_factory=list)
-    artifact_refs: list[Dict[str, Any]] = field(default_factory=list)
+    artifact_refs: tuple[ArtifactRef, ...] = ()
     normalized_request: Dict[str, Any] = field(default_factory=dict)
     provenance: Dict[str, Any] = field(default_factory=dict)
     worker_still_running: bool = False
-    attempt_id: str | None = None
+    attempt_id: AttemptIdentity | None = None
     effect_ref: str | None = None
     effect_state: EffectState = "no_effect_declared"
     idempotency_ref: str | None = None
@@ -537,10 +590,17 @@ class ToolResult:
             ("tool_name", self.tool_name), ("action_id", self.action_id),
             ("error", self.error), ("error_code", self.error_code),
             ("recovery_hint", self.recovery_hint),
-            ("attempt_id", self.attempt_id), ("effect_ref", self.effect_ref),
+            ("effect_ref", self.effect_ref),
             ("idempotency_ref", self.idempotency_ref),
         ):
             _require_optional_string(value, path)
+        if self.attempt_id is not None and not isinstance(
+            self.attempt_id, AttemptIdentity
+        ):
+            raise _fail(
+                "invalid_attempt_identity",
+                "attempt_id must use the canonical AttemptIdentity type",
+            )
         for bool_path, bool_value in (
             ("recoverable", self.recoverable), ("complete", self.complete),
             ("truncated", self.truncated), ("worker_still_running", self.worker_still_running),
@@ -707,13 +767,13 @@ class ToolResult:
             "filesystem_changes": _clone_json(
                 self.filesystem_changes, "filesystem_changes"
             ),
-            "artifact_refs": _clone_json(self.artifact_refs, "artifact_refs"),
+            "artifact_refs": [item.to_dict() for item in self.artifact_refs],
             "normalized_request": _clone_json(
                 self.normalized_request, "normalized_request"
             ),
             "provenance": _clone_json(self.provenance, "provenance"),
             "worker_still_running": self.worker_still_running,
-            "attempt_id": self.attempt_id,
+            "attempt_id": self.attempt_id.to_dict() if self.attempt_id else None,
             "effect_ref": self.effect_ref,
             "effect_state": self.effect_state,
             "idempotency_ref": self.idempotency_ref,
@@ -849,7 +909,9 @@ class ToolResult:
         projection_loss["fields"]["omitted"] = omitted_facts
         _merge_facts(facts, omitted_facts)
         recovery_facts = _new_facts()
-        safe_attempt_id = _safe_identifier(self.attempt_id, recovery_facts)
+        safe_attempt_id = (
+            self.attempt_id.to_dict() if self.attempt_id is not None else None
+        )
         safe_effect_ref = _safe_identifier(self.effect_ref, recovery_facts)
         safe_idempotency_ref = _safe_identifier(
             self.idempotency_ref, recovery_facts
@@ -865,7 +927,7 @@ class ToolResult:
                 ("normalized_request", self.normalized_request), ("provenance", self.provenance),
                 ("declared_effects", self.declared_effects),
                 ("filesystem_changes", self.filesystem_changes), ("artifact_refs", self.artifact_refs),
-            ) if value not in (None, {}, [])
+            ) if value not in (None, {}, [], ())
         ]
         payload.update(
             {
@@ -979,11 +1041,11 @@ class ToolResult:
             attempts=payload.attempts, latency_ms=payload.latency_ms,
             declared_effects=_legacy_dict_list(metadata.get("declared_effects")),
             filesystem_changes=_legacy_dict_list(metadata.get("filesystem_changes")),
-            artifact_refs=_legacy_dict_list(metadata.get("artifact_refs", metadata.get("artifacts"))),
+            artifact_refs=_legacy_artifact_refs(metadata.get("artifact_refs", metadata.get("artifacts"))),
             normalized_request=_legacy_dict(metadata.get("normalized_request")),
             provenance=_legacy_dict(metadata.get("provenance")),
             worker_still_running=bool(metadata.get("worker_still_running", False)),
-            attempt_id=_legacy_optional_string(metadata.get("attempt_id")),
+            attempt_id=_legacy_attempt_identity(metadata.get("attempt_id")),
             effect_ref=_legacy_optional_string(metadata.get("effect_ref")),
             effect_state=_legacy_effect_state(metadata.get("effect_state")),
             idempotency_ref=_legacy_optional_string(metadata.get("idempotency_ref")),
@@ -1016,6 +1078,21 @@ class ToolResult:
             raise _fail("invalid_canonical_field", "canonical status is required")
         success_present = "success" in data
         success = data.pop("success", None)
+        raw_artifacts = data.get("artifact_refs", [])
+        if not isinstance(raw_artifacts, list):
+            raise _fail("invalid_artifact_ref", "artifact_refs must be an array")
+        try:
+            data["artifact_refs"] = tuple(
+                ArtifactRef.from_dict(item) for item in raw_artifacts
+            )
+        except ArtifactContractError as exc:
+            raise _fail("invalid_artifact_ref", "artifact reference is invalid") from exc
+        raw_attempt = data.get("attempt_id")
+        if raw_attempt is not None:
+            try:
+                data["attempt_id"] = AttemptIdentity.from_dict(raw_attempt)
+            except Exception as exc:
+                raise _fail("invalid_attempt_identity", "attempt identity is invalid") from exc
         result = cls(**data)  # type: ignore[arg-type]
         if success_present and (
             not isinstance(success, bool) or success != result.is_success
@@ -1069,11 +1146,11 @@ class ToolResult:
             latency_ms=float(data.get("latency_ms", metadata.get("latency_ms", 0.0))),
             declared_effects=_legacy_dict_list(data.get("declared_effects")),
             filesystem_changes=_legacy_dict_list(data.get("filesystem_changes")),
-            artifact_refs=_legacy_dict_list(data.get("artifact_refs")),
+            artifact_refs=_legacy_artifact_refs(data.get("artifact_refs")),
             normalized_request=_legacy_dict(data.get("normalized_request")),
             provenance=_legacy_dict(data.get("provenance")),
             worker_still_running=bool(data.get("worker_still_running", False)),
-            attempt_id=_legacy_optional_string(data.get("attempt_id")),
+            attempt_id=_legacy_attempt_identity(data.get("attempt_id")),
             effect_ref=_legacy_optional_string(data.get("effect_ref")),
             effect_state=_legacy_effect_state(data.get("effect_state")),
             idempotency_ref=_legacy_optional_string(data.get("idempotency_ref")),
@@ -1094,13 +1171,98 @@ class ToolResult:
     @classmethod
     def from_value(cls, payload: Any) -> "ToolResult":
         if isinstance(payload, Mapping) and "schema_version" in payload:
-            return cls.from_canonical_dict(payload)
+            if payload.get("schema_version") == TOOL_RESULT_SCHEMA_VERSION:
+                return cls.from_canonical_dict(payload)
+            return ToolResultCompatibilityReader.read(payload)
         return cls.from_legacy_value(payload)
 
 
+class ToolResultCompatibilityReader:
+    """Bounded reader for the historical v1 shape; never a current writer."""
+
+    @classmethod
+    def read(cls, payload: Mapping[str, Any]) -> ToolResult:
+        if not isinstance(payload, Mapping):
+            raise _fail("invalid_canonical_payload", "historical payload must be an object")
+        data = dict(payload)
+        if data.get("schema_version") != HISTORICAL_TOOL_RESULT_SCHEMA_VERSION:
+            raise _fail("unknown_schema_version", "historical tool-result schema is unsupported")
+        unknown = sorted(set(data) - _FIELDS)
+        if unknown:
+            raise _fail("unknown_canonical_field", "historical tool-result has an unknown field")
+        success_present = "success" in data
+        success = data.pop("success", None)
+        data["schema_version"] = TOOL_RESULT_SCHEMA_VERSION
+        data["artifact_refs"] = _legacy_artifact_refs(data.get("artifact_refs"))
+        data["attempt_id"] = _legacy_attempt_identity(data.get("attempt_id"))
+        closure = _legacy_dict(data.get("batch_closure"))
+        for slot in closure.get("slots", []) if isinstance(closure.get("slots"), list) else []:
+            if isinstance(slot, dict) and isinstance(slot.get("attempt_id"), str):
+                attempt = _legacy_attempt_identity(slot["attempt_id"])
+                slot["attempt_id"] = attempt.to_dict() if attempt else None
+        data["batch_closure"] = closure
+        result = ToolResult(**data)  # type: ignore[arg-type]
+        if success_present and (
+            not isinstance(success, bool) or success != result.is_success
+        ):
+            raise _fail("contradictory_outcome", "historical success flag is contradictory")
+        return result
+
+
+@dataclass(frozen=True)
+class ToolEffectsSnapshotComponent:
+    """Lane C's unresolved and committed outcomes in a snapshot."""
+
+    results: tuple[ToolResult, ...]
+    schema_version: str = TOOL_EFFECTS_COMPONENT_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        if self.schema_version != TOOL_EFFECTS_COMPONENT_SCHEMA_VERSION:
+            raise _fail("unknown_schema_version", "unsupported tool-effects component")
+        if any(not isinstance(item, ToolResult) for item in self.results):
+            raise _fail("invalid_canonical_field", "tool-effects entries must be ToolResult")
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "results": [item.to_persistence_dict() for item in self.results],
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "ToolEffectsSnapshotComponent":
+        if not isinstance(payload, Mapping) or set(payload) != {"schema_version", "results"}:
+            raise _fail("invalid_canonical_payload", "tool-effects component shape is invalid")
+        results = payload.get("results")
+        if not isinstance(results, list):
+            raise _fail("invalid_canonical_field", "tool-effects results must be an array")
+        return cls(
+            schema_version=payload["schema_version"],
+            results=tuple(ToolResult.from_canonical_dict(item) for item in results),
+        )
+
+
+def _encode_tool_effects_component(value: Any) -> Mapping[str, Any]:
+    if not isinstance(value, ToolEffectsSnapshotComponent):
+        raise _fail("invalid_canonical_field", "tool-effects codec requires its component type")
+    return value.to_dict()
+
+
+TOOL_EFFECTS_SNAPSHOT_COMPONENT_CODEC = SnapshotComponentCodec(
+    slot="tool_effects",
+    owner="qitos.effects",
+    schema_version=TOOL_EFFECTS_COMPONENT_SCHEMA_VERSION,
+    required=True,
+    encode=_encode_tool_effects_component,
+    decode=ToolEffectsSnapshotComponent.from_dict,
+)
+
+
 __all__ = [
-    "TOOL_RESULT_MODEL_VIEW_VERSION", "TOOL_RESULT_SCHEMA_VERSION",
+    "HISTORICAL_TOOL_RESULT_SCHEMA_VERSION", "TOOL_RESULT_MODEL_VIEW_VERSION",
+    "TOOL_RESULT_SCHEMA_VERSION",
     "TOOL_BATCH_CLOSURE_SCHEMA_VERSION", "TOOL_RESULT_TRACE_SAFE_VERSION",
+    "TOOL_EFFECTS_COMPONENT_SCHEMA_VERSION", "TOOL_EFFECTS_SNAPSHOT_COMPONENT_CODEC",
     "EffectState", "RetryDisposition",
-    "ToolErrorKind", "ToolResult", "ToolResultContractError", "ToolResultStatus",
+    "ToolEffectsSnapshotComponent", "ToolErrorKind", "ToolResult",
+    "ToolResultCompatibilityReader", "ToolResultContractError", "ToolResultStatus",
 ]
