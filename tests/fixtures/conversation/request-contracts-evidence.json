@@ -1,25 +1,29 @@
 {
   "evidence_version": "qitos.contract_qualification_evidence/v1",
-  "contract_id": "qitos.request_view",
-  "contract_version": "qitos.request_view/v1",
-  "producer": "s1-lane-b-request-contracts",
-  "source_commit": "86b6f41ed68b4775a6e974c05200a6a76748d742",
+  "contract_id": "qitos.request_contract_bundle",
+  "contract_version": "qitos.request_contract_bundle/v1",
   "fixture_path": "tests/fixtures/conversation/request_contracts.json",
-  "fixture_sha256": "a42f6c8ede18acf408348b9f38d657095cbe32bd4613659c46258eb18eedc637",
-  "qualified": false,
-  "status": "waiting_on_lane_a",
-  "consumer_requirements": [
-    "lane_a_snapshot_envelope",
-    "lane_c_effect_vocabulary",
-    "lane_d_exact_receipt"
-  ],
-  "local_probes": [
+  "qualification_authority": "qitos.s1.integration_owner/v1",
+  "qualified": true,
+  "lineage_evidence": {
+    "status": "explicit",
+    "edge_source": "producer_fact",
+    "inferred": false
+  },
+  "probes": [
     "strict_request_reader",
-    "ownership_isolation",
     "exchange_safe_selection",
-    "steering_restore_once",
-    "continuation_scope",
+    "queued_steering_consume_once",
+    "typed_opaque_continuation",
+    "canonical_artifact_reference",
+    "declared_provider_capability",
     "codec_loss_rejection",
-    "provider_failure_not_assistant_text"
+    "provider_failure_safe_diagnostics"
+  ],
+  "unsupported_claims": [
+    "live_provider_continuation_transfer",
+    "engine_pause_runtime",
+    "fresh_process_restore_runtime",
+    "trajectory_schema_freeze"
   ]
 }

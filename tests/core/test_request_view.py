@@ -20,6 +20,7 @@ from qitos.core.conversation import (
     UserItem,
 )
 from qitos.core.multimodal import ContentBlock
+from qitos.core.artifact import ArtifactContractError
 from qitos.core.request_view import (
     ArtifactRef,
     CompactionReceipt,
@@ -40,6 +41,7 @@ from qitos.core.request_view import (
     submit_steering,
 )
 from qitos.core.tool_result import ToolResult
+from qitos.core.session import ContinuationIdentity
 
 
 TARGET = RequestTarget(
@@ -274,7 +276,9 @@ def test_compaction_artifact_and_context_facts_round_trip_without_blob_copy() ->
 
 def test_continuation_is_provider_model_api_scoped_and_contains_only_reference() -> None:
     continuation = ContinuationRef(
-        reference_id="continuation_fixture",
+        reference_id=ContinuationIdentity(
+            "continuation_20000000000000000000000000000001"
+        ),
         resolver_key="continuation:fixture",
         provider="openai",
         model="fixture-model",
@@ -399,7 +403,9 @@ def test_snapshot_component_round_trip_digest_and_pending_steering() -> None:
 
 def test_snapshot_continuation_requires_resolver_pointer_not_opaque_token() -> None:
     continuation = ContinuationRef(
-        reference_id="ref_snapshot",
+        reference_id=ContinuationIdentity(
+            "continuation_20000000000000000000000000000002"
+        ),
         resolver_key="continuation:snapshot",
         provider="openai",
         model="fixture-model",
@@ -437,7 +443,7 @@ def test_snapshot_continuation_requires_resolver_pointer_not_opaque_token() -> N
 
     safe_payload = unsafe.to_persistence_dict()
     safe_payload["items"][0]["continuation_attachments"][0]["opaque_payload"] = {
-        "resolver_ref": "ref_snapshot"
+        "resolver_ref": continuation.reference_id.to_dict()
     }
     safe = ExchangeLog.from_dict(safe_payload)
     component = ConversationSnapshotComponent.from_exchange_log(
@@ -445,7 +451,7 @@ def test_snapshot_continuation_requires_resolver_pointer_not_opaque_token() -> N
     )
     rendered = json.dumps(component.to_dict())
     assert "opaque-secret" not in rendered
-    assert '"resolver_ref": "ref_snapshot"' in rendered
+    assert '"kind": "continuation"' in rendered
 
 
 def test_strict_request_component_and_compatibility_readers() -> None:
@@ -502,7 +508,7 @@ def test_strict_request_component_and_compatibility_readers() -> None:
     ],
 )
 def test_reference_contract_rejects_raw_host_paths(kwargs: dict[str, str]) -> None:
-    with pytest.raises(RequestContractError):
+    with pytest.raises(ArtifactContractError):
         ArtifactRef(
             artifact_id="bad",
             sha256="d" * 64,

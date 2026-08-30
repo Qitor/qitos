@@ -8,6 +8,7 @@ import pytest
 
 from qitos.core.conversation import ExchangeLog, UserItem
 from qitos.core.multimodal import ContentBlock
+from qitos.core.session import ContinuationIdentity
 from qitos.core.request_view import (
     ContextContribution,
     ContinuationRef,
@@ -40,7 +41,9 @@ def _request(*, continuation: bool = False) -> RequestView:
     target = RequestTarget("openai", "fixture-model", "openai", "responses")
     reference = (
         ContinuationRef(
-            reference_id="codec_continuation",
+            reference_id=ContinuationIdentity(
+                "continuation_30000000000000000000000000000001"
+            ),
             resolver_key="continuation:codec",
             provider="openai",
             model="fixture-model",
@@ -96,7 +99,7 @@ class FixtureCodec:
             "model": request.target.model,
             "input": list(request.selected_items),
             "continuation_ref": (
-                request.continuation.reference_id if request.continuation else None
+                request.continuation.reference_id.value if request.continuation else None
             ),
         }
         report = report_for_request(
@@ -116,7 +119,9 @@ def test_single_codec_protocol_and_lossless_report_round_trip() -> None:
     assert isinstance(codec, ProviderCodec)
     payload, report = codec.encode(_request(continuation=True))
 
-    assert payload["continuation_ref"] == "codec_continuation"
+    assert payload["continuation_ref"] == (
+        "continuation_30000000000000000000000000000001"
+    )
     assert report.lossless is True
     assert report.continuation == "applied"
     assert report.context_selected == ("codec_context",)
@@ -246,6 +251,33 @@ class OpenAIResponsesFixtureModel:
     api_mode = "responses"
     context_window = 128_000
 
+    def qitos_request_target(self) -> RequestTarget:
+        return RequestTarget("declared-fixture", self.model, "fixture", self.api_mode)
+
+    def qitos_provider_capabilities(self) -> dict[str, Any]:
+        return {
+            "supported_features": (
+                "text",
+                "multimodal",
+                "tool_calls",
+                "tool_results",
+                "tool_schemas",
+                "parallel_tool_calls",
+                "reasoning",
+                "continuation",
+            ),
+            "reasoning_modes": (
+                "preserve_if_supported",
+                "native_item_continuation",
+                "drop",
+            ),
+            "multimodal_types": ("text", "image_url"),
+            "supports_parallel_tool_calls": True,
+            "supports_tool_schemas": True,
+            "supports_continuation": True,
+            "max_input_units": self.context_window,
+        }
+
     def supports_tool_schema_delivery(self, delivery: str) -> bool:
         return delivery == "api_parameter"
 
@@ -257,7 +289,7 @@ def test_model_provider_capabilities_are_derived_without_caller_matrix() -> None
     capabilities = ProviderCapabilities.from_model(OpenAIResponsesFixtureModel())
 
     assert capabilities.target == RequestTarget(
-        "openai", "fixture-model", "openai", "responses"
+        "declared-fixture", "fixture-model", "fixture", "responses"
     )
     assert capabilities.supports_continuation is True
     assert capabilities.supports_parallel_tool_calls is True
@@ -276,3 +308,21 @@ def test_stable_fixture_codec_report_is_strictly_readable() -> None:
     report = CodecReport.from_dict(fixture["samples"]["codec_report"])
     assert report.lossless is True
     assert report.codec_id == "fixture.responses"
+
+    evidence = json.loads(
+        fixture_path.with_name("request-contracts-evidence.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert evidence["contract_id"] == "qitos.request_contract_bundle"
+    assert evidence["contract_version"] == "qitos.request_contract_bundle/v1"
+    assert evidence["fixture_path"] == (
+        "tests/fixtures/conversation/request_contracts.json"
+    )
+    assert evidence["qualification_authority"] == "qitos.s1.integration_owner/v1"
+    assert evidence["qualified"] is True
+    assert evidence["lineage_evidence"] == {
+        "status": "explicit",
+        "edge_source": "producer_fact",
+        "inferred": False,
+    }

@@ -24,6 +24,20 @@ class GeminiModel(Model):
     - GEMINI_BASE_URL (optional, default https://generativelanguage.googleapis.com/v1beta)
     """
 
+    qitos_provider_id = "google"
+    qitos_transport_id = "gemini"
+    qitos_api_mode = "generate_content"
+    qitos_capabilities_by_api_mode = {
+        "generate_content": {
+            "supported_features": ("text",),
+            "reasoning_modes": ("drop",),
+            "multimodal_types": ("text",),
+            "supports_parallel_tool_calls": False,
+            "supports_tool_schemas": False,
+            "supports_continuation": False,
+        }
+    }
+
     def __init__(
         self,
         model: str = "gemini-2.5-flash",

@@ -14,6 +14,7 @@ import re
 from dataclasses import dataclass, field, replace
 from typing import Any, Dict, Iterable, Literal, Mapping, Optional, Protocol, Sequence
 
+from .artifact import ArtifactRef
 from .conversation import (
     AssistantContent,
     AssistantItem,
@@ -27,6 +28,7 @@ from .conversation import (
 )
 from .history import HistoryMessage
 from .multimodal import ContentBlock
+from .session import ContinuationIdentity, SnapshotComponentCodec
 
 
 REQUEST_VIEW_SCHEMA_VERSION = "qitos.request_view/v1"
@@ -236,7 +238,7 @@ class ContextBudget:
 
 @dataclass(frozen=True)
 class ContinuationRef:
-    reference_id: str
+    reference_id: ContinuationIdentity
     resolver_key: str
     provider: str
     model: str
@@ -246,7 +248,10 @@ class ContinuationRef:
     expires_at: Optional[str] = None
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "reference_id", _non_empty(self.reference_id, "reference_id"))
+        if not isinstance(self.reference_id, ContinuationIdentity):
+            raise RequestContractError(
+                "reference_id must use the canonical ContinuationIdentity type"
+            )
         object.__setattr__(self, "resolver_key", _logical_reference(self.resolver_key, "resolver_key"))
         for name in ("provider", "model", "api_mode"):
             object.__setattr__(self, name, _non_empty(getattr(self, name), name))
@@ -265,7 +270,7 @@ class ContinuationRef:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "reference_id": self.reference_id,
+            "reference_id": self.reference_id.to_dict(),
             "resolver_key": self.resolver_key,
             "provider": self.provider,
             "model": self.model,
@@ -289,66 +294,9 @@ class ContinuationRef:
                 "expires_at",
             }
         )
-        return cls(**_strict_object(value, path="continuation", fields=fields))
-
-
-@dataclass(frozen=True)
-class ArtifactRef:
-    artifact_id: str
-    resolver_key: str
-    sha256: str
-    media_type: str
-    byte_length: int
-    encoding: str = "binary"
-    sensitivity: str = "internal"
-    provenance_digest: Optional[str] = None
-    model_summary: Optional[str] = None
-    required: bool = True
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "artifact_id", _non_empty(self.artifact_id, "artifact_id"))
-        object.__setattr__(self, "resolver_key", _logical_reference(self.resolver_key, "resolver_key"))
-        if not _SHA256.fullmatch(self.sha256):
-            raise RequestContractError("artifact sha256 must be a lowercase SHA-256 digest")
-        if self.byte_length < 0:
-            raise RequestContractError("artifact byte_length cannot be negative")
-        object.__setattr__(self, "media_type", _non_empty(self.media_type, "media_type"))
-        if self.provenance_digest is not None and not _SHA256.fullmatch(
-            self.provenance_digest
-        ):
-            raise RequestContractError("provenance_digest must be a SHA-256 digest")
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "artifact_id": self.artifact_id,
-            "resolver_key": self.resolver_key,
-            "sha256": self.sha256,
-            "media_type": self.media_type,
-            "byte_length": self.byte_length,
-            "encoding": self.encoding,
-            "sensitivity": self.sensitivity,
-            "provenance_digest": self.provenance_digest,
-            "model_summary": self.model_summary,
-            "required": self.required,
-        }
-
-    @classmethod
-    def from_dict(cls, value: Any) -> "ArtifactRef":
-        fields = frozenset(
-            {
-                "artifact_id",
-                "resolver_key",
-                "sha256",
-                "media_type",
-                "byte_length",
-                "encoding",
-                "sensitivity",
-                "provenance_digest",
-                "model_summary",
-                "required",
-            }
-        )
-        return cls(**_strict_object(value, path="artifact_ref", fields=fields))
+        data = _strict_object(value, path="continuation", fields=fields)
+        data["reference_id"] = ContinuationIdentity.from_dict(data["reference_id"])
+        return cls(**data)
 
 
 @dataclass(frozen=True)
@@ -608,28 +556,17 @@ def _item_categories(item: Any) -> set[str]:
 
 
 def _target_from_model(model: Any) -> RequestTarget:
-    module = str(model.__class__.__module__).lower()
-    name = str(model.__class__.__name__).lower()
-    if "anthropic" in module or "anthropic" in name:
-        provider, transport, mode = "anthropic", "messages", "messages"
-    elif "gemini" in module or "gemini" in name:
-        provider, transport, mode = "google", "gemini", "generate_content"
-    elif "litellm" in module or "litellm" in name:
-        provider, transport, mode = "litellm", "litellm", "chat_completions"
-    elif "ollama" in name:
-        provider, transport, mode = "ollama", "ollama", "chat"
-    elif "lmstudio" in name or "vllm" in name:
-        provider, transport, mode = "openai-compatible", "openai", "chat_completions"
-    else:
-        provider = "openai-compatible" if "compatible" in name else "openai"
-        transport = "openai"
-        mode = str(getattr(model, "api_mode", "chat_completions"))
-    return RequestTarget(
-        provider=provider,
-        model=str(getattr(model, "model", "unknown")),
-        transport=transport,
-        api_mode=mode,
-    )
+    declaration = getattr(model, "qitos_request_target", None)
+    if not callable(declaration):
+        raise RequestContractError(
+            "model adapter must declare qitos_request_target(); provider names are not inferred"
+        )
+    target = declaration()
+    if isinstance(target, RequestTarget):
+        return target
+    if isinstance(target, Mapping):
+        return RequestTarget.from_dict(target)
+    raise RequestContractError("qitos_request_target() returned an invalid target")
 
 
 @dataclass(frozen=True)
@@ -1230,7 +1167,7 @@ class ConversationSnapshotComponent:
         for attachment in attachments:
             ref = refs_by_attachment.get(attachment.attachment_id)
             if ref is None or attachment.opaque_payload != {
-                "resolver_ref": ref.reference_id
+                "resolver_ref": ref.reference_id.to_dict()
             }:
                 raise UnsafeSnapshotComponentError(
                     "snapshot continuation attachments must contain resolver references only"
@@ -1384,9 +1321,28 @@ class ConversationCompatibilityReader:
         )
 
 
+def _encode_conversation_component(value: Any) -> Mapping[str, Any]:
+    if not isinstance(value, ConversationSnapshotComponent):
+        raise UnsafeSnapshotComponentError(
+            "conversation snapshot codec requires ConversationSnapshotComponent"
+        )
+    return value.to_dict()
+
+
+CONVERSATION_SNAPSHOT_COMPONENT_CODEC = SnapshotComponentCodec(
+    slot="conversation",
+    owner="qitos.conversation",
+    schema_version=CONVERSATION_COMPONENT_SCHEMA_VERSION,
+    required=True,
+    encode=_encode_conversation_component,
+    decode=ConversationSnapshotComponent.from_dict,
+)
+
+
 __all__ = [
     "REQUEST_VIEW_SCHEMA_VERSION",
     "CONVERSATION_COMPONENT_SCHEMA_VERSION",
+    "CONVERSATION_SNAPSHOT_COMPONENT_CODEC",
     "REQUEST_BUILDER_VERSION",
     "RequestContractError",
     "UnsupportedRequestVersionError",

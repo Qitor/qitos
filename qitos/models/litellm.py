@@ -21,6 +21,20 @@ class LiteLLMModel(Model):
     - LITELLM_PROVIDER (optional)
     """
 
+    qitos_provider_id = "litellm"
+    qitos_transport_id = "litellm"
+    qitos_api_mode = "chat_completions"
+    qitos_capabilities_by_api_mode = {
+        "chat_completions": {
+            "supported_features": ("text",),
+            "reasoning_modes": ("drop",),
+            "multimodal_types": ("text",),
+            "supports_parallel_tool_calls": False,
+            "supports_tool_schemas": False,
+            "supports_continuation": False,
+        }
+    }
+
     def __init__(
         self,
         model: str = "gpt-4o-mini",

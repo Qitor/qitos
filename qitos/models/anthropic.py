@@ -25,6 +25,20 @@ class AnthropicModel(Model):
     - ANTHROPIC_API_VERSION (optional, default 2023-06-01)
     """
 
+    qitos_provider_id = "anthropic"
+    qitos_transport_id = "messages"
+    qitos_api_mode = "messages"
+    qitos_capabilities_by_api_mode = {
+        "messages": {
+            "supported_features": ("text",),
+            "reasoning_modes": ("drop",),
+            "multimodal_types": ("text",),
+            "supports_parallel_tool_calls": False,
+            "supports_tool_schemas": False,
+            "supports_continuation": False,
+        }
+    }
+
     def __init__(
         self,
         model: str = "claude-3-5-sonnet-latest",
