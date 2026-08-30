@@ -1,5 +1,15 @@
 # Conversation semantic fixtures
 
+`request_contracts.json` is the current stable-path S1 Lane B fixture. It
+contains versioned `RequestView`, `CodecReport`, and conversation-component
+samples plus the complete semantic case manifest. Its adjacent evidence remains
+`waiting_on_lane_a` until the reviewed Lane A snapshot envelope is consumed and
+the producer commit/digests are final.
+
+The `v3/` directory is the qualified G1 compatibility envelope. No new S1
+fixture is added under that version directory; its bytes and evidence path stay
+unchanged until Lane D and the integration owner migrate the existing receipt.
+
 `v3/semantic_fixtures.json` is the G1 producer fixture envelope. Its execution
 and persistence consumers are explicit in `tests/core/test_conversation.py`,
 including direct consumption of Lane C's committed canonical result fixture.
