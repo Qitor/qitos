@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "qitos://trajectory-contract-qualification-receipts",
+  "title": "QitOS Trajectory contract qualification receipt set",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["receipt_type", "schema_version", "receipts"],
+  "properties": {
+    "receipt_type": {"const": "trajectory_contract_qualification_receipts"},
+    "schema_version": {"const": "1"},
+    "receipts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "contract_id",
+          "producer_contract_id",
+          "version",
+          "producer_source_commit",
+          "fixture_path",
+          "fixture_sha256",
+          "qualification_evidence_path",
+          "qualification_evidence_sha256",
+          "qualification_authority"
+        ],
+        "properties": {
+          "contract_id": {"type": "string", "minLength": 1},
+          "producer_contract_id": {"type": "string", "minLength": 1},
+          "version": {"type": "string", "minLength": 1},
+          "producer_source_commit": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "fixture_path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*://).+$"
+          },
+          "fixture_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "qualification_evidence_path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*://).+$"
+          },
+          "qualification_evidence_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "qualification_authority": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}
