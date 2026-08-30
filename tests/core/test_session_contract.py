@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 from pathlib import Path
 
@@ -491,6 +492,36 @@ def test_semantic_fixture_covers_every_required_scenario() -> None:
             ComponentSlot(item["component_slot"])
         if item["error_code"] is not None:
             SessionErrorCode(item["error_code"])
+
+
+def test_fixture_manifest_binds_exact_producer_bytes() -> None:
+    manifest = json.loads(
+        (FIXTURE_ROOT / "fixture-manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["schema_version"] == 1
+    assert manifest["producers"] == {
+        "identity": "63d5cfbea4e0a0941b038833f0152c391d9b63bd",
+        "snapshot": "aeb58379d2a266f5f8ba36688530f9ac27da07d1",
+    }
+    for item in manifest["files"]:
+        fixture_bytes = (FIXTURE_ROOT / item["path"]).read_bytes()
+        assert hashlib.sha256(fixture_bytes).hexdigest() == item["sha256"]
+
+
+def test_qualification_evidence_binds_manifest_and_unsupported_claims() -> None:
+    evidence = json.loads(
+        (FIXTURE_ROOT / "qualification-evidence.json").read_text(encoding="utf-8")
+    )
+    manifest_bytes = (FIXTURE_ROOT / "fixture-manifest.json").read_bytes()
+    assert evidence["schema_version"] == 1
+    assert evidence["qualification_authority"] == "lane_a_session_contract_owner"
+    assert evidence["fixture_manifest"]["sha256"] == hashlib.sha256(
+        manifest_bytes
+    ).hexdigest()
+    assert all(item["qualified"] for item in evidence["contracts"].values())
+    assert "engine_pause_runtime" in evidence["unsupported_claims"]
+    assert "fresh_process_restore_runtime" in evidence["unsupported_claims"]
+    assert "trajectory_schema_freeze" in evidence["unsupported_claims"]
 
 
 def test_fork_fixture_has_new_session_and_snapshot_identities() -> None:

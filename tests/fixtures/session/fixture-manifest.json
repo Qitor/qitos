@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "contract": "qitos.session.fixture-manifest",
+  "producers": {
+    "identity": "63d5cfbea4e0a0941b038833f0152c391d9b63bd",
+    "snapshot": "aeb58379d2a266f5f8ba36688530f9ac27da07d1"
+  },
+  "files": [
+    {"path": "identity-vocabulary.json", "sha256": "83dfe69231d6c4786a30a4a6a0682aef222dca26c5273c41cad4618cc2a3b48f", "owner": "lane_a", "consumer": "all"},
+    {"path": "semantic-fixtures.json", "sha256": "5ad16d94f9bf98d76567c8a09775515285c4cbd27d91c210d9b7d3c0b1d10299", "owner": "lane_a", "consumer": "all"},
+    {"path": "restore-candidate.json", "sha256": "ab56a922fbe7ebfba85bf5f3a802f37f8aaa5a5c73bc51895aa0dd97a9651c06", "owner": "lane_a", "consumer": "lane_b,lane_c,lane_d"},
+    {"path": "forked-session.json", "sha256": "1cd011001cee67602dffad5827bac80f174e9db6e7220bf0a25af9b0ffa6c7d5", "owner": "lane_a", "consumer": "lane_c,lane_d"}
+  ],
+  "consumer_test": "python -m pytest -q tests/core/test_session_identity.py tests/core/test_session_contract.py"
+}

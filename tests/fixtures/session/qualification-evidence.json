@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "contract": "qitos.session.qualification-evidence",
+  "qualification_authority": "lane_a_session_contract_owner",
+  "producer_commits": {
+    "identity": "63d5cfbea4e0a0941b038833f0152c391d9b63bd",
+    "snapshot": "aeb58379d2a266f5f8ba36688530f9ac27da07d1"
+  },
+  "fixture_manifest": {
+    "path": "tests/fixtures/session/fixture-manifest.json",
+    "sha256": "2e950e2320007716a137d3ee4e35b01ccb771c53b30c6e167e7c5de6f023a4b1"
+  },
+  "contracts": {
+    "identity_vocabulary": {"qualified": true, "schema_version": 1},
+    "lifecycle_vocabulary": {"qualified": true, "schema_version": 1},
+    "snapshot_envelope": {"qualified": true, "schema_version": 1},
+    "resolver_reference": {"qualified": true, "schema_version": 1},
+    "head_generation": {"qualified": true, "schema_version": 1}
+  },
+  "consumer_test": "/opt/anaconda3/bin/python3.12 -m pytest -q tests/core/test_session_identity.py tests/core/test_session_contract.py",
+  "unsupported_claims": [
+    "engine_pause_runtime",
+    "fresh_process_restore_runtime",
+    "session_head_store_cas",
+    "runtime_fork",
+    "external_effect_exactly_once",
+    "trajectory_schema_freeze"
+  ]
+}
