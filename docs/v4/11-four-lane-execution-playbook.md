@@ -948,10 +948,10 @@ fifth implementation. Its responsibilities are:
 
 | Lane | Current package | Branch/PR | Lease | Tests | Handoff produced | Blocker/decision | Gate status |
 |---|---|---|---|---|---|---|---|
-| A | 12A session contracts | `cb79532` | session identity/snapshot | individually green | identity vocabulary and snapshot envelope | outer component adaptation unresolved | G2 source candidate |
-| C | recovery/effects + 13A | `61c85ab` | outcome/work graph | individually green | quiescence and ownership fixtures | still uses untyped A-owned identities | G2 source candidate |
-| B | 02B RequestView | `939edd0` | conversation/context | individually green | RequestView, CodecReport, snapshot component | ArtifactRef/snapshot/capability convergence open | G2 source candidate |
-| D | lineage intake | `44a09e3` | readiness/evidence | individually green | 19-contract inventory | 17 S1 producers unestablished | G2 source candidate |
+| A | 12A session contracts | `5886425` | session identity/snapshot | cross-line tests green | typed identities, extensible envelope, ArtifactRef foundation | runtime behavior intentionally absent | G2 qualified contract |
+| C | recovery/effects + 13A | `bd7fca9` | outcome/work graph | cross-line tests green | typed effects/work graph, current writer and historical reader | persistent scheduler intentionally absent | G2 qualified contract |
+| B | 02B RequestView | `3cc29be` | conversation/context | cross-line tests green | sole conversation component, RequestView, declared capabilities | provider dispatch switch intentionally absent | G2 qualified contract |
+| D | lineage intake | `fcb0784` | readiness/evidence | 19/19 receipts qualified | exact A/B/C producer bindings | runtime/Trajectory blockers retained | G2 qualified contracts; Trajectory not ready |
 
 ### 10.2 Merge rule
 
@@ -968,7 +968,16 @@ Preferred order inside each gate:
 If a consumer requires a contract change, return the change to the owning lane.
 Do not patch the producer's private fields in the consumer PR.
 
-## 11. Immediate dispatch order
+## 11. G2 closure and S2 stop gate
+
+G2 contract convergence is complete on
+`codex/v4-g2-contract-convergence`. This authorizes use of its final clean HEAD
+as the proposed S2 baseline only after the integration owner accepts the full
+validation record. It does not authorize session runtime, persistent child
+scheduling, provider-default migration, or Trajectory implementation in this
+G2 branch.
+
+The following dispatch text is retained as historical provenance.
 
 The four S1 branches have completed their local producer work. Do not dispatch
 four more repair branches and do not start S2. Dispatch one G2 convergence task

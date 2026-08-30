@@ -1,12 +1,78 @@
 # G2 stable-contract convergence plan
 
-Status: planned; four S1 producer candidates reviewed; not merge-ready
+Status: complete and repository-qualified; runtime/Trajectory work not started
 Updated: 2026-08-30
 Owner: one G2 integration owner
 S1 source ancestry baseline: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
 Plan carrier: `907cf038b3a6af469a27ff6f1b2d48a0c7d3d7c7`
 Target branch: `codex/v4-g2-contract-convergence`
 Target worktree: `/Users/morinop/Desktop/WhitzardOS-g2`
+
+## Closure record
+
+The fixed dispatch `096e08244a0274720a58f07ed9f45ca0a7eece59` was used
+directly. All 22 source commits were applied in the required A -> C -> B -> D
+order without textual conflicts. The original source commits remain provenance;
+the integrated commits are new cherry-pick identities.
+
+G2 closes the eight semantic blockers at the contract layer:
+
+- A producer `58864253a169d1bac5749ad2b2de5de6872c0da2` owns the typed
+  identity vocabulary, extensible snapshot envelope/registry, component
+  integrity rules, and canonical `ArtifactRef` foundation;
+- C producer `bd7fca95e9ba9acfbbd9e8d0655a14ece066bcb6` consumes A
+  identities directly, publishes the current ToolResult writer plus isolated
+  historical reader, and owns typed effects/WorkGraph components;
+- B producer `3cc29bea2bd311a2343862fd0b4f32636524bbb6` owns the sole
+  conversation component, RequestView projections, typed continuation, and
+  provider-declared capabilities without provider-name inference;
+- D receipt integration `fcb0784` independently binds all 17 S1 requirement
+  IDs to exact A/B/C producer commits, repository-relative paths, current and
+  committed bytes, SHA-256 digests, qualification authority, typed identities,
+  and explicit producer lineage.
+
+The contract receipt gate reports all 19 requirements qualified (the two G1
+foundations plus 17 G2 items) and no receipt blocker. This is deliberately not a
+runtime or Trajectory claim: Engine pause/resume/fork, SessionStore/head CAS,
+clean-process restore, persistent child scheduling, trajectory writer/store,
+qita migration, publication, compression, deduplication, and performance remain
+typed blocked or out of scope.
+
+The beginner interface budget is frozen in
+`docs/architecture/public-interface-budget.md`: 127 measured module-level
+exports are classified, with no new root export and no new Engine parameter.
+
+## Final qualification
+
+The final G2 tree passed these gates on 2026-08-30 using the repository's
+complete Python 3.12.7 quality environment:
+
+| Gate | Result |
+|---|---|
+| static quality ratchet | 399 findings baselined: 377 active, 22 vendored/generated; no growth |
+| stable flake8 | exit 0, no findings |
+| stable mypy | success on 84 source files |
+| architecture / public surface / no-local-path | 4 / 4 / 2 passed |
+| session/checkpoint/Engine | 84 passed |
+| conversation/RequestView/codec | 58 passed |
+| ToolResult/WorkGraph | 74 passed |
+| D readiness and receipt adversarial | 60 passed |
+| trace/qita compatibility | 97 passed |
+| convergence and interface budget | 12 passed |
+| explicit migration/malformed/privacy/portability probes | 8 passed |
+| full suite | 2010 passed, 50 conditionally skipped |
+| diff check | clean |
+
+Readiness without receipts exits 0 with zero qualified contracts and 19 receipt
+findings. Dry-run with the exact receipt set exits 0 with 19 qualified contracts
+and zero receipt findings. Normal execution with the same receipts exits 2 with
+`schema_not_ready`. All modes report no measurements or claims.
+
+The host's default Homebrew Python 3.13.3 lacks flake8 package metadata, so an
+initial ratchet invocation failed before analysis. Selecting the existing
+repository quality environment (`/opt/anaconda3/bin`, Python 3.12.7) made the
+required `python scripts/static_quality.py check` invocation executable; the
+gate then passed without any source or baseline relaxation.
 
 ## Objective
 
@@ -40,7 +106,7 @@ above and may differ from the S1 source ancestry baseline because the audit and
 dispatch documentation landed after the four candidates branched. Do not start
 the G2 worktree directly from `c1efb0f...`.
 
-## Independent audit evidence
+## Pre-convergence independent audit evidence
 
 An isolated A -> C -> B -> D merge completed without textual conflicts. The
 merged tree passed 173 focused contract/readiness/boundary tests, the full suite
@@ -64,7 +130,7 @@ Independent probes demonstrated that:
 - D still reports all 17 S1 requirements as
   `producer_version_unestablished`, qualifying only the two G1 foundations.
 
-## Blocking repairs
+## Historical blocking repairs (closed by the closure record above)
 
 ### G2-I1 — one identity vocabulary
 

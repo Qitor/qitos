@@ -2,13 +2,49 @@
 
 Status: active integration ledger
 Updated: 2026-08-30
-Integration branch: `feat/campaign-absorption`
+Integration branch: `codex/v4-g2-contract-convergence`
 Independently reviewed runtime baseline: `5ef8ab657f6452ae48c931beea79106e2cca34c6`
 S1 dispatch baseline: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
-Current gate: **G1 CLOSED; four S1 candidates delivered; G2 convergence blocked**
+Current gate: **G2 CONTRACT CONVERGENCE COMPLETE; runtime and Trajectory gates remain closed**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md)
 and [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md)
+
+## G2 stable-contract convergence — 2026-08-30
+
+The G2 worktree started from the exact dispatch
+`096e08244a0274720a58f07ed9f45ca0a7eece59`. It preserved all 22 source
+commits in A -> C -> B -> D cherry-pick order with no conflicts, then closed the
+cross-lane contract blockers on one integration branch.
+
+| Contract owner | Integrated producer | Accepted facts |
+|---|---|---|
+| A | `58864253a169d1bac5749ad2b2de5de6872c0da2` | typed identities; extensible component registry; snapshot integrity; resolver and artifact references |
+| C | `bd7fca95e9ba9acfbbd9e8d0655a14ece066bcb6` | typed attempts/work ownership; ToolResult current/historical split; effects and WorkGraph components |
+| B | `3cc29bea2bd311a2343862fd0b4f32636524bbb6` | sole conversation component; RequestView; continuation; provider-declared capabilities |
+| D | `fcb0784` | exact, one-blocker-per-receipt qualification of all 17 S1 items |
+
+D now qualifies 19/19 contract requirements with zero contract-receipt
+findings. Its normal command remains typed blocked with
+`TRAJECTORY_SCHEMA_NOT_READY`; it emits no measurement or performance claim and
+retains separate blockers for runtime consumers, the canonical writer/store,
+publication, and qita migration.
+
+The interface ratchet classifies 127 measured `__all__` entries across the eight
+G2 modules. No convergence name was added to the root package and no Engine
+constructor parameter was added. See
+[`public-interface-budget.md`](architecture/public-interface-budget.md).
+
+This ledger uses five distinct states: the lane heads are **source candidates**;
+the A/B/C commits above are **integrated contracts**; exact D receipts make them
+**qualified contracts**; the session/multi-agent **runtime is not implemented**;
+and the future **Trajectory is not ready**.
+
+Final G2 qualification passed the 399-finding ratchet, zero-finding stable
+flake8, mypy on 84 source files, all targeted groups, all three readiness modes,
+and the complete suite (`2010 passed, 50 skipped`). The proposed S2 baseline is
+the final clean G2 HEAD reported by the integration handoff; no push or release
+was performed.
 
 ## 1. Purpose and maintenance rule
 
@@ -28,7 +64,10 @@ Maintain it with these rules:
 - update the current dashboard and next merge sequence after every accepted
   package.
 
-## 2. Current decision
+## 2. Historical pre-G2 decision
+
+The remainder of this section records the dispatch decision that preceded the
+G2 closure above. Its “next” language is provenance, not current authorization.
 
 The A -> C -> B -> D convergence tree and the bounded G1-R3/R4 repairs are
 integrated at `5ef8ab657f6452ae48c931beea79106e2cca34c6`. C-P3 collision-safe key

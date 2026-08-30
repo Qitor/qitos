@@ -1,9 +1,10 @@
 # Stable effects, recovery, and WorkGraph
 
-Status: S1 Lane C producer; contracts and fixtures only
-Schema versions: `qitos.tool_result/v1`, `qitos.tool_batch_closure/v1`,
-`qitos.work_graph/v1`, `qitos.work_graph.snapshot_component/v1`
-Cross-lane qualification: `waiting_on_lane_a`
+Status: integrated and contract-qualified in G2; runtime behavior deferred
+Schema versions: current `qitos.tool_result/v2`, historical
+`qitos.tool_result/v1`, `qitos.tool_batch_closure/v1`,
+`qitos.work_graph/v2`, `qitos.work_graph.snapshot_component/v1`
+Cross-lane qualification: exact A/C producer receipts accepted
 
 ## Decision
 
@@ -223,9 +224,9 @@ component by reference/version and resolves the full graph through checkpoint
 v2. Missing graph references, unknown component versions, stale owner
 generation, and unresolved non-quiescent children are typed restore blockers.
 
-The provisional component is C-owned and does not qualify G2 until it is read
-inside the reviewed Lane A envelope. Current disposition:
-`waiting_on_lane_a`.
+The component is C-owned and is read by the reviewed A envelope through the
+explicit stable component registry. Its G2 contract is qualified; no persistent
+child scheduler or clean-process runtime is implied.
 
 ## Compatibility retirement
 

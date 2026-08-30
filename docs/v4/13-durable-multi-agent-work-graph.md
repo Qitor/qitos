@@ -1,7 +1,7 @@
 # Task 13 — durable multi-agent work graph and ownership transfer
 
-Status: 13A producer candidate delivered; G2 identity/snapshot convergence is
-pending; behavior still waits for Task 12's clean-process slice
+Status: 13A contract integrated and qualified in G2; behavior still waits for
+Task 12's clean-process runtime slice
 Depends on: Task 12A–12D; consumes Tasks 02, 03, and 04 contracts
 Feeds: Task 05 lineage/observability, Task 10 convergence, and native multi-agent
 research methods

@@ -1,6 +1,6 @@
 # ADR — one stable session runtime contract
 
-Status: accepted for S1 Lane A contract production; runtime behavior deferred
+Status: integrated and contract-qualified in G2; runtime behavior deferred
 Date: 2026-08-30
 Owner: Lane A / Task 12
 Decision scope: identity, lifecycle, snapshot envelope, resolver references,
@@ -21,6 +21,13 @@ session state.
 
 Task 12A freezes contracts only. It does not claim that Engine pause, restore,
 fork, or atomic head persistence is implemented.
+
+G2 adds an explicit, extensible `SnapshotComponentRegistry`: the outer envelope
+validates owner, slot, payload schema, requiredness, and digest, while each
+semantic owner supplies exactly one codec. The stable composition directly
+reads B's conversation component and C's effects and WorkGraph components.
+Unknown owners/schemas, missing required components, and digest mismatches fail
+typed; registration is explicit and contains no hidden global mutation.
 
 ## Beginner golden path
 

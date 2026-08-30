@@ -1,12 +1,28 @@
 # S1 contract wave plan
 
-Status: four producer candidates delivered; G2 semantic convergence required
+Status: four source candidates converged and contract-qualified in G2
 Updated: 2026-08-30
 Owner: v4 integration owner
 Independently reviewed runtime baseline:
 `5ef8ab657f6452ae48c931beea79106e2cca34c6`
 Source gates: [`docs/progress.md`](../../progress.md) and
 [`docs/v4/11-four-lane-execution-playbook.md`](../../v4/11-four-lane-execution-playbook.md)
+
+## G2 disposition
+
+The S1 branches remain immutable source candidates. G2 integrated them in the
+required A -> C -> B -> D order and produced reviewed semantic-owner commits:
+
+| Lane | Source candidate | Integrated producer | Qualification |
+|---|---|---|---|
+| A | `cb79532d45b114826ee4313a60bf42ebc5abca06` | `58864253a169d1bac5749ad2b2de5de6872c0da2` | five S1 requirements exact-receipt qualified |
+| C | `61c85ab774705610a2edf039417a8480afbeee16` | `bd7fca95e9ba9acfbbd9e8d0655a14ece066bcb6` | six S1 requirements exact-receipt qualified |
+| B | `939edd0164a7f1929818f3e79bea02f2635a9d7d` | `3cc29bea2bd311a2343862fd0b4f32636524bbb6` | six S1 requirements exact-receipt qualified |
+| D | `44a09e3cbfaa29978584a05fbafbdd5c37cd7f2f` | `fcb0784` | 17 independent G2 receipts accepted; runtime/Trajectory blockers retained |
+
+“Qualified” here means the integrated contract bytes and cross-module readers
+are accepted. It does not mean the planned session or multi-agent runtime is
+implemented, nor that the future Trajectory schema is ready.
 
 ## Objective
 
@@ -16,7 +32,10 @@ starting runtime behavior prematurely. S1 is an architecture/fixture wave, not
 an authorization to add a second Engine, SessionStore, result envelope, trace
 schema, provider default, or distributed scheduler.
 
-## Candidate review disposition
+## Historical candidate review disposition
+
+This section preserves the pre-G2 review record. The G2 disposition above is
+the current contract status.
 
 All four branches were delivered from the fixed dispatch baseline:
 

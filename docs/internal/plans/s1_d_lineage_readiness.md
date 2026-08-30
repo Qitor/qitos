@@ -8,6 +8,12 @@ Source commit: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
 Branch: `codex/v4-s1-d-lineage-intake`
 Worktree: isolated S1-D worktree (host-local path intentionally omitted)
 
+G2 integration update: the exact A/B/C producer bundles now populate all 17 S1
+requirements, and the stable receipt set qualifies each requirement
+independently. This completes contract intake only. Normal readiness remains
+typed blocked because runtime consumers and the Trajectory writer/store/qita
+migration do not exist.
+
 ## Objective
 
 Define one future `Trajectory` architecture and a strict, producer-owned S1
@@ -79,9 +85,10 @@ separate mechanical commit owned by the integration sequence.
 
 - No canonical trajectory writer or store exists in this package.
 - The proposed record fields and payload `schema_version` are not frozen.
-- No producer commit, fixture digest, evidence digest, or version is invented.
-- Existing G1 B/C receipts remain historical qualified inputs only; they do not
-  establish S1 G2 readiness.
+- No producer commit, fixture digest, evidence digest, or version is invented;
+  G2 bindings are resolved only after the semantic-owner commits exist.
+- Existing G1 B/C receipts and all 17 G2 receipts qualify contract bytes only;
+  they do not establish runtime or Trajectory readiness.
 - No benchmark measurement, publication, compression, deduplication,
   performance, or qita migration claim is permitted.
 - No current trace/qita compatibility behavior is removed or changed.
