@@ -514,7 +514,7 @@ def test_strict_v2_reader_normalizes_all_malformed_payloads_to_typed_errors() ->
 def test_exchange_log_consumes_exact_c_fixture_without_outcome_duplication() -> None:
     fixture = json.loads(C_FIXTURE_PATH.read_text(encoding="utf-8"))
     canonical_payload = fixture["model_safe_source"]
-    canonical = ToolResult.from_canonical_dict(canonical_payload)
+    canonical = ToolResult.from_value(canonical_payload)
     call = ToolCall(
         identity=CallIdentity("fixture:c", canonical.action_id or "call-safe"),
         batch_id="fixture_c_batch",

@@ -11,6 +11,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, Mapping, Optional, Protocol, runtime_checkable
 
+from ..core.diagnostics import redact_diagnostic_value, safe_diagnostic_text
 from ..core.request_view import RequestTarget, RequestView
 
 
@@ -100,54 +101,45 @@ class ProviderCapabilities:
 
     @classmethod
     def from_model(cls, model: Any) -> "ProviderCapabilities":
-        """Derive conservative defaults from the configured model/transport."""
+        """Read the explicit capability declaration owned by a model adapter."""
 
         target = RequestTarget.from_model(model)
-        supports_tools = False
-        probe = getattr(model, "supports_tool_schema_delivery", None)
-        if callable(probe):
-            try:
-                supports_tools = bool(probe("api_parameter"))
-            except Exception:
-                supports_tools = False
-        supports_multimodal = False
-        multimodal_probe = getattr(model, "supports_multimodal_input", None)
-        if callable(multimodal_probe):
-            try:
-                supports_multimodal = bool(multimodal_probe())
-            except Exception:
-                supports_multimodal = False
-        responses = target.transport == "openai" and target.api_mode == "responses"
-        features = {"text"}
-        if supports_tools:
-            features.update({"tool_calls", "tool_results", "tool_schemas"})
-        if supports_multimodal:
-            features.add("multimodal")
-        if responses:
-            features.update({"reasoning", "continuation"})
-        context_window = getattr(model, "context_window", None)
-        return cls(
-            target=target,
-            supported_features=tuple(sorted(features)),
-            reasoning_modes=(
-                ("preserve_if_supported", "native_item_continuation", "drop")
-                if responses
-                else ("drop",)
-            ),
-            multimodal_types=(
-                ("text", "image_url", "image_base64", "image_file")
-                if supports_multimodal
-                else ("text",)
-            ),
-            supports_parallel_tool_calls=supports_tools,
-            supports_tool_schemas=supports_tools,
-            supports_continuation=responses,
-            max_input_units=(
-                int(context_window)
-                if isinstance(context_window, int) and context_window > 0
-                else None
-            ),
+        declaration = getattr(model, "qitos_provider_capabilities", None)
+        if not callable(declaration):
+            raise CodecCapabilityError(
+                "model adapter must declare qitos_provider_capabilities()"
+            )
+        declared = declaration()
+        if isinstance(declared, cls):
+            if declared.target != target:
+                raise CodecCapabilityError(
+                    "provider capability declaration target does not match adapter target"
+                )
+            return declared
+        if not isinstance(declared, Mapping):
+            raise CodecCapabilityError("provider capability declaration must be an object")
+        fields = {
+            "supported_features",
+            "reasoning_modes",
+            "multimodal_types",
+            "supports_parallel_tool_calls",
+            "supports_tool_schemas",
+            "supports_continuation",
+            "max_input_units",
+        }
+        data = _object(
+            declared,
+            path="provider_capability_declaration",
+            fields=frozenset(fields),
         )
+        for name in ("supported_features", "reasoning_modes", "multimodal_types"):
+            raw = data[name]
+            if not isinstance(raw, (list, tuple)) or not all(
+                isinstance(item, str) for item in raw
+            ):
+                raise CodecCapabilityError(f"{name} must be a string sequence")
+            data[name] = tuple(raw)
+        return cls(target=target, **data)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -326,8 +318,27 @@ class ProviderFailure(Exception):
     schema_version: str = PROVIDER_FAILURE_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
-        _strict_json(dict(self.redacted_details), "provider_failure.redacted_details")
-        Exception.__init__(self, self.message)
+        if self.schema_version != PROVIDER_FAILURE_SCHEMA_VERSION:
+            raise CodecError("unsupported provider failure schema")
+        safe_message = safe_diagnostic_text(
+            self.message,
+            fallback="Provider request failed; inspect the typed category and retryability.",
+        )
+        safe_provider = safe_diagnostic_text(self.provider, fallback="[redacted]")
+        safe_api_mode = safe_diagnostic_text(self.api_mode, fallback="[redacted]")
+        safe_error_code = (
+            safe_diagnostic_text(self.error_code, fallback="[redacted]")
+            if self.error_code is not None
+            else None
+        )
+        safe_details = redact_diagnostic_value(dict(self.redacted_details))
+        object.__setattr__(self, "message", safe_message)
+        object.__setattr__(self, "provider", safe_provider)
+        object.__setattr__(self, "api_mode", safe_api_mode)
+        object.__setattr__(self, "error_code", safe_error_code)
+        object.__setattr__(self, "redacted_details", safe_details)
+        _strict_json(safe_details, "provider_failure.redacted_details")
+        Exception.__init__(self, safe_message)
 
     def to_dict(self) -> Dict[str, Any]:
         return {

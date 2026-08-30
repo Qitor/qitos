@@ -1449,7 +1449,7 @@ def _item_from_dict(payload: Any) -> ExchangeItem:
                 call_id=str(payload.get("call_id") or ""),
             ),
             batch_id=str(payload.get("batch_id") or ""),
-            result=ToolResult.from_canonical_dict(payload["result"]),
+            result=ToolResult.from_value(payload["result"]),
             synthetic=payload["synthetic"],
             closure_reason=payload["closure_reason"],
         )

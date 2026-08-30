@@ -13,7 +13,7 @@ import os
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Callable, Dict, Iterator, List, Optional, Type
+from typing import Any, AsyncIterator, Callable, Dict, Iterator, List, Mapping, Optional, Type
 
 from ..core.multimodal import content_to_text, normalize_messages
 from ..core.tool import RetryPolicy
@@ -68,6 +68,11 @@ class Model(ABC):
         # Returns: "Action: search(query='python tutorial')\n\n"
     """
 
+    qitos_provider_id: Optional[str] = None
+    qitos_transport_id: Optional[str] = None
+    qitos_api_mode: Optional[str] = None
+    qitos_capabilities_by_api_mode: Mapping[str, Mapping[str, Any]] = {}
+
     def __init__(
         self,
         model: str = "default",
@@ -98,6 +103,36 @@ class Model(ABC):
         self.context_window = self._resolve_context_window(context_window)
         self.retry_policy = retry
         self._last_usage: Optional[Dict[str, Any]] = None
+
+    def qitos_request_target(self) -> Dict[str, str]:
+        """Return the adapter-owned request target declaration."""
+
+        provider = self.qitos_provider_id
+        transport = self.qitos_transport_id
+        api_mode = str(getattr(self, "api_mode", None) or self.qitos_api_mode or "")
+        if not provider or not transport or not api_mode:
+            raise ValueError("model adapter has no declared QitOS request target")
+        return {
+            "provider": provider,
+            "model": str(self.model),
+            "transport": transport,
+            "api_mode": api_mode,
+        }
+
+    def qitos_provider_capabilities(self) -> Dict[str, Any]:
+        """Return explicit capabilities for this adapter/API-mode combination."""
+
+        api_mode = self.qitos_request_target()["api_mode"]
+        declared = self.qitos_capabilities_by_api_mode.get(api_mode)
+        if declared is None:
+            raise ValueError("model adapter has no capabilities for its declared API mode")
+        result = dict(declared)
+        result["max_input_units"] = (
+            int(self.context_window)
+            if isinstance(self.context_window, int) and self.context_window > 0
+            else None
+        )
+        return result
 
     @abstractmethod
     def _call_api(self, messages: List[Dict[str, Any]], **kwargs: Any) -> str:

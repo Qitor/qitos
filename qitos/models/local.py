@@ -20,6 +20,16 @@ from typing import Any, Dict, List, Optional
 from .base import Model
 
 
+_LOCAL_TEXT_CAPABILITIES = {
+    "supported_features": ("text",),
+    "reasoning_modes": ("drop",),
+    "multimodal_types": ("text",),
+    "supports_parallel_tool_calls": False,
+    "supports_tool_schemas": False,
+    "supports_continuation": False,
+}
+
+
 class OllamaModel(Model):
     """
     Ollama 本地模型实现
@@ -39,6 +49,11 @@ class OllamaModel(Model):
         result = llm([{"role": "user", "content": "帮我搜索"}])
         # 返回: "Action: search(query='...')"
     """
+
+    qitos_provider_id = "ollama"
+    qitos_transport_id = "ollama"
+    qitos_api_mode = "chat"
+    qitos_capabilities_by_api_mode = {"chat": _LOCAL_TEXT_CAPABILITIES}
 
     def __init__(
         self,
@@ -212,6 +227,11 @@ class OllamaGenerateModel(Model):
         llm = OllamaGenerateModel(model="llama3-uncensored")
     """
 
+    qitos_provider_id = "ollama"
+    qitos_transport_id = "ollama"
+    qitos_api_mode = "generate"
+    qitos_capabilities_by_api_mode = {"generate": _LOCAL_TEXT_CAPABILITIES}
+
     def __init__(
         self,
         model: str = "llama3",
@@ -335,6 +355,13 @@ class LMStudioModel(Model):
     示例：
         llm = LMStudioModel(model="local-model", temperature=0.7)
     """
+
+    qitos_provider_id = "openai-compatible"
+    qitos_transport_id = "openai"
+    qitos_api_mode = "chat_completions"
+    qitos_capabilities_by_api_mode = {
+        "chat_completions": _LOCAL_TEXT_CAPABILITIES
+    }
 
     def __init__(
         self,
@@ -483,6 +510,13 @@ class VLLMModel(Model):
     示例：
         llm = VLLMModel(model="meta-llama/Llama-2-7b-hf")
     """
+
+    qitos_provider_id = "openai-compatible"
+    qitos_transport_id = "openai"
+    qitos_api_mode = "chat_completions"
+    qitos_capabilities_by_api_mode = {
+        "chat_completions": _LOCAL_TEXT_CAPABILITIES
+    }
 
     def __init__(
         self,

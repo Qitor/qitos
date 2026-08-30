@@ -241,6 +241,34 @@ class OpenAIModel(Model):
         # Returns: "Action: search(query='Python tutorials')"
     """
 
+    qitos_provider_id = "openai"
+    qitos_transport_id = "openai"
+    qitos_api_mode = "chat_completions"
+    qitos_capabilities_by_api_mode = {
+        "chat_completions": {
+            "supported_features": (
+                "text", "multimodal", "tool_calls", "tool_results", "tool_schemas",
+                "parallel_tool_calls", "artifact_references",
+            ),
+            "reasoning_modes": ("drop",),
+            "multimodal_types": ("text", "image_url", "image_base64", "image_file"),
+            "supports_parallel_tool_calls": True,
+            "supports_tool_schemas": True,
+            "supports_continuation": False,
+        },
+        "responses": {
+            "supported_features": (
+                "text", "multimodal", "tool_calls", "tool_results", "tool_schemas",
+                "parallel_tool_calls", "artifact_references", "reasoning", "continuation",
+            ),
+            "reasoning_modes": ("preserve_if_supported", "native_item_continuation", "drop"),
+            "multimodal_types": ("text", "image_url", "image_base64", "image_file"),
+            "supports_parallel_tool_calls": True,
+            "supports_tool_schemas": True,
+            "supports_continuation": True,
+        },
+    }
+
     def __init__(
         self,
         model: str = "gpt-4",
@@ -543,6 +571,11 @@ class OpenAICompatibleModel(Model):
             base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
         )
     """
+
+    qitos_provider_id = "openai-compatible"
+    qitos_transport_id = "openai"
+    qitos_api_mode = "chat_completions"
+    qitos_capabilities_by_api_mode = OpenAIModel.qitos_capabilities_by_api_mode
 
     def __init__(
         self,
@@ -906,6 +939,8 @@ class AzureOpenAIModel(OpenAICompatibleModel):
             api_version="2024-02-15-preview"
         )
     """
+
+    qitos_provider_id = "azure-openai"
 
     def __init__(
         self,
