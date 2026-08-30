@@ -1,6 +1,6 @@
 # Task 12 — durable session runtime and process-independent resume
 
-Status: architecture design ready; 12A may start only from final G1-R4, not implemented
+Status: 12A producer candidate delivered; G2 convergence pending; runtime not implemented
 Depends on: Task 01; coordinates with Tasks 02, 03, 04, and 09
 Unblocks: Task 05 schema freeze, Task 13 durable multi-agent work, and the v4
 long-horizon reference flow
@@ -32,7 +32,7 @@ QitOS already has useful pieces:
 
 - `Engine.init_session()`, `step()`, and `run()` for in-memory execution;
 - `RunState` for an Engine-oriented resumable snapshot;
-- checkpoint v2 stores with immutable checkpoints, pending writes, SQLite,
+- the current checkpoint package with immutable checkpoints, pending writes, SQLite,
   durability modes, and fork/time-travel primitives;
 - interrupts and `resume()`/`resume_from_checkpoint()`;
 - trace run IDs and qita replay/fork surfaces.

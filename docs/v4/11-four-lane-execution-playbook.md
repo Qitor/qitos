@@ -7,11 +7,12 @@ Source tasks: Tasks 02–05 and 08–13
 Baseline: Task 01 complete; exact current integration status lives in
 [`docs/progress.md`](../progress.md)
 
-Current dispatch state: G1-R4 closed C-P4 with a role-aware forced-secret scalar
-repair and exact B/C/D requalification. An independent integration-owner audit
-confirmed promoted runtime baseline
-`5ef8ab657f6452ae48c931beea79106e2cca34c6`. S1 has not been dispatched; four
-contract-first packages are ready from the final post-audit integration HEAD.
+Current dispatch state: the four S1 producer candidates have been delivered from
+`c1efb0f4adde3e673bf181af5b1760c19a451ae2`. They are individually green but
+not merge-ready: identity, snapshot composition, ArtifactRef, ToolResult schema
+evolution, provider/diagnostic safety, interface budget, and exact-receipt
+convergence remain open. One G2 integration owner now works A -> C -> B -> D;
+S2 behavior remains blocked.
 
 ---
 
@@ -947,10 +948,10 @@ fifth implementation. Its responsibilities are:
 
 | Lane | Current package | Branch/PR | Lease | Tests | Handoff produced | Blocker/decision | Gate status |
 |---|---|---|---|---|---|---|---|
-| A | 12A session contracts | not created | session identity/snapshot | pending | identity vocabulary and snapshot envelope | owns shared identity vocabulary | ready for S1 |
-| B | 02B RequestView | not created | conversation/context | pending | RequestView, CodecReport, snapshot component | may draft; freeze waits for reviewed A producer | ready for S1 |
-| C | recovery/effects + 13A | not created | outcome/work graph | pending | quiescence and ownership fixtures | may draft; freeze waits for reviewed A producer | ready for S1 |
-| D | lineage intake | not created | readiness/evidence | pending | exact A/B/C receipt matrix | consumes reviewed A/B/C producers | ready for S1 |
+| A | 12A session contracts | `cb79532` | session identity/snapshot | individually green | identity vocabulary and snapshot envelope | outer component adaptation unresolved | G2 source candidate |
+| C | recovery/effects + 13A | `61c85ab` | outcome/work graph | individually green | quiescence and ownership fixtures | still uses untyped A-owned identities | G2 source candidate |
+| B | 02B RequestView | `939edd0` | conversation/context | individually green | RequestView, CodecReport, snapshot component | ArtifactRef/snapshot/capability convergence open | G2 source candidate |
+| D | lineage intake | `44a09e3` | readiness/evidence | individually green | 19-contract inventory | 17 S1 producers unestablished | G2 source candidate |
 
 ### 10.2 Merge rule
 
@@ -968,6 +969,15 @@ If a consumer requires a contract change, return the change to the owning lane.
 Do not patch the producer's private fields in the consumer PR.
 
 ## 11. Immediate dispatch order
+
+The four S1 branches have completed their local producer work. Do not dispatch
+four more repair branches and do not start S2. Dispatch one G2 convergence task
+from the original S1 baseline using
+[`docs/internal/plans/g2_contract_convergence.md`](../internal/plans/g2_contract_convergence.md).
+It integrates and repairs A -> C -> B -> D, runs real cross-lane consumers, and
+promotes one stable-contract baseline only after every G2 blocker closes.
+
+The following R4/S1 dispatch history remains for provenance.
 
 G1-R4 is the accepted repair endpoint. It closed C-P3 and C-P4, requalified B
 without a runtime change, and bound D to C producer

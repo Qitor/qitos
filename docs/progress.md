@@ -4,7 +4,8 @@ Status: active integration ledger
 Updated: 2026-08-30
 Integration branch: `feat/campaign-absorption`
 Independently reviewed runtime baseline: `5ef8ab657f6452ae48c931beea79106e2cca34c6`
-Current gate: **G1 CLOSED; S1 contract lanes ready but not dispatched**
+S1 dispatch baseline: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
+Current gate: **G1 CLOSED; four S1 candidates delivered; G2 convergence blocked**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md)
 and [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md)
@@ -42,9 +43,27 @@ combined tests, `1872 passed, 50 skipped` full suite, 399-finding ratchet,
 stable flake8/mypy, tool qualification, architecture/public-surface checks, and
 all three readiness modes passed. No new G1 blocker was reproduced.
 
-Gate G1 is therefore **closed**. S1 is authorized as four contract-first lanes
-from the final post-audit dispatch HEAD reported by the integration owner. No
-S1 branch or Task 02B/03/05/12/13 behavior exists yet.
+Gate G1 remains **closed**. Four S1 contract candidates have now been delivered
+from the reviewed dispatch baseline. Their branches are individually green and
+an isolated A -> C -> B -> D merge is textually clean, but they are not a single
+qualified architecture yet. No S1 code is present on the integration branch and
+no pause/restore, provider-dispatch, persistent work-graph, trajectory-writer,
+or qita behavior exists.
+
+The independent S1 review passed 173 focused tests and the combined full suite
+(`1999 passed, 50 skipped`), the 399-finding ratchet, stable flake8/mypy on 81
+files, and diff checks. It also reproduced cross-lane blockers that branch-local
+tests cannot see: C does not yet use A's typed identities; A/B/C snapshot
+component ownership and schema adaptation are unresolved; B and C disagree on
+`ArtifactRef`; C changed ToolResult writer bytes under the old schema identity;
+provider and WorkGraph diagnostics can echo secret/host-path-bearing input; D
+still reports all 17 S1 producers as unestablished; and the module-level
+`__all__` surface is much larger than the claimed beginner API budget.
+
+The next authorized work is one integration-owned G2 convergence task in
+[`docs/internal/plans/g2_contract_convergence.md`](internal/plans/g2_contract_convergence.md),
+not four independent repair branches. Its fixed semantic order is A -> C -> B
+-> D.
 
 The convergence report's provenance wording is also corrected: all 26 reviewed
 source commits were applied by ordered cherry-pick, but the original source SHAs
@@ -63,10 +82,10 @@ checkpoint-backed session truth and one generation-checked work graph.
 
 | Lane | Integrated fixing HEAD | Package | Integration disposition | Next package |
 |---|---|---|---|---|
-| A | `f145cbe2df5f74418c9ccaae2f0a5cf5555b8daf` | A1/A2 + A-CI1 | Accepted in convergence tree | Stand by; retain cross-lane gates |
-| B | `2e46fc8e0228af42d6eaeaa6a665ffe5998c0bd5` | B1-R + B-C1/B-V1 | Accepted; 112-test B/C qualification with no B runtime delta | Task 02B contract package ready |
-| C | `9a0c5ed5d6c1c959ff277d3888f54c927be3e183` | C1-R4 / C-P3/P4 | Accepted; collision-safe keys, role-aware scalars, conserved loss | Task 03 recovery + 13A contract package ready |
-| D | `e41eb6ea68375b1064b30044e66ae58bcba67c67` | D1-R2 receipt refresh | Accepted; exact current B/C receipts, honest typed blockers retained | Lineage intake ready; 05A freeze remains blocked |
+| A | `cb79532d45b114826ee4313a60bf42ebc5abca06` | Session identity/snapshot candidate | Source reviewed; individual gates green; not integrated | First G2 producer; repair component envelope |
+| C | `61c85ab774705610a2edf039417a8480afbeee16` | Effects/WorkGraph candidate | Source reviewed; `waiting_on_lane_a`; not integrated | Consume typed identities; repair ToolResult evolution |
+| B | `939edd0164a7f1929818f3e79bea02f2635a9d7d` | Request/codec/context candidate | Source reviewed; `waiting_on_lane_a`; not integrated | Converge ArtifactRef, snapshot and capability boundary |
+| D | `44a09e3cbfaa29978584a05fbafbdd5c37cd7f2f` | Lineage/readiness candidate | Source reviewed; 17 S1 requirements remain unestablished | Integrate last and bind exact producers |
 
 ## 3. Source and validation evidence
 
@@ -460,9 +479,10 @@ Shared release documents remain integration-owner leases.
 
 ## 6. Next work
 
-G1-R4 is complete and independently accepted. The next dispatch is exactly four
-S1 contract packages from one final post-audit HEAD; this ledger does not create
-those branches.
+The four S1 producer candidates are complete, but G2 is not. The next dispatch
+is one convergence owner using the exact plan in
+[`g2_contract_convergence.md`](internal/plans/g2_contract_convergence.md).
+Do not begin S2 behavior and do not create four parallel repair branches.
 
 ### Accepted Lane C — C1-R4 / C-P3 and C-P4 projection closure
 
@@ -484,27 +504,28 @@ those branches.
   string/int/float/bool/null leaves are redacted without corrupting counts.
 
 The bounded C repair, B consumer rerun, D receipt refresh, and integrated A
-quality gate are complete. The S1 packages are specified in
+quality gate are complete. The S1 packages were specified in
 [`docs/internal/plans/s1_contract_wave.md`](internal/plans/s1_contract_wave.md)
-and are now dispatchable from the final accepted baseline.
+and were dispatched from the final accepted baseline. Their local producer
+status does not supersede the G2 blockers above.
 
-### Post-G1 capability remap (planned, not dispatched)
+### Post-G1 capability remap (S1 candidates delivered; behavior not started)
 
 After the integration owner closes G1, quality becomes a mandatory cross-lane
 gate and the four implementation lanes change to:
 
 | Lane | First package | Scope |
 |---|---|---|
-| A — Session Runtime & Persistence | Task 12A | identity, lifecycle, safe boundaries, one snapshot truth, resolver references |
-| B — Conversation, Context & Continuation | Task 02B | RequestView, steering, provider capabilities, Task 12 snapshot handoff |
-| C — Tools & Durable Multi-Agent | Task 03 recovery handoff + Task 13A | effects/quiescence and work-graph ownership/join contracts |
-| D — Trajectory, qita & DX | lineage intake | session/work graph reader census and readiness only; no v2 freeze |
+| A — Session Runtime & Persistence | Task 12A candidate delivered | identity, lifecycle, safe boundaries, one snapshot truth, resolver references |
+| B — Conversation, Context & Continuation | Task 02B candidate delivered | RequestView, steering, provider capabilities, snapshot handoff |
+| C — Tools & Durable Multi-Agent | recovery + Task 13A candidates delivered | effects/quiescence and work-graph ownership/join contracts |
+| D — Trajectory, qita & DX | lineage intake candidate delivered | session/work graph reader census and readiness only; no schema freeze |
 
 S2's required vertical slice is: start -> parallel tools -> pause -> process exit
 -> restore through a fresh Engine/composition root -> apply steering once ->
 finish, with no duplicate committed effect. Multi-agent behavior starts only
-after this single-agent continuity proof. Task 05 v2 remains blocked from schema
-freeze until Task 12/13 lineage is available.
+after this single-agent continuity proof. The Task 05 trajectory schema remains
+blocked from freeze until Task 12/13 lineage is available.
 
 ## 7. Gate checklist
 
@@ -533,6 +554,19 @@ freeze until Task 12/13 lineage is available.
 
 ### G2 prerequisites exposed by this review
 
+- [ ] C uses A's typed session/work/attempt/agent identities at in-memory and
+      serialized boundaries.
+- [ ] A's envelope has one owner codec per component and real B/C consumers;
+      ExchangeLog, steering, and continuation do not have competing slots.
+- [ ] RequestView, ToolResult, snapshots, and lineage share one ArtifactRef.
+- [ ] ToolResult has one current writer plus an explicit historical migration
+      reader; old and new strict readers do not share a false schema identity.
+- [ ] Generic provider capability logic contains no provider-name heuristic.
+- [ ] Provider and WorkGraph diagnostics do not echo credentials or host paths.
+- [ ] The 96 module-level exports are classified and constrained by a reviewed
+      beginner/extension/internal interface budget.
+- [ ] D binds all 17 S1 requirements to exact accepted producer commits and
+      keeps runtime/trajectory readiness independently blocked.
 - [ ] RequestView and CodecReport are versioned and transport/API-mode aware.
 - [ ] Provider failures cannot become assistant text.
 - [ ] Partial parallel completion survives checkpoint/recovery.
@@ -776,3 +810,40 @@ freeze until Task 12/13 lineage is available.
   S1 contract lanes may be created from the final post-audit integration HEAD.
   This audit did not create those branches or implement session, provider,
   recovery, multi-agent, trajectory-v2, qita, or packaging behavior.
+
+### 2026-08-30 — independent S1 candidate audit opens G2 convergence
+
+- Verified all four S1 worktrees were clean, descended from dispatch baseline
+  `c1efb0f4adde3e673bf181af5b1760c19a451ae2`, and matched reported heads A
+  `cb79532d45b114826ee4313a60bf42ebc5abca06`, C
+  `61c85ab774705610a2edf039417a8480afbeee16`, B
+  `939edd0164a7f1929818f3e79bea02f2635a9d7d`, and D
+  `44a09e3cbfaa29978584a05fbafbdd5c37cd7f2f`.
+- Recomputed the reported A identity/manifest/evidence, B request/evidence, C
+  recovery/work-graph, and D evidence/receipt-set digests. Committed producer
+  bytes matched the reported A identity, B request, and C fixture digests; B's
+  local evidence remains intentionally unqualified and was added after its
+  fixture producer commit.
+- Built an isolated A -> C -> B -> D tree. Git integration was conflict-free;
+  173 focused contract/readiness/boundary tests and the full suite
+  (`1999 passed, 50 skipped`) passed. The 399-finding ratchet, stable flake8,
+  stable mypy on 81 files, and `git diff --check` also passed. The temporary
+  audit worktree was removed after review.
+- Cross-lane probes reproduced real semantic blockers despite the green suite:
+  C accepts arbitrary work/session/agent strings instead of A identities; B's
+  component has no reviewed A envelope adapter; B's ArtifactRef is rejected by
+  C's strict ToolResult; the new C writer is rejected by the pre-S1 ToolResult
+  reader under the unchanged schema identity; ProviderFailure and WorkGraph
+  diagnostics can echo secret/host-path-bearing input.
+- The combined modules declare 96 names through `__all__` across about 4,500
+  lines. Root exports remain unchanged, but zero root delta is not evidence that
+  the future user interface is simple; G2 must classify and constrain the
+  beginner, extension, persistence-internal, and private surfaces.
+- Readiness remains honest. Dry-run without receipts exits 0 with 30 blockers;
+  dry-run with the two G1 receipts exits 0 with 28 blockers; normal execution
+  exits 2. All 17 S1 requirements remain `producer_version_unestablished`, the
+  trajectory schema remains unfrozen, and measurements/claims remain empty.
+- Decision: the four branches are valuable S1 producer candidates but are **not
+  merge-ready**. One G2 integration owner must converge A -> C -> B -> D using
+  `docs/internal/plans/g2_contract_convergence.md`. S2 runtime work remains
+  blocked.

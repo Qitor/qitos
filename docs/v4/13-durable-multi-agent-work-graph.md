@@ -1,7 +1,7 @@
 # Task 13 — durable multi-agent work graph and ownership transfer
 
-Status: architecture design ready; 13A may start only from final G1-R4, while
-behavior still waits for Task 12's clean-process slice; nothing is implemented
+Status: 13A producer candidate delivered; G2 identity/snapshot convergence is
+pending; behavior still waits for Task 12's clean-process slice
 Depends on: Task 12A–12D; consumes Tasks 02, 03, and 04 contracts
 Feeds: Task 05 lineage/observability, Task 10 convergence, and native multi-agent
 research methods

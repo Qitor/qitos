@@ -1,6 +1,6 @@
 # S1 contract wave plan
 
-Status: ready only from final G1-R4 baseline; no S1 branch or behavior exists
+Status: four producer candidates delivered; G2 semantic convergence required
 Updated: 2026-08-30
 Owner: v4 integration owner
 Independently reviewed runtime baseline:
@@ -10,13 +10,35 @@ Source gates: [`docs/progress.md`](../../progress.md) and
 
 ## Objective
 
-Freeze the minimum versioned contracts needed for QitOS to support durable,
+Freeze the minimum schema-evolvable contracts needed for QitOS to support durable,
 process-independent sessions and a native multi-agent work graph without
 starting runtime behavior prematurely. S1 is an architecture/fixture wave, not
 an authorization to add a second Engine, SessionStore, result envelope, trace
 schema, provider default, or distributed scheduler.
 
-## Dispatch gate
+## Candidate review disposition
+
+All four branches were delivered from the fixed dispatch baseline:
+
+| Lane | Reviewed HEAD | Disposition |
+|---|---|---|
+| A | `cb79532d45b114826ee4313a60bf42ebc5abca06` | local producer complete; identity/snapshot source for G2 |
+| C | `61c85ab774705610a2edf039417a8480afbeee16` | local producer complete; still `waiting_on_lane_a` |
+| B | `939edd0164a7f1929818f3e79bea02f2635a9d7d` | local producer complete; still `waiting_on_lane_a` |
+| D | `44a09e3cbfaa29978584a05fbafbdd5c37cd7f2f` | intake complete; all 17 S1 producers remain unestablished |
+
+An isolated A -> C -> B -> D merge passed 173 focused tests, full suite
+`1999 passed, 50 skipped`, the 399-finding ratchet, stable lint/type, and diff
+checks. It is not merge-ready because independent probes reproduced identity,
+snapshot-component, ArtifactRef, ToolResult schema-evolution, provider/error
+privacy, interface-budget, and exact-receipt blockers. The authoritative next
+plan is [`g2_contract_convergence.md`](g2_contract_convergence.md).
+
+No public architecture uses `V1`, `V2`, `Legacy`, or `Next` type names. Internal
+serialized `schema_version` fields remain necessary for safe migration; they do
+not authorize parallel public classes, stores, or writers.
+
+## Historical dispatch gate
 
 Do not create S1 implementation branches from
 `587f34b76245e71fe3362a51dbad40895d7c43c5` or the pre-repair
@@ -36,15 +58,15 @@ the integration owner contains:
 - a clean three-worktree fast-forward and explicit **G1 CLOSED** decision in
   `docs/progress.md` and the final integration report.
 
-The R3 authorization was superseded by C-P4 review. The new authorization is
+The R3 authorization was superseded by C-P4 review. The authorization became
 effective only at the exact scalar-safe R4 SHA after all gates and the three
-fast-forwards. It remains limited to each lane's first contract package. This
-closure did not create an S1 branch or implement 02B, 03B-E, 05A, 12A, or 13A.
+fast-forwards. At that historical point it did not create an S1 branch or
+implement 02B, 03B-E, 05A, 12A, or 13A. The four reviewed branches listed above
+were subsequently created from the post-audit dispatch baseline.
 
 The 2026-08-30 integration-owner audit independently accepted the promoted
-runtime baseline. New S1 worktrees must use the final post-audit integration
-HEAD containing this ledger synchronization; the integration owner reports that
-full SHA before dispatch. Agents must not substitute the older runtime SHA or a
+runtime baseline. All four S1 worktrees used the final post-audit integration
+HEAD containing that ledger synchronization rather than an older runtime SHA or
 lane-local HEAD.
 
 ## Parallel start protocol
@@ -76,8 +98,9 @@ All four packages use these rules:
    live clients, locks, futures, threads, credentials, or Python stacks;
 2. session, run, work item, checkpoint, exchange, tool call, agent, and attempt
    identities remain distinct and versioned;
-3. checkpoint v2 is the only durable session truth; `RunState` receives an
-   adapter/retirement decision rather than becoming a competing store;
+3. the current canonical checkpoint implementation is the only durable session
+   mechanism; `RunState` receives an adapter/retirement decision rather than
+   becoming a competing store;
 4. one canonical `ToolResult` represents local tool and child-work outcomes;
 5. every snapshot component states ownership, version, required/optional fields,
    migration behavior, redaction boundary, and missing-reference failure;
@@ -88,7 +111,7 @@ All four packages use these rules:
 
 ## Lane A — 12A session identity and snapshot contract
 
-Owner: Engine session lifecycle and checkpoint-v2 composition.
+Owner: Engine session lifecycle and canonical checkpoint composition.
 
 Deliver:
 
@@ -97,7 +120,7 @@ Deliver:
   resolver boundaries;
 - ADR defining session/head generation, lifecycle states, safe boundaries,
   immutable snapshot identity, optimistic head commit, pause, restore, and fork;
-- versioned snapshot fixtures covering running, safely paused, partial parallel
+- schema-bearing snapshot fixtures covering running, safely paused, partial parallel
   batch, failed persistence, superseded owner, clean restore, and isolated fork;
 - component slots for B's ExchangeLog/context and C's effect/quiescence facts;
 - typed failures for missing resolver, unsupported component version,
@@ -169,7 +192,7 @@ Deliver:
   receipts clear only their owned blocker;
 - dual-read/qita implications and compatibility risks without adding writers.
 
-Do not freeze trajectory v2, materialize private fixtures, claim compression or
+Do not freeze the trajectory schema, materialize private fixtures, claim compression or
 performance gains, infer graph edges from naming conventions, or change qita.
 
 Handoff: publish the G2 readiness matrix and unresolved lineage blockers.
@@ -209,7 +232,7 @@ count as a handoff.
       durable representations without claiming exactly-once execution.
 - [ ] Work ownership, transfer, children, joins, cancellation, and stale-owner
       rejection are versioned and unambiguous.
-- [ ] D consumes exact producer-owned fixtures and keeps trajectory v2 unfrozen.
+- [ ] D consumes exact producer-owned fixtures and keeps the trajectory schema unfrozen.
 - [ ] Two independent consumers exercise each cross-lane contract.
 - [ ] Ratchet, lint/type, architecture/public surface, targeted suites, full
       suite, docs parity, privacy/local-path checks, and diff checks pass.
