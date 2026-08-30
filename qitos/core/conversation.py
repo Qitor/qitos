@@ -730,6 +730,18 @@ class ExchangeLog:
                 batch_id=batch_id,
             )
 
+    def request(self, **kwargs: Any) -> Any:
+        """Derive one immutable provider-neutral request view.
+
+        The import remains local so the persistent conversation layer does not
+        depend on request-selection mechanics during module initialization.
+        `RequestView` is ephemeral and this method never mutates the log.
+        """
+
+        from .request_view import RequestView
+
+        return RequestView.from_exchange_log(self, **kwargs)
+
     def to_persistence_dict(self) -> Dict[str, Any]:
         self.validate()
         payload = {
