@@ -49,24 +49,24 @@ Other lanes blocked or adapter supplied: shared release/progress files remain un
 
 ## Work plan
 
-1. [in progress] Census exact runtime sources and existing tests for tools,
+1. [complete] Census exact runtime sources and existing tests for tools,
    concurrency, lifecycle resources, recovery, and multi-agent paths.
-2. [pending] Freeze beginner/advanced multi-agent API, operation distinctions,
+2. [complete] Freeze beginner/advanced multi-agent API, operation distinctions,
    default ownership/budget rules, sync/async symmetry, and public-surface
    budget in an ADR.
-3. [pending] Extend `ToolResult` in place with strict JSON-owned attempt,
+3. [complete] Extend `ToolResult` in place with strict JSON-owned attempt,
    effect, retry, reconciliation, uncertainty, late-result, stale-owner, and
    partial-batch facts while preserving current v1 compatibility.
-4. [pending] Add strict `WorkGraph` records, generation compare-and-set rules,
+4. [complete] Add strict `WorkGraph` records, generation compare-and-set rules,
    snapshot component, typed failures, and compatibility adapters/retirement
    ledger without runtime scheduling behavior.
-5. [pending] Add stable fixtures under `tests/fixtures/tool_results/` and
+5. [complete] Add stable fixtures under `tests/fixtures/tool_results/` and
    `tests/fixtures/work_graph/` plus strict read/write, isolation, generation,
    duplicate-completion, redaction, and golden API-shape tests.
-6. [pending] Publish Lane C evidence: vocabulary, retry/reconciliation rules,
+6. [complete] Publish Lane C evidence: vocabulary, retry/reconciliation rules,
    quiescence matrix, fixture manifest/digests, producer identity, A/B/D
    consumer instructions, unsupported claims, and known gaps.
-7. [pending] Run all required targeted/static/full validation, review the diff,
+7. [complete] Run all required targeted/static/full validation, review the diff,
    make coherent commits, and report the final clean HEAD.
 
 ## Cross-lane status
@@ -81,6 +81,11 @@ Other lanes blocked or adapter supplied: shared release/progress files remain un
 
 ## Verification ledger
 
-Commands and exact results are appended here as they run. No rerun, masked
-exit, unavailable dependency, or skipped live integration will be reported as a
-passing gate.
+Validation completed without masked exits or rerun-only success:
+
+- targeted contract/runtime matrix: 419 passed, 4 skipped;
+- static-quality ratchet: 399 baseline findings (377 active, 22 vendored);
+- stable flake8: clean;
+- stable mypy: 78 source files clean;
+- full suite: 1897 passed, 50 skipped;
+- final diff/status checks are recorded in the producer evidence.
