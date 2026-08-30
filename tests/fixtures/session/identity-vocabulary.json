@@ -9,7 +9,8 @@
     "work_item": {"kind": "work_item", "value": "work_item_00000000000000000000000000000005"},
     "attempt": {"kind": "attempt", "value": "attempt_00000000000000000000000000000006"},
     "tool_call": {"kind": "tool_call", "value": "tool_call_00000000000000000000000000000007"},
-    "agent": {"kind": "agent", "value": "agent_00000000000000000000000000000008"}
+    "agent": {"kind": "agent", "value": "agent_00000000000000000000000000000008"},
+    "continuation": {"kind": "continuation", "value": "continuation_00000000000000000000000000000009"}
   },
   "relationships": [
     {"relation": "session_run", "source": {"kind": "session", "value": "session_00000000000000000000000000000001"}, "target": {"kind": "run", "value": "run_00000000000000000000000000000002"}},

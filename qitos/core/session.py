@@ -8,7 +8,7 @@ existing owning packages.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass
 from datetime import datetime
 from enum import Enum
 import hashlib
@@ -18,6 +18,8 @@ import re
 from types import MappingProxyType
 from typing import Any, Callable, ClassVar, Dict, Iterable, Mapping, Type, TypeVar
 from uuid import uuid4
+
+from .artifact import ArtifactRef
 
 
 class SessionErrorCode(str, Enum):
@@ -36,6 +38,9 @@ class SessionErrorCode(str, Enum):
     INVALID_IDENTITY_RELATIONSHIP = "invalid_identity_relationship"
     PERSISTENCE_REJECTED = "persistence_rejected"
     PERSISTENCE_FAILED = "persistence_failed"
+    UNKNOWN_COMPONENT_OWNER = "unknown_component_owner"
+    COMPONENT_DIGEST_MISMATCH = "component_digest_mismatch"
+    MISSING_REQUIRED_COMPONENT = "missing_required_component"
 
 
 class SessionContractError(ValueError):
@@ -82,6 +87,7 @@ class IdentityKind(str, Enum):
     ATTEMPT = "attempt"
     TOOL_CALL = "tool_call"
     AGENT = "agent"
+    CONTINUATION = "continuation"
 
 
 _IDENTITY_TOKEN = re.compile(r"^[a-z][a-z0-9_]{2,31}_[0-9a-f]{16,64}$")
@@ -199,6 +205,12 @@ class AgentIdentity(RuntimeIdentity):
     PREFIX: ClassVar[str] = "agent"
 
 
+@dataclass(frozen=True)
+class ContinuationIdentity(RuntimeIdentity):
+    KIND: ClassVar[IdentityKind] = IdentityKind.CONTINUATION
+    PREFIX: ClassVar[str] = "continuation"
+
+
 _IDENTITY_TYPES: Mapping[IdentityKind, Type[RuntimeIdentity]] = MappingProxyType(
     {
         IdentityKind.SESSION: SessionIdentity,
@@ -209,6 +221,7 @@ _IDENTITY_TYPES: Mapping[IdentityKind, Type[RuntimeIdentity]] = MappingProxyType
         IdentityKind.ATTEMPT: AttemptIdentity,
         IdentityKind.TOOL_CALL: ToolCallIdentity,
         IdentityKind.AGENT: AgentIdentity,
+        IdentityKind.CONTINUATION: ContinuationIdentity,
     }
 )
 
@@ -645,6 +658,7 @@ class ResolverNamespace(str, Enum):
 
 _REFERENCE_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 _CAPABILITY_TOKEN = re.compile(r"^[a-z][a-z0-9_.:-]{1,95}$")
+_SCHEMA_TOKEN = re.compile(r"^[a-z][a-z0-9_.:-]{1,95}/v[1-9][0-9]*$")
 _HOST_LOCAL_OR_CREDENTIAL_VALUE = re.compile(
     r"(?i)(?:^|\s)(?:/users/|/home/|[a-z]:\\)|"
     r"(?:authorization\s*[:=]|bearer\s+|api[_-]?key\s*[:=]|password\s*[:=])"
@@ -827,42 +841,336 @@ class ComponentSlot(str, Enum):
     TRACE_LINEAGE = "trace_lineage"
 
 
-CURRENT_SNAPSHOT_SCHEMA = 1
-SUPPORTED_COMPONENT_SCHEMAS: Mapping[ComponentSlot, frozenset[int]] = MappingProxyType(
-    {slot: frozenset({1}) for slot in ComponentSlot}
+CURRENT_SNAPSHOT_SCHEMA = 2
+
+
+@dataclass(frozen=True)
+class SnapshotComponentCodec:
+    """One semantic owner's encoder/decoder for one component schema."""
+
+    slot: str
+    owner: str
+    schema_version: str
+    required: bool
+    encode: Callable[[Any], Mapping[str, Any]]
+    decode: Callable[[Mapping[str, Any]], Any]
+
+    def __post_init__(self) -> None:
+        for name in ("slot", "owner"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or _CAPABILITY_TOKEN.fullmatch(value) is None:
+                raise SessionContractError(
+                    SessionErrorCode.UNSUPPORTED_COMPONENT_SCHEMA,
+                    "Snapshot component codec declaration is invalid.",
+                    recoverable=False,
+                    remediation="Use portable owner, slot, and schema identifiers.",
+                )
+        if (
+            not isinstance(self.schema_version, str)
+            or _SCHEMA_TOKEN.fullmatch(self.schema_version) is None
+        ):
+            raise SessionContractError(
+                SessionErrorCode.UNSUPPORTED_COMPONENT_SCHEMA,
+                "Snapshot component codec schema is invalid.",
+                recoverable=False,
+                remediation="Use a namespaced /vN schema identifier.",
+            )
+        if not isinstance(self.required, bool) or not callable(self.encode) or not callable(
+            self.decode
+        ):
+            raise SessionContractError(
+                SessionErrorCode.UNSUPPORTED_COMPONENT_SCHEMA,
+                "Snapshot component codec declaration is incomplete.",
+                recoverable=False,
+                remediation="Declare required, encode, and decode fields explicitly.",
+            )
+
+
+class SnapshotComponentRegistry:
+    """Explicit composition of independently owned component codecs."""
+
+    def __init__(self, codecs: Iterable[SnapshotComponentCodec] = ()) -> None:
+        by_key: Dict[tuple[str, str, str], SnapshotComponentCodec] = {}
+        owners: set[str] = set()
+        required: set[tuple[str, str]] = set()
+        for codec in codecs:
+            if not isinstance(codec, SnapshotComponentCodec):
+                raise TypeError("snapshot registry entries must be SnapshotComponentCodec")
+            key = (codec.owner, codec.slot, codec.schema_version)
+            if key in by_key:
+                raise SessionContractError(
+                    SessionErrorCode.UNSUPPORTED_COMPONENT_SCHEMA,
+                    "Snapshot component codec is registered more than once.",
+                    recoverable=False,
+                    remediation="Register one codec for each owner, slot, and schema.",
+                )
+            by_key[key] = codec
+            owners.add(codec.owner)
+            if codec.required:
+                required.add((codec.owner, codec.slot))
+        self._codecs = MappingProxyType(by_key)
+        self._owners = frozenset(owners)
+        self._required = frozenset(required)
+
+    @property
+    def required_components(self) -> frozenset[tuple[str, str]]:
+        return self._required
+
+    def codec_for(self, component: "SnapshotComponent") -> SnapshotComponentCodec:
+        if component.owner not in self._owners:
+            raise SessionContractError(
+                SessionErrorCode.UNKNOWN_COMPONENT_OWNER,
+                "Snapshot component owner is not registered.",
+                recoverable=False,
+                remediation="Install the semantic owner's component codec before restore.",
+            )
+        codec = self._codecs.get(
+            (component.owner, component.slot, component.schema_version)
+        )
+        if codec is None:
+            raise SessionContractError(
+                SessionErrorCode.UNSUPPORTED_COMPONENT_SCHEMA,
+                "Snapshot component schema is not registered.",
+                recoverable=False,
+                remediation="Install a reader or explicit migration for this component schema.",
+                metadata={"owner": component.owner, "slot": component.slot},
+            )
+        if component.required != codec.required:
+            raise SessionContractError(
+                SessionErrorCode.UNSUPPORTED_COMPONENT_SCHEMA,
+                "Snapshot component required policy disagrees with its owner codec.",
+                recoverable=False,
+                remediation="Write the required flag declared by the owner codec.",
+            )
+        return codec
+
+    def validate(self, components: Iterable["SnapshotComponent"]) -> None:
+        present: set[tuple[str, str]] = set()
+        for component in components:
+            codec = self.codec_for(component)
+            codec.decode(_thaw_json(component.payload))
+            present.add((component.owner, component.slot))
+        if not self._required.issubset(present):
+            raise SessionContractError(
+                SessionErrorCode.MISSING_REQUIRED_COMPONENT,
+                "Snapshot is missing a component required by the composed registry.",
+                recoverable=False,
+                remediation="Provide every required owner component before persistence.",
+                metadata={"missing_count": len(self._required - present)},
+            )
+
+    def decode(self, component: "SnapshotComponent") -> Any:
+        codec = self.codec_for(component)
+        return codec.decode(_thaw_json(component.payload))
+
+
+def _mapping_component(value: Any) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise SessionContractError(
+            SessionErrorCode.CORRUPT_SNAPSHOT,
+            "Core snapshot component must be a JSON object.",
+            recoverable=False,
+            remediation="Encode core component facts as a JSON object.",
+        )
+    return value
+
+
+@dataclass(frozen=True)
+class AgentStateSnapshotComponent:
+    agent_id: AgentIdentity
+    state_schema: str
+    state: Mapping[str, Any]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.agent_id, AgentIdentity):
+            raise SessionContractError(
+                SessionErrorCode.INVALID_IDENTITY_RELATIONSHIP,
+                "Agent state requires AgentIdentity.",
+                recoverable=False,
+                remediation="Decode agent_id with the canonical identity codec.",
+            )
+        if not isinstance(self.state_schema, str) or _CAPABILITY_TOKEN.fullmatch(
+            self.state_schema
+        ) is None:
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Agent state schema is invalid.",
+                recoverable=False,
+                remediation="Use a portable state schema identifier.",
+            )
+        object.__setattr__(self, "state", _mapping_component(self.state))
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "agent_id": self.agent_id.to_dict(),
+            "state_schema": self.state_schema,
+            "state": _thaw_json(_freeze_json(self.state, path="agent_state.state")),
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "AgentStateSnapshotComponent":
+        _require_exact_fields(
+            payload,
+            {"agent_id", "state_schema", "state"},
+            SessionErrorCode.CORRUPT_SNAPSHOT,
+            "agent state component",
+        )
+        return cls(
+            agent_id=AgentIdentity.from_dict(payload["agent_id"]),
+            state_schema=payload["state_schema"],
+            state=payload["state"],
+        )
+
+
+@dataclass(frozen=True)
+class TraceLineageSnapshotComponent:
+    run_id: RunIdentity
+    trace_complete: bool
+    parent_run_id: RunIdentity | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.run_id, RunIdentity) or (
+            self.parent_run_id is not None
+            and not isinstance(self.parent_run_id, RunIdentity)
+        ):
+            raise SessionContractError(
+                SessionErrorCode.INVALID_IDENTITY_RELATIONSHIP,
+                "Trace lineage requires RunIdentity values.",
+                recoverable=False,
+                remediation="Decode trace lineage with the canonical identity codec.",
+            )
+        if not isinstance(self.trace_complete, bool):
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Trace completeness must be boolean.",
+                recoverable=False,
+                remediation="Write an explicit trace completeness fact.",
+            )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "run_id": self.run_id.to_dict(),
+            "trace_complete": self.trace_complete,
+            "parent_run_id": (
+                self.parent_run_id.to_dict() if self.parent_run_id else None
+            ),
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "TraceLineageSnapshotComponent":
+        _require_exact_fields(
+            payload,
+            {"run_id", "trace_complete", "parent_run_id"},
+            SessionErrorCode.CORRUPT_SNAPSHOT,
+            "trace lineage component",
+        )
+        return cls(
+            run_id=RunIdentity.from_dict(payload["run_id"]),
+            trace_complete=payload["trace_complete"],
+            parent_run_id=(
+                RunIdentity.from_dict(payload["parent_run_id"])
+                if payload["parent_run_id"] is not None
+                else None
+            ),
+        )
+
+
+def _encode_agent_state(value: Any) -> Mapping[str, Any]:
+    if not isinstance(value, AgentStateSnapshotComponent):
+        raise SessionContractError(
+            SessionErrorCode.CORRUPT_SNAPSHOT,
+            "Agent-state codec requires AgentStateSnapshotComponent.",
+            recoverable=False,
+            remediation="Use the typed agent-state component producer.",
+        )
+    return value.to_dict()
+
+
+def _encode_trace_lineage(value: Any) -> Mapping[str, Any]:
+    if not isinstance(value, TraceLineageSnapshotComponent):
+        raise SessionContractError(
+            SessionErrorCode.CORRUPT_SNAPSHOT,
+            "Trace-lineage codec requires TraceLineageSnapshotComponent.",
+            recoverable=False,
+            remediation="Use the typed trace-lineage component producer.",
+        )
+    return value.to_dict()
+
+
+CORE_SNAPSHOT_COMPONENT_CODECS = (
+    SnapshotComponentCodec(
+        slot=ComponentSlot.AGENT_STATE.value,
+        owner="qitos.session",
+        schema_version="qitos.session.agent_state/v1",
+        required=True,
+        encode=_encode_agent_state,
+        decode=AgentStateSnapshotComponent.from_dict,
+    ),
+    *tuple(
+        SnapshotComponentCodec(
+            slot=slot.value,
+            owner="qitos.session",
+            schema_version=f"qitos.session.{slot.value}/v1",
+            required=True,
+            encode=_mapping_component,
+            decode=_mapping_component,
+        )
+        for slot in (
+            ComponentSlot.ENGINE_PROGRESS,
+            ComponentSlot.BUDGET_CAPABILITY,
+        )
+    ),
+    SnapshotComponentCodec(
+        slot=ComponentSlot.TRACE_LINEAGE.value,
+        owner="qitos.session",
+        schema_version="qitos.session.trace_lineage/v1",
+        required=True,
+        encode=_encode_trace_lineage,
+        decode=TraceLineageSnapshotComponent.from_dict,
+    ),
 )
-REQUIRED_COMPONENT_SLOTS = frozenset(
+CORE_SNAPSHOT_COMPONENT_REGISTRY = SnapshotComponentRegistry(
+    CORE_SNAPSHOT_COMPONENT_CODECS
+)
+SUPPORTED_COMPONENT_SCHEMAS: Mapping[str, frozenset[str]] = MappingProxyType(
     {
-        ComponentSlot.AGENT_STATE,
-        ComponentSlot.ENGINE_PROGRESS,
-        ComponentSlot.BUDGET_CAPABILITY,
-        ComponentSlot.TRACE_LINEAGE,
+        codec.slot: frozenset({codec.schema_version})
+        for codec in CORE_SNAPSHOT_COMPONENT_CODECS
     }
 )
+REQUIRED_COMPONENT_SLOTS = frozenset(codec.slot for codec in CORE_SNAPSHOT_COMPONENT_CODECS)
 
 
 @dataclass(frozen=True)
 class SnapshotComponent:
     """Deeply immutable component entry in the session envelope."""
 
-    slot: ComponentSlot
-    schema_version: int
+    slot: str
+    schema_version: str
     required: bool
     owner: str
     payload: Mapping[str, Any]
+    digest: str = ""
 
     def __post_init__(self) -> None:
+        slot = self.slot.value if isinstance(self.slot, ComponentSlot) else self.slot
+        if not isinstance(slot, str) or _CAPABILITY_TOKEN.fullmatch(slot) is None:
+            raise SessionContractError(
+                SessionErrorCode.UNSUPPORTED_COMPONENT_SCHEMA,
+                "Snapshot component slot is invalid.",
+                recoverable=False,
+                remediation="Use a portable semantic component slot.",
+            )
+        object.__setattr__(self, "slot", slot)
         if (
-            isinstance(self.schema_version, bool)
-            or not isinstance(self.schema_version, int)
-            or self.schema_version not in SUPPORTED_COMPONENT_SCHEMAS[self.slot]
+            not isinstance(self.schema_version, str)
+            or _SCHEMA_TOKEN.fullmatch(self.schema_version) is None
         ):
             raise SessionContractError(
                 SessionErrorCode.UNSUPPORTED_COMPONENT_SCHEMA,
-                f"Unsupported schema for {self.slot.value} component.",
+                "Snapshot component schema identifier is invalid.",
                 recoverable=False,
-                remediation="Install a reader or migration adapter for this component schema.",
-                metadata={"component": self.slot.value},
+                remediation="Use the schema identifier declared by the owner codec.",
             )
         if not isinstance(self.required, bool):
             raise SessionContractError(
@@ -887,39 +1195,57 @@ class SnapshotComponent:
                 remediation="Encode component facts as a JSON object.",
             )
         object.__setattr__(self, "payload", frozen_payload)
+        expected_digest = _digest_json(_thaw_json(frozen_payload))
+        if self.digest and self.digest != expected_digest:
+            raise SessionContractError(
+                SessionErrorCode.COMPONENT_DIGEST_MISMATCH,
+                "Snapshot component digest verification failed.",
+                recoverable=False,
+                remediation="Restore component bytes written by the owning codec.",
+                metadata={"owner": self.owner, "slot": self.slot},
+            )
+        object.__setattr__(self, "digest", expected_digest)
+
+    @classmethod
+    def from_value(
+        cls, codec: SnapshotComponentCodec, value: Any
+    ) -> "SnapshotComponent":
+        return cls(
+            slot=codec.slot,
+            schema_version=codec.schema_version,
+            required=codec.required,
+            owner=codec.owner,
+            payload=codec.encode(value),
+        )
+
+    def decode(self, registry: SnapshotComponentRegistry) -> Any:
+        return registry.decode(self)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "slot": self.slot.value,
+            "slot": self.slot,
             "schema_version": self.schema_version,
             "required": self.required,
             "owner": self.owner,
             "payload": _thaw_json(self.payload),
+            "digest": self.digest,
         }
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> "SnapshotComponent":
         _require_exact_fields(
             payload,
-            {"slot", "schema_version", "required", "owner", "payload"},
+            {"slot", "schema_version", "required", "owner", "payload", "digest"},
             SessionErrorCode.CORRUPT_SNAPSHOT,
             "snapshot component",
         )
-        try:
-            slot = ComponentSlot(payload.get("slot"))
-        except (TypeError, ValueError) as exc:
-            raise SessionContractError(
-                SessionErrorCode.UNSUPPORTED_COMPONENT_SCHEMA,
-                "Snapshot component slot is unsupported.",
-                recoverable=False,
-                remediation="Install support for the component slot before restore.",
-            ) from exc
         return cls(
-            slot=slot,
+            slot=payload["slot"],
             schema_version=payload["schema_version"],
             required=payload["required"],
             owner=payload["owner"],
             payload=payload["payload"],
+            digest=payload["digest"],
         )
 
 
@@ -991,9 +1317,11 @@ class SessionSnapshot:
     timing: SnapshotTiming
     components: tuple[SnapshotComponent, ...]
     resolver_references: tuple[ResolverReference, ...]
+    artifact_refs: tuple[ArtifactRef, ...]
     integrity: SnapshotIntegrity
+    component_registry: InitVar[SnapshotComponentRegistry | None] = None
 
-    def __post_init__(self) -> None:
+    def __post_init__(self, component_registry: SnapshotComponentRegistry | None) -> None:
         if self.schema_version != CURRENT_SNAPSHOT_SCHEMA:
             raise SessionContractError(
                 SessionErrorCode.UNSUPPORTED_SNAPSHOT_SCHEMA,
@@ -1005,6 +1333,7 @@ class SessionSnapshot:
         _validate_timestamp(self.created_at, "created_at")
         components = tuple(self.components)
         references = tuple(self.resolver_references)
+        artifacts = tuple(self.artifact_refs)
         if any(not isinstance(item, SnapshotComponent) for item in components):
             raise SessionContractError(
                 SessionErrorCode.CORRUPT_SNAPSHOT,
@@ -1019,33 +1348,22 @@ class SessionSnapshot:
                 recoverable=False,
                 remediation="Read resolver references with the current strict codec.",
             )
-        slots = [item.slot for item in components]
-        if len(slots) != len(set(slots)):
+        if any(not isinstance(item, ArtifactRef) for item in artifacts):
             raise SessionContractError(
                 SessionErrorCode.CORRUPT_SNAPSHOT,
-                "Snapshot contains duplicate component slots.",
+                "Snapshot artifact references must use the canonical ArtifactRef.",
                 recoverable=False,
-                remediation="Keep exactly one component per declared slot.",
+                remediation="Read artifact references with the current strict codec.",
             )
-        missing = REQUIRED_COMPONENT_SLOTS.difference(slots)
-        if missing:
-            raise SessionContractError(
-                SessionErrorCode.UNSUPPORTED_COMPONENT_SCHEMA,
-                "Snapshot is missing required components.",
-                recoverable=False,
-                remediation="Provide every required component or use a migration adapter.",
-                metadata={"missing_count": len(missing)},
-            )
-        required_flags = {
-            item.slot for item in components if item.slot in REQUIRED_COMPONENT_SLOTS and item.required
-        }
-        if required_flags != REQUIRED_COMPONENT_SLOTS:
+        component_keys = [(item.owner, item.slot) for item in components]
+        if len(component_keys) != len(set(component_keys)):
             raise SessionContractError(
                 SessionErrorCode.CORRUPT_SNAPSHOT,
-                "Required snapshot components must be marked required.",
+                "Snapshot contains duplicate owner component slots.",
                 recoverable=False,
-                remediation="Mark every framework-required component as required.",
+                remediation="Keep one component per semantic owner and slot.",
             )
+        (component_registry or CORE_SNAPSHOT_COMPONENT_REGISTRY).validate(components)
         ref_keys = [(ref.namespace, ref.reference_id) for ref in references]
         if len(ref_keys) != len(set(ref_keys)):
             raise SessionContractError(
@@ -1054,8 +1372,17 @@ class SessionSnapshot:
                 recoverable=False,
                 remediation="Keep one reference for each namespace and logical alias.",
             )
+        artifact_keys = [item.artifact_id for item in artifacts]
+        if len(artifact_keys) != len(set(artifact_keys)):
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Snapshot contains duplicate artifact references.",
+                recoverable=False,
+                remediation="Keep one canonical reference for each artifact identity.",
+            )
         object.__setattr__(self, "components", components)
         object.__setattr__(self, "resolver_references", references)
+        object.__setattr__(self, "artifact_refs", artifacts)
 
     @classmethod
     def create(
@@ -1069,9 +1396,12 @@ class SessionSnapshot:
         timing: SnapshotTiming,
         components: Iterable[SnapshotComponent],
         resolver_references: Iterable[ResolverReference] = (),
+        artifact_refs: Iterable[ArtifactRef] = (),
+        component_registry: SnapshotComponentRegistry | None = None,
     ) -> "SessionSnapshot":
         components_tuple = tuple(components)
         refs_tuple = tuple(resolver_references)
+        artifacts_tuple = tuple(artifact_refs)
         unsigned = _snapshot_unsigned_dict(
             schema_version=CURRENT_SNAPSHOT_SCHEMA,
             snapshot_id=snapshot_id,
@@ -1082,6 +1412,7 @@ class SessionSnapshot:
             timing=timing,
             components=components_tuple,
             resolver_references=refs_tuple,
+            artifact_refs=artifacts_tuple,
         )
         integrity = SnapshotIntegrity("sha256", _digest_json(unsigned))
         return cls(
@@ -1094,7 +1425,9 @@ class SessionSnapshot:
             timing=timing,
             components=components_tuple,
             resolver_references=refs_tuple,
+            artifact_refs=artifacts_tuple,
             integrity=integrity,
+            component_registry=component_registry,
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -1108,6 +1441,7 @@ class SessionSnapshot:
             timing=self.timing,
             components=self.components,
             resolver_references=self.resolver_references,
+            artifact_refs=self.artifact_refs,
         )
         payload["integrity"] = self.integrity.to_dict()
         return payload
@@ -1122,7 +1456,12 @@ class SessionSnapshot:
         )
 
     @classmethod
-    def from_dict(cls, payload: Mapping[str, Any]) -> "SessionSnapshot":
+    def from_dict(
+        cls,
+        payload: Mapping[str, Any],
+        *,
+        component_registry: SnapshotComponentRegistry | None = None,
+    ) -> "SessionSnapshot":
         _require_exact_fields(
             payload,
             {
@@ -1135,6 +1474,7 @@ class SessionSnapshot:
                 "timing",
                 "components",
                 "resolver_references",
+                "artifact_refs",
                 "integrity",
             },
             SessionErrorCode.CORRUPT_SNAPSHOT,
@@ -1160,7 +1500,12 @@ class SessionSnapshot:
             ) from exc
         components_raw = payload.get("components")
         refs_raw = payload.get("resolver_references")
-        if not isinstance(components_raw, list) or not isinstance(refs_raw, list):
+        artifacts_raw = payload.get("artifact_refs")
+        if (
+            not isinstance(components_raw, list)
+            or not isinstance(refs_raw, list)
+            or not isinstance(artifacts_raw, list)
+        ):
             raise SessionContractError(
                 SessionErrorCode.CORRUPT_SNAPSHOT,
                 "Snapshot components and resolver references must be arrays.",
@@ -1201,10 +1546,12 @@ class SessionSnapshot:
             resolver_references=tuple(
                 ResolverReference.from_dict(item) for item in refs_raw
             ),
+            artifact_refs=tuple(ArtifactRef.from_dict(item) for item in artifacts_raw),
             integrity=SnapshotIntegrity(
                 algorithm=integrity_raw["algorithm"],
                 digest=integrity_raw["digest"],
             ),
+            component_registry=component_registry,
         )
         unsigned = dict(snapshot.to_dict())
         unsigned.pop("integrity")
@@ -1218,7 +1565,12 @@ class SessionSnapshot:
         return snapshot
 
     @classmethod
-    def from_json(cls, raw: str) -> "SessionSnapshot":
+    def from_json(
+        cls,
+        raw: str,
+        *,
+        component_registry: SnapshotComponentRegistry | None = None,
+    ) -> "SessionSnapshot":
         try:
             payload = json.loads(raw, parse_constant=_reject_json_constant)
         except (json.JSONDecodeError, TypeError, ValueError) as exc:
@@ -1235,7 +1587,7 @@ class SessionSnapshot:
                 recoverable=False,
                 remediation="Restore an intact snapshot written by the current codec.",
             )
-        return cls.from_dict(payload)
+        return cls.from_dict(payload, component_registry=component_registry)
 
 
 class PersistenceReceiptStatus(str, Enum):
@@ -1313,6 +1665,7 @@ def _snapshot_unsigned_dict(
     timing: SnapshotTiming,
     components: Iterable[SnapshotComponent],
     resolver_references: Iterable[ResolverReference],
+    artifact_refs: Iterable[ArtifactRef],
 ) -> Dict[str, Any]:
     return {
         "schema_version": schema_version,
@@ -1324,6 +1677,7 @@ def _snapshot_unsigned_dict(
         "timing": timing.to_dict(),
         "components": [component.to_dict() for component in components],
         "resolver_references": [reference.to_dict() for reference in resolver_references],
+        "artifact_refs": [reference.to_dict() for reference in artifact_refs],
     }
 
 
@@ -1471,9 +1825,13 @@ def _safe_failure_metadata(metadata: Mapping[str, Any]) -> Dict[str, Any]:
 
 __all__ = [
     "AgentIdentity",
+    "AgentStateSnapshotComponent",
     "AttemptIdentity",
     "CheckpointIdentity",
     "ComponentSlot",
+    "ContinuationIdentity",
+    "CORE_SNAPSHOT_COMPONENT_CODECS",
+    "CORE_SNAPSHOT_COMPONENT_REGISTRY",
     "CURRENT_SNAPSHOT_SCHEMA",
     "HeadGeneration",
     "IdentityKind",
@@ -1498,11 +1856,14 @@ __all__ = [
     "SessionOperation",
     "SessionSnapshot",
     "SnapshotComponent",
+    "SnapshotComponentCodec",
+    "SnapshotComponentRegistry",
     "SnapshotIdentity",
     "SnapshotIntegrity",
     "SnapshotTiming",
     "SUPPORTED_COMPONENT_SCHEMAS",
     "ToolCallIdentity",
+    "TraceLineageSnapshotComponent",
     "WorkItemIdentity",
     "identity_from_dict",
     "lifecycle_allows",
