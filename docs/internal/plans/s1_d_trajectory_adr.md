@@ -5,6 +5,12 @@ Decision owner: Lane D for reader/export/DX shape; runtime facts remain owned by
 Lanes A, B, and C
 Source identity: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
 
+G2 candidate note: receipts bind the 17 A/B/C S1 contract requirements against
+candidate producer commits, but G2-R2 must separate historical compatibility
+from current-writer evidence before promotion. The Trajectory envelope below
+remains unfrozen; no writer, store, index, qita migration, publication,
+measurement, or performance claim is implemented or qualified.
+
 ## Decision
 
 QitOS will expose one future concept named `Trajectory`. Its supporting names

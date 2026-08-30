@@ -947,10 +947,10 @@ fifth implementation. Its responsibilities are:
 
 | Lane | Current package | Branch/PR | Lease | Tests | Handoff produced | Blocker/decision | Gate status |
 |---|---|---|---|---|---|---|---|
-| A | 12A session contracts | `cb79532` | session identity/snapshot | individually green | identity vocabulary and snapshot envelope | outer component adaptation unresolved | G2 source candidate |
-| C | recovery/effects + 13A | `61c85ab` | outcome/work graph | individually green | quiescence and ownership fixtures | still uses untyped A-owned identities | G2 source candidate |
-| B | 02B RequestView | `939edd0` | conversation/context | individually green | RequestView, CodecReport, snapshot component | ArtifactRef/snapshot/capability convergence open | G2 source candidate |
-| D | lineage intake | `44a09e3` | readiness/evidence | individually green | 19-contract inventory | 17 S1 producers unestablished | G2 source candidate |
+| A | 12A session contracts | `5886425` | session identity/snapshot | candidate cross-line tests green | typed identities, extensible envelope, ArtifactRef foundation | G2-R2 qualification and runtime behavior absent | unpromoted G2 candidate |
+| C | recovery/effects + 13A | `bd7fca9` | outcome/work graph | candidate cross-line tests green | typed effects/work graph, current writer and historical reader | G2-R2 strict grammar and persistent scheduler absent | unpromoted G2 candidate |
+| B | 02B RequestView | `3cc29be` | conversation/context | candidate cross-line tests green | sole conversation component, RequestView, declared capabilities | G2-R2 capability/privacy repair and provider dispatch absent | unpromoted G2 candidate |
+| D | lineage intake | `fcb0784` | readiness/evidence | pre-R2 inventory reports 19/19 | candidate A/B/C producer bindings | current/historical receipt repair plus runtime/Trajectory blockers retained | unpromoted G2 candidate; Trajectory not ready |
 
 ### 10.2 Merge rule
 

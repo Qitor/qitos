@@ -55,7 +55,7 @@ above and may differ from the S1 source ancestry baseline because the audit and
 dispatch documentation landed after the four candidates branched. Do not start
 the G2 worktree directly from `c1efb0f...`.
 
-## Independent audit evidence
+## Pre-convergence independent audit evidence
 
 An isolated A -> C -> B -> D merge completed without textual conflicts. The
 merged tree passed 173 focused contract/readiness/boundary tests, the full suite
@@ -79,7 +79,7 @@ Independent probes demonstrated that:
 - D still reports all 17 S1 requirements as
   `producer_version_unestablished`, qualifying only the two G1 foundations.
 
-## Blocking repairs
+## Historical blocking repairs (closed by the closure record above)
 
 ### G2-I1 — one identity vocabulary
 

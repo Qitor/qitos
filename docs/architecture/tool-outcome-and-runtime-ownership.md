@@ -1,16 +1,17 @@
 # Tool outcome and runtime ownership (ADR C1)
 
-Status: accepted; C1-R4 role-aware scalar projection hardening qualified
-Schema versions: `qitos.tool_result/v1`, `qitos.tool_result.model_view/v1`,
+Status: accepted direction; G2 current-writer and historical-reader strictness requires G2-R2 repair
+Schema versions: current `qitos.tool_result/v2`, historical `qitos.tool_result/v1`, `qitos.tool_result.model_view/v1`,
 `qitos.tool_result.trace_safe/v1`, `qitos.runtime_lifecycle/v1`,
 `qitos.durability_receipt/v1`
 Decision owners: Task 03A and Task 09A
 
-S1 Lane C extends this accepted result in place with attempt/effect/retry and
+G2 extends this accepted result in place with attempt/effect/retry and
 reconciliation facts. The canonical decision, invariants, WorkGraph consumer,
 and safe-boundary rules are in
 [`stable-effects-and-work-graph.md`](stable-effects-and-work-graph.md). No new
-result envelope or schema-version path is introduced.
+result envelope is introduced. Serialized schema evolution is isolated behind
+the one current writer and `ToolResultCompatibilityReader`.
 
 ## Decision
 
@@ -25,7 +26,7 @@ The action runtime converts it immediately with
 missing dispatch identity/timing metadata. Reducers, observations, model
 projection, fixtures, and future trace integration consume `ToolResult`.
 
-The v1 result represents:
+The current result represents:
 
 - `tool_name` and `action_id` identity;
 - the closed terminal status set `success|error|skipped|timed_out|cancelled`;
@@ -40,16 +41,18 @@ The v1 result represents:
   evaluated retry disposition, reconciliation and outcome uncertainty;
 - owner generation, stale/late result facts, and per-slot partial-batch closure.
 
-`artifact_refs` intentionally remains a serialized `list[dict]` slot in C1.
-Lane B owns the eventual `ArtifactRef` type and store; C1 neither exposes host
-paths nor creates a competing artifact abstraction.
+`artifact_refs` directly uses the one core `ArtifactRef`. Persistence carries
+only its content identity, resolver key, digest, media/size, sensitivity,
+provenance, and required/optional facts—never an artifact body or host path.
 
 ## Serialization and compatibility
 
 `ToolResult.to_persistence_dict()` is the canonical serializer;
-`ToolResult.to_dict()` is its compatibility name. It emits only declared v1
+`ToolResult.to_dict()` is its compatibility name. It emits only declared current
 fields and never flattens arbitrary dictionary output keys into the envelope.
-`ToolResult.from_canonical_dict()` is the strict parser. It rejects unknown
+`ToolResult.from_canonical_dict()` is the strict current parser. Historical v1
+bytes are accepted only by the bounded compatibility reader and migrated into
+the current in-memory class. The strict current parser rejects unknown
 versions and fields, malformed list/dict slots, non-JSON values, invalid scalar
 types/ranges, and contradictory terminal state. In particular:
 

@@ -1,6 +1,6 @@
 # S1-D lineage readiness and handoff evidence
 
-Status: typed blocked; intake and validator implemented, runtime not implemented
+Status: G2 candidate receipt inventory present; G2-R2 requalification and runtime/Trajectory remain blocked
 Source branch: `feat/campaign-absorption`
 Source commit: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
 Lane branch: `codex/v4-s1-d-lineage-intake`
@@ -12,9 +12,26 @@ S1-D defines one future `Trajectory` target, extends the writer/reader census to
 strict A/B/C receipt/readiness inventory. It adds no writer, store, qita runtime,
 producer schema, compression/index choice, or performance claim.
 
-The current state is intentionally `schema_not_ready`. The only qualified
-contracts are the two accepted G1 foundations for ExchangeLog and ToolResult.
-Every S1 producer contract is `producer_version_unestablished`.
+The current state remains intentionally `schema_not_ready`. The candidate binds
+the 17 G2 S1 requirements, but the two G1 foundation receipts are historical
+compatibility evidence rather than current-writer evidence. G2-R2 must publish
+separate current ToolResult and ExchangeLog producer receipts and re-run the
+inventory. Independent runtime, writer/store, publication, qita, and measurement
+blockers remain.
+
+The G2 producer bundles are:
+
+| Owner | Producer commit | Bundle / evidence | Version | Qualified requirement count |
+|---|---|---|---|---:|
+| A | `58864253a169d1bac5749ad2b2de5de6872c0da2` | `tests/fixtures/session/fixture-manifest.json`; adjacent qualification evidence | `qitos.session_contract_bundle/v2` | 5 |
+| C | `bd7fca95e9ba9acfbbd9e8d0655a14ece066bcb6` | `tests/fixtures/work_graph/g2-contract-manifest.json`; adjacent qualification evidence | `qitos.work_effect_contract_bundle/v2` | 6 |
+| B | `3cc29bea2bd311a2343862fd0b4f32636524bbb6` | `tests/fixtures/conversation/request_contracts.json`; adjacent qualification evidence | `qitos.request_contract_bundle/v1` | 6 |
+
+The pre-R2 candidate validation observed 19 qualified contract IDs and zero
+receipt findings under an inventory that conflated two historical foundations
+with current producer evidence. That count is superseded pending G2-R2 repair.
+The unchanged normal exit policy is exit 2 with `schema_not_ready`, no
+measurements, and no claims. The candidate suite was `2010 passed, 50 skipped`.
 
 ## Canonical, derived, and compatibility decision
 
@@ -33,7 +50,11 @@ Detailed decision and qita flow:
 [`s1_d_trajectory_adr.md`](s1_d_trajectory_adr.md). Exact sources:
 [`s1_d_source_census.md`](s1_d_source_census.md).
 
-## Readiness contract inventory
+## Historical pre-G2 readiness inventory
+
+The table below records the S1 intake state before G2. It is retained for
+provenance; `scripts/benchmark_trajectory_store.py` and the receipt set are the
+current executable inventory.
 
 `—` means the semantic owner has not published an accepted fact. It is not a
 placeholder that Lane D may fill.
@@ -201,7 +222,10 @@ All required targeted gates executed without a skip and passed:
   `TRAJECTORY_SCHEMA_NOT_READY`, empty measurements/claims.
 - `git diff --check`: exit 0.
 
-## Fixture and evidence digests
+## Historical S1 fixture and evidence digests
+
+These values identify the original S1 handoff. Current G2 receipts carry the
+authoritative non-abbreviated producer and readiness digests.
 
 SHA-256 values are over committed logical files; they identify bytes and do not
 claim sanitization:

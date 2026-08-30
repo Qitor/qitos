@@ -32,10 +32,10 @@ Maintain it with these rules:
 ## 2. Current decision
 
 The G2 candidate contains substantial, validated convergence work but is not a
-promoted baseline. The primary integration branch remains at
-`3ab69c91b8c5b7759208a3449def341658bd5fd1`; the candidate started from its
-parent `096e082...`, does not contain the later worktree-retirement policy, and
-cannot fast-forward the current integration branch. Its own progress document
+promoted baseline. The primary integration branch remains at the fixed G2-R2
+dispatch baseline `8e17b1f6471a89a52aacec74a55f41386d44559a`; the original
+candidate started from parent `096e082...`, does not contain the later audit and
+worktree-retirement policy, and cannot fast-forward the current integration branch. Its own progress document
 calls the lane-local branch the integration branch and marks G2 complete before
 promotion or cleanup. Those are evidence/status defects, not runtime facts.
 

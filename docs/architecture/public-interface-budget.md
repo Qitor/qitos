@@ -1,0 +1,51 @@
+# G2 public-interface budget
+
+Status: frozen for the G2 stable-contract baseline  
+Updated: 2026-08-30
+
+G2 adds persistence and migration contracts without expanding the root `qitos`
+API or `Engine.__init__`. The executable source of truth is
+`tests/fixtures/public_surface/g2-interface-budget.json`; the test
+`tests/test_g2_interface_budget.py` requires every module-level `__all__` name
+in the eight convergence modules to have exactly one classification.
+
+## Budget
+
+| Surface | Intended audience | Rule |
+|---|---|---|
+| beginner-facing | ordinary agent authors | Only direct concepts such as `SessionSnapshot`, `RequestView`, `ArtifactRef`, `ToolResult`, and `WorkGraph`; no schema/CAS/receipt bookkeeping |
+| extension-facing | provider, persistence, and orchestration implementers | Typed identities, registries, codecs, capability declarations, and structured failures |
+| persistence-internal | current writers and compatibility readers | Schema constants, component envelopes, receipts, integrity records, and migration readers; never part of the beginner path |
+| internal-private | implementation helpers | No supported import promise |
+
+The measured module-level budget is 127 classified export entries. This is the
+post-convergence measured value, not the earlier review estimate of roughly 96.
+The count includes the canonical `ArtifactRef` re-exported by `request_view`;
+that re-export is the same class, not a second artifact contract.
+
+## Beginner path
+
+The existing `AgentModule + Engine` path remains authoritative. G2 introduces
+no root export and no Engine argument for pause, resume, fork, session stores,
+snapshot registries, or trajectory stores. Future user-facing session verbs are
+budgeted as `run`, `pause`, `restore`, `fork`, `steer`, `inspect`, `handoff`,
+`delegate`, `fan_out`, and `join`, but G2 implements only their prerequisite
+contracts.
+
+Ordinary examples must not require users to construct snapshot component
+envelopes, codec reports, generation compare-and-set records, or qualification
+receipts. Those remain extension or persistence concerns.
+
+## Enforcement
+
+The public-surface test fails when:
+
+- a convergence module adds or removes an `__all__` entry without updating the
+  reviewed classification;
+- one name is placed in more than one category;
+- a G2 convergence name appears at the root `qitos` package;
+- `Engine.__init__` grows a G2 runtime or storage parameter.
+
+This is a visibility budget, not a deletion target. Extension contracts remain
+available where required for independent implementations, while the beginner
+surface stays small.
