@@ -11,6 +11,7 @@ from qitos.core.session import (
     AgentIdentity,
     AttemptIdentity,
     CheckpointIdentity,
+    ContinuationIdentity,
     IdentityKind,
     IdentityRelation,
     IdentityRelationship,
@@ -37,6 +38,7 @@ IDENTITY_TYPES = {
     IdentityKind.ATTEMPT: AttemptIdentity,
     IdentityKind.TOOL_CALL: ToolCallIdentity,
     IdentityKind.AGENT: AgentIdentity,
+    IdentityKind.CONTINUATION: ContinuationIdentity,
 }
 
 

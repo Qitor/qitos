@@ -13,6 +13,7 @@ from qitos.core.session import (
     AgentIdentity,
     CheckpointIdentity,
     ComponentSlot,
+    CORE_SNAPSHOT_COMPONENT_CODECS,
     HeadGeneration,
     PauseReceipt,
     PauseSafety,
@@ -53,29 +54,12 @@ def _component(
     *,
     required: bool | None = None,
 ) -> SnapshotComponent:
-    required_slots = {
-        ComponentSlot.AGENT_STATE,
-        ComponentSlot.ENGINE_PROGRESS,
-        ComponentSlot.BUDGET_CAPABILITY,
-        ComponentSlot.TRACE_LINEAGE,
-    }
-    owners = {
-        ComponentSlot.AGENT_STATE: "lane_a",
-        ComponentSlot.ENGINE_PROGRESS: "lane_a",
-        ComponentSlot.EXCHANGE_CONTEXT: "lane_b",
-        ComponentSlot.PARTIAL_PARALLEL_BATCH: "lane_b",
-        ComponentSlot.TOOL_EFFECTS: "lane_c",
-        ComponentSlot.QUEUED_STEERING: "lane_b",
-        ComponentSlot.PROVIDER_CONTINUATION: "lane_b",
-        ComponentSlot.WORK_GRAPH: "lane_c",
-        ComponentSlot.BUDGET_CAPABILITY: "lane_a",
-        ComponentSlot.TRACE_LINEAGE: "lane_a",
-    }
+    codec = next(item for item in CORE_SNAPSHOT_COMPONENT_CODECS if item.slot == slot.value)
     return SnapshotComponent(
         slot=slot,
-        schema_version=1,
-        required=slot in required_slots if required is None else required,
-        owner=owners[slot],
+        schema_version=codec.schema_version,
+        required=codec.required if required is None else required,
+        owner=codec.owner,
         payload=payload or {"present": True},
     )
 
@@ -95,36 +79,16 @@ def _components() -> tuple[SnapshotComponent, ...]:
             {"phase": "check_stop", "safe_boundary": True},
         ),
         _component(
-            ComponentSlot.EXCHANGE_CONTEXT,
-            {"exchange_schema_version": 3, "exchange_head": "exchange_demo"},
-        ),
-        _component(
-            ComponentSlot.PARTIAL_PARALLEL_BATCH,
-            {"declared": 2, "completed": 1, "open": 1},
-        ),
-        _component(
-            ComponentSlot.TOOL_EFFECTS,
-            {"committed": 1, "outcome_unknown": 0},
-        ),
-        _component(
-            ComponentSlot.QUEUED_STEERING,
-            {"queued": 1, "applied": 0},
-        ),
-        _component(
-            ComponentSlot.PROVIDER_CONTINUATION,
-            {"reference": "continuation_demo", "opaque": True},
-        ),
-        _component(
-            ComponentSlot.WORK_GRAPH,
-            {"owner_agent_id": AGENT.to_dict(), "children": []},
-        ),
-        _component(
             ComponentSlot.BUDGET_CAPABILITY,
             {"steps_remaining": 8, "capability_digest": "0" * 64},
         ),
         _component(
             ComponentSlot.TRACE_LINEAGE,
-            {"run_id": RUN.to_dict(), "trace_complete": True},
+            {
+                "run_id": RUN.to_dict(),
+                "trace_complete": True,
+                "parent_run_id": None,
+            },
         ),
     )
 
@@ -335,19 +299,19 @@ def test_snapshot_round_trip_is_deterministic_and_integrity_checked() -> None:
 def test_committed_snapshot_fixtures_use_current_strict_reader(fixture_name: str) -> None:
     raw = (FIXTURE_ROOT / fixture_name).read_text(encoding="utf-8")
     snapshot = SessionSnapshot.from_json(raw)
-    assert snapshot.schema_version == 1
+    assert snapshot.schema_version == 2
     assert snapshot.canonical_json() == raw.strip()
 
 
 def test_snapshot_owns_nested_values_and_serialized_output_is_isolated() -> None:
     source = {"nested": {"items": [1, 2]}}
     components = list(_components())
-    components[0] = _component(ComponentSlot.AGENT_STATE, source)
+    components[1] = _component(ComponentSlot.ENGINE_PROGRESS, source)
     snapshot = _snapshot(components=tuple(components))
     source["nested"]["items"].append(3)
     output = snapshot.to_dict()
-    output["components"][0]["payload"]["nested"]["items"].append(4)
-    assert snapshot.to_dict()["components"][0]["payload"] == {
+    output["components"][1]["payload"]["nested"]["items"].append(4)
+    assert snapshot.to_dict()["components"][1]["payload"] == {
         "nested": {"items": [1, 2]}
     }
 
@@ -403,7 +367,7 @@ def test_snapshot_reader_rejects_corrupt_digest() -> None:
     payload["components"][0]["payload"]["state"]["step"] = 999
     with pytest.raises(SessionContractError) as exc_info:
         SessionSnapshot.from_dict(payload)
-    assert exc_info.value.error_code is SessionErrorCode.CORRUPT_SNAPSHOT
+    assert exc_info.value.error_code is SessionErrorCode.COMPONENT_DIGEST_MISMATCH
 
 
 def test_snapshot_rejects_unsupported_envelope_and_component_schemas() -> None:
@@ -424,11 +388,11 @@ def test_snapshot_rejects_missing_required_component() -> None:
     components = tuple(
         component
         for component in _components()
-        if component.slot is not ComponentSlot.AGENT_STATE
+        if component.slot != ComponentSlot.AGENT_STATE.value
     )
     with pytest.raises(SessionContractError) as exc_info:
         _snapshot(components=components)
-    assert exc_info.value.error_code is SessionErrorCode.UNSUPPORTED_COMPONENT_SCHEMA
+    assert exc_info.value.error_code is SessionErrorCode.MISSING_REQUIRED_COMPONENT
 
 
 def test_pause_receipts_do_not_confuse_accepted_failed_or_conflict_with_paused() -> None:
@@ -500,8 +464,8 @@ def test_fixture_manifest_binds_exact_producer_bytes() -> None:
     )
     assert manifest["schema_version"] == 1
     assert manifest["producers"] == {
-        "identity": "63d5cfbea4e0a0941b038833f0152c391d9b63bd",
-        "snapshot": "aeb58379d2a266f5f8ba36688530f9ac27da07d1",
+        "identity": "g2-contract-convergence",
+        "snapshot": "g2-contract-convergence",
     }
     for item in manifest["files"]:
         fixture_bytes = (FIXTURE_ROOT / item["path"]).read_bytes()
@@ -513,12 +477,22 @@ def test_qualification_evidence_binds_manifest_and_unsupported_claims() -> None:
         (FIXTURE_ROOT / "qualification-evidence.json").read_text(encoding="utf-8")
     )
     manifest_bytes = (FIXTURE_ROOT / "fixture-manifest.json").read_bytes()
-    assert evidence["schema_version"] == 1
-    assert evidence["qualification_authority"] == "lane_a_session_contract_owner"
-    assert evidence["fixture_manifest"]["sha256"] == hashlib.sha256(
-        manifest_bytes
-    ).hexdigest()
-    assert all(item["qualified"] for item in evidence["contracts"].values())
+    assert evidence["contract_id"] == "qitos.session_contract_bundle"
+    assert evidence["contract_version"] == "qitos.session_contract_bundle/v2"
+    assert evidence["fixture_path"] == "tests/fixtures/session/fixture-manifest.json"
+    assert evidence["qualification_authority"] == "qitos.s1.integration_owner/v1"
+    assert evidence["qualified"] is True
+    assert evidence["lineage_evidence"] == {
+        "status": "explicit",
+        "edge_source": "producer_fact",
+        "inferred": False,
+    }
+    assert len(set(evidence["identity_bindings"].values())) == len(
+        evidence["identity_bindings"]
+    )
+    assert hashlib.sha256(manifest_bytes).hexdigest() == (
+        "952dc20f3c412830ef1f18fe73805cc6d8e04ecc28d89e4991883c983a983466"
+    )
     assert "engine_pause_runtime" in evidence["unsupported_claims"]
     assert "fresh_process_restore_runtime" in evidence["unsupported_claims"]
     assert "trajectory_schema_freeze" in evidence["unsupported_claims"]
@@ -532,24 +506,6 @@ def test_fork_fixture_has_new_session_and_snapshot_identities() -> None:
     fork_snapshot = SnapshotIdentity.from_dict(lineage["fork_snapshot_id"])
     assert fork_session != source_session
     assert fork_snapshot != source_snapshot
-
-
-def test_b_like_consumer_reads_only_lane_b_component_slots() -> None:
-    snapshot = SessionSnapshot.from_dict(_snapshot().to_dict())
-    lane_b_slots = {
-        ComponentSlot.EXCHANGE_CONTEXT,
-        ComponentSlot.PARTIAL_PARALLEL_BATCH,
-        ComponentSlot.QUEUED_STEERING,
-        ComponentSlot.PROVIDER_CONTINUATION,
-    }
-    consumed = {item.slot for item in snapshot.components if item.owner == "lane_b"}
-    assert consumed == lane_b_slots
-
-
-def test_c_like_consumer_reads_only_lane_c_component_slots() -> None:
-    snapshot = SessionSnapshot.from_dict(_snapshot().to_dict())
-    consumed = {item.slot for item in snapshot.components if item.owner == "lane_c"}
-    assert consumed == {ComponentSlot.TOOL_EFFECTS, ComponentSlot.WORK_GRAPH}
 
 
 def test_every_stable_failure_has_safe_machine_readable_shape() -> None:
@@ -581,4 +537,5 @@ def test_snapshot_output_mutation_does_not_change_digest() -> None:
     output = copy.deepcopy(snapshot.to_dict())
     output["components"].clear()
     assert snapshot.integrity.digest == before
-    assert len(snapshot.components) == len(ComponentSlot)
+    assert len(snapshot.components) == len(CORE_SNAPSHOT_COMPONENT_CODECS)
+    CORE_SNAPSHOT_COMPONENT_CODECS,
