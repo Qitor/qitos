@@ -172,9 +172,9 @@ definition. Return such a need to its semantic owner.
 | 0 | exact baseline/worktree verification | complete |
 | 1 | mandatory reading and exact-source census | complete |
 | 2 | plan, leases, target API, ownership, compatibility | complete |
-| 3 | independent identity producer commit + fixture digest | in progress |
-| 4 | lifecycle/resolver/snapshot/failure contracts | pending |
-| 5 | semantic fixtures, strict readers, consumer simulations | pending |
-| 6 | ADR and producer evidence/handoff | pending |
-| 7 | targeted and full validation | pending |
-| 8 | self-review, final clean commits/status | pending |
+| 3 | independent identity producer commit + fixture digest | complete |
+| 4 | lifecycle/resolver/snapshot/failure contracts | complete |
+| 5 | semantic fixtures, strict readers, consumer simulations | complete |
+| 6 | ADR and producer evidence/handoff | complete |
+| 7 | targeted and full validation | complete |
+| 8 | self-review, final clean commits/status | complete |
