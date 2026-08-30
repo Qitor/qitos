@@ -63,7 +63,9 @@ still reports all 17 S1 producers as unestablished; and the module-level
 The next authorized work is one integration-owned G2 convergence task in
 [`docs/internal/plans/g2_contract_convergence.md`](internal/plans/g2_contract_convergence.md),
 not four independent repair branches. Its fixed semantic order is A -> C -> B
--> D.
+-> D. The S1 source ancestry baseline remains `c1efb0f...`, while the G2
+worktree must start from the later integration-owner dispatch SHA that contains
+this audit and plan; the task instruction supplies that exact SHA.
 
 The convergence report's provenance wording is also corrected: all 26 reviewed
 source commits were applied by ordered cherry-pick, but the original source SHAs

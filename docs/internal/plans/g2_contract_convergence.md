@@ -3,7 +3,8 @@
 Status: planned; four S1 producer candidates reviewed; not merge-ready
 Updated: 2026-08-30
 Owner: one G2 integration owner
-Fixed baseline: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
+S1 source ancestry baseline: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
+Plan carrier: `907cf038b3a6af469a27ff6f1b2d48a0c7d3d7c7`
 Target branch: `codex/v4-g2-contract-convergence`
 Target worktree: `/Users/morinop/Desktop/WhitzardOS-g2`
 
@@ -29,8 +30,15 @@ historical readers/migrations are required when bytes evolve.
 | B | `codex/v4-s1-b-request-view` | `939edd0164a7f1929818f3e79bea02f2635a9d7d` | request fixtures `86b6f41ed68b4775a6e974c05200a6a76748d742`; local evidence `774642eb21b4cb0b5f417d2ff6fbb9f2e488087a` |
 | D | `codex/v4-s1-d-lineage-intake` | `44a09e3cbfaa29978584a05fbafbdd5c37cd7f2f` | readiness inventory/evidence at reviewed HEAD |
 
-Every worktree was clean at review. All four heads descend from the fixed
-baseline. The source commits are candidates, not accepted integration facts.
+Every worktree was clean at review. All four heads descend from the S1 source
+ancestry baseline. The source commits are candidates, not accepted integration
+facts.
+
+The G2 worktree must start from the exact `feat/campaign-absorption` dispatch
+SHA supplied by the integration owner. That SHA must contain the plan carrier
+above and may differ from the S1 source ancestry baseline because the audit and
+dispatch documentation landed after the four candidates branched. Do not start
+the G2 worktree directly from `c1efb0f...`.
 
 ## Independent audit evidence
 
@@ -144,8 +152,10 @@ is authorized.
 
 ## Integration sequence
 
-1. Verify the fixed baseline, all four reviewed heads, commit chains, and clean
-   statuses; create the target worktree directly from the fixed baseline.
+1. Verify the supplied G2 dispatch SHA contains the plan carrier, then verify
+   all four reviewed heads, their ancestry from `c1efb0f...`, commit chains,
+   and clean statuses; create the target worktree from the supplied dispatch
+   SHA.
 2. Integrate A in source order and review the identity/snapshot producer.
 3. Repair G2-S1 envelope extensibility and freeze the component-owner rules.
 4. Integrate C in source order; close G2-I1 and G2-T1 against accepted A.
