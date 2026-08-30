@@ -1,0 +1,53 @@
+{
+  "schema_version": "qitos.g2_interface_budget/v1",
+  "modules": {
+    "qitos.core.artifact": {
+      "beginner-facing": ["ArtifactRef"],
+      "extension-facing": ["ArtifactContractError"],
+      "persistence-internal": ["ARTIFACT_REF_SCHEMA_VERSION"],
+      "internal-private": []
+    },
+    "qitos.core.session": {
+      "beginner-facing": ["SessionIdentity", "SessionLifecycle", "SessionSnapshot"],
+      "extension-facing": ["AgentIdentity", "AttemptIdentity", "CheckpointIdentity", "ContinuationIdentity", "HeadGeneration", "IdentityKind", "IdentityRelation", "IdentityRelationship", "ResolvedResource", "ResolverNamespace", "ResolverReference", "ResolverRegistry", "RunIdentity", "RuntimeIdentity", "SessionContractError", "SessionErrorCode", "SnapshotComponentCodec", "SnapshotComponentRegistry", "SnapshotIdentity", "ToolCallIdentity", "WorkItemIdentity", "identity_from_dict", "lifecycle_allows", "lifecycle_can_transition"],
+      "persistence-internal": ["AgentStateSnapshotComponent", "ComponentSlot", "CORE_SNAPSHOT_COMPONENT_CODECS", "CORE_SNAPSHOT_COMPONENT_REGISTRY", "CURRENT_SNAPSHOT_SCHEMA", "PauseReceipt", "PauseSafety", "PersistenceReceiptStatus", "REQUIRED_COMPONENT_SLOTS", "SafeBoundaryKind", "SessionHead", "SessionOperation", "SnapshotComponent", "SnapshotIntegrity", "SnapshotTiming", "SUPPORTED_COMPONENT_SCHEMAS", "TraceLineageSnapshotComponent"],
+      "internal-private": []
+    },
+    "qitos.core.request_view": {
+      "beginner-facing": ["ArtifactRef", "ContextBudget", "ContextContribution", "ContinuationRef", "ReasoningPolicy", "RequestTarget", "RequestView"],
+      "extension-facing": ["ContextContributor", "IncompatibleContinuationError", "MissingArtifactError", "RequestContractError", "UnsafeRequestBoundaryError", "UnsafeSnapshotComponentError", "UnsupportedRequestVersionError", "reconcile_steering_receipts", "submit_steering"],
+      "persistence-internal": ["CONVERSATION_COMPONENT_SCHEMA_VERSION", "CONVERSATION_SNAPSHOT_COMPONENT_CODEC", "CompactionReceipt", "ConversationCompatibilityReader", "ConversationSnapshotComponent", "REQUEST_BUILDER_VERSION", "REQUEST_VIEW_SCHEMA_VERSION", "SelectionReport", "SteeringReceipt"],
+      "internal-private": []
+    },
+    "qitos.core.tool_result": {
+      "beginner-facing": ["ToolResult"],
+      "extension-facing": ["EffectState", "RetryDisposition", "ToolErrorKind", "ToolResultContractError", "ToolResultStatus"],
+      "persistence-internal": ["HISTORICAL_TOOL_RESULT_SCHEMA_VERSION", "TOOL_BATCH_CLOSURE_SCHEMA_VERSION", "TOOL_EFFECTS_COMPONENT_SCHEMA_VERSION", "TOOL_EFFECTS_SNAPSHOT_COMPONENT_CODEC", "TOOL_RESULT_MODEL_VIEW_VERSION", "TOOL_RESULT_SCHEMA_VERSION", "TOOL_RESULT_TRACE_SAFE_VERSION", "ToolEffectsSnapshotComponent", "ToolResultCompatibilityReader"],
+      "internal-private": []
+    },
+    "qitos.core.work_graph": {
+      "beginner-facing": ["WorkGraph", "WorkItem", "WorkOwner"],
+      "extension-facing": ["BudgetAllocation", "CancellationRequest", "CapabilityAllocation", "CompletionDisposition", "DelegationRecord", "DetachmentRecord", "FanOutGroup", "JoinDependency", "LateResult", "OwnershipTransfer", "SpawnRecord", "WorkAttempt", "WorkCompletion", "WorkEdge", "WorkGraphContractError"],
+      "persistence-internal": ["WORK_GRAPH_SCHEMA_VERSION", "WORK_GRAPH_SNAPSHOT_COMPONENT_CODEC", "WORK_GRAPH_SNAPSHOT_COMPONENT_VERSION", "WorkGraphSnapshotComponent"],
+      "internal-private": []
+    },
+    "qitos.core.snapshot_composition": {
+      "beginner-facing": [],
+      "extension-facing": ["STABLE_SNAPSHOT_COMPONENT_REGISTRY"],
+      "persistence-internal": [],
+      "internal-private": []
+    },
+    "qitos.models.codec": {
+      "beginner-facing": ["ProviderFailure"],
+      "extension-facing": ["CodecCapabilityError", "CodecError", "CodecLossError", "CodecReport", "CodecUnavailableError", "ProviderCapabilities", "ProviderCodec", "capability_mismatches", "report_for_request", "validate_codec_result"],
+      "persistence-internal": ["CODEC_REPORT_SCHEMA_VERSION", "PROVIDER_CAPABILITIES_SCHEMA_VERSION", "PROVIDER_FAILURE_SCHEMA_VERSION"],
+      "internal-private": []
+    },
+    "qitos.core.diagnostics": {
+      "beginner-facing": [],
+      "extension-facing": [],
+      "persistence-internal": [],
+      "internal-private": ["diagnostic_string_is_sensitive", "redact_diagnostic_value", "safe_diagnostic_text"]
+    }
+  }
+}
