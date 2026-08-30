@@ -1,0 +1,18 @@
+{
+  "schema_version": "qitos.work_effect_contract_manifest/v1",
+  "contract_id": "qitos.work_effect_contract_bundle",
+  "files": [
+    {
+      "path": "tests/fixtures/work_graph/contracts.json",
+      "sha256": "95f7a06b8a48030de2e3107ad2b503135173cb996d52b4205d14882506580ee2"
+    },
+    {
+      "path": "tests/fixtures/tool_results/recovery_outcomes.json",
+      "sha256": "a6755213143812bbe74b09a17876b90572db1ed4e0dd337ba90e3993fe809627"
+    }
+  ],
+  "consumer_tests": [
+    "tests/core/test_work_graph.py",
+    "tests/core/test_tool_result_recovery_contract.py"
+  ]
+}

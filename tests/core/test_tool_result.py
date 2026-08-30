@@ -6,7 +6,9 @@ from pathlib import Path
 import pytest
 
 from qitos.core.action import ActionResult, ActionStatus
+from qitos.core.artifact import ArtifactRef
 from qitos.core.tool_result import (
+    HISTORICAL_TOOL_RESULT_SCHEMA_VERSION,
     TOOL_RESULT_MODEL_VIEW_VERSION,
     TOOL_RESULT_SCHEMA_VERSION,
     TOOL_RESULT_TRACE_SAFE_VERSION,
@@ -16,6 +18,17 @@ from qitos.core.tool_result import (
 
 
 FIXTURE_DIR = Path(__file__).parents[1] / "fixtures" / "tool_results" / "v1"
+
+
+def _artifact(name: str = "fixture") -> ArtifactRef:
+    return ArtifactRef(
+        artifact_id=f"artifact:{name}",
+        resolver_key=f"artifact-resolver:{name}",
+        sha256="a" * 64,
+        media_type="application/json",
+        byte_length=12,
+        model_summary="Artifact available through the declared resolver.",
+    )
 
 
 def test_canonical_result_round_trip_is_lossless() -> None:
@@ -32,7 +45,7 @@ def test_canonical_result_round_trip_is_lossless() -> None:
         latency_ms=3.5,
         declared_effects=[{"kind": "filesystem_write"}],
         filesystem_changes=[{"path": "a.py", "operation": "updated"}],
-        artifact_refs=[{"artifact_id": "sha256:abc"}],
+        artifact_refs=(_artifact(),),
         normalized_request={"path": "a.py"},
         provenance={"source": "executor"},
     )
@@ -214,9 +227,7 @@ def test_constructor_recursively_detaches_caller_owned_values() -> None:
     output = {"nested": [{"value": 1}]}
     metadata = {"nested": [{"value": 2}]}
     provenance = {"nested": {"value": 3}}
-    artifact_refs = [
-        {"artifact_id": "sha256:owned", "provenance": {"source": "caller"}}
-    ]
+    artifact_refs = [_artifact("owned")]
     next_action = {"name": "read", "args": {"paths": ["a.py"]}}
     result = ToolResult(
         output=output,
@@ -229,14 +240,14 @@ def test_constructor_recursively_detaches_caller_owned_values() -> None:
     output["nested"][0]["value"] = 10
     metadata["nested"][0]["value"] = 20
     provenance["nested"]["value"] = 30
-    artifact_refs[0]["provenance"]["source"] = "mutated"
+    artifact_refs.append(_artifact("mutated"))
     next_action["args"]["paths"].append("b.py")
     result.output["nested"][0]["value"] = 40
 
     assert result.output == {"nested": [{"value": 40}]}
     assert result.metadata == {"nested": [{"value": 2}]}
     assert result.provenance == {"nested": {"value": 3}}
-    assert result.artifact_refs[0]["provenance"] == {"source": "caller"}
+    assert result.artifact_refs == (_artifact("owned"),)
     assert result.next_action == {"name": "read", "args": {"paths": ["a.py"]}}
     assert output == {"nested": [{"value": 10}]}
 
@@ -325,7 +336,7 @@ def test_model_view_is_allowlisted_redacted_and_bounded() -> None:
         metadata={"authorization": "Bearer internal"},
         normalized_request={"path": "/Users/alice/work/private.txt"},
         provenance={"exception_repr": "RuntimeError(secret)"},
-        artifact_refs=[{"artifact_id": "sha256:abc"}],
+        artifact_refs=(_artifact(),),
         filesystem_changes=[{"path": "/Users/alice/work/private.txt"}],
     )
 
@@ -379,7 +390,7 @@ def test_trace_safe_projection_is_versioned_and_declares_loss() -> None:
         output={"token": "secret", "path": "/Users/alice/work/a.py"},
         metadata={"internal": True},
         provenance={"source": "executor"},
-        artifact_refs=[{"artifact_id": "sha256:abc"}],
+        artifact_refs=(_artifact(),),
     )
 
     visible = result.to_trace_safe_dict(max_chars=120)
@@ -730,7 +741,7 @@ def test_versioned_outcome_fixture_inventory() -> None:
     fixture = json.loads((FIXTURE_DIR / "canonical_outcomes.json").read_text())
     cases = {item["case"]: ToolResult.from_value(item["result"]) for item in fixture["cases"]}
 
-    assert fixture["schema_version"] == TOOL_RESULT_SCHEMA_VERSION
+    assert fixture["schema_version"] == HISTORICAL_TOOL_RESULT_SCHEMA_VERSION
     assert set(cases) == {
         "success",
         "semantic_error",
@@ -749,7 +760,7 @@ def test_versioned_outcome_fixture_inventory() -> None:
     assert cases["retries_attempt_count"].attempts == 3
     assert cases["truncated_next_action"].omitted == {"hits": 19}
     assert cases["filesystem_effects"].filesystem_changes[0]["path"] == "notes.txt"
-    assert cases["artifact_ref_slot"].artifact_refs[0]["artifact_id"].startswith("sha256:")
+    assert cases["artifact_ref_slot"].artifact_refs[0].artifact_id.startswith("sha256:")
 
 
 def test_versioned_durability_and_lifecycle_fixture_inventory() -> None:
@@ -773,10 +784,18 @@ def test_contract_hardening_fixture_is_consumable_by_lanes_b_and_d() -> None:
     fixture = json.loads((FIXTURE_DIR / "contract_hardening.json").read_text())
     evidence = json.loads((FIXTURE_DIR / "qualification-evidence.json").read_text())
 
-    assert fixture["canonical_schema_version"] == TOOL_RESULT_SCHEMA_VERSION
+    assert fixture["canonical_schema_version"] == HISTORICAL_TOOL_RESULT_SCHEMA_VERSION
     assert fixture["model_view_version"] == TOOL_RESULT_MODEL_VIEW_VERSION
     assert fixture["trace_safe_version"] == TOOL_RESULT_TRACE_SAFE_VERSION
     for case in fixture["invalid_canonical_cases"]:
+        if (
+            case["expected_error_code"] == "unknown_schema_version"
+            and case["result"].get("schema_version") == TOOL_RESULT_SCHEMA_VERSION
+        ):
+            assert ToolResult.from_canonical_dict(case["result"]).schema_version == (
+                TOOL_RESULT_SCHEMA_VERSION
+            )
+            continue
         with pytest.raises(ToolResultContractError) as caught:
             ToolResult.from_value(case["result"])
         assert caught.value.code == case["expected_error_code"]
@@ -915,7 +934,7 @@ def test_contract_hardening_fixture_is_consumable_by_lanes_b_and_d() -> None:
         explicit_persistence
     ).to_persistence_dict() == explicit_persistence
     assert evidence["contract_id"] == "qitos.tool_result"
-    assert evidence["contract_version"] == TOOL_RESULT_SCHEMA_VERSION
+    assert evidence["contract_version"] == HISTORICAL_TOOL_RESULT_SCHEMA_VERSION
     assert evidence["fixture_path"].endswith("contract_hardening.json")
     assert evidence["qualification_authority"] == "qitos.g1.integration_owner/v1"
     assert evidence["qualified"] is True

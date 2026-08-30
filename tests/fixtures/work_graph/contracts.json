@@ -1,12 +1,27 @@
 {
-  "schema_version": "qitos.work_graph.fixture_manifest/v1",
+  "schema_version": "qitos.work_graph.fixture_manifest/v2",
   "graph_id": "graph:fixture",
   "work_items": [
     {
-      "work_item_id": "work:root",
-      "agent_id": "agent:root",
+      "work_item_id": {
+        "kind": "work_item",
+        "value": "work_item_5c9ce2fc828cda5f7f62e8eddf2d788c"
+      },
+      "session_ref": {
+        "kind": "session",
+        "value": "session_e4f206b8725762f17de6a45d93fd4223"
+      },
+      "task_ref": "task:fixture-root",
       "lifecycle": "running",
-      "generation": 0
+      "owner": {
+        "agent_id": {
+          "kind": "agent",
+          "value": "agent_68d50b4b63553fb94f572e82feffec55"
+        },
+        "generation": 0
+      },
+      "parent_work_item_id": null,
+      "detached": false
     }
   ],
   "scenario_manifest": [
@@ -54,6 +69,14 @@
       "retry_disposition": "blocked_worker_running"
     }
   },
-  "cross_lane_status": "waiting_on_lane_a",
+  "safe_boundary_matrix": {
+    "model_in_flight": "unsafe",
+    "thread_running": "unsafe",
+    "process_running": "unsafe",
+    "client_request_in_flight": "unsafe",
+    "durability_commit_in_flight": "unsafe",
+    "partial_batch_open": "unsafe",
+    "all_workers_quiescent": "safe"
+  },
   "context_transfer_contract": "opaque_reference_only"
 }

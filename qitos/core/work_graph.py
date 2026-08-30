@@ -9,14 +9,23 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, Iterable, Literal, Mapping
+from dataclasses import dataclass, field, fields, is_dataclass
+from typing import Any, Dict, Iterable, Literal, Mapping, Type, TypeVar
 
+from .diagnostics import safe_diagnostic_text
+from .session import (
+    AgentIdentity,
+    AttemptIdentity,
+    RuntimeIdentity,
+    SessionIdentity,
+    SnapshotComponentCodec,
+    WorkItemIdentity,
+)
 from .tool_result import ToolResult
 
 
-WORK_GRAPH_SCHEMA_VERSION = "qitos.work_graph/v1"
-WORK_GRAPH_SNAPSHOT_COMPONENT_VERSION = "qitos.work_graph.snapshot_component/v1"
+WORK_GRAPH_SCHEMA_VERSION = "qitos.work_graph/v2"
+WORK_GRAPH_SNAPSHOT_COMPONENT_VERSION = "qitos.work_graph.snapshot_component/v2"
 
 WorkLifecycle = Literal[
     "created",
@@ -61,7 +70,8 @@ class WorkGraphContractError(ValueError):
 
     def __init__(self, code: str, message: str):
         self.code = str(code)
-        super().__init__(f"{self.code}: {message}")
+        safe = safe_diagnostic_text(message, fallback="work graph contract rejected input")
+        super().__init__(f"{self.code}: {safe}")
 
 
 def _fail(code: str, message: str) -> WorkGraphContractError:
@@ -93,6 +103,23 @@ def _identifier(value: Any, path: str) -> str:
     return value.strip()
 
 
+_IdentityT = TypeVar("_IdentityT", bound=RuntimeIdentity)
+
+
+def _identity(value: Any, identity_type: Type[_IdentityT], path: str) -> _IdentityT:
+    if not isinstance(value, identity_type):
+        raise _fail("invalid_identity_kind", f"{path} must use {identity_type.__name__}")
+    return value
+
+
+def _optional_identity(
+    value: Any, identity_type: Type[_IdentityT], path: str
+) -> _IdentityT | None:
+    if value is None:
+        return None
+    return _identity(value, identity_type, path)
+
+
 def _optional_identifier(value: Any, path: str) -> str | None:
     if value is None:
         return None
@@ -119,30 +146,43 @@ def _strict(data: Mapping[str, Any], fields: set[str], path: str) -> Dict[str, A
 
 
 def _record_dict(record: Any) -> Dict[str, Any]:
-    return _clone_json(asdict(record), type(record).__name__)
+    def encode(value: Any) -> Any:
+        if isinstance(value, RuntimeIdentity):
+            return value.to_dict()
+        if is_dataclass(value):
+            return {item.name: encode(getattr(value, item.name)) for item in fields(value)}
+        if isinstance(value, dict):
+            return {str(key): encode(item) for key, item in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [encode(item) for item in value]
+        return value
+
+    return _clone_json(encode(record), type(record).__name__)
 
 
 @dataclass(frozen=True)
 class WorkOwner:
-    agent_id: str
+    agent_id: AgentIdentity
     generation: int
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "agent_id", _identifier(self.agent_id, "owner.agent_id"))
+        object.__setattr__(
+            self, "agent_id", _identity(self.agent_id, AgentIdentity, "owner.agent_id")
+        )
         object.__setattr__(self, "generation", _generation(self.generation, "owner.generation"))
 
 
 @dataclass(frozen=True)
 class WorkAttempt:
-    attempt_id: str
-    work_item_id: str
+    attempt_id: AttemptIdentity
+    work_item_id: WorkItemIdentity
     owner_generation: int
     state: AttemptState
     worker_ref: str | None = None
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "attempt_id", _identifier(self.attempt_id, "attempt_id"))
-        object.__setattr__(self, "work_item_id", _identifier(self.work_item_id, "work_item_id"))
+        object.__setattr__(self, "attempt_id", _identity(self.attempt_id, AttemptIdentity, "attempt_id"))
+        object.__setattr__(self, "work_item_id", _identity(self.work_item_id, WorkItemIdentity, "work_item_id"))
         object.__setattr__(
             self,
             "owner_generation",
@@ -155,27 +195,31 @@ class WorkAttempt:
 
 @dataclass(frozen=True)
 class WorkItem:
-    work_item_id: str
-    session_ref: str
+    work_item_id: WorkItemIdentity
+    session_ref: SessionIdentity
     task_ref: str
     lifecycle: WorkLifecycle
     owner: WorkOwner
-    parent_work_item_id: str | None = None
+    parent_work_item_id: WorkItemIdentity | None = None
     detached: bool = False
     budget_allocation_ref: str | None = None
     capability_allocation_ref: str | None = None
     context_transfer_ref: str | None = None
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "work_item_id", _identifier(self.work_item_id, "work_item_id"))
-        object.__setattr__(self, "session_ref", _identifier(self.session_ref, "session_ref"))
+        object.__setattr__(self, "work_item_id", _identity(self.work_item_id, WorkItemIdentity, "work_item_id"))
+        object.__setattr__(self, "session_ref", _identity(self.session_ref, SessionIdentity, "session_ref"))
         object.__setattr__(self, "task_ref", _identifier(self.task_ref, "task_ref"))
         if self.lifecycle not in _LIFECYCLES:
             raise _fail("invalid_work_lifecycle", f"unsupported lifecycle {self.lifecycle!r}")
         if not isinstance(self.owner, WorkOwner):
             raise _fail("invalid_owner", "owner must be WorkOwner")
-        for name in (
+        object.__setattr__(
+            self,
             "parent_work_item_id",
+            _optional_identity(self.parent_work_item_id, WorkItemIdentity, "parent_work_item_id"),
+        )
+        for name in (
             "budget_allocation_ref",
             "capability_allocation_ref",
             "context_transfer_ref",
@@ -189,13 +233,14 @@ class WorkItem:
 class WorkEdge:
     edge_id: str
     operation: WorkOperation
-    source_work_item_id: str
-    target_work_item_id: str
+    source_work_item_id: WorkItemIdentity
+    target_work_item_id: WorkItemIdentity
     declaration_order: int
 
     def __post_init__(self) -> None:
-        for name in ("edge_id", "source_work_item_id", "target_work_item_id"):
-            object.__setattr__(self, name, _identifier(getattr(self, name), name))
+        object.__setattr__(self, "edge_id", _identifier(self.edge_id, "edge_id"))
+        object.__setattr__(self, "source_work_item_id", _identity(self.source_work_item_id, WorkItemIdentity, "source_work_item_id"))
+        object.__setattr__(self, "target_work_item_id", _identity(self.target_work_item_id, WorkItemIdentity, "target_work_item_id"))
         if self.operation not in _OPERATIONS:
             raise _fail("invalid_operation", f"unsupported operation {self.operation!r}")
         object.__setattr__(
@@ -208,19 +253,20 @@ class WorkEdge:
 @dataclass(frozen=True)
 class OwnershipTransfer:
     transfer_id: str
-    work_item_id: str
+    work_item_id: WorkItemIdentity
     expected_generation: int
     committed_generation: int
-    from_agent_id: str
-    to_agent_id: str
+    from_agent_id: AgentIdentity
+    to_agent_id: AgentIdentity
     context_transfer_ref: str | None
     reason: str
 
     def __post_init__(self) -> None:
-        for name in (
-            "transfer_id", "work_item_id", "from_agent_id", "to_agent_id", "reason"
-        ):
+        for name in ("transfer_id", "reason"):
             object.__setattr__(self, name, _identifier(getattr(self, name), name))
+        object.__setattr__(self, "work_item_id", _identity(self.work_item_id, WorkItemIdentity, "work_item_id"))
+        object.__setattr__(self, "from_agent_id", _identity(self.from_agent_id, AgentIdentity, "from_agent_id"))
+        object.__setattr__(self, "to_agent_id", _identity(self.to_agent_id, AgentIdentity, "to_agent_id"))
         expected = _generation(self.expected_generation, "expected_generation")
         committed = _generation(self.committed_generation, "committed_generation")
         if committed != expected + 1:
@@ -237,13 +283,14 @@ class OwnershipTransfer:
 @dataclass(frozen=True)
 class DelegationRecord:
     delegation_id: str
-    parent_work_item_id: str
-    child_work_item_id: str
+    parent_work_item_id: WorkItemIdentity
+    child_work_item_id: WorkItemIdentity
     await_child: bool
 
     def __post_init__(self) -> None:
-        for name in ("delegation_id", "parent_work_item_id", "child_work_item_id"):
-            object.__setattr__(self, name, _identifier(getattr(self, name), name))
+        object.__setattr__(self, "delegation_id", _identifier(self.delegation_id, "delegation_id"))
+        object.__setattr__(self, "parent_work_item_id", _identity(self.parent_work_item_id, WorkItemIdentity, "parent_work_item_id"))
+        object.__setattr__(self, "child_work_item_id", _identity(self.child_work_item_id, WorkItemIdentity, "child_work_item_id"))
         if not isinstance(self.await_child, bool):
             raise _fail("invalid_delegation", "await_child must be boolean")
 
@@ -251,32 +298,32 @@ class DelegationRecord:
 @dataclass(frozen=True)
 class SpawnRecord:
     spawn_id: str
-    parent_work_item_id: str
-    child_work_item_id: str
+    parent_work_item_id: WorkItemIdentity
+    child_work_item_id: WorkItemIdentity
     supervision_policy: str
 
     def __post_init__(self) -> None:
-        for name in (
-            "spawn_id", "parent_work_item_id", "child_work_item_id", "supervision_policy"
-        ):
+        for name in ("spawn_id", "supervision_policy"):
             object.__setattr__(self, name, _identifier(getattr(self, name), name))
+        object.__setattr__(self, "parent_work_item_id", _identity(self.parent_work_item_id, WorkItemIdentity, "parent_work_item_id"))
+        object.__setattr__(self, "child_work_item_id", _identity(self.child_work_item_id, WorkItemIdentity, "child_work_item_id"))
 
 
 @dataclass(frozen=True)
 class FanOutGroup:
     group_id: str
-    parent_work_item_id: str
-    child_work_item_ids: list[str]
+    parent_work_item_id: WorkItemIdentity
+    child_work_item_ids: list[WorkItemIdentity]
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "group_id", _identifier(self.group_id, "group_id"))
         object.__setattr__(
             self,
             "parent_work_item_id",
-            _identifier(self.parent_work_item_id, "parent_work_item_id"),
+            _identity(self.parent_work_item_id, WorkItemIdentity, "parent_work_item_id"),
         )
         children = [
-            _identifier(item, "child_work_item_id") for item in self.child_work_item_ids
+            _identity(item, WorkItemIdentity, "child_work_item_id") for item in self.child_work_item_ids
         ]
         if not children or len(children) != len(set(children)):
             raise _fail("invalid_fan_out", "fan_out children must be non-empty and unique")
@@ -286,24 +333,24 @@ class FanOutGroup:
 @dataclass(frozen=True)
 class JoinDependency:
     join_id: str
-    parent_work_item_id: str
-    child_work_item_ids: list[str]
+    parent_work_item_id: WorkItemIdentity
+    child_work_item_ids: list[WorkItemIdentity]
     policy: JoinPolicy
     quorum: int | None = None
-    accepted_child_ids: list[str] = field(default_factory=list)
+    accepted_child_ids: list[WorkItemIdentity] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "join_id", _identifier(self.join_id, "join_id"))
         object.__setattr__(
             self,
             "parent_work_item_id",
-            _identifier(self.parent_work_item_id, "parent_work_item_id"),
+            _identity(self.parent_work_item_id, WorkItemIdentity, "parent_work_item_id"),
         )
         children = [
-            _identifier(item, "child_work_item_id") for item in self.child_work_item_ids
+            _identity(item, WorkItemIdentity, "child_work_item_id") for item in self.child_work_item_ids
         ]
         accepted = [
-            _identifier(item, "accepted_child_id") for item in self.accepted_child_ids
+            _identity(item, WorkItemIdentity, "accepted_child_id") for item in self.accepted_child_ids
         ]
         if not children or len(children) != len(set(children)):
             raise _fail("invalid_join", "join children must be non-empty and unique")
@@ -327,7 +374,7 @@ class JoinDependency:
 @dataclass(frozen=True)
 class CancellationRequest:
     cancellation_id: str
-    work_item_id: str
+    work_item_id: WorkItemIdentity
     requested_generation: int
     propagation: Literal["propagate", "detach", "request_and_wait"]
 
@@ -336,7 +383,7 @@ class CancellationRequest:
             self, "cancellation_id", _identifier(self.cancellation_id, "cancellation_id")
         )
         object.__setattr__(
-            self, "work_item_id", _identifier(self.work_item_id, "work_item_id")
+            self, "work_item_id", _identity(self.work_item_id, WorkItemIdentity, "work_item_id")
         )
         object.__setattr__(
             self,
@@ -350,28 +397,29 @@ class CancellationRequest:
 @dataclass(frozen=True)
 class DetachmentRecord:
     detachment_id: str
-    parent_work_item_id: str
-    child_work_item_id: str
+    parent_work_item_id: WorkItemIdentity
+    child_work_item_id: WorkItemIdentity
     supervisor_ref: str
 
     def __post_init__(self) -> None:
-        for name in (
-            "detachment_id", "parent_work_item_id", "child_work_item_id", "supervisor_ref"
-        ):
+        for name in ("detachment_id", "supervisor_ref"):
             object.__setattr__(self, name, _identifier(getattr(self, name), name))
+        object.__setattr__(self, "parent_work_item_id", _identity(self.parent_work_item_id, WorkItemIdentity, "parent_work_item_id"))
+        object.__setattr__(self, "child_work_item_id", _identity(self.child_work_item_id, WorkItemIdentity, "child_work_item_id"))
 
 
 @dataclass(frozen=True)
 class WorkCompletion:
     completion_id: str
-    work_item_id: str
+    work_item_id: WorkItemIdentity
     owner_generation: int
     outcome: Dict[str, Any]
     outcome_digest: str
 
     def __post_init__(self) -> None:
-        for name in ("completion_id", "work_item_id", "outcome_digest"):
+        for name in ("completion_id", "outcome_digest"):
             object.__setattr__(self, name, _identifier(getattr(self, name), name))
+        object.__setattr__(self, "work_item_id", _identity(self.work_item_id, WorkItemIdentity, "work_item_id"))
         object.__setattr__(
             self,
             "owner_generation",
@@ -389,14 +437,14 @@ class WorkCompletion:
 @dataclass(frozen=True)
 class LateResult:
     late_result_id: str
-    work_item_id: str
+    work_item_id: WorkItemIdentity
     owner_generation: int
     reason: Literal["stale_owner", "terminal_state", "cancelled"]
     outcome: Dict[str, Any]
 
     def __post_init__(self) -> None:
-        for name in ("late_result_id", "work_item_id"):
-            object.__setattr__(self, name, _identifier(getattr(self, name), name))
+        object.__setattr__(self, "late_result_id", _identifier(self.late_result_id, "late_result_id"))
+        object.__setattr__(self, "work_item_id", _identity(self.work_item_id, WorkItemIdentity, "work_item_id"))
         object.__setattr__(
             self,
             "owner_generation",
@@ -411,14 +459,15 @@ class LateResult:
 @dataclass(frozen=True)
 class BudgetAllocation:
     allocation_id: str
-    parent_work_item_id: str
-    child_work_item_id: str
+    parent_work_item_id: WorkItemIdentity
+    child_work_item_id: WorkItemIdentity
     limits: Dict[str, Any]
     reclaim_policy: Literal["return_unused", "no_reclaim"] = "return_unused"
 
     def __post_init__(self) -> None:
-        for name in ("allocation_id", "parent_work_item_id", "child_work_item_id"):
-            object.__setattr__(self, name, _identifier(getattr(self, name), name))
+        object.__setattr__(self, "allocation_id", _identifier(self.allocation_id, "allocation_id"))
+        object.__setattr__(self, "parent_work_item_id", _identity(self.parent_work_item_id, WorkItemIdentity, "parent_work_item_id"))
+        object.__setattr__(self, "child_work_item_id", _identity(self.child_work_item_id, WorkItemIdentity, "child_work_item_id"))
         object.__setattr__(self, "limits", _clone_json(self.limits, "limits"))
         if self.reclaim_policy not in {"return_unused", "no_reclaim"}:
             raise _fail("invalid_budget", "unsupported reclaim policy")
@@ -427,13 +476,14 @@ class BudgetAllocation:
 @dataclass(frozen=True)
 class CapabilityAllocation:
     allocation_id: str
-    parent_work_item_id: str
-    child_work_item_id: str
+    parent_work_item_id: WorkItemIdentity
+    child_work_item_id: WorkItemIdentity
     capabilities: list[str]
 
     def __post_init__(self) -> None:
-        for name in ("allocation_id", "parent_work_item_id", "child_work_item_id"):
-            object.__setattr__(self, name, _identifier(getattr(self, name), name))
+        object.__setattr__(self, "allocation_id", _identifier(self.allocation_id, "allocation_id"))
+        object.__setattr__(self, "parent_work_item_id", _identity(self.parent_work_item_id, WorkItemIdentity, "parent_work_item_id"))
+        object.__setattr__(self, "child_work_item_id", _identity(self.child_work_item_id, WorkItemIdentity, "child_work_item_id"))
         capabilities = [_identifier(item, "capability") for item in self.capabilities]
         if len(capabilities) != len(set(capabilities)):
             raise _fail("invalid_capability", "capabilities must be unique")
@@ -443,7 +493,7 @@ class CapabilityAllocation:
 @dataclass(frozen=True)
 class WorkGraphSnapshotComponent:
     graph_ref: str
-    unresolved_work_item_ids: list[str]
+    unresolved_work_item_ids: list[WorkItemIdentity]
     schema_version: str = WORK_GRAPH_SNAPSHOT_COMPONENT_VERSION
 
     def to_dict(self) -> Dict[str, Any]:
@@ -451,7 +501,7 @@ class WorkGraphSnapshotComponent:
             raise _fail("unknown_schema_version", "unsupported snapshot component")
         _identifier(self.graph_ref, "graph_ref")
         for index, item in enumerate(self.unresolved_work_item_ids):
-            _identifier(item, f"unresolved_work_item_ids[{index}]")
+            _identity(item, WorkItemIdentity, f"unresolved_work_item_ids[{index}]")
         if len(set(self.unresolved_work_item_ids)) != len(self.unresolved_work_item_ids):
             raise _fail("duplicate_identity", "unresolved work identities must be unique")
         return _record_dict(self)
@@ -468,9 +518,25 @@ class WorkGraphSnapshotComponent:
             raise _fail("invalid_record", "unresolved_work_item_ids must be an array")
         return cls(
             graph_ref=data["graph_ref"],
-            unresolved_work_item_ids=list(unresolved),
+            unresolved_work_item_ids=[WorkItemIdentity.from_dict(item) for item in unresolved],
             schema_version=data["schema_version"],
         )
+
+
+def _encode_work_graph_component(value: Any) -> Mapping[str, Any]:
+    if not isinstance(value, WorkGraphSnapshotComponent):
+        raise _fail("invalid_record", "work-graph codec requires its component type")
+    return value.to_dict()
+
+
+WORK_GRAPH_SNAPSHOT_COMPONENT_CODEC = SnapshotComponentCodec(
+    slot="work_graph",
+    owner="qitos.work_graph",
+    schema_version=WORK_GRAPH_SNAPSHOT_COMPONENT_VERSION,
+    required=True,
+    encode=_encode_work_graph_component,
+    decode=WorkGraphSnapshotComponent.from_dict,
+)
 
 
 @dataclass
@@ -478,7 +544,7 @@ class WorkGraph:
     """Versioned ownership graph and generation-checked record builder."""
 
     graph_id: str
-    work_items: Dict[str, WorkItem] = field(default_factory=dict)
+    work_items: Dict[WorkItemIdentity, WorkItem] = field(default_factory=dict)
     attempts: list[WorkAttempt] = field(default_factory=list)
     edges: list[WorkEdge] = field(default_factory=list)
     transfers: list[OwnershipTransfer] = field(default_factory=list)
@@ -512,7 +578,7 @@ class WorkGraph:
         for key, item in self.work_items.items():
             if key != item.work_item_id:
                 raise _fail("identity_mismatch", "work item mapping key must match identity")
-        groups: Iterable[tuple[str, Iterable[str]]] = (
+        groups: Iterable[tuple[str, Iterable[Any]]] = (
             ("attempt", (item.attempt_id for item in self.attempts)),
             ("edge", (item.edge_id for item in self.edges)),
             ("transfer", (item.transfer_id for item in self.transfers)),
@@ -534,7 +600,7 @@ class WorkGraph:
 
     def add_work_item(self, item: WorkItem) -> None:
         if item.work_item_id in self.work_items:
-            raise _fail("duplicate_identity", f"duplicate work item {item.work_item_id!r}")
+            raise _fail("duplicate_identity", "duplicate work item identity")
         self.work_items[item.work_item_id] = item
 
     def record_attempt(self, attempt: WorkAttempt) -> None:
@@ -542,15 +608,15 @@ class WorkGraph:
         if attempt.owner_generation != item.owner.generation:
             raise _fail("stale_owner", "attempt generation is not authoritative")
         if any(existing.attempt_id == attempt.attempt_id for existing in self.attempts):
-            raise _fail("duplicate_identity", f"duplicate attempt {attempt.attempt_id!r}")
+            raise _fail("duplicate_identity", "duplicate attempt identity")
         self.attempts.append(attempt)
 
     def transfer_owner(
         self,
-        work_item_id: str,
+        work_item_id: WorkItemIdentity,
         *,
         expected_generation: int,
-        to_agent_id: str,
+        to_agent_id: AgentIdentity,
         transfer_id: str,
         context_transfer_ref: str | None = None,
         reason: str = "handoff",
@@ -561,7 +627,7 @@ class WorkGraph:
             raise _fail("owner_generation_conflict", "ownership compare-and-set failed")
         if item.lifecycle in _TERMINAL:
             raise _fail("terminal_work_item", "terminal work cannot transfer ownership")
-        new_owner = WorkOwner(_identifier(to_agent_id, "to_agent_id"), expected + 1)
+        new_owner = WorkOwner(_identity(to_agent_id, AgentIdentity, "to_agent_id"), expected + 1)
         transfer = OwnershipTransfer(
             transfer_id=_identifier(transfer_id, "transfer_id"),
             work_item_id=item.work_item_id,
@@ -583,10 +649,10 @@ class WorkGraph:
 
     def restore_owner(
         self,
-        work_item_id: str,
+        work_item_id: WorkItemIdentity,
         *,
         expected_generation: int,
-        agent_id: str,
+        agent_id: AgentIdentity,
         transfer_id: str,
     ) -> OwnershipTransfer:
         return self.transfer_owner(
@@ -602,7 +668,7 @@ class WorkGraph:
         *,
         delegation_id: str,
         edge_id: str,
-        parent_work_item_id: str,
+        parent_work_item_id: WorkItemIdentity,
         child: WorkItem,
         await_child: bool = True,
     ) -> DelegationRecord:
@@ -625,7 +691,7 @@ class WorkGraph:
         *,
         spawn_id: str,
         edge_id: str,
-        parent_work_item_id: str,
+        parent_work_item_id: WorkItemIdentity,
         child: WorkItem,
         supervision_policy: str,
     ) -> SpawnRecord:
@@ -647,7 +713,7 @@ class WorkGraph:
         self,
         *,
         group_id: str,
-        parent_work_item_id: str,
+        parent_work_item_id: WorkItemIdentity,
         children: list[WorkItem],
     ) -> FanOutGroup:
         self._item(parent_work_item_id)
@@ -676,21 +742,21 @@ class WorkGraph:
         self,
         *,
         join_id: str,
-        parent_work_item_id: str,
-        child_work_item_ids: list[str],
+        parent_work_item_id: WorkItemIdentity,
+        child_work_item_ids: list[WorkItemIdentity],
         policy: JoinPolicy = "all",
         quorum: int | None = None,
     ) -> JoinDependency:
         self._item(parent_work_item_id)
         if policy not in _JOIN_POLICIES:
             raise _fail("invalid_join_policy", f"unsupported policy {policy!r}")
-        children = [_identifier(item, "child_work_item_id") for item in child_work_item_ids]
+        children = [_identity(item, WorkItemIdentity, "child_work_item_id") for item in child_work_item_ids]
         if not children or len(children) != len(set(children)):
             raise _fail("invalid_join", "join children must be non-empty and unique")
         for child_id in children:
             child = self._item(child_id)
             if child.parent_work_item_id != parent_work_item_id:
-                raise _fail("undeclared_join_child", f"{child_id!r} is not a declared child")
+                raise _fail("undeclared_join_child", "join child is not declared by the parent")
         if policy == "quorum":
             if not isinstance(quorum, int) or isinstance(quorum, bool) or not 1 <= quorum <= len(children):
                 raise _fail("invalid_join", "quorum must be within the declared child count")
@@ -708,9 +774,9 @@ class WorkGraph:
         self.joins.append(join)
         return join
 
-    def accept_join_result(self, join_id: str, child_work_item_id: str) -> None:
+    def accept_join_result(self, join_id: str, child_work_item_id: WorkItemIdentity) -> None:
         join_index, join = self._join(join_id)
-        child_id = _identifier(child_work_item_id, "child_work_item_id")
+        child_id = _identity(child_work_item_id, WorkItemIdentity, "child_work_item_id")
         if child_id not in join.child_work_item_ids:
             raise _fail("undeclared_join_child", "join may consume only declared children")
         if not any(item.work_item_id == child_id for item in self.completions):
@@ -731,7 +797,7 @@ class WorkGraph:
         self,
         *,
         cancellation_id: str,
-        work_item_id: str,
+        work_item_id: WorkItemIdentity,
         expected_generation: int,
         propagation: Literal["propagate", "detach", "request_and_wait"],
     ) -> CancellationRequest:
@@ -756,8 +822,8 @@ class WorkGraph:
         self,
         *,
         detachment_id: str,
-        parent_work_item_id: str,
-        child_work_item_id: str,
+        parent_work_item_id: WorkItemIdentity,
+        child_work_item_id: WorkItemIdentity,
         supervisor_ref: str,
     ) -> DetachmentRecord:
         child = self._item(child_work_item_id)
@@ -779,7 +845,7 @@ class WorkGraph:
         self,
         *,
         completion_id: str,
-        work_item_id: str,
+        work_item_id: WorkItemIdentity,
         owner_generation: int,
         outcome: ToolResult,
     ) -> CompletionDisposition:
@@ -855,9 +921,12 @@ class WorkGraph:
 
     def snapshot_component(self) -> WorkGraphSnapshotComponent:
         unresolved = sorted(
-            item.work_item_id
-            for item in self.work_items.values()
-            if item.lifecycle not in _TERMINAL
+            (
+                item.work_item_id
+                for item in self.work_items.values()
+                if item.lifecycle not in _TERMINAL
+            ),
+            key=lambda identity: identity.value,
         )
         return WorkGraphSnapshotComponent(self.graph_id, unresolved)
 
@@ -867,7 +936,8 @@ class WorkGraph:
             "schema_version": WORK_GRAPH_SCHEMA_VERSION,
             "graph_id": self.graph_id,
             "work_items": [
-                _work_item_dict(self.work_items[key]) for key in sorted(self.work_items)
+                _work_item_dict(self.work_items[key])
+                for key in sorted(self.work_items, key=lambda identity: identity.value)
             ],
             "attempts": [_record_dict(item) for item in self.attempts],
             "edges": [_record_dict(item) for item in self.edges],
@@ -945,8 +1015,8 @@ class WorkGraph:
         self,
         edge_id: str,
         operation: WorkOperation,
-        source: str,
-        target: str,
+        source: WorkItemIdentity,
+        target: WorkItemIdentity,
     ) -> None:
         edge = WorkEdge(
             _identifier(edge_id, "edge_id"),
@@ -958,19 +1028,19 @@ class WorkGraph:
         self._ensure_unique(edge.edge_id, (item.edge_id for item in self.edges))
         self.edges.append(edge)
 
-    def _item(self, work_item_id: str) -> WorkItem:
-        identity = _identifier(work_item_id, "work_item_id")
+    def _item(self, work_item_id: WorkItemIdentity) -> WorkItem:
+        identity = _identity(work_item_id, WorkItemIdentity, "work_item_id")
         try:
             return self.work_items[identity]
         except KeyError as exc:
-            raise _fail("missing_work_item", f"unknown work item {identity!r}") from exc
+            raise _fail("missing_work_item", "work item identity is not present") from exc
 
     def _join(self, join_id: str) -> tuple[int, JoinDependency]:
         identity = _identifier(join_id, "join_id")
         for index, item in enumerate(self.joins):
             if item.join_id == identity:
                 return index, item
-        raise _fail("missing_join", f"unknown join {identity!r}")
+        raise _fail("missing_join", "join identity is not present")
 
     def _record_late(
         self,
@@ -986,7 +1056,9 @@ class WorkGraph:
             LateResult(identity, item.work_item_id, generation, reason, payload)
         )
 
-    def _validate_child_allocation(self, parent_id: str, child_id: str) -> None:
+    def _validate_child_allocation(
+        self, parent_id: WorkItemIdentity, child_id: WorkItemIdentity
+    ) -> None:
         self._item(parent_id)
         child = self._item(child_id)
         if child.parent_work_item_id != parent_id:
@@ -995,7 +1067,7 @@ class WorkGraph:
     @staticmethod
     def _ensure_unique(identity: str, existing: Iterable[str]) -> None:
         if identity in set(existing):
-            raise _fail("duplicate_identity", f"duplicate identity {identity!r}")
+            raise _fail("duplicate_identity", "record identity is duplicated")
 
 
 def _work_item_dict(item: WorkItem) -> Dict[str, Any]:
@@ -1020,7 +1092,14 @@ def _parse_work_item(payload: Mapping[str, Any]) -> WorkItem:
     }
     data = _strict(payload, fields, "WorkItem")
     owner_data = _strict(data["owner"], {"agent_id", "generation"}, "WorkOwner")
+    owner_data["agent_id"] = AgentIdentity.from_dict(owner_data["agent_id"])
     data["owner"] = WorkOwner(**owner_data)
+    data["work_item_id"] = WorkItemIdentity.from_dict(data["work_item_id"])
+    data["session_ref"] = SessionIdentity.from_dict(data["session_ref"])
+    if data["parent_work_item_id"] is not None:
+        data["parent_work_item_id"] = WorkItemIdentity.from_dict(
+            data["parent_work_item_id"]
+        )
     return WorkItem(**data)
 
 
@@ -1030,6 +1109,8 @@ def _parse_attempt(payload: Mapping[str, Any]) -> WorkAttempt:
         {"attempt_id", "work_item_id", "owner_generation", "state", "worker_ref"},
         "WorkAttempt",
     )
+    data["attempt_id"] = AttemptIdentity.from_dict(data["attempt_id"])
+    data["work_item_id"] = WorkItemIdentity.from_dict(data["work_item_id"])
     return WorkAttempt(**data)
 
 
@@ -1042,6 +1123,12 @@ def _parse_edge(payload: Mapping[str, Any]) -> WorkEdge:
     if data["operation"] not in _OPERATIONS:
         raise _fail("invalid_operation", "unsupported edge operation")
     data["declaration_order"] = _generation(data["declaration_order"], "declaration_order")
+    data["source_work_item_id"] = WorkItemIdentity.from_dict(
+        data["source_work_item_id"]
+    )
+    data["target_work_item_id"] = WorkItemIdentity.from_dict(
+        data["target_work_item_id"]
+    )
     return WorkEdge(**data)
 
 
@@ -1055,12 +1142,35 @@ def _parse_transfer(payload: Mapping[str, Any]) -> OwnershipTransfer:
     data["committed_generation"] = _generation(data["committed_generation"], "committed_generation")
     if data["committed_generation"] != data["expected_generation"] + 1:
         raise _fail("invalid_generation", "transfer generation must advance by one")
+    data["work_item_id"] = WorkItemIdentity.from_dict(data["work_item_id"])
+    data["from_agent_id"] = AgentIdentity.from_dict(data["from_agent_id"])
+    data["to_agent_id"] = AgentIdentity.from_dict(data["to_agent_id"])
     return OwnershipTransfer(**data)
 
 
 def _parse_simple(record_type: Any, payload: Mapping[str, Any]) -> Any:
     fields = set(record_type.__dataclass_fields__)
-    return record_type(**_strict(payload, fields, record_type.__name__))
+    data = _strict(payload, fields, record_type.__name__)
+    if record_type in {
+        DelegationRecord,
+        SpawnRecord,
+        DetachmentRecord,
+        CapabilityAllocation,
+    }:
+        data["parent_work_item_id"] = WorkItemIdentity.from_dict(
+            data["parent_work_item_id"]
+        )
+        data["child_work_item_id"] = WorkItemIdentity.from_dict(
+            data["child_work_item_id"]
+        )
+    elif record_type is FanOutGroup:
+        data["parent_work_item_id"] = WorkItemIdentity.from_dict(
+            data["parent_work_item_id"]
+        )
+        data["child_work_item_ids"] = [
+            WorkItemIdentity.from_dict(item) for item in data["child_work_item_ids"]
+        ]
+    return record_type(**data)
 
 
 def _parse_join(payload: Mapping[str, Any]) -> JoinDependency:
@@ -1074,6 +1184,15 @@ def _parse_join(payload: Mapping[str, Any]) -> JoinDependency:
     for name in ("child_work_item_ids", "accepted_child_ids"):
         if not isinstance(data[name], list):
             raise _fail("invalid_join", f"{name} must be an array")
+    data["parent_work_item_id"] = WorkItemIdentity.from_dict(
+        data["parent_work_item_id"]
+    )
+    data["child_work_item_ids"] = [
+        WorkItemIdentity.from_dict(item) for item in data["child_work_item_ids"]
+    ]
+    data["accepted_child_ids"] = [
+        WorkItemIdentity.from_dict(item) for item in data["accepted_child_ids"]
+    ]
     if not set(data["accepted_child_ids"]).issubset(set(data["child_work_item_ids"])):
         raise _fail("undeclared_join_child", "accepted child was not declared")
     return JoinDependency(**data)
@@ -1090,6 +1209,7 @@ def _parse_cancellation(payload: Mapping[str, Any]) -> CancellationRequest:
     )
     if data["propagation"] not in {"propagate", "detach", "request_and_wait"}:
         raise _fail("invalid_cancellation", "unsupported propagation")
+    data["work_item_id"] = WorkItemIdentity.from_dict(data["work_item_id"])
     return CancellationRequest(**data)
 
 
@@ -1100,6 +1220,7 @@ def _parse_completion(payload: Mapping[str, Any]) -> WorkCompletion:
         "WorkCompletion",
     )
     ToolResult.from_canonical_dict(data["outcome"])
+    data["work_item_id"] = WorkItemIdentity.from_dict(data["work_item_id"])
     return WorkCompletion(**data)
 
 
@@ -1112,6 +1233,7 @@ def _parse_late(payload: Mapping[str, Any]) -> LateResult:
     if data["reason"] not in {"stale_owner", "terminal_state", "cancelled"}:
         raise _fail("invalid_late_result", "unsupported rejection reason")
     ToolResult.from_canonical_dict(data["outcome"])
+    data["work_item_id"] = WorkItemIdentity.from_dict(data["work_item_id"])
     return LateResult(**data)
 
 
@@ -1122,12 +1244,19 @@ def _parse_budget(payload: Mapping[str, Any]) -> BudgetAllocation:
         "BudgetAllocation",
     )
     data["limits"] = _clone_json(data["limits"], "limits")
+    data["parent_work_item_id"] = WorkItemIdentity.from_dict(
+        data["parent_work_item_id"]
+    )
+    data["child_work_item_id"] = WorkItemIdentity.from_dict(
+        data["child_work_item_id"]
+    )
     return BudgetAllocation(**data)
 
 
 __all__ = [
     "WORK_GRAPH_SCHEMA_VERSION",
     "WORK_GRAPH_SNAPSHOT_COMPONENT_VERSION",
+    "WORK_GRAPH_SNAPSHOT_COMPONENT_CODEC",
     "BudgetAllocation",
     "CancellationRequest",
     "CapabilityAllocation",

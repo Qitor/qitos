@@ -18,47 +18,47 @@
     },
     {
       "name": "timeout_and_stopped",
-      "tool_result": {"status": "timed_out", "error": "deadline", "error_kind": "execution", "error_code": "timeout", "recoverable": true, "attempt_id": "attempt:stopped", "effect_ref": "effect:stopped", "effect_state": "not_started", "retry_disposition": "retryable"},
+      "tool_result": {"status": "timed_out", "error": "deadline", "error_kind": "execution", "error_code": "timeout", "recoverable": true, "attempt_id": {"kind": "attempt", "value": "attempt_10000000000000000000000000000001"}, "effect_ref": "effect:stopped", "effect_state": "not_started", "retry_disposition": "retryable"},
       "expected": {"status": "timed_out", "worker_still_running": false, "retry_disposition": "retryable"}
     },
     {
       "name": "timeout_and_still_running",
-      "tool_result": {"status": "timed_out", "error": "deadline", "error_kind": "execution", "error_code": "timeout", "attempt_id": "attempt:running", "effect_ref": "effect:running", "effect_state": "started", "worker_still_running": true, "outcome_unknown": true, "retry_disposition": "blocked_worker_running"},
+      "tool_result": {"status": "timed_out", "error": "deadline", "error_kind": "execution", "error_code": "timeout", "attempt_id": {"kind": "attempt", "value": "attempt_10000000000000000000000000000002"}, "effect_ref": "effect:running", "effect_state": "started", "worker_still_running": true, "outcome_unknown": true, "retry_disposition": "blocked_worker_running"},
       "expected": {"status": "timed_out", "worker_still_running": true, "outcome_unknown": true}
     },
     {
       "name": "cancelled_but_worker_unknown",
-      "tool_result": {"status": "cancelled", "error": "cancel accepted", "error_kind": "execution", "error_code": "cancel_requested", "attempt_id": "attempt:cancelled", "effect_ref": "effect:cancelled", "effect_state": "unknown", "worker_still_running": true, "outcome_unknown": true, "retry_disposition": "blocked_worker_running"},
+      "tool_result": {"status": "cancelled", "error": "cancel accepted", "error_kind": "execution", "error_code": "cancel_requested", "attempt_id": {"kind": "attempt", "value": "attempt_10000000000000000000000000000003"}, "effect_ref": "effect:cancelled", "effect_state": "unknown", "worker_still_running": true, "outcome_unknown": true, "retry_disposition": "blocked_worker_running"},
       "expected": {"status": "cancelled", "worker_still_running": true, "outcome_unknown": true}
     },
     {
       "name": "effect_committed",
-      "tool_result": {"output": {"receipt": "remote:42"}, "attempt_id": "attempt:commit", "effect_ref": "effect:commit", "effect_state": "committed", "idempotency_ref": "idem:42", "retry_disposition": "non_retryable"},
+      "tool_result": {"output": {"receipt": "remote:42"}, "attempt_id": {"kind": "attempt", "value": "attempt_10000000000000000000000000000004"}, "effect_ref": "effect:commit", "effect_state": "committed", "idempotency_ref": "idem:42", "retry_disposition": "non_retryable"},
       "expected": {"effect_state": "committed", "idempotency_ref": "idem:42", "outcome_unknown": false}
     },
     {
       "name": "effect_unknown",
-      "tool_result": {"status": "error", "error": "connection severed", "error_kind": "execution", "error_code": "effect_unknown", "attempt_id": "attempt:unknown", "effect_ref": "effect:unknown", "effect_state": "unknown", "outcome_unknown": true, "retry_disposition": "requires_reconciliation"},
+      "tool_result": {"status": "error", "error": "connection severed", "error_kind": "execution", "error_code": "effect_unknown", "attempt_id": {"kind": "attempt", "value": "attempt_10000000000000000000000000000005"}, "effect_ref": "effect:unknown", "effect_state": "unknown", "outcome_unknown": true, "retry_disposition": "requires_reconciliation"},
       "expected": {"effect_state": "unknown", "outcome_unknown": true, "reconciliation_required": false}
     },
     {
       "name": "reconciliation_required",
-      "tool_result": {"status": "error", "error": "remote receipt unavailable", "error_kind": "execution", "error_code": "reconciliation_required", "attempt_id": "attempt:reconcile", "effect_ref": "effect:reconcile", "effect_state": "reconciliation_required", "outcome_unknown": true, "reconciliation_required": true, "retry_disposition": "requires_reconciliation"},
+      "tool_result": {"status": "error", "error": "remote receipt unavailable", "error_kind": "execution", "error_code": "reconciliation_required", "attempt_id": {"kind": "attempt", "value": "attempt_10000000000000000000000000000006"}, "effect_ref": "effect:reconcile", "effect_state": "reconciliation_required", "outcome_unknown": true, "reconciliation_required": true, "retry_disposition": "requires_reconciliation"},
       "expected": {"reconciliation_required": true, "retry_disposition": "requires_reconciliation"}
     },
     {
       "name": "partial_parallel_batch",
-      "tool_result": {"output": {"closed": 1, "open": 1}, "complete": false, "batch_closure": {"schema_version": "qitos.tool_batch_closure/v1", "batch_id": "batch:partial", "slots": [{"action_id": "call:closed", "state": "success", "result_ref": "result:closed"}, {"action_id": "call:open", "state": "open", "attempt_id": "attempt:open"}]}},
+      "tool_result": {"output": {"closed": 1, "open": 1}, "complete": false, "batch_closure": {"schema_version": "qitos.tool_batch_closure/v1", "batch_id": "batch:partial", "slots": [{"action_id": "call:closed", "state": "success", "result_ref": "result:closed"}, {"action_id": "call:open", "state": "open", "attempt_id": {"kind": "attempt", "value": "attempt_10000000000000000000000000000007"}}]}},
       "expected": {"complete": false, "outcome_unknown": false}
     },
     {
       "name": "late_result",
-      "tool_result": {"output": "late", "attempt_id": "attempt:late", "late_result": true, "owner_generation": 1},
+      "tool_result": {"output": "late", "attempt_id": {"kind": "attempt", "value": "attempt_10000000000000000000000000000008"}, "late_result": true, "owner_generation": 1},
       "expected": {"late_result": true, "owner_generation": 1}
     },
     {
       "name": "stale_owner_result",
-      "tool_result": {"output": "rejected", "attempt_id": "attempt:stale", "late_result": true, "stale_owner": true, "owner_generation": 2},
+      "tool_result": {"output": "rejected", "attempt_id": {"kind": "attempt", "value": "attempt_10000000000000000000000000000009"}, "late_result": true, "stale_owner": true, "owner_generation": 2},
       "expected": {"late_result": true, "stale_owner": true, "owner_generation": 2}
     }
   ]
