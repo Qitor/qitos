@@ -1,0 +1,59 @@
+{
+  "schema_version": "qitos.work_graph.fixture_manifest/v1",
+  "graph_id": "graph:fixture",
+  "work_items": [
+    {
+      "work_item_id": "work:root",
+      "agent_id": "agent:root",
+      "lifecycle": "running",
+      "generation": 0
+    }
+  ],
+  "scenario_manifest": [
+    "handoff",
+    "delegate",
+    "spawn",
+    "fan_out",
+    "partial_join",
+    "cancel_requested",
+    "cancelled_but_worker_unknown",
+    "detached_child",
+    "ownership_transfer",
+    "stale_owner_result",
+    "late_result",
+    "budget_exhaustion",
+    "missing_capability",
+    "restore_with_unresolved_child"
+  ],
+  "terminal_outcomes": {
+    "budget_exhaustion": {
+      "status": "error",
+      "error": "child budget exhausted",
+      "error_kind": "semantic",
+      "error_code": "budget_exhausted",
+      "recoverable": false,
+      "retry_disposition": "non_retryable"
+    },
+    "missing_capability": {
+      "status": "skipped",
+      "error": "required capability was not granted",
+      "error_kind": "policy",
+      "error_code": "missing_capability",
+      "recoverable": true,
+      "retry_disposition": "retryable"
+    },
+    "unresolved_child": {
+      "status": "timed_out",
+      "error": "child remains active",
+      "error_kind": "execution",
+      "error_code": "child_quiescence_unresolved",
+      "effect_ref": "effect:child:unresolved",
+      "effect_state": "unknown",
+      "worker_still_running": true,
+      "outcome_unknown": true,
+      "retry_disposition": "blocked_worker_running"
+    }
+  },
+  "cross_lane_status": "waiting_on_lane_a",
+  "context_transfer_contract": "opaque_reference_only"
+}
