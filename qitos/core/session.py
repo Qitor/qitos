@@ -9,10 +9,14 @@ existing owning packages.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
+import hashlib
+import json
+import math
 import re
 from types import MappingProxyType
-from typing import Any, ClassVar, Dict, Mapping, Type, TypeVar
+from typing import Any, Callable, ClassVar, Dict, Iterable, Mapping, Type, TypeVar
 from uuid import uuid4
 
 
@@ -55,7 +59,7 @@ class SessionContractError(ValueError):
         self.error_code = error_code
         self.recoverable = bool(recoverable)
         self.remediation = remediation
-        self.metadata = MappingProxyType(dict(metadata or {}))
+        self.metadata = MappingProxyType(_safe_failure_metadata(metadata or {}))
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -356,20 +360,1151 @@ class IdentityRelationship:
         )
 
 
+class SessionLifecycle(str, Enum):
+    """Canonical lifecycle for one session owner view."""
+
+    CREATED = "created"
+    RUNNING = "running"
+    PAUSE_REQUESTED = "pause_requested"
+    PAUSING = "pausing"
+    PAUSED = "paused"
+    WAITING_INPUT = "waiting_input"
+    RESTORING = "restoring"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    SUPERSEDED = "superseded"
+
+    @property
+    def terminal(self) -> bool:
+        return self in {
+            SessionLifecycle.COMPLETED,
+            SessionLifecycle.FAILED,
+            SessionLifecycle.CANCELLED,
+            SessionLifecycle.SUPERSEDED,
+        }
+
+
+class SessionOperation(str, Enum):
+    """Operations gated by lifecycle state."""
+
+    RUN = "run"
+    PAUSE = "pause"
+    RESTORE = "restore"
+    FORK = "fork"
+
+
+_LIFECYCLE_TRANSITIONS: Mapping[SessionLifecycle, frozenset[SessionLifecycle]] = (
+    MappingProxyType(
+        {
+            SessionLifecycle.CREATED: frozenset(
+                {SessionLifecycle.RUNNING, SessionLifecycle.CANCELLED}
+            ),
+            SessionLifecycle.RUNNING: frozenset(
+                {
+                    SessionLifecycle.PAUSE_REQUESTED,
+                    SessionLifecycle.COMPLETED,
+                    SessionLifecycle.FAILED,
+                    SessionLifecycle.CANCELLED,
+                    SessionLifecycle.SUPERSEDED,
+                }
+            ),
+            SessionLifecycle.PAUSE_REQUESTED: frozenset(
+                {
+                    SessionLifecycle.PAUSING,
+                    SessionLifecycle.RUNNING,
+                    SessionLifecycle.FAILED,
+                    SessionLifecycle.CANCELLED,
+                    SessionLifecycle.SUPERSEDED,
+                }
+            ),
+            SessionLifecycle.PAUSING: frozenset(
+                {
+                    SessionLifecycle.PAUSED,
+                    SessionLifecycle.WAITING_INPUT,
+                    SessionLifecycle.FAILED,
+                    SessionLifecycle.CANCELLED,
+                    SessionLifecycle.SUPERSEDED,
+                }
+            ),
+            SessionLifecycle.PAUSED: frozenset(
+                {SessionLifecycle.RESTORING, SessionLifecycle.SUPERSEDED}
+            ),
+            SessionLifecycle.WAITING_INPUT: frozenset(
+                {
+                    SessionLifecycle.RESTORING,
+                    SessionLifecycle.CANCELLED,
+                    SessionLifecycle.SUPERSEDED,
+                }
+            ),
+            SessionLifecycle.RESTORING: frozenset(
+                {
+                    SessionLifecycle.RUNNING,
+                    SessionLifecycle.FAILED,
+                    SessionLifecycle.SUPERSEDED,
+                }
+            ),
+            SessionLifecycle.COMPLETED: frozenset(),
+            SessionLifecycle.FAILED: frozenset(),
+            SessionLifecycle.CANCELLED: frozenset(),
+            SessionLifecycle.SUPERSEDED: frozenset(),
+        }
+    )
+)
+
+_OPERATION_STATES: Mapping[SessionOperation, frozenset[SessionLifecycle]] = (
+    MappingProxyType(
+        {
+            SessionOperation.RUN: frozenset(
+                {
+                    SessionLifecycle.CREATED,
+                    SessionLifecycle.PAUSED,
+                    SessionLifecycle.WAITING_INPUT,
+                }
+            ),
+            SessionOperation.PAUSE: frozenset(
+                {
+                    SessionLifecycle.RUNNING,
+                    SessionLifecycle.PAUSE_REQUESTED,
+                    SessionLifecycle.PAUSING,
+                }
+            ),
+            SessionOperation.RESTORE: frozenset(
+                {SessionLifecycle.PAUSED, SessionLifecycle.WAITING_INPUT}
+            ),
+            SessionOperation.FORK: frozenset(
+                {
+                    SessionLifecycle.PAUSED,
+                    SessionLifecycle.WAITING_INPUT,
+                    SessionLifecycle.COMPLETED,
+                    SessionLifecycle.FAILED,
+                    SessionLifecycle.CANCELLED,
+                    SessionLifecycle.SUPERSEDED,
+                }
+            ),
+        }
+    )
+)
+
+
+def lifecycle_can_transition(
+    current: SessionLifecycle, target: SessionLifecycle
+) -> bool:
+    """Return whether a lifecycle transition is defined."""
+
+    return target in _LIFECYCLE_TRANSITIONS[current]
+
+
+def lifecycle_allows(
+    lifecycle: SessionLifecycle, operation: SessionOperation
+) -> bool:
+    """Return whether an operation can be requested from this state."""
+
+    return lifecycle in _OPERATION_STATES[operation]
+
+
+class SafeBoundaryKind(str, Enum):
+    """Declared boundaries at which persistence may be considered migratable."""
+
+    AFTER_MODEL_RESULT = "after_model_result"
+    AFTER_TOOL_RESULT = "after_tool_result"
+    PARTIAL_PARALLEL_RECORDED = "partial_parallel_recorded"
+    WAITING_INPUT = "waiting_input"
+    IN_FLIGHT_OPERATION = "in_flight_operation"
+
+
+@dataclass(frozen=True)
+class PauseSafety:
+    """Quiescence facts used to decide whether a pause can become durable."""
+
+    boundary: SafeBoundaryKind
+    completed_slots_recorded: bool = True
+    open_slots_recorded: bool = True
+    framework_workers_quiesced: bool = True
+    unresolved_effect_count: int = 0
+
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.unresolved_effect_count, bool)
+            or not isinstance(self.unresolved_effect_count, int)
+            or self.unresolved_effect_count < 0
+        ):
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Unresolved effect count must be a non-negative integer.",
+                recoverable=False,
+                remediation="Rebuild the pause-safety component from validated receipts.",
+            )
+
+    @property
+    def migratable(self) -> bool:
+        return (
+            self.boundary is not SafeBoundaryKind.IN_FLIGHT_OPERATION
+            and self.completed_slots_recorded
+            and self.open_slots_recorded
+            and self.framework_workers_quiesced
+            and self.unresolved_effect_count == 0
+        )
+
+    def require_migratable(self) -> None:
+        if self.unresolved_effect_count:
+            raise SessionContractError(
+                SessionErrorCode.UNRESOLVED_EFFECT,
+                "Pause has unresolved external effects.",
+                recoverable=True,
+                remediation="Reconcile each unresolved effect before restoring or retrying.",
+                metadata={"unresolved_effect_count": self.unresolved_effect_count},
+            )
+        if not self.migratable:
+            raise SessionContractError(
+                SessionErrorCode.UNSAFE_PAUSE_BOUNDARY,
+                "Execution has not reached a migratable pause boundary.",
+                recoverable=True,
+                remediation="Wait for recorded results and framework-owned workers to quiesce.",
+                metadata={"boundary": self.boundary.value},
+            )
+
+
+@dataclass(frozen=True, order=True)
+class HeadGeneration:
+    """Monotonic concurrency version of the authoritative session head."""
+
+    value: int
+
+    def __post_init__(self) -> None:
+        if isinstance(self.value, bool) or not isinstance(self.value, int) or self.value < 0:
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Head generation must be a non-negative integer.",
+                recoverable=False,
+                remediation="Read generation from the authoritative session head.",
+            )
+
+    def next(self) -> "HeadGeneration":
+        return HeadGeneration(self.value + 1)
+
+
+@dataclass(frozen=True)
+class SessionHead:
+    """The one authoritative mutable pointer for a session."""
+
+    session_id: SessionIdentity
+    snapshot_id: SnapshotIdentity
+    checkpoint_id: CheckpointIdentity
+    generation: HeadGeneration
+    owner_run_id: RunIdentity
+
+    def advance(
+        self,
+        *,
+        expected_generation: HeadGeneration,
+        owner_run_id: RunIdentity,
+        snapshot_id: SnapshotIdentity,
+        checkpoint_id: CheckpointIdentity,
+    ) -> "SessionHead":
+        """Validate a pure compare-and-set head advance."""
+
+        if expected_generation != self.generation:
+            raise SessionContractError(
+                SessionErrorCode.GENERATION_CONFLICT,
+                "Session head generation changed before commit.",
+                recoverable=True,
+                remediation="Reload the authoritative head before deciding whether to retry.",
+                metadata={
+                    "expected_generation": expected_generation.value,
+                    "actual_generation": self.generation.value,
+                },
+            )
+        if owner_run_id != self.owner_run_id:
+            raise SessionContractError(
+                SessionErrorCode.SUPERSEDED_OWNER,
+                "This run no longer owns the session head.",
+                recoverable=False,
+                remediation="Stop the stale process and inspect the current session owner.",
+            )
+        return SessionHead(
+            session_id=self.session_id,
+            snapshot_id=snapshot_id,
+            checkpoint_id=checkpoint_id,
+            generation=self.generation.next(),
+            owner_run_id=owner_run_id,
+        )
+
+
+class ResolverNamespace(str, Enum):
+    """Closed namespaces for process-local resource resolution."""
+
+    MODEL = "model"
+    TOOL_REGISTRY = "tool_registry"
+    ENVIRONMENT = "environment"
+    ARTIFACT_STORE = "artifact_store"
+    SECRET = "secret"
+    CHECKPOINT_STORE = "checkpoint_store"
+    PROVIDER_CONTINUATION = "provider_continuation"
+
+
+_REFERENCE_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
+_CAPABILITY_TOKEN = re.compile(r"^[a-z][a-z0-9_.:-]{1,95}$")
+_HOST_LOCAL_OR_CREDENTIAL_VALUE = re.compile(
+    r"(?i)(?:^|\s)(?:/users/|/home/|[a-z]:\\)|"
+    r"(?:authorization\s*[:=]|bearer\s+|api[_-]?key\s*[:=]|password\s*[:=])"
+)
+
+
+@dataclass(frozen=True)
+class ResolverReference:
+    """Serializable locator for a live resource resolved in a new process."""
+
+    namespace: ResolverNamespace
+    reference_id: str
+    expected_capability: str
+    version: int = 1
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.reference_id, str)
+            or _REFERENCE_TOKEN.fullmatch(self.reference_id) is None
+            or self.reference_id.startswith((".", "~"))
+        ):
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Resolver reference ID is not portable.",
+                recoverable=False,
+                remediation="Persist a logical resolver alias, never a secret or host path.",
+            )
+        lowered = self.reference_id.lower()
+        if any(token in lowered for token in ("password", "credential", "bearer", "api_key")):
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Resolver reference ID may not contain credential material.",
+                recoverable=False,
+                remediation="Use a non-secret logical alias.",
+            )
+        if (
+            not isinstance(self.expected_capability, str)
+            or _CAPABILITY_TOKEN.fullmatch(self.expected_capability) is None
+        ):
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Resolver capability is invalid.",
+                recoverable=False,
+                remediation="Use a stable capability identifier.",
+            )
+        if isinstance(self.version, bool) or not isinstance(self.version, int) or self.version < 1:
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Resolver reference version must be a positive integer.",
+                recoverable=False,
+                remediation="Use the current resolver reference version.",
+            )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "namespace": self.namespace.value,
+            "reference_id": self.reference_id,
+            "expected_capability": self.expected_capability,
+            "version": self.version,
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "ResolverReference":
+        _require_exact_fields(
+            payload,
+            {"namespace", "reference_id", "expected_capability", "version"},
+            SessionErrorCode.CORRUPT_SNAPSHOT,
+            "resolver reference",
+        )
+        try:
+            namespace = ResolverNamespace(payload.get("namespace"))
+        except (TypeError, ValueError) as exc:
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Resolver namespace is unsupported.",
+                recoverable=False,
+                remediation="Use a namespace from the current resolver contract.",
+            ) from exc
+        return cls(
+            namespace=namespace,
+            reference_id=payload["reference_id"],
+            expected_capability=payload["expected_capability"],
+            version=payload["version"],
+        )
+
+
+@dataclass(frozen=True)
+class ResolvedResource:
+    """Process-local resolution result; never serializable into a snapshot."""
+
+    namespace: ResolverNamespace
+    capabilities: frozenset[str]
+    resource: Any
+
+
+Resolver = Callable[[ResolverReference], ResolvedResource | None]
+
+
+class ResolverRegistry:
+    """Caller-owned process-local resolver set with typed diagnostics."""
+
+    def __init__(self, resolvers: Mapping[ResolverNamespace, Resolver] | None = None):
+        self._resolvers = dict(resolvers or {})
+        if any(not callable(value) for value in self._resolvers.values()):
+            raise SessionContractError(
+                SessionErrorCode.RESOLVER_TYPE_MISMATCH,
+                "Every resolver must be callable.",
+                recoverable=True,
+                remediation="Register a callable for each resolver namespace.",
+            )
+
+    def resolve(self, reference: ResolverReference) -> ResolvedResource:
+        resolver = self._resolvers.get(reference.namespace)
+        if resolver is None:
+            raise SessionContractError(
+                SessionErrorCode.MISSING_RESOLVER,
+                f"No {reference.namespace.value} resolver is registered.",
+                recoverable=True,
+                remediation="Register the missing resolver or use the framework default set.",
+                metadata={"namespace": reference.namespace.value},
+            )
+        try:
+            result = resolver(reference)
+        except Exception as exc:
+            code = (
+                SessionErrorCode.UNAVAILABLE_SECRET
+                if reference.namespace is ResolverNamespace.SECRET
+                else SessionErrorCode.RESOLVER_TYPE_MISMATCH
+            )
+            message = (
+                "The referenced secret is unavailable."
+                if code is SessionErrorCode.UNAVAILABLE_SECRET
+                else "Resolver failed to return a compatible resource."
+            )
+            raise SessionContractError(
+                code,
+                message,
+                recoverable=True,
+                remediation="Check resolver availability and capability configuration.",
+                metadata={"namespace": reference.namespace.value},
+            ) from exc
+        if result is None and reference.namespace is ResolverNamespace.SECRET:
+            raise SessionContractError(
+                SessionErrorCode.UNAVAILABLE_SECRET,
+                "The referenced secret is unavailable.",
+                recoverable=True,
+                remediation="Make the secret alias available to the restore process.",
+                metadata={"namespace": reference.namespace.value},
+            )
+        if (
+            not isinstance(result, ResolvedResource)
+            or result.namespace is not reference.namespace
+            or reference.expected_capability not in result.capabilities
+        ):
+            raise SessionContractError(
+                SessionErrorCode.RESOLVER_TYPE_MISMATCH,
+                "Resolver returned an incompatible resource.",
+                recoverable=True,
+                remediation="Register a resource with the expected namespace and capability.",
+                metadata={
+                    "namespace": reference.namespace.value,
+                    "expected_capability": reference.expected_capability,
+                },
+            )
+        return result
+
+
+class ComponentSlot(str, Enum):
+    """Stable envelope slots; semantic owners define payload schemas."""
+
+    AGENT_STATE = "agent_state"
+    ENGINE_PROGRESS = "engine_progress"
+    EXCHANGE_CONTEXT = "exchange_context"
+    PARTIAL_PARALLEL_BATCH = "partial_parallel_batch"
+    TOOL_EFFECTS = "tool_effects"
+    QUEUED_STEERING = "queued_steering"
+    PROVIDER_CONTINUATION = "provider_continuation"
+    WORK_GRAPH = "work_graph"
+    BUDGET_CAPABILITY = "budget_capability"
+    TRACE_LINEAGE = "trace_lineage"
+
+
+CURRENT_SNAPSHOT_SCHEMA = 1
+SUPPORTED_COMPONENT_SCHEMAS: Mapping[ComponentSlot, frozenset[int]] = MappingProxyType(
+    {slot: frozenset({1}) for slot in ComponentSlot}
+)
+REQUIRED_COMPONENT_SLOTS = frozenset(
+    {
+        ComponentSlot.AGENT_STATE,
+        ComponentSlot.ENGINE_PROGRESS,
+        ComponentSlot.BUDGET_CAPABILITY,
+        ComponentSlot.TRACE_LINEAGE,
+    }
+)
+
+
+@dataclass(frozen=True)
+class SnapshotComponent:
+    """Deeply immutable component entry in the session envelope."""
+
+    slot: ComponentSlot
+    schema_version: int
+    required: bool
+    owner: str
+    payload: Mapping[str, Any]
+
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.schema_version, bool)
+            or not isinstance(self.schema_version, int)
+            or self.schema_version not in SUPPORTED_COMPONENT_SCHEMAS[self.slot]
+        ):
+            raise SessionContractError(
+                SessionErrorCode.UNSUPPORTED_COMPONENT_SCHEMA,
+                f"Unsupported schema for {self.slot.value} component.",
+                recoverable=False,
+                remediation="Install a reader or migration adapter for this component schema.",
+                metadata={"component": self.slot.value},
+            )
+        if not isinstance(self.required, bool):
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Component required flag must be boolean.",
+                recoverable=False,
+                remediation="Read the component with the current strict codec.",
+            )
+        if not isinstance(self.owner, str) or _CAPABILITY_TOKEN.fullmatch(self.owner) is None:
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Component owner is invalid.",
+                recoverable=False,
+                remediation="Use the declared semantic owner identifier.",
+            )
+        frozen_payload = _freeze_json(self.payload, path="component.payload")
+        if not isinstance(frozen_payload, Mapping):
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Component payload must be a JSON object.",
+                recoverable=False,
+                remediation="Encode component facts as a JSON object.",
+            )
+        object.__setattr__(self, "payload", frozen_payload)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "slot": self.slot.value,
+            "schema_version": self.schema_version,
+            "required": self.required,
+            "owner": self.owner,
+            "payload": _thaw_json(self.payload),
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "SnapshotComponent":
+        _require_exact_fields(
+            payload,
+            {"slot", "schema_version", "required", "owner", "payload"},
+            SessionErrorCode.CORRUPT_SNAPSHOT,
+            "snapshot component",
+        )
+        try:
+            slot = ComponentSlot(payload.get("slot"))
+        except (TypeError, ValueError) as exc:
+            raise SessionContractError(
+                SessionErrorCode.UNSUPPORTED_COMPONENT_SCHEMA,
+                "Snapshot component slot is unsupported.",
+                recoverable=False,
+                remediation="Install support for the component slot before restore.",
+            ) from exc
+        return cls(
+            slot=slot,
+            schema_version=payload["schema_version"],
+            required=payload["required"],
+            owner=payload["owner"],
+            payload=payload["payload"],
+        )
+
+
+@dataclass(frozen=True)
+class SnapshotTiming:
+    """Portable wall-clock facts; monotonic process clocks are not persisted."""
+
+    captured_at: str
+    pause_requested_at: str | None = None
+    safe_boundary_at: str | None = None
+
+    def __post_init__(self) -> None:
+        _validate_timestamp(self.captured_at, "captured_at")
+        if self.pause_requested_at is not None:
+            _validate_timestamp(self.pause_requested_at, "pause_requested_at")
+        if self.safe_boundary_at is not None:
+            _validate_timestamp(self.safe_boundary_at, "safe_boundary_at")
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "captured_at": self.captured_at,
+            "pause_requested_at": self.pause_requested_at,
+            "safe_boundary_at": self.safe_boundary_at,
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "SnapshotTiming":
+        _require_exact_fields(
+            payload,
+            {"captured_at", "pause_requested_at", "safe_boundary_at"},
+            SessionErrorCode.CORRUPT_SNAPSHOT,
+            "snapshot timing",
+        )
+        return cls(
+            captured_at=payload["captured_at"],
+            pause_requested_at=payload.get("pause_requested_at"),
+            safe_boundary_at=payload.get("safe_boundary_at"),
+        )
+
+
+@dataclass(frozen=True)
+class SnapshotIntegrity:
+    algorithm: str
+    digest: str
+
+    def __post_init__(self) -> None:
+        if self.algorithm != "sha256" or re.fullmatch(r"[0-9a-f]{64}", self.digest or "") is None:
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Snapshot integrity record is invalid.",
+                recoverable=False,
+                remediation="Load an intact snapshot from the checkpoint store.",
+            )
+
+    def to_dict(self) -> Dict[str, str]:
+        return {"algorithm": self.algorithm, "digest": self.digest}
+
+
+@dataclass(frozen=True)
+class SessionSnapshot:
+    """Current immutable, deterministic session snapshot envelope."""
+
+    schema_version: int
+    snapshot_id: SnapshotIdentity
+    session_id: SessionIdentity
+    head_generation: HeadGeneration
+    lifecycle: SessionLifecycle
+    created_at: str
+    timing: SnapshotTiming
+    components: tuple[SnapshotComponent, ...]
+    resolver_references: tuple[ResolverReference, ...]
+    integrity: SnapshotIntegrity
+
+    def __post_init__(self) -> None:
+        if self.schema_version != CURRENT_SNAPSHOT_SCHEMA:
+            raise SessionContractError(
+                SessionErrorCode.UNSUPPORTED_SNAPSHOT_SCHEMA,
+                "Snapshot schema is unsupported.",
+                recoverable=False,
+                remediation="Install a current reader or explicit migration adapter.",
+                metadata={"schema_version": self.schema_version},
+            )
+        _validate_timestamp(self.created_at, "created_at")
+        components = tuple(self.components)
+        references = tuple(self.resolver_references)
+        if any(not isinstance(item, SnapshotComponent) for item in components):
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Snapshot components must use the component envelope.",
+                recoverable=False,
+                remediation="Read components with the current strict codec.",
+            )
+        if any(not isinstance(item, ResolverReference) for item in references):
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Snapshot resolver references are invalid.",
+                recoverable=False,
+                remediation="Read resolver references with the current strict codec.",
+            )
+        slots = [item.slot for item in components]
+        if len(slots) != len(set(slots)):
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Snapshot contains duplicate component slots.",
+                recoverable=False,
+                remediation="Keep exactly one component per declared slot.",
+            )
+        missing = REQUIRED_COMPONENT_SLOTS.difference(slots)
+        if missing:
+            raise SessionContractError(
+                SessionErrorCode.UNSUPPORTED_COMPONENT_SCHEMA,
+                "Snapshot is missing required components.",
+                recoverable=False,
+                remediation="Provide every required component or use a migration adapter.",
+                metadata={"missing_count": len(missing)},
+            )
+        required_flags = {
+            item.slot for item in components if item.slot in REQUIRED_COMPONENT_SLOTS and item.required
+        }
+        if required_flags != REQUIRED_COMPONENT_SLOTS:
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Required snapshot components must be marked required.",
+                recoverable=False,
+                remediation="Mark every framework-required component as required.",
+            )
+        ref_keys = [(ref.namespace, ref.reference_id) for ref in references]
+        if len(ref_keys) != len(set(ref_keys)):
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Snapshot contains duplicate resolver references.",
+                recoverable=False,
+                remediation="Keep one reference for each namespace and logical alias.",
+            )
+        object.__setattr__(self, "components", components)
+        object.__setattr__(self, "resolver_references", references)
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        snapshot_id: SnapshotIdentity,
+        session_id: SessionIdentity,
+        head_generation: HeadGeneration,
+        lifecycle: SessionLifecycle,
+        created_at: str,
+        timing: SnapshotTiming,
+        components: Iterable[SnapshotComponent],
+        resolver_references: Iterable[ResolverReference] = (),
+    ) -> "SessionSnapshot":
+        components_tuple = tuple(components)
+        refs_tuple = tuple(resolver_references)
+        unsigned = _snapshot_unsigned_dict(
+            schema_version=CURRENT_SNAPSHOT_SCHEMA,
+            snapshot_id=snapshot_id,
+            session_id=session_id,
+            head_generation=head_generation,
+            lifecycle=lifecycle,
+            created_at=created_at,
+            timing=timing,
+            components=components_tuple,
+            resolver_references=refs_tuple,
+        )
+        integrity = SnapshotIntegrity("sha256", _digest_json(unsigned))
+        return cls(
+            schema_version=CURRENT_SNAPSHOT_SCHEMA,
+            snapshot_id=snapshot_id,
+            session_id=session_id,
+            head_generation=head_generation,
+            lifecycle=lifecycle,
+            created_at=created_at,
+            timing=timing,
+            components=components_tuple,
+            resolver_references=refs_tuple,
+            integrity=integrity,
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        payload = _snapshot_unsigned_dict(
+            schema_version=self.schema_version,
+            snapshot_id=self.snapshot_id,
+            session_id=self.session_id,
+            head_generation=self.head_generation,
+            lifecycle=self.lifecycle,
+            created_at=self.created_at,
+            timing=self.timing,
+            components=self.components,
+            resolver_references=self.resolver_references,
+        )
+        payload["integrity"] = self.integrity.to_dict()
+        return payload
+
+    def canonical_json(self) -> str:
+        return json.dumps(
+            self.to_dict(),
+            ensure_ascii=False,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "SessionSnapshot":
+        _require_exact_fields(
+            payload,
+            {
+                "schema_version",
+                "snapshot_id",
+                "session_id",
+                "head_generation",
+                "lifecycle",
+                "created_at",
+                "timing",
+                "components",
+                "resolver_references",
+                "integrity",
+            },
+            SessionErrorCode.CORRUPT_SNAPSHOT,
+            "session snapshot",
+        )
+        schema_version = payload.get("schema_version")
+        if schema_version != CURRENT_SNAPSHOT_SCHEMA:
+            raise SessionContractError(
+                SessionErrorCode.UNSUPPORTED_SNAPSHOT_SCHEMA,
+                "Snapshot schema is unsupported.",
+                recoverable=False,
+                remediation="Install a current reader or explicit migration adapter.",
+                metadata={"schema_version": schema_version},
+            )
+        try:
+            lifecycle = SessionLifecycle(payload.get("lifecycle"))
+        except (TypeError, ValueError) as exc:
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Snapshot lifecycle is invalid.",
+                recoverable=False,
+                remediation="Use the canonical lifecycle vocabulary.",
+            ) from exc
+        components_raw = payload.get("components")
+        refs_raw = payload.get("resolver_references")
+        if not isinstance(components_raw, list) or not isinstance(refs_raw, list):
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Snapshot components and resolver references must be arrays.",
+                recoverable=False,
+                remediation="Read the snapshot with the current strict codec.",
+            )
+        integrity_raw = payload["integrity"]
+        timing_raw = payload["timing"]
+        snapshot_raw = payload["snapshot_id"]
+        session_raw = payload["session_id"]
+        if (
+            not isinstance(integrity_raw, Mapping)
+            or not isinstance(timing_raw, Mapping)
+            or not isinstance(snapshot_raw, Mapping)
+            or not isinstance(session_raw, Mapping)
+        ):
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Snapshot typed fields must be JSON objects.",
+                recoverable=False,
+                remediation="Read the snapshot with the current strict codec.",
+            )
+        _require_exact_fields(
+            integrity_raw,
+            {"algorithm", "digest"},
+            SessionErrorCode.CORRUPT_SNAPSHOT,
+            "snapshot integrity",
+        )
+        snapshot = cls(
+            schema_version=schema_version,
+            snapshot_id=SnapshotIdentity.from_dict(snapshot_raw),
+            session_id=SessionIdentity.from_dict(session_raw),
+            head_generation=HeadGeneration(payload["head_generation"]),
+            lifecycle=lifecycle,
+            created_at=payload["created_at"],
+            timing=SnapshotTiming.from_dict(timing_raw),
+            components=tuple(SnapshotComponent.from_dict(item) for item in components_raw),
+            resolver_references=tuple(
+                ResolverReference.from_dict(item) for item in refs_raw
+            ),
+            integrity=SnapshotIntegrity(
+                algorithm=integrity_raw["algorithm"],
+                digest=integrity_raw["digest"],
+            ),
+        )
+        unsigned = dict(snapshot.to_dict())
+        unsigned.pop("integrity")
+        if _digest_json(unsigned) != snapshot.integrity.digest:
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Snapshot integrity verification failed.",
+                recoverable=False,
+                remediation="Restore a verified snapshot from the checkpoint store.",
+            )
+        return snapshot
+
+    @classmethod
+    def from_json(cls, raw: str) -> "SessionSnapshot":
+        try:
+            payload = json.loads(raw, parse_constant=_reject_json_constant)
+        except (json.JSONDecodeError, TypeError, ValueError) as exc:
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Snapshot is not strict JSON.",
+                recoverable=False,
+                remediation="Restore an intact snapshot written by the current codec.",
+            ) from exc
+        if not isinstance(payload, Mapping):
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Snapshot root must be a JSON object.",
+                recoverable=False,
+                remediation="Restore an intact snapshot written by the current codec.",
+            )
+        return cls.from_dict(payload)
+
+
+class PersistenceReceiptStatus(str, Enum):
+    """Observable outcomes of one head persistence request."""
+
+    ACCEPTED = "accepted"
+    PERSISTED = "persisted"
+    REJECTED = "rejected"
+    FAILED = "failed"
+    CONFLICT = "conflict"
+
+
+@dataclass(frozen=True)
+class PauseReceipt:
+    """Pause request/persistence receipt; accepted never means persisted."""
+
+    session_id: SessionIdentity
+    run_id: RunIdentity
+    status: PersistenceReceiptStatus
+    lifecycle: SessionLifecycle
+    expected_generation: HeadGeneration
+    actual_generation: HeadGeneration
+    snapshot_id: SnapshotIdentity | None = None
+    checkpoint_id: CheckpointIdentity | None = None
+    error_code: SessionErrorCode | None = None
+
+    def __post_init__(self) -> None:
+        if self.status is PersistenceReceiptStatus.PERSISTED:
+            valid = (
+                self.lifecycle in {SessionLifecycle.PAUSED, SessionLifecycle.WAITING_INPUT}
+                and self.snapshot_id is not None
+                and self.checkpoint_id is not None
+                and self.actual_generation == self.expected_generation.next()
+                and self.error_code is None
+            )
+        else:
+            valid = self.lifecycle not in {
+                SessionLifecycle.PAUSED,
+                SessionLifecycle.WAITING_INPUT,
+            }
+        if not valid:
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Pause receipt contradicts persistence or lifecycle facts.",
+                recoverable=False,
+                remediation="Build the receipt from the authoritative head commit outcome.",
+            )
+
+    def require_persisted(self) -> None:
+        if self.status is PersistenceReceiptStatus.PERSISTED:
+            return
+        code = {
+            PersistenceReceiptStatus.REJECTED: SessionErrorCode.PERSISTENCE_REJECTED,
+            PersistenceReceiptStatus.FAILED: SessionErrorCode.PERSISTENCE_FAILED,
+            PersistenceReceiptStatus.CONFLICT: SessionErrorCode.GENERATION_CONFLICT,
+            PersistenceReceiptStatus.ACCEPTED: SessionErrorCode.PERSISTENCE_REJECTED,
+        }[self.status]
+        raise SessionContractError(
+            code,
+            "Pause has not produced a durable session head.",
+            recoverable=self.status is not PersistenceReceiptStatus.FAILED,
+            remediation="Inspect the receipt and retry only after reloading the authoritative head.",
+            metadata={"status": self.status.value},
+        )
+
+
+def _snapshot_unsigned_dict(
+    *,
+    schema_version: int,
+    snapshot_id: SnapshotIdentity,
+    session_id: SessionIdentity,
+    head_generation: HeadGeneration,
+    lifecycle: SessionLifecycle,
+    created_at: str,
+    timing: SnapshotTiming,
+    components: Iterable[SnapshotComponent],
+    resolver_references: Iterable[ResolverReference],
+) -> Dict[str, Any]:
+    return {
+        "schema_version": schema_version,
+        "snapshot_id": snapshot_id.to_dict(),
+        "session_id": session_id.to_dict(),
+        "head_generation": head_generation.value,
+        "lifecycle": lifecycle.value,
+        "created_at": created_at,
+        "timing": timing.to_dict(),
+        "components": [component.to_dict() for component in components],
+        "resolver_references": [reference.to_dict() for reference in resolver_references],
+    }
+
+
+def _digest_json(payload: Mapping[str, Any]) -> str:
+    try:
+        encoded = json.dumps(
+            payload,
+            ensure_ascii=False,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise SessionContractError(
+            SessionErrorCode.CORRUPT_SNAPSHOT,
+            "Snapshot contains a non-JSON value.",
+            recoverable=False,
+            remediation="Persist only strict JSON facts and resolver references.",
+        ) from exc
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _freeze_json(value: Any, *, path: str) -> Any:
+    if value is None or isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        if _HOST_LOCAL_OR_CREDENTIAL_VALUE.search(value):
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Snapshot contains a host-local path or credential value.",
+                recoverable=False,
+                remediation="Persist a resolver or artifact reference instead of raw material.",
+            )
+        return value
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Snapshot contains a non-finite number.",
+                recoverable=False,
+                remediation="Encode only finite JSON numbers.",
+            )
+        return value
+    if isinstance(value, Mapping):
+        frozen: Dict[str, Any] = {}
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise SessionContractError(
+                    SessionErrorCode.CORRUPT_SNAPSHOT,
+                    "Snapshot object keys must be strings.",
+                    recoverable=False,
+                    remediation="Encode component facts as strict JSON objects.",
+                )
+            frozen[key] = _freeze_json(item, path=f"{path}.{key}")
+        return MappingProxyType(frozen)
+    if isinstance(value, list):
+        return tuple(
+            _freeze_json(item, path=f"{path}[{index}]")
+            for index, item in enumerate(value)
+        )
+    raise SessionContractError(
+        SessionErrorCode.CORRUPT_SNAPSHOT,
+        "Snapshot contains a non-JSON value.",
+        recoverable=False,
+        remediation="Persist only strict JSON facts and resolver references.",
+    )
+
+
+def _thaw_json(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {key: _thaw_json(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_thaw_json(item) for item in value]
+    return value
+
+
+def _validate_timestamp(value: Any, field_name: str) -> None:
+    if not isinstance(value, str):
+        raise SessionContractError(
+            SessionErrorCode.CORRUPT_SNAPSHOT,
+            "Snapshot timestamp must be a string.",
+            recoverable=False,
+            remediation="Use a timezone-aware RFC 3339 timestamp.",
+            metadata={"field": field_name},
+        )
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise SessionContractError(
+            SessionErrorCode.CORRUPT_SNAPSHOT,
+            "Snapshot timestamp is invalid.",
+            recoverable=False,
+            remediation="Use a timezone-aware RFC 3339 timestamp.",
+            metadata={"field": field_name},
+        ) from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise SessionContractError(
+            SessionErrorCode.CORRUPT_SNAPSHOT,
+            "Snapshot timestamp must include a timezone.",
+            recoverable=False,
+            remediation="Use a timezone-aware RFC 3339 timestamp.",
+            metadata={"field": field_name},
+        )
+
+
+def _require_exact_fields(
+    payload: Any,
+    expected: set[str],
+    error_code: SessionErrorCode,
+    object_name: str,
+) -> None:
+    if not isinstance(payload, Mapping) or set(payload) != expected:
+        raise SessionContractError(
+            error_code,
+            f"{object_name.capitalize()} has unknown or missing fields.",
+            recoverable=False,
+            remediation="Use the current strict codec or an explicit migration adapter.",
+        )
+
+
+def _reject_json_constant(value: str) -> Any:
+    raise ValueError(f"non-finite JSON constant: {value}")
+
+
+def _safe_failure_metadata(metadata: Mapping[str, Any]) -> Dict[str, Any]:
+    safe: Dict[str, Any] = {}
+    secret_key = re.compile(r"(?i)(secret|credential|password|token|authorization)")
+    unsafe_value = re.compile(r"(?i)(/users/|/home/|\\\\|bearer\s|api[_-]?key|password=)")
+    for key, value in metadata.items():
+        if not isinstance(key, str) or _CAPABILITY_TOKEN.fullmatch(key) is None:
+            continue
+        if secret_key.search(key):
+            safe[key] = "[redacted]"
+            continue
+        if value is None or isinstance(value, (bool, int)):
+            safe[key] = value
+        elif isinstance(value, float) and math.isfinite(value):
+            safe[key] = value
+        elif isinstance(value, str):
+            safe[key] = "[redacted]" if unsafe_value.search(value) else value[:128]
+    return safe
+
+
 __all__ = [
     "AgentIdentity",
     "AttemptIdentity",
     "CheckpointIdentity",
+    "ComponentSlot",
+    "CURRENT_SNAPSHOT_SCHEMA",
+    "HeadGeneration",
     "IdentityKind",
     "IdentityRelation",
     "IdentityRelationship",
+    "PauseReceipt",
+    "PauseSafety",
+    "PersistenceReceiptStatus",
+    "REQUIRED_COMPONENT_SLOTS",
+    "ResolvedResource",
+    "ResolverNamespace",
+    "ResolverReference",
+    "ResolverRegistry",
     "RunIdentity",
     "RuntimeIdentity",
+    "SafeBoundaryKind",
     "SessionContractError",
     "SessionErrorCode",
+    "SessionHead",
     "SessionIdentity",
+    "SessionLifecycle",
+    "SessionOperation",
+    "SessionSnapshot",
+    "SnapshotComponent",
     "SnapshotIdentity",
+    "SnapshotIntegrity",
+    "SnapshotTiming",
+    "SUPPORTED_COMPONENT_SCHEMAS",
     "ToolCallIdentity",
     "WorkItemIdentity",
     "identity_from_dict",
+    "lifecycle_allows",
+    "lifecycle_can_transition",
 ]

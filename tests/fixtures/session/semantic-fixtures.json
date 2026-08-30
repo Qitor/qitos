@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "contract": "qitos.session.semantic-fixtures",
+  "cases": [
+    {"case_id": "created_session", "lifecycle": "created", "generation": 0, "expectation": "valid", "component_slot": null, "error_code": null},
+    {"case_id": "running_session", "lifecycle": "running", "generation": 1, "expectation": "valid", "component_slot": "engine_progress", "error_code": null},
+    {"case_id": "pause_requested", "lifecycle": "pause_requested", "generation": 2, "expectation": "accepted", "component_slot": "engine_progress", "error_code": null},
+    {"case_id": "safely_paused", "lifecycle": "paused", "generation": 3, "expectation": "persisted", "component_slot": "engine_progress", "error_code": null},
+    {"case_id": "partial_parallel_batch", "lifecycle": "paused", "generation": 4, "expectation": "persisted", "component_slot": "partial_parallel_batch", "error_code": null},
+    {"case_id": "pending_steering", "lifecycle": "paused", "generation": 5, "expectation": "persisted", "component_slot": "queued_steering", "error_code": null},
+    {"case_id": "persistence_failure", "lifecycle": "pausing", "generation": 2, "expectation": "failed", "component_slot": "engine_progress", "error_code": "persistence_failed"},
+    {"case_id": "generation_conflict", "lifecycle": "running", "generation": 3, "expectation": "conflict", "component_slot": "engine_progress", "error_code": "generation_conflict"},
+    {"case_id": "superseded_owner", "lifecycle": "superseded", "generation": 4, "expectation": "rejected", "component_slot": "engine_progress", "error_code": "superseded_owner"},
+    {"case_id": "missing_resolver", "lifecycle": "restoring", "generation": 5, "expectation": "failed", "component_slot": "agent_state", "error_code": "missing_resolver"},
+    {"case_id": "unavailable_secret", "lifecycle": "restoring", "generation": 5, "expectation": "failed", "component_slot": "agent_state", "error_code": "unavailable_secret"},
+    {"case_id": "corrupt_snapshot", "lifecycle": "paused", "generation": 5, "expectation": "failed", "component_slot": "trace_lineage", "error_code": "corrupt_snapshot"},
+    {"case_id": "unsupported_component", "lifecycle": "paused", "generation": 5, "expectation": "failed", "component_slot": "tool_effects", "error_code": "unsupported_component_schema"},
+    {"case_id": "restore_candidate", "lifecycle": "paused", "generation": 6, "expectation": "valid", "component_slot": "agent_state", "error_code": null},
+    {"case_id": "forked_session", "lifecycle": "paused", "generation": 0, "expectation": "valid", "component_slot": "trace_lineage", "error_code": null}
+  ],
+  "fork_lineage": {
+    "source_session_id": {"kind": "session", "value": "session_10000000000000000000000000000001"},
+    "source_snapshot_id": {"kind": "snapshot", "value": "snapshot_10000000000000000000000000000002"},
+    "fork_session_id": {"kind": "session", "value": "session_10000000000000000000000000000003"},
+    "fork_snapshot_id": {"kind": "snapshot", "value": "snapshot_10000000000000000000000000000004"}
+  }
+}
