@@ -18,9 +18,10 @@ from jsonschema import Draft202012Validator
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "benchmark_trajectory_store.py"
 FIXTURES = ROOT / "tests" / "fixtures" / "trajectories"
+READINESS_FIXTURES = ROOT / "tests" / "fixtures" / "readiness"
 SOURCE_MANIFEST = FIXTURES / "unrelated-agent" / "fixture-manifest.json"
 MANIFEST_SCHEMA = FIXTURES / "fixture-manifest.schema.json"
-VERIFIED_RECEIPTS_PATH = FIXTURES / "contract-qualification-receipts.json"
+VERIFIED_RECEIPTS_PATH = READINESS_FIXTURES / "contract-qualification-receipts.json"
 
 
 def _load_script() -> Any:
@@ -80,8 +81,11 @@ def test_repository_fixture_set_is_strictly_blocked_and_portable() -> None:
     assert first == second
     assert first["status"] == "schema_not_ready"
     assert first["reason_code"] == "TRAJECTORY_SCHEMA_NOT_READY"
-    assert first["trajectory_v2_schema_frozen"] is False
-    assert first["fixture_set_id"] == "qitos-representative-trajectories-v1"
+    assert first["trajectory_schema_frozen"] is False
+    assert first["canonical_writer_available"] is False
+    assert first["store_benchmark_available"] is False
+    assert first["qita_migration_qualified"] is False
+    assert first["fixture_set_id"] == "qitos-representative-trajectories"
     assert first["source_classes"] == ["campaign_long", "unrelated_agent"]
     assert first["publication_qualified_count"] == 0
     assert first["measurements"] == []
@@ -89,11 +93,32 @@ def test_repository_fixture_set_is_strictly_blocked_and_portable() -> None:
     assert str(FIXTURES.resolve()) not in serialized
     assert "fixture_root" not in serialized
     assert "lane_b_c_contracts_not_versioned" not in serialized
-    assert _codes(first) == {
+    assert {
         "contract_receipt_missing",
         "publication_status_not_ready",
-        "trajectory_v2_schema_not_frozen",
-    }
+        "producer_version_unestablished",
+        "trajectory_schema_not_ready",
+        "canonical_trajectory_writer_missing",
+        "trajectory_store_benchmark_missing",
+        "consumer_not_qualified",
+        "publication_claim_unavailable",
+        "compression_claim_unavailable",
+        "deduplication_claim_unavailable",
+        "performance_claim_unavailable",
+        "qita_migration_not_qualified",
+    } <= _codes(first)
+    assert all(
+        {
+            "code",
+            "owner",
+            "short_message",
+            "remediation",
+            "required_artifact",
+            "current_qualification_state",
+        }
+        <= set(blocker)
+        for blocker in first["blockers"]
+    )
 
 
 def test_documented_schema_and_checked_evidence_are_portable() -> None:
@@ -403,13 +428,13 @@ def test_exact_qualified_receipt_does_not_auto_qualify_other_contracts() -> None
     )
 
     assert qualified == ["lane_b.exchange_log_fixture_version"]
-    missing_subjects = {
+    unestablished_subjects = {
         item["subject"]
         for item in findings
-        if item["code"] == "contract_receipt_missing"
+        if item["code"] == "producer_version_unestablished"
     }
-    assert "lane_b.request_view_report" in missing_subjects
-    assert "lane_c.durability_receipt" in missing_subjects
+    assert "lane_b.request_view" in unestablished_subjects
+    assert "lane_c.effect_recovery" in unestablished_subjects
     assert receipt_result["status"] == "schema_not_ready"
     assert receipt_result["blocker_categories"]["contract_receipt"] == (
         default_result["blocker_categories"]["contract_receipt"] - 1
@@ -437,9 +462,9 @@ def test_exact_committed_b_and_c_receipts_clear_only_owned_contracts() -> None:
         if item["code"] == "contract_receipt_missing"
     )
     assert any(
-        item["subject"] == "lane_b.request_view_report"
+        item["subject"] == "lane_b.request_view"
         for item in findings
-        if item["code"] == "contract_receipt_missing"
+        if item["code"] == "producer_version_unestablished"
     )
     assert result["status"] == "schema_not_ready"
     assert result["measurements"] == []
