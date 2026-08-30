@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "contract": "qitos.session.identity",
+  "identities": {
+    "session": {"kind": "session", "value": "session_00000000000000000000000000000001"},
+    "run": {"kind": "run", "value": "run_00000000000000000000000000000002"},
+    "snapshot": {"kind": "snapshot", "value": "snapshot_00000000000000000000000000000003"},
+    "checkpoint": {"kind": "checkpoint", "value": "checkpoint_00000000000000000000000000000004"},
+    "work_item": {"kind": "work_item", "value": "work_item_00000000000000000000000000000005"},
+    "attempt": {"kind": "attempt", "value": "attempt_00000000000000000000000000000006"},
+    "tool_call": {"kind": "tool_call", "value": "tool_call_00000000000000000000000000000007"},
+    "agent": {"kind": "agent", "value": "agent_00000000000000000000000000000008"}
+  },
+  "relationships": [
+    {"relation": "session_run", "source": {"kind": "session", "value": "session_00000000000000000000000000000001"}, "target": {"kind": "run", "value": "run_00000000000000000000000000000002"}},
+    {"relation": "session_snapshot", "source": {"kind": "session", "value": "session_00000000000000000000000000000001"}, "target": {"kind": "snapshot", "value": "snapshot_00000000000000000000000000000003"}},
+    {"relation": "snapshot_checkpoint", "source": {"kind": "snapshot", "value": "snapshot_00000000000000000000000000000003"}, "target": {"kind": "checkpoint", "value": "checkpoint_00000000000000000000000000000004"}},
+    {"relation": "run_work_item", "source": {"kind": "run", "value": "run_00000000000000000000000000000002"}, "target": {"kind": "work_item", "value": "work_item_00000000000000000000000000000005"}},
+    {"relation": "work_item_attempt", "source": {"kind": "work_item", "value": "work_item_00000000000000000000000000000005"}, "target": {"kind": "attempt", "value": "attempt_00000000000000000000000000000006"}},
+    {"relation": "attempt_tool_call", "source": {"kind": "attempt", "value": "attempt_00000000000000000000000000000006"}, "target": {"kind": "tool_call", "value": "tool_call_00000000000000000000000000000007"}},
+    {"relation": "agent_owns_work_item", "source": {"kind": "agent", "value": "agent_00000000000000000000000000000008"}, "target": {"kind": "work_item", "value": "work_item_00000000000000000000000000000005"}},
+    {"relation": "restored_from", "source": {"kind": "run", "value": "run_00000000000000000000000000000002"}, "target": {"kind": "snapshot", "value": "snapshot_00000000000000000000000000000003"}},
+    {"relation": "forked_from", "source": {"kind": "session", "value": "session_00000000000000000000000000000001"}, "target": {"kind": "snapshot", "value": "snapshot_00000000000000000000000000000003"}}
+  ]
+}
