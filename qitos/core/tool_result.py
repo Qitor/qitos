@@ -13,14 +13,51 @@ if TYPE_CHECKING:
 
 ToolResultStatus = Literal["success", "error", "skipped", "timed_out", "cancelled"]
 ToolErrorKind = Literal["semantic", "execution", "policy"]
+EffectState = Literal[
+    "no_effect_declared",
+    "not_started",
+    "started",
+    "committed",
+    "rejected",
+    "unknown",
+    "reconciliation_required",
+]
+RetryDisposition = Literal[
+    "not_evaluated",
+    "retryable",
+    "non_retryable",
+    "blocked_worker_running",
+    "requires_reconciliation",
+]
 _ProjectionRole = Literal["content", "omission_counts"]
 
 TOOL_RESULT_SCHEMA_VERSION = "qitos.tool_result/v1"
 TOOL_RESULT_MODEL_VIEW_VERSION = "qitos.tool_result.model_view/v1"
 TOOL_RESULT_TRACE_SAFE_VERSION = "qitos.tool_result.trace_safe/v1"
+TOOL_BATCH_CLOSURE_SCHEMA_VERSION = "qitos.tool_batch_closure/v1"
 
 _STATUSES = frozenset({"success", "error", "skipped", "timed_out", "cancelled"})
 _ERROR_KINDS = frozenset({"semantic", "execution", "policy"})
+_EFFECT_STATES = frozenset(
+    {
+        "no_effect_declared",
+        "not_started",
+        "started",
+        "committed",
+        "rejected",
+        "unknown",
+        "reconciliation_required",
+    }
+)
+_RETRY_DISPOSITIONS = frozenset(
+    {
+        "not_evaluated",
+        "retryable",
+        "non_retryable",
+        "blocked_worker_running",
+        "requires_reconciliation",
+    }
+)
 _FIELDS = frozenset(
     {
         "schema_version", "status", "success", "tool_name", "action_id",
@@ -29,6 +66,9 @@ _FIELDS = frozenset(
         "omitted", "attempts", "latency_ms", "declared_effects",
         "filesystem_changes", "artifact_refs", "normalized_request", "provenance",
         "worker_still_running", "metadata",
+        "attempt_id", "effect_ref", "effect_state", "idempotency_ref",
+        "retry_disposition", "reconciliation_required", "outcome_unknown",
+        "late_result", "owner_generation", "stale_owner", "batch_closure",
     }
 )
 _ARTIFACT_FIELDS = frozenset(
@@ -45,6 +85,9 @@ _SECRET_TEXT = re.compile(
     r"(?i)(authorization\s*[:=]\s*(?:bearer\s+)?|bearer\s+|(?:api[_-]?key|token|password|secret)\s*[:=]\s*)[^\s,;]+"
 )
 _SAFE_IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+_BATCH_SLOT_STATES = frozenset(
+    {"open", "success", "error", "skipped", "timed_out", "cancelled"}
+)
 
 
 class ToolResultContractError(ValueError):
@@ -67,6 +110,35 @@ def _legacy_dict_list(value: Any) -> list[Dict[str, Any]]:
     if not isinstance(value, (list, tuple)):
         return []
     return [dict(item) for item in value if isinstance(item, Mapping)]
+
+
+def _legacy_optional_string(value: Any) -> str | None:
+    if value in (None, ""):
+        return None
+    return str(value)
+
+
+def _legacy_non_negative_int(value: Any) -> int | None:
+    if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+        return value
+    return None
+
+
+def _legacy_effect_state(value: Any) -> EffectState:
+    return value if isinstance(value, str) and value in _EFFECT_STATES else "no_effect_declared"  # type: ignore[return-value]
+
+
+def _legacy_retry_disposition(
+    value: Any,
+    *,
+    status: Any,
+    recoverable: bool,
+    worker_still_running: bool,
+) -> RetryDisposition:
+    _ = status, recoverable, worker_still_running
+    if isinstance(value, str) and value in _RETRY_DISPOSITIONS:
+        return value  # type: ignore[return-value]
+    return "not_evaluated"
 
 
 def _model_projection(output: Any, explicit: Any = None) -> Any:
@@ -180,6 +252,65 @@ def _validate_artifacts(value: Any) -> list[Dict[str, Any]]:
         if "provenance" in ref and not isinstance(ref["provenance"], dict):
             raise _fail("invalid_artifact_ref", f"artifact_refs[{index}].provenance must be an object")
     return refs
+
+
+def _validate_batch_closure(value: Any) -> Dict[str, Any]:
+    closure = _validate_dict(value, "batch_closure")
+    if not closure:
+        return {}
+    allowed = {"schema_version", "batch_id", "slots"}
+    unknown = sorted(set(closure) - allowed)
+    if unknown:
+        raise _fail(
+            "invalid_batch_closure",
+            f"batch_closure has unknown field {unknown[0]!r}",
+        )
+    if closure.get("schema_version") != TOOL_BATCH_CLOSURE_SCHEMA_VERSION:
+        raise _fail(
+            "invalid_batch_closure",
+            "batch_closure has an unsupported schema_version",
+        )
+    batch_id = closure.get("batch_id")
+    if not isinstance(batch_id, str) or not batch_id.strip():
+        raise _fail("invalid_batch_closure", "batch_closure.batch_id must be non-empty")
+    slots = closure.get("slots")
+    if not isinstance(slots, list) or not slots:
+        raise _fail("invalid_batch_closure", "batch_closure.slots must be non-empty")
+    seen: set[str] = set()
+    for index, slot in enumerate(slots):
+        if not isinstance(slot, dict):
+            raise _fail(
+                "invalid_batch_closure",
+                f"batch_closure.slots[{index}] must be an object",
+            )
+        unknown_slot = sorted(set(slot) - {"action_id", "state", "result_ref", "attempt_id"})
+        if unknown_slot:
+            raise _fail(
+                "invalid_batch_closure",
+                f"batch_closure.slots[{index}] has unknown field {unknown_slot[0]!r}",
+            )
+        action_id = slot.get("action_id")
+        state = slot.get("state")
+        if not isinstance(action_id, str) or not action_id.strip():
+            raise _fail(
+                "invalid_batch_closure",
+                f"batch_closure.slots[{index}].action_id must be non-empty",
+            )
+        if action_id in seen:
+            raise _fail("invalid_batch_closure", f"duplicate batch action_id {action_id!r}")
+        seen.add(action_id)
+        if not isinstance(state, str) or state not in _BATCH_SLOT_STATES:
+            raise _fail(
+                "invalid_batch_closure",
+                f"batch_closure.slots[{index}].state is invalid",
+            )
+        for name in ("result_ref", "attempt_id"):
+            if name in slot and not isinstance(slot[name], str):
+                raise _fail(
+                    "invalid_batch_closure",
+                    f"batch_closure.slots[{index}].{name} must be a string",
+                )
+    return closure
 
 
 def _new_facts() -> Dict[str, int]:
@@ -372,6 +503,17 @@ class ToolResult:
     normalized_request: Dict[str, Any] = field(default_factory=dict)
     provenance: Dict[str, Any] = field(default_factory=dict)
     worker_still_running: bool = False
+    attempt_id: str | None = None
+    effect_ref: str | None = None
+    effect_state: EffectState = "no_effect_declared"
+    idempotency_ref: str | None = None
+    retry_disposition: RetryDisposition = "not_evaluated"
+    reconciliation_required: bool = False
+    outcome_unknown: bool = False
+    late_result: bool = False
+    owner_generation: int | None = None
+    stale_owner: bool = False
+    batch_closure: Dict[str, Any] = field(default_factory=dict)
     schema_version: str = TOOL_RESULT_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -381,15 +523,30 @@ class ToolResult:
             raise _fail("invalid_terminal_status", f"unsupported status: {self.status!r}")
         if self.error_kind is not None and self.error_kind not in _ERROR_KINDS:
             raise _fail("invalid_error_kind", f"unsupported error_kind: {self.error_kind!r}")
+        if not isinstance(self.effect_state, str) or self.effect_state not in _EFFECT_STATES:
+            raise _fail("invalid_effect_state", f"unsupported effect_state: {self.effect_state!r}")
+        if (
+            not isinstance(self.retry_disposition, str)
+            or self.retry_disposition not in _RETRY_DISPOSITIONS
+        ):
+            raise _fail(
+                "invalid_retry_disposition",
+                f"unsupported retry_disposition: {self.retry_disposition!r}",
+            )
         for path, value in (
             ("tool_name", self.tool_name), ("action_id", self.action_id),
             ("error", self.error), ("error_code", self.error_code),
             ("recovery_hint", self.recovery_hint),
+            ("attempt_id", self.attempt_id), ("effect_ref", self.effect_ref),
+            ("idempotency_ref", self.idempotency_ref),
         ):
             _require_optional_string(value, path)
         for bool_path, bool_value in (
             ("recoverable", self.recoverable), ("complete", self.complete),
             ("truncated", self.truncated), ("worker_still_running", self.worker_still_running),
+            ("reconciliation_required", self.reconciliation_required),
+            ("outcome_unknown", self.outcome_unknown),
+            ("late_result", self.late_result), ("stale_owner", self.stale_owner),
         ):
             if not isinstance(bool_value, bool):
                 raise _fail("invalid_canonical_field", f"{bool_path} must be boolean")
@@ -400,6 +557,15 @@ class ToolResult:
             or not math.isfinite(float(self.latency_ms)) or self.latency_ms < 0
         ):
             raise _fail("invalid_canonical_field", "latency_ms must be a finite non-negative number")
+        if self.owner_generation is not None and (
+            not isinstance(self.owner_generation, int)
+            or isinstance(self.owner_generation, bool)
+            or self.owner_generation < 0
+        ):
+            raise _fail(
+                "invalid_canonical_field",
+                "owner_generation must be a non-negative integer or null",
+            )
         if not isinstance(self.omitted, dict):
             raise _fail("invalid_canonical_field", "omitted must be an object")
         for key, count in self.omitted.items():
@@ -413,10 +579,12 @@ class ToolResult:
         self.artifact_refs = _validate_artifacts(self.artifact_refs)
         self.normalized_request = _validate_dict(self.normalized_request, "normalized_request")
         self.provenance = _validate_dict(self.provenance, "provenance")
+        self.batch_closure = _validate_batch_closure(self.batch_closure)
         projected = _model_projection(self.output, self.model_output)
         self.output = _clone_json(self.output, "output")
         self.model_output = _clone_json(projected, "model_output")
         self._validate_terminal_invariants()
+        self._validate_recovery_invariants()
 
     def _validate_terminal_invariants(self) -> None:
         if self.status == "success":
@@ -431,8 +599,74 @@ class ToolResult:
             raise _fail("contradictory_outcome", "skipped requires policy error_kind")
         if self.status in {"timed_out", "cancelled"} and self.error_kind != "execution":
             raise _fail("contradictory_outcome", f"{self.status} requires execution error_kind")
-        if self.worker_still_running and self.status != "timed_out":
-            raise _fail("contradictory_outcome", "worker_still_running is only valid for timed_out")
+        if self.worker_still_running and self.status not in {"timed_out", "cancelled"}:
+            raise _fail(
+                "contradictory_outcome",
+                "worker_still_running is valid only for timed_out or cancelled",
+            )
+
+    def _validate_recovery_invariants(self) -> None:
+        if self.effect_state == "no_effect_declared" and self.effect_ref is not None:
+            raise _fail(
+                "contradictory_effect",
+                "no_effect_declared cannot carry effect_ref",
+            )
+        if self.effect_state != "no_effect_declared" and not self.effect_ref:
+            raise _fail(
+                "contradictory_effect",
+                f"{self.effect_state} requires effect_ref",
+            )
+        if self.effect_state == "unknown" and not self.outcome_unknown:
+            raise _fail("contradictory_effect", "unknown effect requires outcome_unknown")
+        if self.effect_state == "reconciliation_required" and not (
+            self.outcome_unknown and self.reconciliation_required
+        ):
+            raise _fail(
+                "contradictory_effect",
+                "reconciliation_required effect requires both uncertainty flags",
+            )
+        if self.reconciliation_required and self.effect_state not in {
+            "unknown",
+            "reconciliation_required",
+        }:
+            raise _fail(
+                "contradictory_effect",
+                "reconciliation_required needs an unknown effect state",
+            )
+        if self.outcome_unknown and self.effect_state not in {
+            "started",
+            "unknown",
+            "reconciliation_required",
+        }:
+            raise _fail(
+                "contradictory_effect",
+                "outcome_unknown requires a started or unknown effect",
+            )
+        if self.retry_disposition == "retryable" and (
+            not self.recoverable
+            or self.worker_still_running
+            or self.outcome_unknown
+            or self.effect_state == "committed"
+        ):
+            raise _fail(
+                "unsafe_retry_disposition",
+                "retryable requires recoverable, settled, non-committed work",
+            )
+        if (
+            self.retry_disposition == "blocked_worker_running"
+            and not self.worker_still_running
+        ):
+            raise _fail(
+                "unsafe_retry_disposition",
+                "blocked_worker_running requires a continuing worker",
+            )
+        if self.retry_disposition == "requires_reconciliation" and not (
+            self.outcome_unknown or self.reconciliation_required
+        ):
+            raise _fail(
+                "unsafe_retry_disposition",
+                "requires_reconciliation needs outcome uncertainty",
+            )
 
     @property
     def is_success(self) -> bool:
@@ -479,6 +713,17 @@ class ToolResult:
             ),
             "provenance": _clone_json(self.provenance, "provenance"),
             "worker_still_running": self.worker_still_running,
+            "attempt_id": self.attempt_id,
+            "effect_ref": self.effect_ref,
+            "effect_state": self.effect_state,
+            "idempotency_ref": self.idempotency_ref,
+            "retry_disposition": self.retry_disposition,
+            "reconciliation_required": self.reconciliation_required,
+            "outcome_unknown": self.outcome_unknown,
+            "late_result": self.late_result,
+            "owner_generation": self.owner_generation,
+            "stale_owner": self.stale_owner,
+            "batch_closure": _clone_json(self.batch_closure, "batch_closure"),
             "metadata": _clone_json(self.metadata, "metadata"),
         }
         _require_json(payload, "ToolResult")
@@ -603,6 +848,17 @@ class ToolResult:
         safe_omitted = _bounded_mapping(self.omitted, remaining, omitted_facts)
         projection_loss["fields"]["omitted"] = omitted_facts
         _merge_facts(facts, omitted_facts)
+        recovery_facts = _new_facts()
+        safe_attempt_id = _safe_identifier(self.attempt_id, recovery_facts)
+        safe_effect_ref = _safe_identifier(self.effect_ref, recovery_facts)
+        safe_idempotency_ref = _safe_identifier(
+            self.idempotency_ref, recovery_facts
+        )
+        safe_batch_closure = _redact_value(
+            self.batch_closure, recovery_facts
+        )
+        _merge_facts(projection_loss["fields"]["identifiers"], recovery_facts)
+        _merge_facts(facts, recovery_facts)
         excluded = [
             name for name, value in (
                 ("output", self.output), ("metadata", self.metadata),
@@ -618,6 +874,17 @@ class ToolResult:
                 "omitted": safe_omitted, "attempts": self.attempts,
                 "latency_ms": self.latency_ms,
                 "worker_still_running": self.worker_still_running,
+                "attempt_id": safe_attempt_id,
+                "effect_ref": safe_effect_ref,
+                "effect_state": self.effect_state,
+                "idempotency_ref": safe_idempotency_ref,
+                "retry_disposition": self.retry_disposition,
+                "reconciliation_required": self.reconciliation_required,
+                "outcome_unknown": self.outcome_unknown,
+                "late_result": self.late_result,
+                "owner_generation": self.owner_generation,
+                "stale_owner": self.stale_owner,
+                "batch_closure": safe_batch_closure,
                 "loss": {
                     "canonical_output_included": False,
                     "excluded_fields": excluded,
@@ -678,6 +945,16 @@ class ToolResult:
                 filesystem_changes=nested.filesystem_changes, artifact_refs=nested.artifact_refs,
                 normalized_request=nested.normalized_request, provenance=nested.provenance,
                 worker_still_running=nested.worker_still_running,
+                attempt_id=nested.attempt_id, effect_ref=nested.effect_ref,
+                effect_state=nested.effect_state,
+                idempotency_ref=nested.idempotency_ref,
+                retry_disposition=nested.retry_disposition,
+                reconciliation_required=nested.reconciliation_required,
+                outcome_unknown=nested.outcome_unknown,
+                late_result=nested.late_result,
+                owner_generation=nested.owner_generation,
+                stale_owner=nested.stale_owner,
+                batch_closure=nested.batch_closure,
             )
         status = str(getattr(payload.status, "value", payload.status))
         if status not in _STATUSES:
@@ -706,6 +983,22 @@ class ToolResult:
             normalized_request=_legacy_dict(metadata.get("normalized_request")),
             provenance=_legacy_dict(metadata.get("provenance")),
             worker_still_running=bool(metadata.get("worker_still_running", False)),
+            attempt_id=_legacy_optional_string(metadata.get("attempt_id")),
+            effect_ref=_legacy_optional_string(metadata.get("effect_ref")),
+            effect_state=_legacy_effect_state(metadata.get("effect_state")),
+            idempotency_ref=_legacy_optional_string(metadata.get("idempotency_ref")),
+            retry_disposition=_legacy_retry_disposition(
+                metadata.get("retry_disposition"),
+                status=status,
+                recoverable=bool(metadata.get("recoverable", False)),
+                worker_still_running=bool(metadata.get("worker_still_running", False)),
+            ),
+            reconciliation_required=bool(metadata.get("reconciliation_required", False)),
+            outcome_unknown=bool(metadata.get("outcome_unknown", False)),
+            late_result=bool(metadata.get("late_result", False)),
+            owner_generation=_legacy_non_negative_int(metadata.get("owner_generation")),
+            stale_owner=bool(metadata.get("stale_owner", False)),
+            batch_closure=_legacy_dict(metadata.get("batch_closure")),
         )
 
     @classmethod
@@ -780,6 +1073,22 @@ class ToolResult:
             normalized_request=_legacy_dict(data.get("normalized_request")),
             provenance=_legacy_dict(data.get("provenance")),
             worker_still_running=bool(data.get("worker_still_running", False)),
+            attempt_id=_legacy_optional_string(data.get("attempt_id")),
+            effect_ref=_legacy_optional_string(data.get("effect_ref")),
+            effect_state=_legacy_effect_state(data.get("effect_state")),
+            idempotency_ref=_legacy_optional_string(data.get("idempotency_ref")),
+            retry_disposition=_legacy_retry_disposition(
+                data.get("retry_disposition"),
+                status=raw_status,
+                recoverable=bool(data.get("recoverable", metadata.get("recoverable", False))),
+                worker_still_running=bool(data.get("worker_still_running", False)),
+            ),
+            reconciliation_required=bool(data.get("reconciliation_required", False)),
+            outcome_unknown=bool(data.get("outcome_unknown", False)),
+            late_result=bool(data.get("late_result", False)),
+            owner_generation=_legacy_non_negative_int(data.get("owner_generation")),
+            stale_owner=bool(data.get("stale_owner", False)),
+            batch_closure=_legacy_dict(data.get("batch_closure")),
         )
 
     @classmethod
@@ -791,6 +1100,7 @@ class ToolResult:
 
 __all__ = [
     "TOOL_RESULT_MODEL_VIEW_VERSION", "TOOL_RESULT_SCHEMA_VERSION",
-    "TOOL_RESULT_TRACE_SAFE_VERSION", "ToolErrorKind", "ToolResult",
-    "ToolResultContractError", "ToolResultStatus",
+    "TOOL_BATCH_CLOSURE_SCHEMA_VERSION", "TOOL_RESULT_TRACE_SAFE_VERSION",
+    "EffectState", "RetryDisposition",
+    "ToolErrorKind", "ToolResult", "ToolResultContractError", "ToolResultStatus",
 ]

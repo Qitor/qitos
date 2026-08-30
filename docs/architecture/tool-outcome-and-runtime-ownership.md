@@ -6,6 +6,12 @@ Schema versions: `qitos.tool_result/v1`, `qitos.tool_result.model_view/v1`,
 `qitos.durability_receipt/v1`
 Decision owners: Task 03A and Task 09A
 
+S1 Lane C extends this accepted result in place with attempt/effect/retry and
+reconciliation facts. The canonical decision, invariants, WorkGraph consumer,
+and safe-boundary rules are in
+[`stable-effects-and-work-graph.md`](stable-effects-and-work-graph.md). No new
+result envelope or schema-version path is introduced.
+
 ## Decision
 
 QitOS has one canonical action/tool outcome: the existing
@@ -30,6 +36,9 @@ The v1 result represents:
 - `attempts`, `latency_ms`, and honest `worker_still_running`;
 - declared effects, filesystem changes, artifact-reference slots, normalized
   request metadata, provenance, and compatibility metadata.
+- attempt/effect/idempotency identities, a closed effect-state vocabulary,
+  evaluated retry disposition, reconciliation and outcome uncertainty;
+- owner generation, stale/late result facts, and per-slot partial-batch closure.
 
 `artifact_refs` intentionally remains a serialized `list[dict]` slot in C1.
 Lane B owns the eventual `ArtifactRef` type and store; C1 neither exposes host
@@ -49,7 +58,8 @@ types/ranges, and contradictory terminal state. In particular:
   non-empty `error_code`;
 - skipped requires `error_kind=policy`;
 - timed out and cancelled require `error_kind=execution`;
-- `worker_still_running` is legal only for timed out work;
+- `worker_still_running` is legal only for timed out or cancelled work; an
+  accepted cancellation request does not prove termination;
 - attempts and omitted counts are non-negative integers (booleans are not
   integers here), while latency is finite and non-negative.
 
