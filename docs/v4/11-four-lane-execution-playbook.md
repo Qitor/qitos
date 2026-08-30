@@ -968,6 +968,20 @@ Preferred order inside each gate:
 If a consumer requires a contract change, return the change to the owning lane.
 Do not patch the producer's private fields in the consumer PR.
 
+### 10.3 Baseline promotion and worktree retirement
+
+Every completed integration wave ends with a worktree-retirement receipt. After
+the new baseline is promoted and recorded, the integration owner enumerates
+only that wave's source and convergence worktrees, verifies each is registered,
+clean, idle, and backed by retained refs, and removes it with
+`git worktree remove <exact-path>` without `--force`. Run `git worktree prune`
+and verify the paths and registry entries are gone. Preserve branches and commit
+refs unless branch deletion is separately authorized.
+
+Do not use recursive filesystem deletion, do not remove the primary integration
+worktree, and do not treat a dirty, locked, active, or evidence-bearing
+worktree as removable. Such a path blocks wave closure until reconciled.
+
 ## 11. Immediate dispatch order
 
 The four S1 branches have completed their local producer work. Do not dispatch

@@ -485,6 +485,10 @@ The four S1 producer candidates are complete, but G2 is not. The next dispatch
 is one convergence owner using the exact plan in
 [`g2_contract_convergence.md`](internal/plans/g2_contract_convergence.md).
 Do not begin S2 behavior and do not create four parallel repair branches.
+After the qualified G2 baseline is promoted, wave closure also requires clean,
+non-forced retirement of the four S1 source worktrees and the G2 convergence
+worktree. Branch and commit refs remain; dirty, active, locked, or unrecorded
+worktrees block cleanup rather than being forcibly removed.
 
 ### Accepted Lane C — C1-R4 / C-P3 and C-P4 projection closure
 

@@ -215,6 +215,33 @@ Required before promotion:
 - [ ] D binds all 17 S1 requirements to exact accepted producers.
 - [ ] S1 contracts are qualified while runtime/trajectory claims remain honest.
 - [ ] Combined quality gates pass and one clean G2 baseline is promoted.
+- [ ] Retired S1/G2 worktrees have a clean, non-forced post-promotion removal
+      receipt; their branch and commit references remain recoverable.
+
+## Post-promotion worktree retirement
+
+Worktree removal is part of closing the wave, not an optional later cleanup.
+Only after the qualified G2 HEAD has been promoted to the integration branch,
+recorded in `docs/progress.md`, and independently verified may the integration
+owner retire these explicit paths:
+
+- `/Users/morinop/Desktop/WhitzardOS-s1-a`;
+- `/Users/morinop/Desktop/WhitzardOS-s1-c`;
+- `/Users/morinop/Desktop/WhitzardOS-s1-b`;
+- `/Users/morinop/Desktop/WhitzardOS-s1-d`;
+- `/Users/morinop/Desktop/WhitzardOS-g2` after promotion no longer depends on
+  that checkout.
+
+Before each removal, verify the path is a registered worktree, its status is
+clean, no task is running in it, and every required commit/evidence identity is
+recorded and reachable through a retained branch or the promoted baseline. Use
+`git worktree remove <exact-path>` without `--force`, then `git worktree prune`
+and verify both the filesystem path and worktree registry entry are gone.
+
+Never use `rm -rf`, never remove the primary integration worktree, and do not
+delete source branches or commit refs unless the maintainer separately asks for
+branch deletion. Dirty, locked, missing-evidence, or active worktrees produce a
+typed cleanup blocker rather than forced deletion.
 
 ## Explicit non-goals
 
