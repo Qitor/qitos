@@ -1,0 +1,158 @@
+{
+  "fixture_version": "qitos.request_contract_fixture/v1",
+  "schemas": {
+    "exchange_log": "qitos.exchange_log.v2",
+    "request_view": "qitos.request_view/v1",
+    "codec_report": "qitos.codec_report/v1",
+    "conversation_component": "qitos.conversation_component/v1"
+  },
+  "cases": [
+    {"name": "ordinary_text", "contract": "request_view", "expected": "lossless"},
+    {"name": "multimodal", "contract": "request_view", "expected": "preserved_or_typed_reject"},
+    {"name": "one_tool_call", "contract": "exchange_log", "expected": "correlated"},
+    {"name": "native_parallel_tool_calls", "contract": "request_view", "expected": "ordered_declarations"},
+    {"name": "completion_order_differs_from_declaration", "contract": "request_view", "expected": "both_orders_reported"},
+    {"name": "multiple_assistant_tool_rounds", "contract": "request_view", "expected": "complete_exchanges"},
+    {"name": "preserved_reasoning", "contract": "codec_report", "expected": "preserved"},
+    {"name": "opaque_continuation", "contract": "continuation_ref", "expected": "resolver_reference_only"},
+    {"name": "incompatible_continuation", "contract": "continuation_ref", "expected": "typed_reject"},
+    {"name": "queued_steering", "contract": "steering_receipt", "expected": "queued_until_safe"},
+    {"name": "multiple_steering_messages", "contract": "steering_receipt", "expected": "deterministic_order"},
+    {"name": "restore_with_pending_steering", "contract": "conversation_component", "expected": "applied_once"},
+    {"name": "context_omission", "contract": "selection_report", "expected": "auditable"},
+    {"name": "compaction", "contract": "compaction_receipt", "expected": "declared_losses"},
+    {"name": "artifact_reference", "contract": "artifact_ref", "expected": "no_blob_or_host_path"},
+    {"name": "provider_capability_mismatch", "contract": "codec_report", "expected": "typed_reject"},
+    {"name": "provider_refusal", "contract": "provider_failure", "expected": "not_assistant_text"},
+    {"name": "provider_exception", "contract": "provider_failure", "expected": "not_assistant_text"},
+    {"name": "malformed_response", "contract": "provider_failure", "expected": "typed_failure"},
+    {"name": "lossy_codec", "contract": "codec_report", "expected": "explicit_allow_loss"},
+    {"name": "lossless_codec", "contract": "codec_report", "expected": "lossless"}
+  ],
+  "samples": {
+    "request_view": {
+      "schema_version": "qitos.request_view/v1",
+      "request_id": "request_d88c0c3df61a2909c2379816",
+      "target": {
+        "provider": "openai",
+        "model": "fixture-model",
+        "transport": "openai",
+        "api_mode": "responses"
+      },
+      "source": {
+        "exchange_log_id": "fixture_request_log",
+        "exchange_log_digest": "bb17a7bbb870b307bbd5c8337b2c893d0b1cdd0a112f66a5016a6eed8b684df2"
+      },
+      "selected_items": [
+        {
+          "kind": "user",
+          "item_id": "fixture_user",
+          "exchange_id": "fixture_exchange",
+          "content": [{"type": "text", "text": "Hello contract"}],
+          "metadata": {}
+        }
+      ],
+      "instructions": [
+        {"role": "developer", "content": "Use tools when needed."}
+      ],
+      "tool_schemas": [],
+      "context_contributions": [],
+      "capability_requirements": [],
+      "reasoning_policy": {
+        "mode": "preserve_if_supported",
+        "allow_loss": false
+      },
+      "continuation": null,
+      "context_budget": {
+        "max_input_units": 120000,
+        "reserved_output_units": 8000,
+        "available_input_units": 112000,
+        "unit": "characters",
+        "protected_recent_exchanges": 1
+      },
+      "selection": {
+        "selected_item_ids": ["fixture_user"],
+        "omitted_item_ids": [],
+        "selected_exchange_ids": ["fixture_exchange"],
+        "omitted_exchange_ids": [],
+        "selected_categories": ["user"],
+        "omitted_categories": [],
+        "selected_context_ids": [],
+        "omitted_context_ids": [],
+        "total_units": 200,
+        "selected_units": 200,
+        "omitted_units": 0,
+        "unit": "characters",
+        "reasons": ["exchange_safe_budget_selection"]
+      },
+      "compaction_receipts": [],
+      "artifact_refs": [],
+      "steering_boundary": {
+        "state": "safe",
+        "open_batch_id": null,
+        "applied_item_ids": [],
+        "queued_item_ids": []
+      },
+      "correlation_facts": [],
+      "provenance": {
+        "builder_version": "qitos.exchange_request_builder/v1",
+        "source": "ExchangeLog",
+        "source_schema_version": "qitos.exchange_log.v2",
+        "ownership": "derived_ephemeral"
+      }
+    },
+    "codec_report": {
+      "schema_version": "qitos.codec_report/v1",
+      "codec_id": "fixture.responses",
+      "codec_version": "v1",
+      "request_id": "request_d88c0c3df61a2909c2379816",
+      "target": {
+        "provider": "openai",
+        "model": "fixture-model",
+        "transport": "openai",
+        "api_mode": "responses"
+      },
+      "supported": ["text"],
+      "unsupported": [],
+      "reasoning": "preserved",
+      "multimodal_conversion": [],
+      "tool_schema_conversion": [],
+      "continuation": "not_requested",
+      "context_selected": [],
+      "context_omitted": [],
+      "compaction_receipts": [],
+      "lossy_fields": [],
+      "warnings": [],
+      "fallback": "none",
+      "lossless": true
+    },
+    "conversation_component": {
+      "schema_version": "qitos.conversation_component/v1",
+      "exchange_log": {
+        "schema_version": "qitos.exchange_log.v2",
+        "log_id": "fixture_request_log",
+        "items": [
+          {
+            "kind": "user",
+            "item_id": "fixture_user",
+            "exchange_id": "fixture_exchange",
+            "content": [{"type": "text", "text": "Hello contract"}],
+            "metadata": {}
+          }
+        ],
+        "queued_steering": []
+      },
+      "steering_receipts": [],
+      "continuation_refs": [],
+      "context_selection": null,
+      "compaction_receipts": [],
+      "artifact_refs": [],
+      "reconstruction_requirements": [
+        "exchange_log_reader",
+        "continuation_resolver",
+        "artifact_resolver"
+      ],
+      "digest": "9dfa7edecef3fd176ad87d7dbb4b7816d9e7b85552c06473150544e90275a978"
+    }
+  }
+}
