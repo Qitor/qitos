@@ -1,19 +1,48 @@
 {
   "schema_version": "qitos.s3.lane_c.qualification_evidence/v1",
-  "status": "waiting_on_lane_a_b",
-  "independent_lane_c_tests": "passing",
-  "clean_process_restore": "passing",
-  "third_party_scheduler_conformance": "passing",
-  "lane_a_consumed": false,
-  "lane_b_consumed": false,
-  "lane_a_available": {
-    "branch_head": "feba1bf6d2312b82c7f03ce0b3c1f07e50712938",
-    "implementation_producer_commit": "ae62ba1ea5fef7a472609dcb11d23a5f21733410"
+  "status": "qualified_integrated_a_b",
+  "integrated_runtime_commit": "b4e4d8542d29dcbd07d7b063bbcd2b5e4761c545",
+  "lane_a_consumed": true,
+  "lane_b_consumed": true,
+  "lane_a_binding": {
+    "source_head": "9442647767bc9a7c45ed3bf07bc4f289412544ed",
+    "replay_head": "1025f12",
+    "manifest": "tests/fixtures/s3/lane_a/producer-manifest.json",
+    "runtime_types": ["Session.fork", "SessionForkReceipt", "ForkLineageSnapshotComponent"]
   },
-  "lane_b_blocker": {
-    "observed_head": "851f7902f15da670e72f4c04d7453cf37201aee7",
-    "required_manifest": "tests/fixtures/s3/lane_b/producer-manifest.json",
-    "required_fields": ["exact producer commit", "paths", "sha256", "strict reader", "test IDs", "supported/unsupported matrix"]
+  "lane_b_binding": {
+    "source_head": "5efa1db19ae541234c562c4ba99e928d2381fc62",
+    "repair_commit": "8bbfd6580e03f77f51777e696d78ee783bc09f75",
+    "manifest": "tests/fixtures/context_transfer/v1/producer-manifest.json",
+    "runtime_types": ["ContextTransferPlan", "ContextTransferReceipt", "execute_context_transfer"]
   },
-  "g4_claimed": false
+  "qualified": [
+    "fresh_default_operation_identity_and_explicit_retry",
+    "same_id_same_payload_idempotency_and_typed_conflict",
+    "reconstructable_descriptor_scheduler_protocol",
+    "queued_eligible_recovery_and_bounded_admission",
+    "missing_running_worker_to_outcome_unknown_without_replay",
+    "real_session_fork_child_identity_and_owner_fencing",
+    "accepted_context_transfer_persisted_before_dispatch",
+    "least_privilege_budget_and_capability_receipts",
+    "handoff_single_owner_and_superseded_source_fencing",
+    "direct_and_model_callable_fact_parity",
+    "all_all_successful_first_success_and_quorum_join_receipts",
+    "closed_join_late_outcome_discard"
+  ],
+  "validation": {
+    "focused_cross_lane": "107 passed",
+    "integrated_evidence_group": "88 passed",
+    "runtime_process_group": "30 passed",
+    "python_3_12_7_static_ratchet": "passed; baseline shrank by 7 to 369 findings (347 active, 22 vendored/generated)",
+    "stable_flake8": "passed",
+    "focused_mypy": "passed"
+  },
+  "g4_claimed": false,
+  "unsupported": [
+    "distributed_scheduler",
+    "hard_worker_cancellation",
+    "exactly_once_external_effects",
+    "automatic_outcome_unknown_replay"
+  ]
 }

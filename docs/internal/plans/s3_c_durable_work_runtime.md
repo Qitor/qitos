@@ -1,6 +1,6 @@
 # S3 Lane C durable work runtime plan
 
-Status: independent implementation complete; `waiting_on_lane_a_b`
+Status: integrated A/B runtime qualification complete in G4 convergence
 Source: `851f7902f15da670e72f4c04d7453cf37201aee7`
 Branch: `codex/v4-s3-c-durable-work-runtime`
 Worktree: `/Users/morinop/Desktop/WhitzardOS-s3-c`
@@ -116,11 +116,19 @@ Lane C's producer manifest, scheduler conformance/crash/join/idempotency/runtime
 fixtures, exact source commit and digests, supported/unsupported matrix, and
 test node IDs. Full G4 remains the integration owner's responsibility.
 
-The single permitted read-only dependency inspection observed Lane A branch
-head `feba1bf6d2312b82c7f03ce0b3c1f07e50712938` and implementation producer
-`ae62ba1ea5fef7a472609dcb11d23a5f21733410`; its manifest is available. Lane B
-remains at dispatch source `851f7902f15da670e72f4c04d7453cf37201aee7`
-with no `tests/fixtures/s3/lane_b/producer-manifest.json`. No A/B contract was
-copied or simulated. Final A/B consumption is therefore blocked until Lane B
-publishes the required manifest and the user supplies the producer head for a
-continuation turn.
+G4 replay consumed the final Lane A bundle at source head
+`9442647767bc9a7c45ed3bf07bc4f289412544ed` and replay head `1025f12`, including
+the real `Session.fork`, `SessionForkReceipt`, child Session/head/generation,
+fork lineage, and owner fencing. It consumed the repaired Lane B bundle at
+source head `5efa1db19ae541234c562c4ba99e928d2381fc62` and repair commit
+`8bbfd6580e03f77f51777e696d78ee783bc09f75`, including real strict
+`ContextTransferPlan`/`ContextTransferReceipt` readers and
+`execute_context_transfer`.
+
+The integrated scheduler contract persists a reconstructable `WorkDescriptor`
+instead of a callable, uses composition-root resolution, gives every default
+call a fresh operation identity, restores eligible queued declarations, and
+never automatically replays missing running or outcome-unknown work. Direct
+Session verbs and model-callable adapters share this path. The candidate still
+does not claim distributed scheduling, hard cancellation, or exactly-once
+external effects.

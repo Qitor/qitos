@@ -1,5 +1,7 @@
 {
   "schema_version": "qitos.s3.lane_c.operation_idempotency/v1",
+  "default_identity": "fresh_uuid_per_call",
+  "retry_identity": "explicit_original_operation_id",
   "same_identity_same_digest": "original_receipt",
   "same_identity_different_digest": "operation_identity_conflict",
   "terminal_replay": "not_dispatched",

@@ -4,8 +4,11 @@
   "implementations": ["qitos.scheduler.local", "third.party.fake"],
   "assertions": [
     "declaration_persisted_before_dispatch",
+    "reconstructable_descriptor_without_live_callable",
+    "composition_root_resolver",
     "logical_worker_reference_only",
     "bounded_admission",
+    "queued_eligible_recovery",
     "idempotent_close",
     "reattach_without_engine_private_fields"
   ]
