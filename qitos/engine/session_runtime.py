@@ -10,15 +10,19 @@ from datetime import datetime, timezone
 from enum import Enum
 import re
 from typing import Any, Iterable, Mapping, Optional, TYPE_CHECKING
+from uuid import uuid4
 
 from ..checkpoint.session import (
     ATOMIC_SESSION_COMMIT,
+    ATOMIC_SESSION_FORK,
     CheckpointCapabilityError,
     CheckpointConflictError,
     CheckpointPersistenceError,
     CheckpointSessionError,
     CheckpointSessionErrorCode,
     SessionHeadRecord,
+    SessionForkReceipt,
+    SessionForkRequest,
     SessionSnapshotCommit,
 )
 from ..checkpoint.durability import DurabilityMode
@@ -28,6 +32,7 @@ from ..core.session import (
     CheckpointIdentity,
     ComponentSlot,
     HeadGeneration,
+    ForkLineageSnapshotComponent,
     PauseReceipt,
     PersistenceReceiptStatus,
     ResolverNamespace,
@@ -44,6 +49,8 @@ from ..core.session import (
     SnapshotIdentity,
     SnapshotTiming,
     TraceLineageSnapshotComponent,
+    WorkItemIdentity,
+    AttemptIdentity,
     lifecycle_allows,
     lifecycle_can_transition,
 )
@@ -100,6 +107,9 @@ class Session:
         references: Iterable[ResolverReference],
         created_at: str,
         state_type: type[StateSchema],
+        work_item_id: WorkItemIdentity,
+        attempt_id: AttemptIdentity,
+        fork_receipt: Optional[SessionForkReceipt] = None,
     ) -> None:
         self._engine = engine
         self._runtime = engine.runtime
@@ -110,6 +120,9 @@ class Session:
         self._references = tuple(references)
         self._created_at = created_at
         self._state_type = state_type
+        self._work_item_id = work_item_id
+        self._attempt_id = attempt_id
+        self._fork_receipt = fork_receipt
         self._pause_requested = threading.Event()
         self._lock = threading.RLock()
         self._lifecycle = SessionLifecycle.CREATED
@@ -124,6 +137,18 @@ class Session:
     @property
     def run_id(self) -> RunIdentity:
         return self._run_id
+
+    @property
+    def work_item_id(self) -> WorkItemIdentity:
+        return self._work_item_id
+
+    @property
+    def attempt_id(self) -> AttemptIdentity:
+        return self._attempt_id
+
+    @property
+    def fork_receipt(self) -> Optional[SessionForkReceipt]:
+        return self._fork_receipt
 
     @property
     def lifecycle(self) -> SessionLifecycle:
@@ -251,6 +276,13 @@ class Session:
         """Run or resume through the one canonical Engine loop."""
         with self._lock:
             head = self._require_head()
+            if head.owner_run_id != self._run_id.value:
+                raise _session_error(
+                    SessionErrorCode.SUPERSEDED_OWNER,
+                    "A superseded Session owner cannot run this head.",
+                    recoverable=False,
+                    metadata={"owner_run_id": self._run_id.value},
+                )
             lifecycle = SessionLifecycle(head.lifecycle)
             allowed = lifecycle_allows(lifecycle, SessionOperation.RUN) or (
                 lifecycle is SessionLifecycle.RESTORING
@@ -259,6 +291,9 @@ class Session:
                 raise _invalid_operation(lifecycle, SessionOperation.RUN)
             snapshot = self._load_snapshot(head)
             state, task, next_step = self._restore_core_state(snapshot)
+            self._restore_runtime_components(
+                snapshot, state=state, task=task, step_id=next_step
+            )
             self._transition(SessionLifecycle.RUNNING)
             self._commit_snapshot(
                 state=state,
@@ -321,6 +356,173 @@ class Session:
                 expected_head=current,
             )
             return result
+
+    def fork(
+        self,
+        snapshot: SessionSnapshot | SnapshotIdentity | str | None = None,
+        *,
+        operation_id: Optional[str] = None,
+    ) -> "Session":
+        """Create an isolated durable child from one verified immutable snapshot."""
+        if ATOMIC_SESSION_FORK not in self._store.session_capabilities():
+            raise _session_error(
+                SessionErrorCode.UNSUPPORTED_CAPABILITY,
+                "Checkpoint store does not support atomic Session fork.",
+                recoverable=True,
+                metadata={"capability": ATOMIC_SESSION_FORK},
+            )
+        source_head = self._require_head()
+        supplied_snapshot = snapshot if isinstance(snapshot, SessionSnapshot) else None
+        if snapshot is None:
+            source_snapshot_id = source_head.snapshot_id
+        elif isinstance(snapshot, SessionSnapshot):
+            source_snapshot_id = snapshot.snapshot_id.value
+        elif isinstance(snapshot, SnapshotIdentity):
+            source_snapshot_id = snapshot.value
+        else:
+            source_snapshot_id = SnapshotIdentity(str(snapshot)).value
+        source_record = self._store.get_session_snapshot(source_snapshot_id)
+        if source_record is None:
+            raise _session_error(
+                SessionErrorCode.SNAPSHOT_NOT_FOUND,
+                "Source Session snapshot was not found.",
+                recoverable=True,
+            )
+        if source_record.session_id != self._session_id.value:
+            raise _session_error(
+                SessionErrorCode.SNAPSHOT_SESSION_MISMATCH,
+                "Source snapshot does not belong to this Session.",
+                recoverable=False,
+            )
+        source = SessionSnapshot.from_dict(
+            source_record.payload,
+            component_registry=self._runtime.component_registry,
+        )
+        if supplied_snapshot is not None and (
+            supplied_snapshot.canonical_json() != source.canonical_json()
+        ):
+            raise _session_error(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Explicit snapshot differs from its persisted immutable record.",
+                recoverable=False,
+            )
+        if not lifecycle_allows(source.lifecycle, SessionOperation.FORK):
+            raise _invalid_operation(source.lifecycle, SessionOperation.FORK)
+        _require_fork_safe(source, self._runtime.component_registry)
+        source_lineage = _fork_lineage(source, required=True)
+
+        fork_id = operation_id or f"fork_{uuid4().hex}"
+        child_session = SessionIdentity.generate()
+        child_run = RunIdentity.generate()
+        child_work = WorkItemIdentity.generate()
+        child_attempt = AttemptIdentity.generate()
+        child_snapshot_id = SnapshotIdentity.generate()
+        child_checkpoint_id = CheckpointIdentity.generate()
+        child_lineage = ForkLineageSnapshotComponent(
+            work_item_id=child_work,
+            attempt_id=child_attempt,
+            source_session_id=self._session_id,
+            source_snapshot_id=source.snapshot_id,
+            source_checkpoint_id=CheckpointIdentity(source_record.checkpoint_id),
+            source_work_item_id=source_lineage.work_item_id,
+            fork_operation_id=fork_id,
+        )
+        from ..core.session import CORE_SNAPSHOT_COMPONENT_CODECS
+
+        codecs = {codec.slot: codec for codec in CORE_SNAPSHOT_COMPONENT_CODECS}
+        source_progress = dict(
+            _component_payload(source, ComponentSlot.ENGINE_PROGRESS.value)
+        )
+        source_progress["lifecycle"] = SessionLifecycle.PAUSED.value
+        source_progress["pause_safety"] = {
+            "boundary": "after_model_result",
+            "completed_slots_recorded": True,
+            "open_slots_recorded": True,
+            "framework_workers_quiesced": True,
+            "unresolved_effect_count": 0,
+        }
+        components = [
+            item
+            for item in source.components
+            if item.slot not in {
+                ComponentSlot.ENGINE_PROGRESS.value,
+                ComponentSlot.TRACE_LINEAGE.value,
+                ComponentSlot.FORK_LINEAGE.value,
+            }
+        ]
+        components.extend(
+            (
+                SnapshotComponent.from_value(
+                    codecs[ComponentSlot.ENGINE_PROGRESS.value], source_progress
+                ),
+                SnapshotComponent.from_value(
+                    codecs[ComponentSlot.TRACE_LINEAGE.value],
+                    TraceLineageSnapshotComponent(
+                        run_id=child_run,
+                        trace_complete=True,
+                        parent_run_id=_trace_lineage(source).run_id,
+                    ),
+                ),
+                SnapshotComponent.from_value(
+                    codecs[ComponentSlot.FORK_LINEAGE.value], child_lineage
+                ),
+            )
+        )
+        now = _utc_now()
+        child_snapshot = SessionSnapshot.create(
+            snapshot_id=child_snapshot_id,
+            session_id=child_session,
+            head_generation=HeadGeneration(0),
+            lifecycle=SessionLifecycle.PAUSED,
+            created_at=now,
+            timing=SnapshotTiming(
+                captured_at=now,
+                pause_requested_at=now,
+                safe_boundary_at=now,
+            ),
+            components=components,
+            resolver_references=source.resolver_references,
+            artifact_refs=source.artifact_refs,
+            component_registry=self._runtime.component_registry,
+        )
+        request = SessionForkRequest(
+            operation_id=fork_id,
+            source_session_id=self._session_id.value,
+            source_snapshot_id=source.snapshot_id.value,
+            source_checkpoint_id=source_record.checkpoint_id,
+            source_work_item_id=source_lineage.work_item_id.value,
+            child_work_item_id=child_work.value,
+            child_attempt_id=child_attempt.value,
+            child_commit=SessionSnapshotCommit(
+                session_id=child_session.value,
+                snapshot_id=child_snapshot_id.value,
+                checkpoint_id=child_checkpoint_id.value,
+                owner_run_id=child_run.value,
+                lifecycle=SessionLifecycle.PAUSED.value,
+                payload=child_snapshot.to_dict(),
+            ),
+        )
+        try:
+            receipt = self._store.fork_session_snapshot(request)
+        except CheckpointSessionError as exc:
+            raise _translate_checkpoint_error(exc) from exc
+        child = Session(
+            engine=self._engine,
+            session_id=SessionIdentity(receipt.child_session_id),
+            run_id=RunIdentity(receipt.child_run_id),
+            agent_id=_agent_state(source).agent_id,
+            references=source.resolver_references,
+            created_at=child_snapshot.created_at,
+            state_type=self._state_type,
+            work_item_id=WorkItemIdentity(receipt.child_work_item_id),
+            attempt_id=AttemptIdentity(receipt.child_attempt_id),
+            fork_receipt=receipt,
+        )
+        child._parent_run_id = _trace_lineage(source).run_id
+        # The durable child remains paused until run commits its first head;
+        # this process-local facade has already reconstructed the owner view.
+        child._lifecycle = SessionLifecycle.RESTORING
+        return child
 
     def commit_snapshot(self) -> SessionHead:
         """Advanced explicit commit of the Engine's current safe state."""
@@ -634,6 +836,8 @@ class Session:
             references=references,
             created_at=_utc_now(),
             state_type=type(state),
+            work_item_id=WorkItemIdentity.generate(),
+            attempt_id=AttemptIdentity.generate(),
         )
         session._commit_snapshot(
             state=state,
@@ -729,6 +933,7 @@ class Session:
         if not isinstance(template, StateSchema):
             raise TypeError("Session runtime requires StateSchema state")
         agent_component = _agent_state(snapshot)
+        fork_lineage = _fork_lineage(snapshot)
         expected_type = _state_schema_id(type(template))
         if agent_component.state_schema != expected_type:
             raise _session_error(
@@ -747,6 +952,14 @@ class Session:
             references=snapshot.resolver_references,
             created_at=snapshot.created_at,
             state_type=type(template),
+            work_item_id=fork_lineage.work_item_id,
+            attempt_id=AttemptIdentity.generate(),
+            fork_receipt=(
+                store.get_session_fork(fork_lineage.fork_operation_id)
+                if fork_lineage.fork_operation_id is not None
+                and ATOMIC_SESSION_FORK in store.session_capabilities()
+                else None
+            ),
         )
         session._parent_run_id = trace.run_id
         session._lifecycle = lifecycle
@@ -780,6 +993,37 @@ class Session:
             expected_owner_run_id=head.owner_run_id,
         )
         return session
+
+    def _restore_runtime_components(
+        self,
+        snapshot: SessionSnapshot,
+        *,
+        state: StateSchema,
+        task: str | Task,
+        step_id: int,
+    ) -> None:
+        context = RuntimeSnapshotContext(
+            engine=self._engine,
+            state=state,
+            task=task,
+            lifecycle=SessionLifecycle(self._require_head().lifecycle),
+            step_id=step_id,
+            restoring=True,
+        )
+        for component_owner in self._runtime.snapshot_components:
+            component = next(
+                (
+                    item
+                    for item in snapshot.components
+                    if item.owner == component_owner.codec.owner
+                    and item.slot == component_owner.codec.slot
+                ),
+                None,
+            )
+            if component is not None:
+                component_owner.restore(
+                    component.decode(self._runtime.component_registry), context
+                )
 
     def _restore_core_state(
         self, snapshot: SessionSnapshot
@@ -943,6 +1187,35 @@ class Session:
             trace_complete=lifecycle is not SessionLifecycle.RUNNING,
             parent_run_id=self._parent_run_id,
         )
+        fork_lineage = ForkLineageSnapshotComponent(
+            work_item_id=self._work_item_id,
+            attempt_id=self._attempt_id,
+            source_session_id=(
+                SessionIdentity(self._fork_receipt.source_session_id)
+                if self._fork_receipt is not None
+                else None
+            ),
+            source_snapshot_id=(
+                SnapshotIdentity(self._fork_receipt.source_snapshot_id)
+                if self._fork_receipt is not None
+                else None
+            ),
+            source_checkpoint_id=(
+                CheckpointIdentity(self._fork_receipt.source_checkpoint_id)
+                if self._fork_receipt is not None
+                else None
+            ),
+            source_work_item_id=(
+                WorkItemIdentity(self._fork_receipt.source_work_item_id)
+                if self._fork_receipt is not None
+                else None
+            ),
+            fork_operation_id=(
+                self._fork_receipt.operation_id
+                if self._fork_receipt is not None
+                else None
+            ),
+        )
         return (
             SnapshotComponent.from_value(
                 codecs[ComponentSlot.AGENT_STATE.value], agent_state
@@ -955,6 +1228,9 @@ class Session:
             ),
             SnapshotComponent.from_value(
                 codecs[ComponentSlot.TRACE_LINEAGE.value], trace
+            ),
+            SnapshotComponent.from_value(
+                codecs[ComponentSlot.FORK_LINEAGE.value], fork_lineage
             ),
         )
 
@@ -1100,6 +1376,88 @@ def _trace_lineage(snapshot: SessionSnapshot) -> TraceLineageSnapshotComponent:
     return decoded
 
 
+def _fork_lineage(
+    snapshot: SessionSnapshot, *, required: bool = False
+) -> ForkLineageSnapshotComponent:
+    component = next(
+        (
+            item
+            for item in snapshot.components
+            if item.slot == ComponentSlot.FORK_LINEAGE.value
+            and item.owner == "qitos.session"
+        ),
+        None,
+    )
+    if component is None:
+        if required:
+            raise _session_error(
+                SessionErrorCode.INCOMPATIBLE_CHECKPOINT,
+                "Source snapshot predates explicit work/fork lineage.",
+                recoverable=False,
+            )
+        return ForkLineageSnapshotComponent(
+            work_item_id=WorkItemIdentity.generate(),
+            attempt_id=AttemptIdentity.generate(),
+        )
+    from ..core.session import CORE_SNAPSHOT_COMPONENT_REGISTRY
+
+    decoded = component.decode(CORE_SNAPSHOT_COMPONENT_REGISTRY)
+    if not isinstance(decoded, ForkLineageSnapshotComponent):
+        raise _session_error(
+            SessionErrorCode.CORRUPT_SNAPSHOT,
+            "Fork lineage component decoded to an incompatible type.",
+            recoverable=False,
+        )
+    return decoded
+
+
+def _require_fork_safe(snapshot: SessionSnapshot, registry: Any) -> None:
+    progress = _component_payload(snapshot, ComponentSlot.ENGINE_PROGRESS.value)
+    if snapshot.lifecycle in {
+        SessionLifecycle.PAUSED,
+        SessionLifecycle.WAITING_INPUT,
+    }:
+        safety = progress.get("pause_safety")
+        safe = (
+            isinstance(safety, Mapping)
+            and safety.get("boundary") != "in_flight_operation"
+            and safety.get("completed_slots_recorded") is True
+            and safety.get("open_slots_recorded") is True
+            and safety.get("framework_workers_quiesced") is True
+            and safety.get("unresolved_effect_count") == 0
+        )
+        if not safe:
+            raise _session_error(
+                SessionErrorCode.UNSAFE_PAUSE_BOUNDARY,
+                "Only a recorded migratable snapshot can be forked.",
+                recoverable=True,
+            )
+    batch_component = next(
+        (
+            item
+            for item in snapshot.components
+            if item.slot == ComponentSlot.PARTIAL_PARALLEL_BATCH.value
+        ),
+        None,
+    )
+    if batch_component is None:
+        return
+    batch = batch_component.decode(registry)
+    if not isinstance(batch, ToolBatchSnapshot):
+        return
+    unresolved = any(
+        bool(slot.lifecycle and not slot.lifecycle.migratable)
+        or bool(slot.effect and slot.effect.outcome_unknown)
+        for slot in batch.slots
+    )
+    if unresolved:
+        raise _session_error(
+            SessionErrorCode.UNRESOLVED_EFFECT,
+            "Snapshot contains an unresolved worker or external effect.",
+            recoverable=True,
+        )
+
+
 def _task_payload(task: str | Task) -> dict[str, Any]:
     if isinstance(task, Task):
         return {"kind": "task", "value": task.to_dict()}
@@ -1155,7 +1513,9 @@ def _translate_checkpoint_error(error: CheckpointSessionError) -> SessionContrac
         CheckpointSessionErrorCode.PERSISTENCE_FAILED: SessionErrorCode.PERSISTENCE_FAILED,
         CheckpointSessionErrorCode.UNSUPPORTED_CAPABILITY: SessionErrorCode.UNSUPPORTED_CAPABILITY,
         CheckpointSessionErrorCode.SESSION_NOT_FOUND: SessionErrorCode.SESSION_NOT_FOUND,
-        CheckpointSessionErrorCode.SNAPSHOT_NOT_FOUND: SessionErrorCode.CORRUPT_SNAPSHOT,
+        CheckpointSessionErrorCode.SNAPSHOT_NOT_FOUND: SessionErrorCode.SNAPSHOT_NOT_FOUND,
+        CheckpointSessionErrorCode.SNAPSHOT_SESSION_MISMATCH: SessionErrorCode.SNAPSHOT_SESSION_MISMATCH,
+        CheckpointSessionErrorCode.DUPLICATE_FORK_OPERATION: SessionErrorCode.DUPLICATE_FORK_OPERATION,
     }
     return _session_error(
         mapping[error.error_code],

@@ -28,11 +28,16 @@ from .session import (
     CheckpointSessionErrorCode,
     SessionCommitReceipt,
     SessionHeadRecord,
+    SessionForkReceipt,
+    SessionForkRequest,
     SessionSnapshotCommit,
     SessionSnapshotRecord,
     checkpoint_conflict,
+    duplicate_fork_operation,
     generation_conflict,
     owner_conflict,
+    snapshot_session_mismatch,
+    verify_snapshot_payload_integrity,
 )
 
 
@@ -89,6 +94,12 @@ CREATE TABLE IF NOT EXISTS session_snapshot_index (
 
 CREATE INDEX IF NOT EXISTS idx_session_snapshots_session
     ON session_snapshot_index(session_id);
+
+CREATE TABLE IF NOT EXISTS session_forks (
+    operation_id TEXT PRIMARY KEY,
+    request_json TEXT NOT NULL,
+    receipt_json TEXT NOT NULL
+);
 """
 
 
@@ -489,6 +500,142 @@ class SqliteCheckpointStore(CheckpointStore):
         for row in rows:
             yield self._session_record_from_row(row)
 
+    def fork_session_snapshot(self, request: SessionForkRequest) -> SessionForkReceipt:
+        request_payload = _fork_request_payload(request)
+        request_json = json.dumps(
+            request_payload, sort_keys=True, separators=(",", ":"), allow_nan=False
+        )
+        with self._lock:
+            try:
+                self._conn.execute("BEGIN IMMEDIATE")
+                prior = self._conn.execute(
+                    "SELECT request_json, receipt_json FROM session_forks "
+                    "WHERE operation_id = ?",
+                    (request.operation_id,),
+                ).fetchone()
+                if prior is not None:
+                    if prior[0] != request_json:
+                        raise duplicate_fork_operation()
+                    receipt = SessionForkReceipt.from_dict(json.loads(prior[1]))
+                    self._conn.commit()
+                    return receipt
+                source = self._conn.execute(
+                    "SELECT i.session_id, i.checkpoint_id, c.state_data "
+                    "FROM session_snapshot_index i JOIN checkpoints c "
+                    "ON c.checkpoint_id = i.checkpoint_id WHERE i.snapshot_id = ?",
+                    (request.source_snapshot_id,),
+                ).fetchone()
+                if source is None:
+                    raise CheckpointSessionError(
+                        CheckpointSessionErrorCode.SNAPSHOT_NOT_FOUND,
+                        "Source Session snapshot was not found.",
+                        recoverable=True,
+                    )
+                if source[0] != request.source_session_id:
+                    raise snapshot_session_mismatch()
+                if source[1] != request.source_checkpoint_id:
+                    raise checkpoint_conflict()
+                source_state = json.loads(source[2])
+                source_payload = (
+                    source_state.get("session_snapshot")
+                    if isinstance(source_state, dict)
+                    else None
+                )
+                if not isinstance(source_payload, dict):
+                    raise CheckpointSessionError(
+                        CheckpointSessionErrorCode.INCOMPATIBLE_CHECKPOINT,
+                        "Source checkpoint is not a canonical Session snapshot.",
+                        recoverable=False,
+                    )
+                verify_snapshot_payload_integrity(source_payload)
+                child = request.child_commit
+                self._conn.execute(
+                    "INSERT INTO checkpoints "
+                    "(checkpoint_id, thread_id, step, state_data, state_versions, "
+                    "versions_seen, parent_id, created_at, schema_version) "
+                    "VALUES (?, ?, 0, ?, '{}', '{}', NULL, ?, ?)",
+                    (
+                        child.checkpoint_id,
+                        child.session_id,
+                        json.dumps(
+                            {"session_snapshot": child.payload},
+                            ensure_ascii=False,
+                            allow_nan=False,
+                            sort_keys=True,
+                            separators=(",", ":"),
+                        ),
+                        str(child.payload.get("created_at", "")),
+                        "qitos.session.snapshot/v2",
+                    ),
+                )
+                self._conn.execute(
+                    "INSERT INTO checkpoint_metadata "
+                    "(checkpoint_id, source, step_int, parents, run_id) "
+                    "VALUES (?, 'session', 0, '{}', ?)",
+                    (child.checkpoint_id, child.owner_run_id),
+                )
+                self._conn.execute(
+                    "INSERT INTO session_snapshot_index "
+                    "(snapshot_id, session_id, checkpoint_id) VALUES (?, ?, ?)",
+                    (child.snapshot_id, child.session_id, child.checkpoint_id),
+                )
+                self._conn.execute(
+                    "INSERT INTO session_heads "
+                    "(session_id, snapshot_id, checkpoint_id, generation, "
+                    "owner_run_id, lifecycle) VALUES (?, ?, ?, 0, ?, ?)",
+                    (
+                        child.session_id,
+                        child.snapshot_id,
+                        child.checkpoint_id,
+                        child.owner_run_id,
+                        child.lifecycle,
+                    ),
+                )
+                receipt = SessionForkReceipt(
+                    operation_id=request.operation_id,
+                    source_session_id=request.source_session_id,
+                    source_snapshot_id=request.source_snapshot_id,
+                    source_checkpoint_id=request.source_checkpoint_id,
+                    source_work_item_id=request.source_work_item_id,
+                    child_session_id=child.session_id,
+                    child_snapshot_id=child.snapshot_id,
+                    child_checkpoint_id=child.checkpoint_id,
+                    child_run_id=child.owner_run_id,
+                    child_work_item_id=request.child_work_item_id,
+                    child_attempt_id=request.child_attempt_id,
+                    owner_generation=0,
+                    durable=True,
+                    store_kind="sqlite",
+                )
+                self._conn.execute(
+                    "INSERT INTO session_forks "
+                    "(operation_id, request_json, receipt_json) VALUES (?, ?, ?)",
+                    (
+                        request.operation_id,
+                        request_json,
+                        json.dumps(receipt.to_dict(), sort_keys=True, separators=(",", ":")),
+                    ),
+                )
+                self._conn.commit()
+                return receipt
+            except CheckpointSessionError:
+                self._conn.rollback()
+                raise
+            except sqlite3.IntegrityError as exc:
+                self._conn.rollback()
+                raise checkpoint_conflict() from exc
+            except (sqlite3.Error, TypeError, ValueError) as exc:
+                self._conn.rollback()
+                raise CheckpointPersistenceError() from exc
+
+    def get_session_fork(self, operation_id: str) -> Optional[SessionForkReceipt]:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT receipt_json FROM session_forks WHERE operation_id = ?",
+                (operation_id,),
+            ).fetchone()
+        return SessionForkReceipt.from_dict(json.loads(row[0])) if row else None
+
     def _load_session_head_row(self, session_id: str) -> Optional[SessionHeadRecord]:
         row = self._conn.execute(
             "SELECT session_id, snapshot_id, checkpoint_id, generation, "
@@ -552,6 +699,30 @@ class SqliteCheckpointStore(CheckpointStore):
             payload=payload,
             parent_checkpoint_id=parent_checkpoint_id,
         )
+
+
+def _fork_request_payload(request: SessionForkRequest) -> dict[str, Any]:
+    child = request.child_commit
+    return {
+        "operation_id": request.operation_id,
+        "source_session_id": request.source_session_id,
+        "source_snapshot_id": request.source_snapshot_id,
+        "source_checkpoint_id": request.source_checkpoint_id,
+        "source_work_item_id": request.source_work_item_id,
+        "child_work_item_id": request.child_work_item_id,
+        "child_attempt_id": request.child_attempt_id,
+        "child_commit": {
+            "session_id": child.session_id,
+            "snapshot_id": child.snapshot_id,
+            "checkpoint_id": child.checkpoint_id,
+            "owner_run_id": child.owner_run_id,
+            "lifecycle": child.lifecycle,
+            "payload": child.payload,
+            "expected_generation": child.expected_generation,
+            "expected_checkpoint_id": child.expected_checkpoint_id,
+            "expected_owner_run_id": child.expected_owner_run_id,
+        },
+    }
 
 
 __all__ = ["SqliteCheckpointStore"]

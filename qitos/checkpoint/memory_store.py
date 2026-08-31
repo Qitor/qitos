@@ -25,11 +25,16 @@ from .session import (
     CheckpointSessionErrorCode,
     SessionCommitReceipt,
     SessionHeadRecord,
+    SessionForkReceipt,
+    SessionForkRequest,
     SessionSnapshotCommit,
     SessionSnapshotRecord,
     checkpoint_conflict,
+    duplicate_fork_operation,
     generation_conflict,
     owner_conflict,
+    snapshot_session_mismatch,
+    verify_snapshot_payload_integrity,
 )
 
 
@@ -45,6 +50,8 @@ class InMemoryCheckpointStore(CheckpointStore):
         self._thread_index: Dict[str, List[CheckpointId]] = {}
         self._session_heads: Dict[str, SessionHeadRecord] = {}
         self._session_snapshot_index: Dict[str, CheckpointId] = {}
+        self._session_forks: Dict[str, SessionForkReceipt] = {}
+        self._session_fork_requests: Dict[str, SessionForkRequest] = {}
         self._lock = threading.Lock()
 
     # ---- helpers ----
@@ -283,6 +290,100 @@ class InMemoryCheckpointStore(CheckpointStore):
             snapshot_id = snapshot_by_checkpoint.get(entry.checkpoint.id)
             if snapshot_id is not None:
                 yield self._session_record(entry, snapshot_id, current)
+
+    def fork_session_snapshot(self, request: SessionForkRequest) -> SessionForkReceipt:
+        with self._lock:
+            prior = self._session_forks.get(request.operation_id)
+            if prior is not None:
+                if self._session_fork_requests[request.operation_id] == request:
+                    return copy.deepcopy(prior)
+                raise duplicate_fork_operation()
+            source_checkpoint = self._session_snapshot_index.get(
+                request.source_snapshot_id
+            )
+            if source_checkpoint is None:
+                raise CheckpointSessionError(
+                    CheckpointSessionErrorCode.SNAPSHOT_NOT_FOUND,
+                    "Source Session snapshot was not found.",
+                    recoverable=True,
+                )
+            source_entry = self._store.get(source_checkpoint)
+            if (
+                source_entry is None
+                or source_entry.checkpoint.thread_id != request.source_session_id
+            ):
+                raise snapshot_session_mismatch()
+            if str(source_entry.checkpoint.id) != request.source_checkpoint_id:
+                raise checkpoint_conflict()
+            source_payload = source_entry.checkpoint.state_data.get("session_snapshot")
+            if not isinstance(source_payload, dict):
+                raise CheckpointSessionError(
+                    CheckpointSessionErrorCode.INCOMPATIBLE_CHECKPOINT,
+                    "Source checkpoint is not a canonical Session snapshot.",
+                    recoverable=False,
+                )
+            verify_snapshot_payload_integrity(source_payload)
+            child = request.child_commit
+            if child.session_id in self._session_heads:
+                raise generation_conflict(None, self._session_heads[child.session_id].generation)
+            if child.snapshot_id in self._session_snapshot_index:
+                raise checkpoint_conflict()
+            checkpoint_id = CheckpointId(child.checkpoint_id)
+            if checkpoint_id in self._store:
+                raise checkpoint_conflict()
+            checkpoint = Checkpoint(
+                id=checkpoint_id,
+                thread_id=child.session_id,
+                step=0,
+                state_data={"session_snapshot": copy.deepcopy(child.payload)},
+                parent_id=None,
+                schema_version="qitos.session.snapshot/v2",
+            )
+            entry = CheckpointTuple(
+                config=CheckpointConfig(
+                    thread_id=child.session_id, checkpoint_id=checkpoint_id
+                ),
+                checkpoint=copy.deepcopy(checkpoint),
+                metadata={"source": "session", "step": 0, "run_id": child.owner_run_id},
+                parent_config=None,
+                pending_writes=None,
+            )
+            head = SessionHeadRecord(
+                session_id=child.session_id,
+                snapshot_id=child.snapshot_id,
+                checkpoint_id=child.checkpoint_id,
+                generation=0,
+                owner_run_id=child.owner_run_id,
+                lifecycle=child.lifecycle,
+            )
+            receipt = SessionForkReceipt(
+                operation_id=request.operation_id,
+                source_session_id=request.source_session_id,
+                source_snapshot_id=request.source_snapshot_id,
+                source_checkpoint_id=request.source_checkpoint_id,
+                source_work_item_id=request.source_work_item_id,
+                child_session_id=child.session_id,
+                child_snapshot_id=child.snapshot_id,
+                child_checkpoint_id=child.checkpoint_id,
+                child_run_id=child.owner_run_id,
+                child_work_item_id=request.child_work_item_id,
+                child_attempt_id=request.child_attempt_id,
+                owner_generation=0,
+                durable=True,
+                store_kind="memory",
+            )
+            self._store[checkpoint_id] = entry
+            self._thread_index.setdefault(child.session_id, []).append(checkpoint_id)
+            self._session_snapshot_index[child.snapshot_id] = checkpoint_id
+            self._session_heads[child.session_id] = head
+            self._session_fork_requests[request.operation_id] = copy.deepcopy(request)
+            self._session_forks[request.operation_id] = receipt
+            return copy.deepcopy(receipt)
+
+    def get_session_fork(self, operation_id: str) -> Optional[SessionForkReceipt]:
+        with self._lock:
+            receipt = self._session_forks.get(operation_id)
+            return copy.deepcopy(receipt) if receipt is not None else None
 
     @staticmethod
     def _validate_session_cas(

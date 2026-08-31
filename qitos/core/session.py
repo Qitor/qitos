@@ -44,6 +44,9 @@ class SessionErrorCode(str, Enum):
     UNSUPPORTED_CAPABILITY = "unsupported_capability"
     INVALID_LIFECYCLE_OPERATION = "invalid_lifecycle_operation"
     SESSION_NOT_FOUND = "session_not_found"
+    SNAPSHOT_NOT_FOUND = "snapshot_not_found"
+    SNAPSHOT_SESSION_MISMATCH = "snapshot_session_mismatch"
+    DUPLICATE_FORK_OPERATION = "duplicate_fork_operation"
     INCOMPATIBLE_CHECKPOINT = "incompatible_checkpoint"
 
 
@@ -899,6 +902,7 @@ class ComponentSlot(str, Enum):
     WORK_GRAPH = "work_graph"
     BUDGET_CAPABILITY = "budget_capability"
     TRACE_LINEAGE = "trace_lineage"
+    FORK_LINEAGE = "fork_lineage"
 
 
 CURRENT_SNAPSHOT_SCHEMA = 2
@@ -1135,6 +1139,130 @@ class TraceLineageSnapshotComponent:
         )
 
 
+@dataclass(frozen=True)
+class ForkLineageSnapshotComponent:
+    """Explicit work ownership and optional immutable fork ancestry.
+
+    This is a separate component/schema so the established trace-lineage writer
+    remains byte-compatible.  Parentage is represented only by typed fields;
+    consumers never need to inspect identifier spelling.
+    """
+
+    work_item_id: WorkItemIdentity
+    attempt_id: AttemptIdentity
+    source_session_id: SessionIdentity | None = None
+    source_snapshot_id: SnapshotIdentity | None = None
+    source_checkpoint_id: CheckpointIdentity | None = None
+    source_work_item_id: WorkItemIdentity | None = None
+    fork_operation_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.work_item_id, WorkItemIdentity) or not isinstance(
+            self.attempt_id, AttemptIdentity
+        ):
+            raise SessionContractError(
+                SessionErrorCode.INVALID_IDENTITY_RELATIONSHIP,
+                "Fork lineage requires work-item and attempt identities.",
+                recoverable=False,
+                remediation="Decode fork lineage with the canonical identity types.",
+            )
+        ancestry = (
+            self.source_session_id,
+            self.source_snapshot_id,
+            self.source_checkpoint_id,
+            self.source_work_item_id,
+            self.fork_operation_id,
+        )
+        if any(item is not None for item in ancestry) and any(
+            item is None for item in ancestry
+        ):
+            raise SessionContractError(
+                SessionErrorCode.INVALID_IDENTITY_RELATIONSHIP,
+                "Fork ancestry must be either complete or absent.",
+                recoverable=False,
+                remediation="Persist every source identity and the fork operation together.",
+            )
+        if self.fork_operation_id is not None and (
+            not isinstance(self.fork_operation_id, str)
+            or re.fullmatch(r"fork_[0-9a-f]{16,64}", self.fork_operation_id) is None
+        ):
+            raise SessionContractError(
+                SessionErrorCode.INVALID_IDENTITY_RELATIONSHIP,
+                "Fork operation identity is invalid.",
+                recoverable=False,
+                remediation="Use the framework fork operation identity producer.",
+            )
+
+    @property
+    def forked(self) -> bool:
+        return self.source_session_id is not None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "work_item_id": self.work_item_id.to_dict(),
+            "attempt_id": self.attempt_id.to_dict(),
+            "source_session_id": (
+                self.source_session_id.to_dict() if self.source_session_id else None
+            ),
+            "source_snapshot_id": (
+                self.source_snapshot_id.to_dict() if self.source_snapshot_id else None
+            ),
+            "source_checkpoint_id": (
+                self.source_checkpoint_id.to_dict()
+                if self.source_checkpoint_id
+                else None
+            ),
+            "source_work_item_id": (
+                self.source_work_item_id.to_dict()
+                if self.source_work_item_id
+                else None
+            ),
+            "fork_operation_id": self.fork_operation_id,
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "ForkLineageSnapshotComponent":
+        _require_exact_fields(
+            payload,
+            {
+                "work_item_id",
+                "attempt_id",
+                "source_session_id",
+                "source_snapshot_id",
+                "source_checkpoint_id",
+                "source_work_item_id",
+                "fork_operation_id",
+            },
+            SessionErrorCode.CORRUPT_SNAPSHOT,
+            "fork lineage component",
+        )
+        return cls(
+            work_item_id=WorkItemIdentity.from_dict(payload["work_item_id"]),
+            attempt_id=AttemptIdentity.from_dict(payload["attempt_id"]),
+            source_session_id=(
+                SessionIdentity.from_dict(payload["source_session_id"])
+                if payload["source_session_id"] is not None
+                else None
+            ),
+            source_snapshot_id=(
+                SnapshotIdentity.from_dict(payload["source_snapshot_id"])
+                if payload["source_snapshot_id"] is not None
+                else None
+            ),
+            source_checkpoint_id=(
+                CheckpointIdentity.from_dict(payload["source_checkpoint_id"])
+                if payload["source_checkpoint_id"] is not None
+                else None
+            ),
+            source_work_item_id=(
+                WorkItemIdentity.from_dict(payload["source_work_item_id"])
+                if payload["source_work_item_id"] is not None
+                else None
+            ),
+            fork_operation_id=payload["fork_operation_id"],
+        )
+
+
 def _encode_agent_state(value: Any) -> Mapping[str, Any]:
     if not isinstance(value, AgentStateSnapshotComponent):
         raise SessionContractError(
@@ -1153,6 +1281,17 @@ def _encode_trace_lineage(value: Any) -> Mapping[str, Any]:
             "Trace-lineage codec requires TraceLineageSnapshotComponent.",
             recoverable=False,
             remediation="Use the typed trace-lineage component producer.",
+        )
+    return value.to_dict()
+
+
+def _encode_fork_lineage(value: Any) -> Mapping[str, Any]:
+    if not isinstance(value, ForkLineageSnapshotComponent):
+        raise SessionContractError(
+            SessionErrorCode.CORRUPT_SNAPSHOT,
+            "Fork-lineage codec requires ForkLineageSnapshotComponent.",
+            recoverable=False,
+            remediation="Use the typed fork-lineage component producer.",
         )
     return value.to_dict()
 
@@ -1188,6 +1327,14 @@ CORE_SNAPSHOT_COMPONENT_CODECS = (
         encode=_encode_trace_lineage,
         decode=TraceLineageSnapshotComponent.from_dict,
     ),
+    SnapshotComponentCodec(
+        slot=ComponentSlot.FORK_LINEAGE.value,
+        owner="qitos.session",
+        schema_version="qitos.session.fork_lineage/v1",
+        required=False,
+        encode=_encode_fork_lineage,
+        decode=ForkLineageSnapshotComponent.from_dict,
+    ),
 )
 CORE_SNAPSHOT_COMPONENT_REGISTRY = SnapshotComponentRegistry(
     CORE_SNAPSHOT_COMPONENT_CODECS
@@ -1198,7 +1345,9 @@ SUPPORTED_COMPONENT_SCHEMAS: Mapping[str, frozenset[str]] = MappingProxyType(
         for codec in CORE_SNAPSHOT_COMPONENT_CODECS
     }
 )
-REQUIRED_COMPONENT_SLOTS = frozenset(codec.slot for codec in CORE_SNAPSHOT_COMPONENT_CODECS)
+REQUIRED_COMPONENT_SLOTS = frozenset(
+    codec.slot for codec in CORE_SNAPSHOT_COMPONENT_CODECS if codec.required
+)
 
 
 @dataclass(frozen=True)
