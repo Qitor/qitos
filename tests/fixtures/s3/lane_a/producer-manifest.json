@@ -29,7 +29,7 @@
     },
     {
       "path": "tests/fixtures/s3/lane_a/qualification-evidence.json",
-      "sha256": "9a3ec590c031ec3768037dbd688d4cd421db6217eb75235fe0082e0d829879ee"
+      "sha256": "0cf27ae64f70ea593a94c78c42e63110fd73f4f1739740b85f8187b0ccb89894"
     },
     {
       "path": "tests/fixtures/s3/lane_a/README.md",

@@ -1,6 +1,6 @@
 # S3 Lane A — Session fork, lineage, and ownership fencing
 
-Status: implementation in progress
+Status: producer implementation and qualification complete
 Updated: 2026-08-31
 Owner: S3 Lane A
 Dispatch source: `851f7902f15da670e72f4c04d7453cf37201aee7`
@@ -95,11 +95,36 @@ must not infer lineage from paths or names.
 
 ## Verification ledger
 
-- [ ] focused core/checkpoint/engine Lane A tests
-- [ ] Memory, SQLite, and independent third-party-style store conformance
-- [ ] bounded clean-process restore and source/child continuation isolation
-- [ ] required regression suites and interface budgets
-- [ ] static-quality ratchet, stable flake8, stable mypy, full `pytest -q`
-- [ ] producer fixtures, digests, manifest, qualification evidence
-- [ ] `git diff --check`, self-review, committed clean worktree
+- [x] focused core/checkpoint/engine Lane A tests
+- [x] Memory, SQLite, and independent third-party-style store conformance
+- [x] bounded clean-process restore and source/child continuation isolation
+- [x] required regression suites and interface budgets
+- [x] static-quality ratchet, stable flake8, stable mypy, full `pytest -q`
+- [x] producer fixtures, digests, manifest, qualification evidence
+- [x] `git diff --check`, self-review, committed clean worktree
 
+## Qualification result
+
+- implementation producer: `ae62ba1ea5fef7a472609dcb11d23a5f21733410`;
+- producer fixture commit: `feba1bf6d2312b82c7f03ce0b3c1f07e50712938`;
+- focused Lane/regression group: 264 passed;
+- producer bundle tests: 15 passed;
+- architecture/public-interface/no-local-path group: 16 passed;
+- pinned static-quality ratchet: 376 findings matched (354 active, 22
+  vendored/generated);
+- stable flake8: clean; stable mypy: 91 source files clean;
+- full suite: 2267 passed, 50 skipped.
+
+No Engine constructor parameter, root export, aggregate checkpoint export,
+SessionStore, execution loop, or alternate checkpoint truth was added. The
+existing `qitos.checkpoint.fork` API and deprecated manager remain unchanged.
+
+## Known gaps and unsupported claims
+
+This producer does not claim distributed scheduling, remote lease renewal,
+hard worker cancellation, or exactly-once external effects. An
+`outcome_unknown` effect remains non-forkable until reconciled. Lane C still
+owns durable child scheduling/join behavior; Lane D still owns graph/timeline
+projection. Shared README, changelog, progress, and Task 12/13 documentation
+updates remain a recorded G4 handoff because their integration-owner lease was
+not granted to Lane A.
