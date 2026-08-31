@@ -1040,7 +1040,11 @@ class ToolResult:
         if status == "skipped":
             error_kind, error_code = "policy", error_code or "skipped"
         elif status != "success":
-            error_kind, error_code = "execution", error_code or status
+            declared_kind = metadata.get("error_kind")
+            error_kind = (
+                declared_kind if declared_kind in _ERROR_KINDS else "execution"
+            )
+            error_code = error_code or status
         return cls(
             status=status,  # type: ignore[arg-type]
             output=payload.output, error=payload.error, metadata=metadata,

@@ -218,6 +218,8 @@ class ToolRegistry:
             "supports_background": bool(tool.spec.supports_background),
             "result_max_chars": tool.spec.result_max_chars,
             "produces_artifact": bool(tool.spec.produces_artifact),
+            "lifecycle": tool.spec.lifecycle.value,
+            "declares_effect": tool.spec.effect is not None,
             "origin": {
                 "source": origin.source,
                 "toolset_name": origin.toolset_name,
@@ -410,6 +412,8 @@ class ToolRegistry:
                         "supports_background": bool(tool.spec.supports_background),
                         "result_max_chars": tool.spec.result_max_chars,
                         "produces_artifact": bool(tool.spec.produces_artifact),
+                        "lifecycle": tool.spec.lifecycle.value,
+                        "declares_effect": tool.spec.effect is not None,
                     },
                 }
             )

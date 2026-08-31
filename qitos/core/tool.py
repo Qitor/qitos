@@ -8,6 +8,13 @@ import re
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Dict, List, Optional, cast, get_type_hints
 
+from .tool_runtime import (
+    EffectDeclarationFactory,
+    ToolEffectDeclaration,
+    ToolLifecycleAdapter,
+    ToolResourceKind,
+)
+
 
 @dataclass
 class ToolPermission:
@@ -562,6 +569,17 @@ class ToolSpec:
     produces_artifact: bool = False
     rule_scope_builder: Optional[Callable[[Dict[str, Any]], Optional[str]]] = None
     prompt: str = ""
+    lifecycle: ToolResourceKind = ToolResourceKind.SYNC_FUNCTION
+    lifecycle_adapter: Optional[ToolLifecycleAdapter] = None
+    effect: Optional[ToolEffectDeclaration | EffectDeclarationFactory] = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.lifecycle, ToolResourceKind):
+            self.lifecycle = ToolResourceKind(self.lifecycle)
+        if self.effect is not None and not (
+            isinstance(self.effect, ToolEffectDeclaration) or callable(self.effect)
+        ):
+            raise TypeError("effect must be ToolEffectDeclaration, a factory, or None")
 
 
 @dataclass
@@ -585,6 +603,9 @@ class ToolMeta:
     result_max_chars: Optional[int] = None
     produces_artifact: bool = False
     rule_scope_builder: Optional[Callable[[Dict[str, Any]], Optional[str]]] = None
+    lifecycle: Optional[ToolResourceKind] = None
+    lifecycle_adapter: Optional[ToolLifecycleAdapter] = None
+    effect: Optional[ToolEffectDeclaration | EffectDeclarationFactory] = None
 
 
 class BaseTool:
@@ -787,6 +808,9 @@ def tool(
     result_max_chars: Optional[int] = None,
     produces_artifact: bool = False,
     rule_scope_builder: Optional[Callable[[Dict[str, Any]], Optional[str]]] = None,
+    lifecycle: Optional[ToolResourceKind] = None,
+    lifecycle_adapter: Optional[ToolLifecycleAdapter] = None,
+    effect: Optional[ToolEffectDeclaration | EffectDeclarationFactory] = None,
 ):
     """Decorator that marks a callable as a QitOS tool without changing binding semantics."""
 
@@ -811,6 +835,9 @@ def tool(
             result_max_chars=result_max_chars,
             produces_artifact=produces_artifact,
             rule_scope_builder=rule_scope_builder,
+            lifecycle=lifecycle,
+            lifecycle_adapter=lifecycle_adapter,
+            effect=effect,
         )
         setattr(func, "__qitos_tool_meta__", meta)
         setattr(func, "_is_tool", True)
@@ -967,6 +994,17 @@ def build_tool_spec(func: Callable[..., Any], meta: ToolMeta) -> ToolSpec:
         produces_artifact=meta.produces_artifact,
         rule_scope_builder=meta.rule_scope_builder,
         prompt=meta.prompt,
+        lifecycle=(
+            meta.lifecycle
+            if meta.lifecycle is not None
+            else (
+                ToolResourceKind.ASYNC_COROUTINE
+                if inspect.iscoroutinefunction(func)
+                else ToolResourceKind.SYNC_FUNCTION
+            )
+        ),
+        lifecycle_adapter=meta.lifecycle_adapter,
+        effect=meta.effect,
     )
 
 

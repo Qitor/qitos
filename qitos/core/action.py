@@ -75,6 +75,57 @@ class ActionResult:
 
         return ToolResult.from_action_result(self)
 
+    @classmethod
+    def from_tool_result(cls, result: "ToolResult") -> "ActionResult":
+        """Project the canonical outcome for legacy executor consumers."""
+        from .tool_result import ToolResult
+
+        if not isinstance(result, ToolResult):
+            raise TypeError("from_tool_result() expects ToolResult")
+        metadata = dict(result.metadata)
+        metadata.update(
+            {
+                "error_code": result.error_code,
+                "error_kind": result.error_kind,
+                "recoverable": result.recoverable,
+                "recovery_hint": result.recovery_hint,
+                "next_action": result.next_action,
+                "complete": result.complete,
+                "truncated": result.truncated,
+                "omitted": dict(result.omitted),
+                "model_output": result.model_output,
+                "declared_effects": list(result.declared_effects),
+                "filesystem_changes": list(result.filesystem_changes),
+                "artifact_refs": [item.to_dict() for item in result.artifact_refs],
+                "normalized_request": dict(result.normalized_request),
+                "provenance": dict(result.provenance),
+                "worker_still_running": result.worker_still_running,
+                "attempt_id": (
+                    result.attempt_id.to_dict() if result.attempt_id else None
+                ),
+                "effect_ref": result.effect_ref,
+                "effect_state": result.effect_state,
+                "idempotency_ref": result.idempotency_ref,
+                "retry_disposition": result.retry_disposition,
+                "reconciliation_required": result.reconciliation_required,
+                "outcome_unknown": result.outcome_unknown,
+                "late_result": result.late_result,
+                "owner_generation": result.owner_generation,
+                "stale_owner": result.stale_owner,
+                "batch_closure": dict(result.batch_closure),
+            }
+        )
+        return cls(
+            name=result.tool_name or "",
+            status=ActionStatus(result.status),
+            output=result.output,
+            error=result.error,
+            action_id=result.action_id,
+            attempts=result.attempts,
+            latency_ms=result.latency_ms,
+            metadata=metadata,
+        )
+
 
 @dataclass
 class ActionExecutionPolicy:

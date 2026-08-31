@@ -18,6 +18,14 @@ from ..core.action import Action, ActionExecutionPolicy, ActionResult, ActionSta
 from ..core.env import Env
 from ..core.interceptor import InterceptorChain, InterceptorContext
 from ..core.state import StateSchema
+from ..core.tool_result import ToolResult, ToolResultContractError
+from ..core.tool_runtime import (
+    PartialBatchCallback,
+    TerminalResultCallback,
+    ToolBatchExecution,
+    ToolEffectPolicy,
+    ToolTerminalReceipt,
+)
 from ..core.tool import (
     BaseTool,
     ToolPermissionContext,
@@ -25,17 +33,17 @@ from ..core.tool import (
     ToolValidationResult,
 )
 from .states import RuntimePhase
+from .tool_runtime import (
+    ReferenceEffectPolicy,
+    ToolBatchLedger,
+    apply_effect_receipt,
+    lifecycle_receipt_for,
+    lifecycle_spec_for,
+)
 
 if TYPE_CHECKING:
     from ._protocol import _EngineProtocol
     from .cancellation import CancelToken
-
-
-# Terminal states that count as a failure for fail_fast purposes.
-_FAILED_STATUSES = frozenset({
-    ActionStatus.ERROR,
-    ActionStatus.TIMED_OUT,
-})
 
 
 class _ConcurrencyTracker:
@@ -57,6 +65,14 @@ class _ConcurrencyTracker:
             self._active -= 1
 
 
+class ToolWorkerTimeout(TimeoutError):
+    """Deadline observation with an honest underlying-worker capability fact."""
+
+    def __init__(self, message: str, *, worker_still_running: bool):
+        super().__init__(message)
+        self.worker_still_running = bool(worker_still_running)
+
+
 class ActionExecutor:
     """Executes normalized actions against a tool registry."""
 
@@ -74,6 +90,8 @@ class ActionExecutor:
         interceptor_chain: Optional[InterceptorChain] = None,
         auto_approve: bool = False,
         cancel_token: Optional[CancelToken] = None,
+        effect_policy: Optional[ToolEffectPolicy] = None,
+        quiescence_barrier: Any = None,
     ):
         self.tool_registry = tool_registry
         self.policy = policy or ActionExecutionPolicy()
@@ -87,6 +105,13 @@ class ActionExecutor:
         self._interceptor_chain = interceptor_chain
         self.auto_approve = auto_approve
         self._cancel_token = cancel_token
+        self._effect_policy = effect_policy or ReferenceEffectPolicy()
+        if quiescence_barrier is None:
+            from .cancellation import QuiescenceBarrier
+
+            quiescence_barrier = QuiescenceBarrier()
+        self._quiescence_barrier = quiescence_barrier
+        self._stats_lock = threading.Lock()
         # Populated by execute(); consumed by the trace layer.
         self.last_execution_stats: Dict[str, Any] = {}
 
@@ -109,97 +134,482 @@ class ActionExecutor:
     def execute(
         self, actions: Sequence[Action], env: Optional[Env] = None, state: Any = None
     ) -> List[ActionResult]:
+        """Compatibility projection over the canonical batch execution seam."""
+        if not actions:
+            self._reset_execution_stats()
+            return []
+        execution = self.execute_batch(actions, env=env, state=state)
+        return [
+            ActionResult.from_tool_result(result)
+            for result in execution.results_in_declaration_order
+        ]
+
+    def execute_one(
+        self,
+        action: Action,
+        *,
+        terminal_callback: Optional[TerminalResultCallback] = None,
+        env: Optional[Env] = None,
+        state: Any = None,
+        batch_id: Optional[str] = None,
+        owner_generation: int = 0,
+    ) -> ToolResult:
+        """Execute one action through the same canonical batch boundary."""
+        execution = self.execute_batch(
+            [action],
+            terminal_callback=terminal_callback,
+            env=env,
+            state=state,
+            batch_id=batch_id,
+            owner_generation=owner_generation,
+        )
+        return execution.results_in_declaration_order[0]
+
+    def execute_batch(
+        self,
+        actions: Sequence[Action],
+        *,
+        terminal_callback: Optional[TerminalResultCallback] = None,
+        partial_batch_callback: Optional[PartialBatchCallback] = None,
+        env: Optional[Env] = None,
+        state: Any = None,
+        batch_id: Optional[str] = None,
+        owner_generation: int = 0,
+    ) -> ToolBatchExecution:
+        """Execute a bounded batch and publish every terminal slot immediately."""
+        if not actions:
+            raise ValueError("execute_batch() requires at least one action")
+        self._reset_execution_stats()
+        ledger = ToolBatchLedger(
+            actions, batch_id=batch_id, owner_generation=owner_generation
+        )
+        self._publish_partial(ledger.snapshot(), partial_batch_callback)
+        tracker = _ConcurrencyTracker()
+        receipts: Dict[str, ToolTerminalReceipt] = {}
+
+        if self._is_cancelled():
+            self.last_execution_stats["cancel_source"] = "cancel_token"
+            for index, action in enumerate(actions):
+                receipt = self._execute_canonical_slot(
+                    action,
+                    index=index,
+                    ledger=ledger,
+                    env=env,
+                    state=state,
+                    tracker=tracker,
+                    segment_index=0,
+                    terminal_callback=terminal_callback,
+                    partial_batch_callback=partial_batch_callback,
+                    prevented_status=ActionStatus.CANCELLED,
+                    prevented_reason="cancel_token",
+                )
+                receipts[receipt.slot.slot_id] = receipt
+            return self._finish_batch(ledger, receipts, tracker, segments=1)
+
+        segments = (
+            [[index] for index in range(len(actions))]
+            if getattr(self.policy, "mode", "serial") == "serial"
+            else self._segment_actions(actions)
+        )
+        aborted: Optional[str] = None
+        for segment_index, segment in enumerate(segments):
+            if aborted is None and self._is_cancelled():
+                aborted = "cancel_token"
+            if aborted is not None:
+                for index in segment:
+                    receipt = self._execute_canonical_slot(
+                        actions[index],
+                        index=index,
+                        ledger=ledger,
+                        env=env,
+                        state=state,
+                        tracker=tracker,
+                        segment_index=segment_index,
+                        terminal_callback=terminal_callback,
+                        partial_batch_callback=partial_batch_callback,
+                        prevented_status=ActionStatus.CANCELLED,
+                        prevented_reason=aborted,
+                    )
+                    receipts[receipt.slot.slot_id] = receipt
+                continue
+
+            if len(segment) == 1:
+                index = segment[0]
+                receipt = self._execute_canonical_slot(
+                    actions[index],
+                    index=index,
+                    ledger=ledger,
+                    env=env,
+                    state=state,
+                    tracker=tracker,
+                    segment_index=segment_index,
+                    terminal_callback=terminal_callback,
+                    partial_batch_callback=partial_batch_callback,
+                )
+                receipts[receipt.slot.slot_id] = receipt
+                if self._should_fail_fast(receipt.result):
+                    aborted = "fail_fast"
+                continue
+
+            max_workers = min(
+                max(1, int(getattr(self.policy, "max_concurrency", 1))),
+                len(segment),
+            )
+            pool = ThreadPoolExecutor(max_workers=max_workers)
+            futures: Dict[Any, int] = {}
+            try:
+                for index in segment:
+                    future = pool.submit(
+                        self._execute_canonical_slot,
+                        actions[index],
+                        index=index,
+                        ledger=ledger,
+                        env=env,
+                        state=state,
+                        tracker=tracker,
+                        segment_index=segment_index,
+                        terminal_callback=terminal_callback,
+                        partial_batch_callback=partial_batch_callback,
+                    )
+                    futures[future] = index
+                pending = set(futures)
+                while pending:
+                    done, pending = wait(pending, return_when=FIRST_COMPLETED)
+                    for future in done:
+                        index = futures[future]
+                        try:
+                            receipt = future.result()
+                        except Exception as exc:  # pragma: no cover - defensive
+                            receipt = self._execute_canonical_slot(
+                                actions[index],
+                                index=index,
+                                ledger=ledger,
+                                env=env,
+                                state=state,
+                                tracker=tracker,
+                                segment_index=segment_index,
+                                terminal_callback=terminal_callback,
+                                partial_batch_callback=partial_batch_callback,
+                                prevented_status=ActionStatus.ERROR,
+                                prevented_reason=f"missing_worker:{type(exc).__name__}",
+                            )
+                        receipts[receipt.slot.slot_id] = receipt
+                        if aborted is None and self._should_fail_fast(receipt.result):
+                            aborted = "fail_fast"
+                    if aborted is None and self._is_cancelled():
+                        aborted = "cancel_token"
+                    if aborted is not None and pending:
+                        still_running = set()
+                        for future in pending:
+                            if future.cancel():
+                                index = futures[future]
+                                receipt = self._execute_canonical_slot(
+                                    actions[index],
+                                    index=index,
+                                    ledger=ledger,
+                                    env=env,
+                                    state=state,
+                                    tracker=tracker,
+                                    segment_index=segment_index,
+                                    terminal_callback=terminal_callback,
+                                    partial_batch_callback=partial_batch_callback,
+                                    prevented_status=ActionStatus.CANCELLED,
+                                    prevented_reason=aborted,
+                                )
+                                receipts[receipt.slot.slot_id] = receipt
+                            else:
+                                still_running.add(future)
+                        pending = still_running
+            finally:
+                pool.shutdown(wait=True)
+
+        if aborted is not None:
+            self.last_execution_stats["cancel_source"] = aborted
+        final_snapshot = ledger.snapshot()
+        for slot in final_snapshot.missing_slots:
+            receipt = self._execute_canonical_slot(
+                actions[slot.declaration_index],
+                index=slot.declaration_index,
+                ledger=ledger,
+                env=env,
+                state=state,
+                tracker=tracker,
+                segment_index=len(segments),
+                terminal_callback=terminal_callback,
+                partial_batch_callback=partial_batch_callback,
+                prevented_status=ActionStatus.ERROR,
+                prevented_reason="missing_worker",
+            )
+            receipts[receipt.slot.slot_id] = receipt
+        return self._finish_batch(
+            ledger, receipts, tracker, segments=len(segments)
+        )
+
+    def _reset_execution_stats(self) -> None:
         self.last_execution_stats = {
             "policy": {
-                "mode": self.policy.mode,
-                "fail_fast": bool(self.policy.fail_fast),
-                "max_concurrency": int(self.policy.max_concurrency),
+                "mode": getattr(self.policy, "mode", "serial"),
+                "fail_fast": bool(getattr(self.policy, "fail_fast", False)),
+                "max_concurrency": int(
+                    getattr(self.policy, "max_concurrency", 1)
+                ),
             },
             "concurrency_peak": 0,
             "segments": 0,
             "cancel_source": None,
+            "callback_errors": [],
+            "late_completions": [],
         }
-        if not actions:
-            return []
 
-        tracker = _ConcurrencyTracker()
-
-        # A cancellation already requested before the batch starts prevents
-        # every action from running.
-        if self._is_cancelled():
-            self.last_execution_stats["cancel_source"] = "cancel_token"
-            return [
-                self._terminal_result(
-                    action, ActionStatus.CANCELLED, "cancel_token", segment_index=0
-                )
-                for action in actions
-            ]
-
-        # Single action: execute directly
-        if len(actions) == 1:
-            result = self._execute_one(
-                actions[0], env=env, state=state, tracker=tracker, segment_index=0
-            )
-            self.last_execution_stats["concurrency_peak"] = tracker.peak
-            self.last_execution_stats["segments"] = 1
-            return [result]
-
-        # Respect ActionExecutionPolicy.mode
-        if self.policy.mode == "serial":
-            return self._execute_serial(actions, env=env, state=state, tracker=tracker)
-
-        return self._execute_segmented(actions, env=env, state=state, tracker=tracker)
-
-    def _execute_serial(
+    def _finish_batch(
         self,
-        actions: Sequence[Action],
+        ledger: ToolBatchLedger,
+        receipts: Dict[str, ToolTerminalReceipt],
+        tracker: _ConcurrencyTracker,
+        *,
+        segments: int,
+    ) -> ToolBatchExecution:
+        snapshot = ledger.snapshot()
+        self.last_execution_stats["concurrency_peak"] = tracker.peak
+        self.last_execution_stats["segments"] = segments
+        ordered_receipts = tuple(
+            receipts[slot_id]
+            for slot_id in snapshot.completion_order
+            if slot_id in receipts
+        )
+        return ToolBatchExecution(snapshot=snapshot, terminal_receipts=ordered_receipts)
+
+    def _should_fail_fast(self, result: ToolResult) -> bool:
+        return bool(
+            getattr(self.policy, "fail_fast", False)
+            and result.status in {"error", "timed_out"}
+        )
+
+    def _execute_canonical_slot(
+        self,
+        action: Action,
+        *,
+        index: int,
+        ledger: ToolBatchLedger,
         env: Optional[Env],
         state: Any,
         tracker: _ConcurrencyTracker,
-    ) -> List[ActionResult]:
-        """Run every action in order, honouring fail_fast and cancellation."""
-        results: List[ActionResult] = []
-        aborted: Optional[str] = None
-        for idx, action in enumerate(actions):
-            if aborted is not None:
-                results.append(
-                    self._terminal_result(
-                        action, ActionStatus.CANCELLED, aborted, segment_index=idx
-                    )
-                )
-                continue
-            if self._is_cancelled():
-                aborted = "cancel_token"
-                self.last_execution_stats["cancel_source"] = aborted
-                results.append(
-                    self._terminal_result(
-                        action, ActionStatus.CANCELLED, aborted, segment_index=idx
-                    )
-                )
-                continue
-            result = self._execute_one(
-                action, env=env, state=state, tracker=tracker, segment_index=idx
+        segment_index: int,
+        terminal_callback: Optional[TerminalResultCallback],
+        partial_batch_callback: Optional[PartialBatchCallback],
+        prevented_status: Optional[ActionStatus] = None,
+        prevented_reason: str = "",
+    ) -> ToolTerminalReceipt:
+        slot = ledger.slot_for_index(index)
+        tool = self._resolve_tool(action.name)
+        lifecycle_spec = lifecycle_spec_for(tool)
+        facts = {
+            "batch_id": ledger.batch_id,
+            "slot_id": slot.slot_id,
+            "attempt_id": slot.attempt_id,
+            "owner_generation": ledger.owner_generation,
+            "lifecycle": lifecycle_spec,
+        }
+        try:
+            runtime_context = self._build_runtime_context(
+                action.name, env=env, state=state, runtime_facts=facts
             )
-            results.append(result)
-            if self.policy.fail_fast and result.status in _FAILED_STATUSES:
-                aborted = "fail_fast"
-                self.last_execution_stats["cancel_source"] = aborted
-        self.last_execution_stats["concurrency_peak"] = tracker.peak
-        self.last_execution_stats["segments"] = len(actions)
-        return results
+            declaration = self._effect_policy.declare(
+                action, tool, runtime_context
+            )
+        except Exception as exc:
+            runtime_context = dict(facts)
+            declaration = None
+            prevented_status = ActionStatus.ERROR
+            prevented_reason = f"runtime_context_error:{type(exc).__name__}"
+        runtime_context.update(
+            {
+                "effect_ref": declaration.effect_ref if declaration else None,
+                "idempotency_key": (
+                    declaration.idempotency_key if declaration else None
+                ),
+                "effect_state": "not_started" if declaration else "no_effect_declared",
+            }
+        )
+        adapter = getattr(getattr(tool, "spec", None), "lifecycle_adapter", None)
+        cancel_callback = None
+        if adapter is not None:
+            def _request_adapter_cancel() -> bool:
+                return bool(adapter.request_cancel(slot.attempt_id))
 
-    def _classify_actions(
-        self, actions: Sequence[Action]
-    ) -> Tuple[List[int], List[int]]:
-        """Classify actions into concurrency-safe and exclusive."""
-        safe_indices: List[int] = []
-        exclusive_indices: List[int] = []
-        for i, action in enumerate(actions):
-            if self._is_concurrency_safe(action.name):
-                safe_indices.append(i)
-            else:
-                exclusive_indices.append(i)
-        return safe_indices, exclusive_indices
+            cancel_callback = _request_adapter_cancel
+        self._quiescence_barrier.register(
+            slot.attempt_id,
+            lifecycle_spec,
+            owner_generation=ledger.owner_generation,
+            cancel_callback=cancel_callback,
+        )
+
+        if prevented_status is None:
+            def _late_callback() -> None:
+                self._late_worker_completed(
+                    slot.attempt_id,
+                    owner_generation=ledger.owner_generation,
+                    outcome_unknown=declaration is not None,
+                )
+
+            action_result = self._execute_one(
+                action,
+                env=env,
+                state=state,
+                tracker=tracker,
+                segment_index=segment_index,
+                runtime_context=runtime_context,
+                effect_declared=declaration is not None,
+                late_worker_callback=_late_callback,
+            )
+        elif prevented_status is ActionStatus.ERROR:
+            action_result = self._error_result(action, prevented_reason)
+            action_result.metadata.update(
+                {
+                    "segment_index": segment_index,
+                    "started": False,
+                    "executed": False,
+                }
+            )
+        else:
+            action_result = self._terminal_result(
+                action,
+                prevented_status,
+                prevented_reason,
+                segment_index=segment_index,
+            )
+
+        canonical = self._canonicalize_action_result(action_result)
+        dispatched = bool(canonical.metadata.get("executed", False))
+        effect_receipt = self._effect_policy.finalize(
+            declaration, canonical, dispatched=dispatched
+        )
+        canonical = apply_effect_receipt(canonical, effect_receipt)
+        lifecycle = lifecycle_receipt_for(
+            result=canonical,
+            attempt_id=slot.attempt_id,
+            spec=lifecycle_spec,
+            owner_generation=ledger.owner_generation,
+        )
+        self._quiescence_barrier.mark_terminal(lifecycle)
+
+        def _on_committed(committed: ToolTerminalReceipt) -> None:
+            self._publish_terminal(committed, terminal_callback)
+            self._publish_partial(
+                committed.batch_snapshot, partial_batch_callback
+            )
+
+        receipt = ledger.commit_terminal(
+            slot_id=slot.slot_id,
+            result=canonical,
+            lifecycle=lifecycle,
+            effect=effect_receipt,
+            owner_generation=ledger.owner_generation,
+            on_committed=_on_committed,
+        )
+        return receipt
+
+    def _canonicalize_action_result(self, item: ActionResult) -> ToolResult:
+        try:
+            result = ToolResult.from_action_result(item)
+        except ToolResultContractError as exc:
+            return ToolResult.execution_error(
+                code=exc.code,
+                error=(
+                    "Tool returned a value that violates the canonical result "
+                    f"contract ({exc.code})."
+                ),
+                tool_name=item.name,
+                action_id=item.action_id,
+                attempts=item.attempts,
+                latency_ms=item.latency_ms,
+                metadata={
+                    "source": "tool_result_boundary",
+                    "contract_error_code": exc.code,
+                    "executed": True,
+                },
+            )
+        output = result.output
+        if result.status == "success" and isinstance(output, dict):
+            output_status = str(output.get("status") or "").strip().lower()
+            if output_status in {"error", "failed", "denied", "needs_user_input"}:
+                return ToolResult.semantic_error(
+                    code=output_status,
+                    error=str(output.get("error") or output.get("message") or output_status),
+                    output=output,
+                    tool_name=result.tool_name,
+                    action_id=result.action_id,
+                    model_output=result.model_output,
+                    attempts=result.attempts,
+                    latency_ms=result.latency_ms,
+                    metadata=result.metadata,
+                )
+        return result
+
+    def _publish_terminal(
+        self,
+        receipt: ToolTerminalReceipt,
+        callback: Optional[TerminalResultCallback],
+    ) -> None:
+        if callback is None:
+            return
+        try:
+            callback(receipt)
+        except Exception as exc:
+            with self._stats_lock:
+                self.last_execution_stats["callback_errors"].append(
+                    {
+                        "kind": "terminal",
+                        "slot_id": receipt.slot.slot_id,
+                        "error_type": type(exc).__name__,
+                    }
+                )
+
+    def _publish_partial(
+        self,
+        snapshot: Any,
+        callback: Optional[PartialBatchCallback],
+    ) -> None:
+        if callback is None:
+            return
+        try:
+            callback(snapshot)
+        except Exception as exc:
+            with self._stats_lock:
+                self.last_execution_stats["callback_errors"].append(
+                    {
+                        "kind": "partial_batch",
+                        "batch_id": snapshot.batch_id,
+                        "error_type": type(exc).__name__,
+                    }
+                )
+
+    def _late_worker_completed(
+        self,
+        attempt_id: Any,
+        *,
+        owner_generation: int,
+        outcome_unknown: bool,
+    ) -> None:
+        self._quiescence_barrier.mark_worker_completed(
+            attempt_id,
+            owner_generation=owner_generation,
+            outcome_unknown=outcome_unknown,
+        )
+        with self._stats_lock:
+            self.last_execution_stats["late_completions"].append(
+                {
+                    "attempt_id": attempt_id.to_dict(),
+                    "owner_generation": owner_generation,
+                    "outcome_unknown": outcome_unknown,
+                    "terminal_replacement": False,
+                }
+            )
+
+    def request_pause(self, timeout: float) -> Any:
+        """Expose the capability-driven quiescence barrier to session runtime."""
+        return self._quiescence_barrier.request_pause(timeout)
 
     def _is_concurrency_safe(self, tool_name: str) -> bool:
         """Adjudicate whether a tool may run concurrently. Four levels:
@@ -254,151 +664,6 @@ class ActionExecutor:
             segments.append(current)
         return segments
 
-    def _execute_segmented(
-        self,
-        actions: Sequence[Action],
-        env: Optional[Env],
-        state: Any,
-        tracker: _ConcurrencyTracker,
-    ) -> List[ActionResult]:
-        """Execute actions segment by segment, preserving call-order semantics.
-
-        Contiguous concurrency-safe actions run in parallel; every exclusive
-        action is a barrier that must complete before later actions start.
-        Results are returned in the model's original call order.
-        """
-        segments = self._segment_actions(actions)
-        results: List[Optional[ActionResult]] = [None] * len(actions)
-        aborted: Optional[str] = None
-
-        for segment_index, segment in enumerate(segments):
-            if aborted is None and self._is_cancelled():
-                aborted = "cancel_token"
-                self.last_execution_stats["cancel_source"] = aborted
-
-            if aborted is not None:
-                for idx in segment:
-                    results[idx] = self._terminal_result(
-                        actions[idx],
-                        ActionStatus.CANCELLED,
-                        aborted,
-                        segment_index=segment_index,
-                    )
-                continue
-
-            if len(segment) == 1:
-                idx = segment[0]
-                results[idx] = self._execute_one(
-                    actions[idx],
-                    env=env,
-                    state=state,
-                    tracker=tracker,
-                    segment_index=segment_index,
-                )
-            else:
-                aborted = self._execute_segment_concurrently(
-                    actions,
-                    segment,
-                    results,
-                    env=env,
-                    state=state,
-                    tracker=tracker,
-                    segment_index=segment_index,
-                )
-                if aborted is not None:
-                    self.last_execution_stats["cancel_source"] = aborted
-                    continue
-
-            if self.policy.fail_fast:
-                for idx in segment:
-                    item = results[idx]
-                    if item is not None and item.status in _FAILED_STATUSES:
-                        aborted = "fail_fast"
-                        self.last_execution_stats["cancel_source"] = aborted
-                        break
-
-        self.last_execution_stats["concurrency_peak"] = tracker.peak
-        self.last_execution_stats["segments"] = len(segments)
-
-        return [
-            r
-            if r is not None
-            else self._error_result(actions[i], "concurrent_execution_failed")
-            for i, r in enumerate(results)
-        ]
-
-    def _execute_segment_concurrently(
-        self,
-        actions: Sequence[Action],
-        segment: List[int],
-        results: List[Optional[ActionResult]],
-        *,
-        env: Optional[Env],
-        state: Any,
-        tracker: _ConcurrencyTracker,
-        segment_index: int,
-    ) -> Optional[str]:
-        """Run one contiguous safe segment in parallel.
-
-        Returns the abort reason (``"fail_fast"`` / ``"cancel_token"``) if the
-        segment was cut short, else ``None``. Actions that already started are
-        always drained to their real terminal state — never relabelled as
-        errors — while actions that never started are recorded as cancelled.
-        """
-        max_workers = min(max(1, self.policy.max_concurrency), len(segment))
-        abort_reason: Optional[str] = None
-
-        with ThreadPoolExecutor(max_workers=max_workers) as pool:
-            futures: Dict[Any, int] = {}
-            for idx in segment:
-                future = pool.submit(
-                    self._execute_one,
-                    actions[idx],
-                    env=env,
-                    state=state,
-                    tracker=tracker,
-                    segment_index=segment_index,
-                )
-                futures[future] = idx
-
-            pending = set(futures)
-            while pending:
-                done, pending = wait(pending, return_when=FIRST_COMPLETED)
-                for future in done:
-                    idx = futures[future]
-                    try:
-                        results[idx] = future.result()
-                    except Exception as exc:  # pragma: no cover - defensive path
-                        results[idx] = self._error_result(actions[idx], str(exc))
-                    item = results[idx]
-                    if (
-                        abort_reason is None
-                        and self.policy.fail_fast
-                        and item is not None
-                        and item.status in _FAILED_STATUSES
-                    ):
-                        abort_reason = "fail_fast"
-                if abort_reason is None and self._is_cancelled():
-                    abort_reason = "cancel_token"
-                if abort_reason is not None and pending:
-                    # Cancel only what has not started. Anything already
-                    # running is drained below so its true result is kept.
-                    still_pending = set()
-                    for future in pending:
-                        if future.cancel():
-                            idx = futures[future]
-                            results[idx] = self._terminal_result(
-                                actions[idx],
-                                ActionStatus.CANCELLED,
-                                abort_reason,
-                                segment_index=segment_index,
-                            )
-                        else:
-                            still_pending.add(future)
-                    pending = still_pending
-
-        return abort_reason
-
     def _terminal_result(
         self,
         action: Action,
@@ -422,6 +687,7 @@ class ActionExecutor:
                 "cancel_source": cancel_source,
                 "segment_index": segment_index,
                 "started": False,
+                "executed": False,
             },
         )
 
@@ -507,7 +773,9 @@ class ActionExecutor:
         try:
             return asyncio.run(_driver())
         except asyncio.TimeoutError as exc:
-            raise TimeoutError("async action timed out") from exc
+            raise ToolWorkerTimeout(
+                "async action timed out", worker_still_running=False
+            ) from exc
 
     def _call_tool_with_timeout(
         self,
@@ -516,6 +784,7 @@ class ActionExecutor:
         args: Dict[str, Any],
         runtime_context: Optional[Dict[str, Any]],
         timeout_s: Optional[float],
+        late_worker_callback: Optional[Any] = None,
     ) -> Any:
         """Call a tool, enforcing ``timeout_s`` and awaiting async handlers.
 
@@ -541,8 +810,11 @@ class ActionExecutor:
             try:
                 output = future.result(timeout=timeout_s)
             except FuturesTimeoutError as exc:
-                raise TimeoutError(
-                    f"action exceeded timeout of {timeout_s}s"
+                if late_worker_callback is not None:
+                    future.add_done_callback(lambda _future: late_worker_callback())
+                raise ToolWorkerTimeout(
+                    f"action exceeded timeout of {timeout_s}s",
+                    worker_still_running=True,
                 ) from exc
             if inspect.isawaitable(output):
                 output = self._resolve_awaitable(output, timeout_s)
@@ -557,12 +829,21 @@ class ActionExecutor:
         state: Any = None,
         tracker: Optional[_ConcurrencyTracker] = None,
         segment_index: int = 0,
+        runtime_context: Optional[Dict[str, Any]] = None,
+        effect_declared: bool = False,
+        late_worker_callback: Optional[Any] = None,
     ) -> ActionResult:
         if tracker is not None:
             tracker.enter()
         try:
             return self._execute_one_inner(
-                action, env=env, state=state, segment_index=segment_index
+                action,
+                env=env,
+                state=state,
+                segment_index=segment_index,
+                runtime_context=runtime_context,
+                effect_declared=effect_declared,
+                late_worker_callback=late_worker_callback,
             )
         finally:
             if tracker is not None:
@@ -574,13 +855,18 @@ class ActionExecutor:
         env: Optional[Env] = None,
         state: Any = None,
         segment_index: int = 0,
+        runtime_context: Optional[Dict[str, Any]] = None,
+        effect_declared: bool = False,
+        late_worker_callback: Optional[Any] = None,
     ) -> ActionResult:
         start = time.monotonic()
         started_at = time.time()
         attempts = 0
         last_error = None
         tool_meta = self._tool_meta(action.name)
-        runtime_context = self._build_runtime_context(action.name, env=env, state=state)
+        runtime_context = runtime_context or self._build_runtime_context(
+            action.name, env=env, state=state
+        )
         ordering_meta: Dict[str, Any] = {
             "segment_index": segment_index,
             "started_at": started_at,
@@ -629,11 +915,6 @@ class ActionExecutor:
                 extra_metadata={
                     "error_category": "tool_not_found",
                     "raw_tool_name": action.name,
-                    "raw_arguments": (
-                        dict(action.args)
-                        if isinstance(action.args, dict)
-                        else action.args
-                    ),
                     "available_tools": available,
                     "recoverable": True,
                     "executed": False,
@@ -688,6 +969,38 @@ class ActionExecutor:
         if self._interceptor_chain is not None:
             action = self._interceptor_chain.before_execute(action, interceptor_context)
 
+        rewritten_structural = (
+            tool_preview.validate_structure(action.args)
+            if tool_preview is not None
+            else ToolValidationResult.ok()
+        )
+        if not rewritten_structural.valid:
+            return self._finish_result(
+                action=action,
+                status=ActionStatus.ERROR,
+                start=start,
+                attempts=0,
+                tool_meta=tool_meta,
+                error=(
+                    rewritten_structural.message
+                    or "interceptor rewrote tool arguments to an invalid shape"
+                ),
+                extra_metadata={
+                    **ordering_meta,
+                    "error_category": (
+                        rewritten_structural.code or "validation_error"
+                    ),
+                    "error_code": rewritten_structural.code or "validation_error",
+                    "validation": {
+                        "valid": False,
+                        "boundary": "post_interceptor_structural",
+                        "message": rewritten_structural.message,
+                        "code": rewritten_structural.code,
+                    },
+                    "executed": False,
+                },
+            )
+
         # 2. Check needs_approval — triggers interrupt() for human approval
         _auto_approved = False
         if tool_preview is not None and hasattr(tool_preview, 'spec'):
@@ -733,8 +1046,10 @@ class ActionExecutor:
             _jitter = False
             _retryable_exceptions = (Exception,)
 
+        any_dispatched = False
         while attempts < _max_attempts:
             attempts += 1
+            dispatched = False
             try:
                 tool = self._resolve_tool(action.name)
                 validation = self._validate(tool, action.args, runtime_context)
@@ -846,12 +1161,22 @@ class ActionExecutor:
                     if permission.updated_args is not None
                     else action.args
                 )
+                # A permission policy may narrow or rewrite arguments.  Run
+                # the complete validation boundary again, not only the JSON
+                # shape check, before dispatching the rewritten request.
                 final_structural = (
                     tool.validate_structure(effective_args)
                     if tool is not None
                     else ToolValidationResult.ok()
                 )
-                if not final_structural.valid:
+                final_validation = final_structural
+                validation_boundary = "final_structural"
+                if final_structural.valid:
+                    final_validation = self._validate(
+                        tool, effective_args, runtime_context
+                    )
+                    validation_boundary = "post_permission"
+                if not final_validation.valid:
                     return self._finish_result(
                         action=action,
                         status=ActionStatus.ERROR,
@@ -859,21 +1184,21 @@ class ActionExecutor:
                         attempts=attempts,
                         tool_meta=tool_meta,
                         error=(
-                            final_structural.message
-                            or "tool argument structure is invalid"
+                            final_validation.message
+                            or "rewritten tool arguments are invalid"
                         ),
                         extra_metadata={
                             "error_category": (
-                                final_structural.code or "validation_error"
+                                final_validation.code or "validation_error"
                             ),
                             "error_code": (
-                                final_structural.code or "validation_error"
+                                final_validation.code or "validation_error"
                             ),
                             "validation": {
                                 "valid": False,
-                                "boundary": "final_structural",
-                                "message": final_structural.message,
-                                "code": final_structural.code,
+                                "boundary": validation_boundary,
+                                "message": final_validation.message,
+                                "code": final_validation.code,
                             },
                             "executed": False,
                         },
@@ -882,12 +1207,18 @@ class ActionExecutor:
                     "on_before_tool_use", action.name, effective_args,
                     tool_result=None, permission_decision=permission.decision,
                 )
+                runtime_context["effect_state"] = (
+                    "started" if effect_declared else "no_effect_declared"
+                )
+                dispatched = True
+                any_dispatched = True
                 output = self._call_tool_with_timeout(
                     tool,
                     action.name,
                     effective_args,
                     runtime_context=runtime_context,
                     timeout_s=_timeout_s,
+                    late_worker_callback=late_worker_callback,
                 )
                 if output is None:
                     card = "\n".join(
@@ -913,7 +1244,6 @@ class ActionExecutor:
                             "error_category": "tool_result_missing",
                             "error_code": "TOOL_RESULT_MISSING",
                             "raw_tool_name": action.name,
-                            "raw_arguments": dict(effective_args),
                             "recoverable": True,
                             "executed": True,
                         },
@@ -934,6 +1264,7 @@ class ActionExecutor:
                     "progress_count": len(runtime_context["progress_events"]),
                     "artifacts": list(runtime_context["artifacts"]),
                     "ended_at": time.time(),
+                    "executed": True,
                 }
                 if _auto_approved:
                     result_metadata["auto_approved"] = True
@@ -951,7 +1282,7 @@ class ActionExecutor:
                 if self._interceptor_chain is not None:
                     result = self._interceptor_chain.after_execute(action, result, interceptor_context)
                 return result
-            except TimeoutError as exc:
+            except ToolWorkerTimeout as exc:
                 # A timeout is a distinct terminal state, never retried: the
                 # worker thread may still be running and we must not claim
                 # otherwise.
@@ -965,7 +1296,8 @@ class ActionExecutor:
                     extra_metadata={
                         **ordering_meta,
                         "error_category": "timeout",
-                        "worker_still_running": True,
+                        "worker_still_running": exc.worker_still_running,
+                        "executed": True,
                         "ended_at": time.time(),
                     },
                 )
@@ -976,6 +1308,8 @@ class ActionExecutor:
                 return timed_out_result
             except Exception as exc:  # pragma: no cover - defensive path
                 last_error = str(exc)
+                if effect_declared and dispatched:
+                    break
                 # Check if this exception type is retryable
                 if not isinstance(exc, _retryable_exceptions):
                     break
@@ -1011,6 +1345,7 @@ class ActionExecutor:
                 "progress_count": len(runtime_context["progress_events"]),
                 "artifacts": list(runtime_context["artifacts"]),
                 "ended_at": time.time(),
+                "executed": any_dispatched,
             },
         )
         # Interceptor after_execute on error path too
@@ -1058,7 +1393,11 @@ class ActionExecutor:
         )
 
     def _build_runtime_context(
-        self, name: str, env: Optional[Env], state: Any
+        self,
+        name: str,
+        env: Optional[Env],
+        state: Any,
+        runtime_facts: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         required_ops = self._required_ops(name)
         permission_context = self._resolve_permission_context(env=env, state=state)
@@ -1071,7 +1410,7 @@ class ActionExecutor:
         def _record_artifact(payload: Dict[str, Any]) -> None:
             artifacts.append(dict(payload))
 
-        return {
+        context = {
             "env": env,
             "state": state,
             "ops": self._resolve_ops(required_ops, env),
@@ -1086,6 +1425,8 @@ class ActionExecutor:
             "trace_writer": self.trace_writer,
             "shared_memory": self.shared_memory,
         }
+        context.update(runtime_facts or {})
+        return context
 
     def _resolve_tool(self, name: str) -> Optional[BaseTool]:
         if hasattr(self.tool_registry, "get"):
@@ -1280,6 +1621,8 @@ class ActionExecutor:
                     "toolset_name": origin.get("toolset_name"),
                     "toolset_version": origin.get("toolset_version"),
                     "source": origin.get("source", "function"),
+                    "lifecycle": desc.get("lifecycle", "sync_function"),
+                    "declares_effect": bool(desc.get("declares_effect", False)),
                 }
             except Exception:
                 pass
@@ -1288,6 +1631,8 @@ class ActionExecutor:
             "toolset_name": None,
             "toolset_version": None,
             "source": "unknown",
+            "lifecycle": "sync_function",
+            "declares_effect": False,
         }
 
     def _dispatch_tool_hook(

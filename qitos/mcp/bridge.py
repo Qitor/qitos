@@ -27,6 +27,7 @@ import inspect
 from typing import Any, Dict, List, Optional
 
 from ..core.tool import FunctionTool, ToolMeta, ToolSpec
+from ..core.tool_runtime import ToolResourceKind
 from .filter import ToolFilter
 from .schema_convert import convert_mcp_schema_to_tool_spec
 from .server import MCPServer, MCPToolInfo
@@ -134,9 +135,11 @@ def _make_function_tool(
         input_schema=spec.input_schema,
         read_only=spec.read_only,
         concurrency_safe=spec.concurrency_safe,
+        lifecycle=ToolResourceKind.MCP_REQUEST,
     )
 
     tool = FunctionTool(_sync_wrapper, meta=meta)
     # Override the spec with our MCP-derived spec (preserving all fields)
+    spec.lifecycle = ToolResourceKind.MCP_REQUEST
     tool.spec = spec
     return tool
