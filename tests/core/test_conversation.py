@@ -61,6 +61,16 @@ C_FIXTURE_PATH = (
     / "v1"
     / "contract_hardening.json"
 )
+CURRENT_WRITER_FIXTURE = (
+    Path(__file__).parents[1]
+    / "fixtures"
+    / "conversation"
+    / "current"
+    / "canonical-writer.json"
+)
+CURRENT_WRITER_EVIDENCE = CURRENT_WRITER_FIXTURE.with_name(
+    "qualification-evidence.json"
+)
 
 
 def _call(
@@ -550,6 +560,21 @@ def test_exchange_log_consumes_exact_c_fixture_without_outcome_duplication() -> 
     assert "content" not in persisted["items"][1]
     assert "provenance" not in persisted["items"][1]
     assert ExchangeLog.from_dict(persisted).to_persistence_dict() == persisted
+
+
+def test_current_writer_fixture_has_exact_nested_round_trip() -> None:
+    payload = json.loads(CURRENT_WRITER_FIXTURE.read_text(encoding="utf-8"))
+    evidence = json.loads(CURRENT_WRITER_EVIDENCE.read_text(encoding="utf-8"))
+
+    restored = ExchangeLog.from_dict(payload)
+    nested_result = payload["items"][2]["result"]
+
+    assert restored.to_persistence_dict() == payload
+    assert payload["schema_version"] == "qitos.exchange_log.v2"
+    assert nested_result["schema_version"] == TOOL_RESULT_SCHEMA_VERSION
+    assert nested_result["attempt_id"]["kind"] == "attempt"
+    assert evidence["contract_id"] == "qitos.exchange_log.current_writer"
+    assert evidence["contract_version"] == "qitos.exchange_log.v2+tool_result.v2"
 
 
 def test_exchange_log_restores_nested_historical_tool_result() -> None:

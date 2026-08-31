@@ -1,0 +1,48 @@
+{
+  "action_id": "call_current_1",
+  "artifact_refs": [],
+  "attempt_id": {
+    "kind": "attempt",
+    "value": "attempt_00000000000000000000000000000001"
+  },
+  "attempts": 1,
+  "batch_closure": {},
+  "complete": true,
+  "declared_effects": [],
+  "effect_ref": "effect:current-1",
+  "effect_state": "committed",
+  "error": null,
+  "error_code": null,
+  "error_kind": null,
+  "filesystem_changes": [],
+  "idempotency_ref": "idempotency:current-1",
+  "late_result": false,
+  "latency_ms": 0.0,
+  "metadata": {
+    "fixture_role": "current_writer"
+  },
+  "model_output": "Inspection completed.",
+  "next_action": null,
+  "normalized_request": {},
+  "omitted": {},
+  "outcome_unknown": false,
+  "output": {
+    "ok": true,
+    "records": 2
+  },
+  "owner_generation": 3,
+  "provenance": {
+    "source": "g2-r2-current-writer"
+  },
+  "reconciliation_required": false,
+  "recoverable": false,
+  "recovery_hint": null,
+  "retry_disposition": "non_retryable",
+  "schema_version": "qitos.tool_result/v2",
+  "stale_owner": false,
+  "status": "success",
+  "success": true,
+  "tool_name": "inspect",
+  "truncated": false,
+  "worker_still_running": false
+}

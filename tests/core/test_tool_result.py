@@ -19,6 +19,16 @@ from qitos.core.tool_result import (
 
 
 FIXTURE_DIR = Path(__file__).parents[1] / "fixtures" / "tool_results" / "v1"
+CURRENT_WRITER_FIXTURE = (
+    Path(__file__).parents[1]
+    / "fixtures"
+    / "tool_results"
+    / "current"
+    / "canonical-writer.json"
+)
+CURRENT_WRITER_EVIDENCE = CURRENT_WRITER_FIXTURE.with_name(
+    "qualification-evidence.json"
+)
 
 
 def _artifact(name: str = "fixture") -> ArtifactRef:
@@ -59,6 +69,21 @@ def test_canonical_result_round_trip_is_lossless() -> None:
     assert payload["success"] is True
     assert payload["output"]["private"] == "canonical"
     assert payload["model_output"] == "Changed one file."
+
+
+def test_current_writer_fixture_has_exact_strict_round_trip() -> None:
+    payload = json.loads(CURRENT_WRITER_FIXTURE.read_text(encoding="utf-8"))
+    evidence = json.loads(CURRENT_WRITER_EVIDENCE.read_text(encoding="utf-8"))
+
+    restored = ToolResult.from_canonical_dict(payload)
+
+    assert restored.to_persistence_dict() == payload
+    assert payload["schema_version"] == TOOL_RESULT_SCHEMA_VERSION
+    assert payload["attempt_id"]["kind"] == "attempt"
+    assert payload["effect_state"] == "committed"
+    assert evidence["contract_id"] == "qitos.tool_result.current_writer"
+    assert evidence["contract_version"] == TOOL_RESULT_SCHEMA_VERSION
+    assert evidence["fixture_path"].endswith("current/canonical-writer.json")
 
 
 def test_action_result_adapter_preserves_terminal_execution_fields() -> None:

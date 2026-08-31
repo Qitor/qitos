@@ -1,0 +1,25 @@
+{
+  "contract_id": "qitos.exchange_log.current_writer",
+  "contract_version": "qitos.exchange_log.v2+tool_result.v2",
+  "evidence_role": "current_writer",
+  "fixture_path": "tests/fixtures/conversation/current/canonical-writer.json",
+  "independent_consumer_tests": [
+    "tests/core/test_conversation.py::test_current_writer_fixture_has_exact_nested_round_trip"
+  ],
+  "producer_lineage": {
+    "repair_groups": ["R2-T", "R2-R"],
+    "source_candidate": "cab8fd246d2485784a13558e668eadb3ffa4d42f"
+  },
+  "probes": [
+    "strict_exchange_shape",
+    "nested_current_tool_result",
+    "lossless_persistence_round_trip"
+  ],
+  "qualification_authority": "qitos.s1.integration_owner/v1",
+  "qualified": true,
+  "unsupported": [
+    "historical_schema_authority",
+    "provider_dispatch_readiness",
+    "trajectory_writer_or_store"
+  ]
+}
