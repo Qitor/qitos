@@ -2,32 +2,35 @@
   "schema_version": "qitos.s3.lane_c.producer_manifest/v1",
   "status": "qualified_integrated_a_b",
   "dispatch_source": "851f7902f15da670e72f4c04d7453cf37201aee7",
-  "implementation_producer_commit": "b4e4d8542d29dcbd07d7b063bbcd2b5e4761c545",
+  "implementation_producer_commit": "291108655ba602c7aebcaad4419d89c1386c2edc",
   "exact_commits": [
     "9442647767bc9a7c45ed3bf07bc4f289412544ed",
     "5efa1db19ae541234c562c4ba99e928d2381fc62",
     "8bbfd6580e03f77f51777e696d78ee783bc09f75",
-    "b4e4d8542d29dcbd07d7b063bbcd2b5e4761c545"
+    "b4e4d8542d29dcbd07d7b063bbcd2b5e4761c545",
+    "291108655ba602c7aebcaad4419d89c1386c2edc"
   ],
   "files": [
-    {"path": "qitos/core/work_graph.py", "sha256": "f6b7b32afa3f907e839aab8ba8d7019c04dcdac8ec2a4bf60acb10b6b8257b38"},
-    {"path": "qitos/engine/work_runtime.py", "sha256": "a806f15a6bb0397e9df3771860018d5acb8c47d15015e5c275f74bde536ff1a0"},
+    {"path": "qitos/core/work_graph.py", "sha256": "6d4efb3eb51fca7a8f964d42e6c91281acd6f7a0533b8a96f22ff4ccdf39b1ea"},
+    {"path": "qitos/engine/work_runtime.py", "sha256": "282f3436d6580bb60a2dda6725ac9ce43d62e0be0e0964aa8905869abc093f16"},
     {"path": "qitos/engine/_snapshot_components.py", "sha256": "fd84dc14dddad969a5ec77c3e0f6f476547bc597223d559e66f869603bd3d3e6"},
     {"path": "qitos/engine/runtime.py", "sha256": "b7e40f29502667af5924f781469e72ab84d8221bcf706449b806a6b45fda77b6"},
-    {"path": "qitos/engine/session_runtime.py", "sha256": "b4ed5fc266b8a6aea234094132f9a92fe19f4aa702355962b36fd023fa9dc2ab"},
+    {"path": "qitos/engine/session_runtime.py", "sha256": "5da3f20ec6978c095ea49cb5d10ee52eee92a316edad295aa97d474eab5cca7b"},
     {"path": "qitos/kit/tool/agent/durable_adapter.py", "sha256": "2412223926ea8cbadc3cb40ace120b2457e13082f79e67ac6f83ee1b605ba880"},
     {"path": "tests/core/test_work_graph.py", "sha256": "7cc870a2f6c27945b5903c63b174c526f523f924dc51c81b7a7b68696f551896"},
-    {"path": "tests/engine/test_work_runtime.py", "sha256": "82dc16d7782a3706813c05b8e2a15263fbacbab227b2e4ccfbb703c0485af6a2"},
+    {"path": "tests/engine/test_work_runtime.py", "sha256": "1d617d7cc9e4359f42e65fd3f9d5c3eb97b63bd7164533e2739e289ae1dcdbb0"},
     {"path": "tests/e2e/s3_lane_c_process_fixture.py", "sha256": "26ace44e9bf64048410e1904bbdb7f8dd38c5998cc5b97c3d614d60a00501b4a"},
     {"path": "tests/e2e/test_multi_agent_process_restore.py", "sha256": "718838d3f5730bdf3c2d0111058d8aeac3c396f48cfba6f0497e383f84678cc4"},
+    {"path": "tests/e2e/s3_g4_process_fixture.py", "sha256": "649565451d339079c25adc6064b2963507cebc96a191b6cd602468193613bea3"},
+    {"path": "tests/e2e/test_s3_g4_multi_agent_process_loss.py", "sha256": "d60ed2d91ce914a901799e9b0aa827d42b171678027128a4dad910a9523b4cc7"},
     {"path": "tests/test_s3_lane_c_evidence.py", "sha256": "0bcaf7f827fbb1e74d6c8a9707852659120ff1f73982240d859c0b7d544aea1e"},
-    {"path": "docs/internal/plans/s3_c_durable_work_runtime.md", "sha256": "f150d83c39d2c483c11dfddb4b1c8db0dfbb3c958e1123412be7634abc7a9d67"},
+    {"path": "docs/internal/plans/s3_c_durable_work_runtime.md", "sha256": "0753a18b03b3e4728f729999aca6a3767333c0ce3bf994a5ca28bbf4d2625e25"},
     {"path": "tests/fixtures/s3/lane_c/scheduler-conformance.json", "sha256": "b8081e4a2fa7ff309752e079f1581f44d2392492a9426be31381e636cca67dc8"},
     {"path": "tests/fixtures/s3/lane_c/crash-window-matrix.json", "sha256": "1aa8adc617776c34c1cc2e40a27d0f1a25beece2763952ad546c9316a7a51a46"},
     {"path": "tests/fixtures/s3/lane_c/join-matrix.json", "sha256": "083e489413ca5a336efc8553927b5f909b2df61cb0b1ed02f7404246378f8c9a"},
     {"path": "tests/fixtures/s3/lane_c/operation-idempotency.json", "sha256": "5da33d39250f2359026c5a92dd912eda7e093553a0f119e2a7ef924ed3c2a1c0"},
     {"path": "tests/fixtures/s3/lane_c/runtime-handoff.json", "sha256": "ed70089895741ae430040bcf4bb6b7623a7e5e36ce262792a7a2b7f838682d8f"},
-    {"path": "tests/fixtures/s3/lane_c/qualification-evidence.json", "sha256": "ce9fa8c90b76b2c4222bc7d98ccc79aa52b7d89e2e591686b38c88ed11b106f0"},
+    {"path": "tests/fixtures/s3/lane_c/qualification-evidence.json", "sha256": "db6f1ba1cd65dd008aeee318bc0916e477730dbc96546f074581d65d74d4d029"},
     {"path": "quality/static_baseline.json", "sha256": "9cba51b7d55d13b41a7f95da15aa9284a001f93e6bfe2bedf46a6d0e2e425cb5"}
   ],
   "strict_readers": [
@@ -40,8 +43,12 @@
     "tests/engine/test_work_runtime.py::test_descriptor_consumes_real_fork_and_context_transfer_receipts",
     "tests/engine/test_work_runtime.py::test_queued_descriptor_is_persisted_and_recovered_without_new_identity",
     "tests/engine/test_work_runtime.py::test_handoff_commits_one_owner_and_fences_superseded_source",
+    "tests/engine/test_work_runtime.py::test_declared_preparation_requires_composition_and_never_dispatches_raw",
+    "tests/engine/test_work_runtime.py::test_preparation_crash_reuses_fork_and_original_operation_identity",
+    "tests/engine/test_work_runtime.py::test_handoff_process_loss_before_and_after_owner_commit_has_one_owner",
     "tests/core/test_work_graph.py::test_join_policies_close_deterministically",
-    "tests/e2e/test_multi_agent_process_restore.py::test_clean_process_restores_receipts_without_replaying_unknown"
+    "tests/e2e/test_multi_agent_process_restore.py::test_clean_process_restores_receipts_without_replaying_unknown",
+    "tests/e2e/test_s3_g4_multi_agent_process_loss.py::test_g4_twenty_preparation_crash_rounds"
   ],
   "lane_a_exact_source": {
     "source_head": "9442647767bc9a7c45ed3bf07bc4f289412544ed",

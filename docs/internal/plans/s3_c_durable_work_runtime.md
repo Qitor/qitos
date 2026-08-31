@@ -1,9 +1,10 @@
 # S3 Lane C durable work runtime plan
 
 Status: integrated A/B runtime qualification complete in G4 convergence
+Updated: 2026-09-01
 Source: `851f7902f15da670e72f4c04d7453cf37201aee7`
 Branch: `codex/v4-s3-c-durable-work-runtime`
-Worktree: `/Users/morinop/Desktop/WhitzardOS-s3-c`
+Worktree: sibling Lane C worktree (host-specific path intentionally omitted)
 
 ## Exact-source census
 
@@ -58,10 +59,10 @@ changelog. A/B worktrees are read once only at final qualification.
 ## Runtime state machine
 
 ```text
-declared -> queued -> dispatched -> running
-   |           |          |          |
-   |           +----------+----------+-> outcome_unknown
-   +-> rejected                         |
+declared -> child/transfer prepared -> dispatchable -> queued -> dispatched -> running
+   |                    |                    |           |          |          |
+   |                    +--------------------+-----------+----------+----------+-> outcome_unknown
+   +-> rejected
 running -> succeeded | failed | timed_out | cancelled
 
 join: open -> closing -> closed
@@ -78,7 +79,8 @@ replayed. Stale, late, or superseded writes are fenced.
 | Window | Durable truth / recovery action |
 |---|---|
 | before declaration commit | no operation; caller may retry same identity |
-| declaration committed, not dispatched | eligible logical work may dispatch |
+| declaration committed, preparation absent/partial | composition resumes deterministic fork/transfer preparation using persisted operation/fork identities |
+| preparation committed, not dispatched | dispatchable logical work may dispatch |
 | dispatch begun, attempt absent | mark outcome unknown; reconcile, do not replay |
 | child running at process loss | reattach by logical worker ref or mark unknown |
 | child completion committed, parent unobserved | consume terminal receipt once |
@@ -132,3 +134,12 @@ never automatically replays missing running or outcome-unknown work. Direct
 Session verbs and model-callable adapters share this path. The candidate still
 does not claim distributed scheduling, hard cancellation, or exactly-once
 external effects.
+
+The G4 cross-lane repair at
+`291108655ba602c7aebcaad4419d89c1386c2edc` closes the remaining ordering gap:
+the parent operation declaration is committed before child fork/transfer
+preparation; prepared descriptors then receive a separate `dispatchable`
+commit before scheduler dispatch. A clean composition can reuse a committed
+fork receipt and the original operation identity after loss during preparation.
+Handoff loss before that commit retains the old owner, while loss after it
+retains the new owner, with no dual-authority interval.

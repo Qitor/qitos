@@ -1,7 +1,7 @@
 {
   "schema_version": "qitos.s3.lane_c.qualification_evidence/v1",
   "status": "qualified_integrated_a_b",
-  "integrated_runtime_commit": "b4e4d8542d29dcbd07d7b063bbcd2b5e4761c545",
+  "integrated_runtime_commit": "291108655ba602c7aebcaad4419d89c1386c2edc",
   "lane_a_consumed": true,
   "lane_b_consumed": true,
   "lane_a_binding": {
@@ -28,12 +28,15 @@
     "handoff_single_owner_and_superseded_source_fencing",
     "direct_and_model_callable_fact_parity",
     "all_all_successful_first_success_and_quorum_join_receipts",
-    "closed_join_late_outcome_discard"
+    "closed_join_late_outcome_discard",
+    "operation_declaration_precedes_child_preparation",
+    "prepared_fork_recovery_reuses_operation_and_child_identity",
+    "handoff_pre_and_post_commit_process_loss_has_one_owner"
   ],
   "validation": {
     "focused_cross_lane": "107 passed",
     "integrated_evidence_group": "88 passed",
-    "runtime_process_group": "30 passed",
+    "runtime_process_group": "18 passed including 20 G4 graph rounds and 20 preparation-crash rounds",
     "python_3_12_7_static_ratchet": "passed; baseline shrank by 7 to 369 findings (347 active, 22 vendored/generated)",
     "stable_flake8": "passed",
     "focused_mypy": "passed"
