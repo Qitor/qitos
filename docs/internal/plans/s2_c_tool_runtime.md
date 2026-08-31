@@ -1,6 +1,6 @@
 # S2 Lane C tool runtime implementation plan
 
-Status: implementation in progress
+Status: qualified
 Updated: 2026-08-31
 Owner: S2 Lane C — Tool Runtime, Parallel Execution and Lifecycle Extension
 Baseline: `446a347d1ac73636476ca2515a01da601b567c68`
@@ -84,22 +84,22 @@ def search(query: str) -> str:
 
 ## Implementation sequence
 
-1. [in progress] Freeze contracts and tests from the exact baseline.
-2. [pending] Add lifecycle/effect/batch contracts and ToolSpec/decorator
+1. [complete] Freeze contracts and tests from the exact baseline.
+2. [complete] Add lifecycle/effect/batch contracts and ToolSpec/decorator
    metadata without growing the beginner root surface.
-3. [pending] Refactor `ActionExecutor` around canonical `ToolResult` execution,
+3. [complete] Refactor `ActionExecutor` around canonical `ToolResult` execution,
    immediate terminal publication, bounded segmented concurrency, fail-fast /
    collect-all, missing-slot closure, and compatibility projection.
-4. [pending] Add deterministic quiescence/cancellation tracking and late-result
+4. [complete] Add deterministic quiescence/cancellation tracking and late-result
    handling for non-cancellable workers.
-5. [pending] Replace durability sentinel/drop ambiguity with acknowledged
+5. [complete] Replace durability sentinel/drop ambiguity with acknowledged
    receipts and wire terminal-slot persistence through `PendingWriteManager`.
-6. [pending] Add implementation, executor-policy, lifecycle-adapter,
+6. [complete] Add implementation, executor-policy, lifecycle-adapter,
    effect-policy, partial-persistence, and cancellation-capability conformance
    suites, including one third-party-style executor/policy.
-7. [pending] Publish sanitized Lane C fixtures, exact digests, lifecycle matrix,
+7. [complete] Publish sanitized Lane C fixtures, exact digests, lifecycle matrix,
    unsupported claims, and A/B/D handoff evidence.
-8. [pending] Run the requested targeted/static/full gates, review the diff,
+8. [complete] Run the requested targeted/static/full gates, review the diff,
    make coherent commits, and record the final clean HEAD.
 
 ## Cross-lane handoffs
