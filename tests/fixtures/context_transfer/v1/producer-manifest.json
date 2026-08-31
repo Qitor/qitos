@@ -1,0 +1,124 @@
+{
+  "schema_version": "qitos.context_transfer.producer_manifest/v1",
+  "producer_commit": "b229e0b80a55a1add64fdb88fbe5b632f8d15ad8",
+  "dispatch_source": "851f7902f15da670e72f4c04d7453cf37201aee7",
+  "producer": "S3 Lane B — Context, Continuation and Authority Transfer",
+  "contract_schemas": [
+    "qitos.context_transfer_plan/v1",
+    "qitos.context_transfer_receipt/v1",
+    "qitos.context_transfer_receipt.model/v1",
+    "qitos.context_transfer_receipt.diagnostic/v1"
+  ],
+  "producer_files": [
+    {
+      "path": "qitos/core/context_transfer.py",
+      "sha256": "24c3041fece7886735dfeb7142c0b94286812ccc12e4cdbe26135f6b36fd0a7a"
+    },
+    {
+      "path": "tests/core/test_context_transfer.py",
+      "sha256": "5bd11281472a7d3d699dc1f59314e3e46ee580bc6681d1f912c6b364eed2f7e1"
+    },
+    {
+      "path": "tests/fixtures/context_transfer/v1/semantic_fixtures.json",
+      "sha256": "4dd68572e6dfab729e45040c4d0efcfeb0197c5eb1134d22e0e35fcf6f9adcc0"
+    },
+    {
+      "path": "tests/fixtures/context_transfer/v1/qualification-evidence.json",
+      "sha256": "7129819f1daf9bed9676b0f0a55e6c8572606773141c39dfda7470d047d406ef"
+    },
+    {
+      "path": "tests/fixtures/context_transfer/README.md",
+      "sha256": "4c68823b0f43e41393b7f425fb16732f2a6a1563d990743a5c5d3a6b4954d558"
+    },
+    {
+      "path": "docs/internal/plans/s3_b_transfer_authority.md",
+      "sha256": "92896c71660f13f2c832ab733bb1553b42a7072ae3d22e204894aa97d856a9d9"
+    }
+  ],
+  "module_contract": {
+    "import_path": "qitos.core.context_transfer",
+    "plan_type": "ContextTransferPlan",
+    "receipt_type": "ContextTransferReceipt",
+    "execution_entrypoint": "execute_context_transfer",
+    "plan_strict_readers": ["ContextTransferPlan.from_dict", "ContextTransferPlan.from_json"],
+    "receipt_strict_readers": ["ContextTransferReceipt.from_dict", "ContextTransferReceipt.from_json"],
+    "model_projection": "ContextTransferReceipt.to_model_dict",
+    "diagnostic_projection": "ContextTransferReceipt.to_diagnostic_dict",
+    "existing_types_reused": [
+      "ExchangeLog",
+      "RequestView",
+      "SelectionReport",
+      "CompactionReceipt",
+      "ContinuationRef",
+      "ArtifactRef",
+      "BudgetAllocation",
+      "CapabilityAllocation",
+      "SessionIdentity",
+      "RunIdentity",
+      "WorkItemIdentity",
+      "SnapshotIdentity",
+      "AgentIdentity",
+      "ResolverReference"
+    ]
+  },
+  "supported": [
+    "full_recent_compacted_none_custom_context",
+    "multimodal_and_parallel_tool_batch_integrity",
+    "durable_queued_steering",
+    "immutable_child_input",
+    "exact_continuation_compatibility_expiry_and_resolver_validation",
+    "explicit_stateless_reconstruction_loss",
+    "typed_state_projection",
+    "canonical_artifact_reference_and_sensitive_access",
+    "five_way_capability_and_budget_intersection",
+    "secret_path_endpoint_live_object_rejection",
+    "strict_integrity_round_trip",
+    "bounded_allowlisted_model_and_diagnostic_views",
+    "third_party_policy_and_projector_protocols"
+  ],
+  "unsupported": [
+    "worker_scheduling",
+    "session_head_mutation",
+    "provider_transport_encoding",
+    "live_object_or_callable_persistence",
+    "secret_or_host_path_transfer",
+    "blind_state_copy",
+    "unapproved_loss",
+    "product_role_policy"
+  ],
+  "producer_test_node_ids": [
+    "tests/core/test_context_transfer.py::test_context_selection_is_ordered_exchange_safe",
+    "tests/core/test_context_transfer.py::test_compacted_context_carries_declared_loss",
+    "tests/core/test_context_transfer.py::test_multimodal_parallel_batch_and_nested_input_are_immutable",
+    "tests/core/test_context_transfer.py::test_queued_steering_stays_a_durable_queue_and_is_not_model_input",
+    "tests/core/test_context_transfer.py::test_continuation_preserved_only_on_exact_compatible_unexpired_codec",
+    "tests/core/test_context_transfer.py::test_continuation_rejects_incompatible_expired_or_unsupported",
+    "tests/core/test_context_transfer.py::test_explicit_stateless_reconstruction_is_loss_not_preservation",
+    "tests/core/test_context_transfer.py::test_missing_continuation_resolver_fails_closed",
+    "tests/core/test_context_transfer.py::test_state_projection_success_failure_unknown_and_missing_resolver",
+    "tests/core/test_context_transfer.py::test_artifact_transfer_requires_resolution_and_explicit_sensitive_access",
+    "tests/core/test_context_transfer.py::test_missing_required_artifact_rejects",
+    "tests/core/test_context_transfer.py::test_capability_and_budget_narrowing_and_escalation",
+    "tests/core/test_context_transfer.py::test_plan_rejects_secret_paths_and_private_endpoints_without_echo",
+    "tests/core/test_context_transfer.py::test_plan_filters_sensitive_keys_before_hashing",
+    "tests/core/test_context_transfer.py::test_context_secret_filter_requires_explicit_loss_and_never_echoes",
+    "tests/core/test_context_transfer.py::test_strict_round_trip_integrity_unknown_schema_and_projection_bounds",
+    "tests/core/test_context_transfer.py::test_independent_policy_and_projector_protocol_conformance",
+    "tests/core/test_context_transfer.py::test_fail_closed_destination_resolver_and_incomplete_authority",
+    "tests/core/test_context_transfer.py::test_destination_bound_and_non_json_live_objects_fail_closed",
+    "tests/core/test_context_transfer.py::test_producer_semantic_fixture_is_exact_and_complete"
+  ],
+  "lane_c_consumer_contract": [
+    "Import the real module-level plan and receipt types from qitos.core.context_transfer.",
+    "Strict-read and persist the plan before dispatch; never copy its schema or enums.",
+    "Call execute_context_transfer with all five authority sources and resolved runtime protocols.",
+    "Enforce only receipt.granted_capabilities and receipt.granted_budget.",
+    "Persist the accepted or rejected terminal receipt before join publication.",
+    "Strict-read the receipt after restore and verify its integrity digest."
+  ],
+  "lane_d_consumer_contract": [
+    "Use to_diagnostic_dict for graph and timeline inspection.",
+    "Use to_model_dict only for bounded model-visible child input.",
+    "Never render canonical state, resolver references, opaque continuation, or rejected input values."
+  ]
+}

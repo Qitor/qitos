@@ -1,0 +1,55 @@
+{
+  "schema_version": "qitos.context_transfer.qualification/v1",
+  "producer_commit": "b229e0b80a55a1add64fdb88fbe5b632f8d15ad8",
+  "dispatch_source": "851f7902f15da670e72f4c04d7453cf37201aee7",
+  "recorded_at": "2026-08-31",
+  "offline_deterministic": true,
+  "gates": [
+    {
+      "command": "pytest -q tests/core/test_context_transfer.py",
+      "status": "passed",
+      "result": "38 passed"
+    },
+    {
+      "command": "pytest -q tests/core/test_context_transfer.py tests/core/test_request_view.py tests/core/test_conversation.py tests/core/test_work_graph.py tests/core/test_session_contract.py tests/models/test_conversation_codecs.py tests/test_context_contributor_conformance.py tests/test_continuation_resolver_conformance.py tests/test_compact_history.py tests/test_steering_conformance.py tests/test_architecture_boundaries.py tests/test_public_surface.py tests/test_s2_interface_budget.py tests/test_no_local_paths.py",
+      "status": "passed",
+      "result": "215 passed"
+    },
+    {
+      "command": "flake8 qitos/core/context_transfer.py tests/core/test_context_transfer.py",
+      "status": "passed",
+      "result": "clean"
+    },
+    {
+      "command": "mypy qitos/core/context_transfer.py",
+      "status": "passed",
+      "result": "no issues found"
+    },
+    {
+      "command": "pytest -q",
+      "status": "passed",
+      "result": "2290 passed, 50 skipped"
+    },
+    {
+      "command": "python scripts/static_quality.py check",
+      "status": "blocked_environment",
+      "result": "quality toolchain package metadata missing for flake8; standalone flake8 gate passed"
+    }
+  ],
+  "claims": [
+    "strict_plan_and_receipt_round_trip",
+    "exchange_safe_immutable_child_input",
+    "typed_continuation_preservation_or_loss",
+    "typed_state_projection",
+    "canonical_artifact_reference_transfer",
+    "five_way_least_privilege_authority",
+    "safe_bounded_model_and_diagnostic_views",
+    "independent_policy_and_projector_conformance"
+  ],
+  "non_claims": [
+    "scheduler_implemented",
+    "s3_complete",
+    "durable_multi_agent_ready",
+    "distributed_runtime_ready"
+  ]
+}
