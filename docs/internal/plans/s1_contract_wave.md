@@ -1,7 +1,7 @@
 # S1 contract wave plan
 
-Status: four producer candidates delivered; G2 semantic convergence required
-Updated: 2026-08-30
+Status: G2 candidate delivered; G2-R2 repair/promotion required
+Updated: 2026-08-31
 Owner: v4 integration owner
 Independently reviewed runtime baseline:
 `5ef8ab657f6452ae48c931beea79106e2cca34c6`

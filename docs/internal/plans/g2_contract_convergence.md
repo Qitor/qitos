@@ -1,12 +1,27 @@
 # G2 stable-contract convergence plan
 
-Status: planned; four S1 producer candidates reviewed; not merge-ready
-Updated: 2026-08-30
+Status: candidate delivered; independent G2-R2 audit blocks promotion
+Updated: 2026-08-31
 Owner: one G2 integration owner
 S1 source ancestry baseline: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
 Plan carrier: `907cf038b3a6af469a27ff6f1b2d48a0c7d3d7c7`
 Target branch: `codex/v4-g2-contract-convergence`
 Target worktree: `/Users/morinop/Desktop/WhitzardOS-g2`
+
+## Post-candidate disposition
+
+Candidate `cab8fd246d2485784a13558e668eadb3ffa4d42f` preserves the intended
+identity, snapshot, ArtifactRef, WorkGraph, capability-owner, and receipt
+directions and passes its complete repository suite. It is not the integration
+baseline: it branched before `3ab69c91...`, has not been promoted, and its S1/G2
+worktrees remain registered.
+
+Independent probes reopened strict historical ToolResult grammar, strict
+ProviderCapabilities types, complete diagnostic/ArtifactRef secret and path
+safety, honest current-versus-historical receipts, and private `__all__`
+visibility. The authoritative closure plan is
+[`g2_r2_promotion_audit.md`](g2_r2_promotion_audit.md). Do not start S2 from the
+candidate HEAD.
 
 ## Objective
 

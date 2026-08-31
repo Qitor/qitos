@@ -1,6 +1,6 @@
 # Task 02 — model I/O transaction kernel
 
-Status: Task 02A/B1-R accepted and requalified against C-P3; Tasks 02B–02E remain pending
+Status: 02A integrated; 02B contract is in the unpromoted G2 candidate; G2-R2 and 02C–02E pending
 Depends on: Task 01
 Unblocks: Task 04, Task 12 durable snapshots, and Task 05
 Risk: high — core persistence and every provider adapter

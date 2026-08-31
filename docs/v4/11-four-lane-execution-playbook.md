@@ -7,12 +7,11 @@ Source tasks: Tasks 02–05 and 08–13
 Baseline: Task 01 complete; exact current integration status lives in
 [`docs/progress.md`](../progress.md)
 
-Current dispatch state: the four S1 producer candidates have been delivered from
-`c1efb0f4adde3e673bf181af5b1760c19a451ae2`. They are individually green but
-not merge-ready: identity, snapshot composition, ArtifactRef, ToolResult schema
-evolution, provider/diagnostic safety, interface budget, and exact-receipt
-convergence remain open. One G2 integration owner now works A -> C -> B -> D;
-S2 behavior remains blocked.
+Current dispatch state: G2 candidate `cab8fd246...` is repository-green but is
+not promoted. Independent review reopened historical ToolResult strictness,
+ProviderCapabilities types, diagnostic/ArtifactRef privacy, current-versus-
+historical receipts, interface visibility, and promotion/worktree closure. One
+G2-R2 integration owner must close these items; S2 behavior remains blocked.
 
 ---
 
@@ -984,12 +983,13 @@ worktree as removable. Such a path blocks wave closure until reconciled.
 
 ## 11. Immediate dispatch order
 
-The four S1 branches have completed their local producer work. Do not dispatch
-four more repair branches and do not start S2. Dispatch one G2 convergence task
-from the original S1 baseline using
-[`docs/internal/plans/g2_contract_convergence.md`](../internal/plans/g2_contract_convergence.md).
-It integrates and repairs A -> C -> B -> D, runs real cross-lane consumers, and
-promotes one stable-contract baseline only after every G2 blocker closes.
+The G2 candidate has completed its local convergence work. Do not dispatch four
+runtime lanes and do not promote it directly. Dispatch one G2-R2 task using
+[`docs/internal/plans/g2_r2_promotion_audit.md`](../internal/plans/g2_r2_promotion_audit.md).
+It repairs the independently reproduced blockers, replays the candidate onto
+the latest integration baseline, promotes one stable-contract baseline, and
+retires the completed worktrees. Only then may the planned
+[`S2 runtime wave`](../internal/plans/s2_runtime_wave.md) start.
 
 The following R4/S1 dispatch history remains for provenance.
 

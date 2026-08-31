@@ -1,6 +1,6 @@
 # Task 05 — trajectory store v2 and observability migration
 
-Status: D1/D1-R readiness integrated; 05A schema freeze waits for Task 04 and Tasks 12–13
+Status: G2 readiness candidate remains schema-not-ready; G2-R2 pending; 05A freeze waits for runtime lineage
 Depends on: Task 02 exchanges; Task 04 artifacts; Tasks 12–13 lineage
 Milestone: final v4 data-plane migration
 Risk: high — frozen v1 compatibility, replay, and research data fidelity

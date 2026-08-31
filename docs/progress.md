@@ -1,11 +1,12 @@
 # v4 integration progress
 
 Status: active integration ledger
-Updated: 2026-08-30
+Updated: 2026-08-31
 Integration branch: `feat/campaign-absorption`
 Independently reviewed runtime baseline: `5ef8ab657f6452ae48c931beea79106e2cca34c6`
 S1 dispatch baseline: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
-Current gate: **G1 CLOSED; four S1 candidates delivered; G2 convergence blocked**
+G2 candidate: `cab8fd246d2485784a13558e668eadb3ffa4d42f`
+Current gate: **G2 candidate delivered; G2-R2 promotion audit open; S2 blocked**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md)
 and [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md)
@@ -29,6 +30,37 @@ Maintain it with these rules:
   package.
 
 ## 2. Current decision
+
+The G2 candidate contains substantial, validated convergence work but is not a
+promoted baseline. The primary integration branch remains at
+`3ab69c91b8c5b7759208a3449def341658bd5fd1`; the candidate started from its
+parent `096e082...`, does not contain the later worktree-retirement policy, and
+cannot fast-forward the current integration branch. Its own progress document
+calls the lane-local branch the integration branch and marks G2 complete before
+promotion or cleanup. Those are evidence/status defects, not runtime facts.
+
+Independent reruns on the clean candidate passed 226 focused tests, full suite
+`2010 passed, 50 skipped`, the 399-finding ratchet, stable flake8, stable mypy
+on 84 files, and all three readiness modes. Typed identity consumption,
+snapshot composition, one ArtifactRef, provider-owned capability declaration,
+and the broad WorkGraph/receipt structure are real improvements worth
+preserving.
+
+Four uncovered contract defects block promotion: the historical ToolResult
+reader accepts current-only fields under the historical schema identity;
+ProviderCapabilities accepts malformed types and may emit raw `TypeError`;
+diagnostic/ArtifactRef safety misses arbitrary host paths and common key/token
+forms while leaving ProviderFailure category unsanitized; and two receipts
+called current foundations still bind historical ExchangeLog/ToolResult bytes.
+The interface budget also publishes names classified as internal-private via
+`__all__`, so its classification and Python visibility disagree.
+
+The next authorized task is one bounded
+[`G2-R2 repair/promotion`](internal/plans/g2_r2_promotion_audit.md). It replays
+the candidate onto the latest audit-bearing integration HEAD, fixes these
+boundaries, promotes one verified baseline, and retires superseded worktrees.
+The four-lane [`S2 runtime wave`](internal/plans/s2_runtime_wave.md) is planned
+but remains blocked until that exact baseline and cleanup receipt exist.
 
 The A -> C -> B -> D convergence tree and the bounded G1-R3/R4 repairs are
 integrated at `5ef8ab657f6452ae48c931beea79106e2cca34c6`. C-P3 collision-safe key
@@ -481,14 +513,14 @@ Shared release documents remain integration-owner leases.
 
 ## 6. Next work
 
-The four S1 producer candidates are complete, but G2 is not. The next dispatch
-is one convergence owner using the exact plan in
-[`g2_contract_convergence.md`](internal/plans/g2_contract_convergence.md).
-Do not begin S2 behavior and do not create four parallel repair branches.
-After the qualified G2 baseline is promoted, wave closure also requires clean,
-non-forced retirement of the four S1 source worktrees and the G2 convergence
-worktree. Branch and commit refs remain; dirty, active, locked, or unrecorded
-worktrees block cleanup rather than being forcibly removed.
+The G2 candidate is complete but not promoted. Dispatch one G2-R2 owner using
+[`g2_r2_promotion_audit.md`](internal/plans/g2_r2_promotion_audit.md). Do not
+begin S2 behavior and do not create four parallel repair branches. After the
+qualified G2-R2 baseline is promoted, wave closure requires clean, non-forced
+retirement of all completed G1, repair-lane, S1, G2, and G2-R2 worktrees on the
+explicit allowlist. Branch and commit refs remain; dirty, active, locked, or
+unrecorded worktrees block cleanup rather than being forcibly removed. The
+current 16 clean non-primary worktrees consume approximately 10.13 GiB.
 
 ### Accepted Lane C — C1-R4 / C-P3 and C-P4 projection closure
 
@@ -853,3 +885,47 @@ blocked from freeze until Task 12/13 lineage is available.
   merge-ready**. One G2 integration owner must converge A -> C -> B -> D using
   `docs/internal/plans/g2_contract_convergence.md`. S2 runtime work remains
   blocked.
+
+### 2026-08-31 — independent G2 candidate audit opens G2-R2
+
+- Verified clean G2 candidate
+  `cab8fd246d2485784a13558e668eadb3ffa4d42f`, its 22 ordered S1
+  cherry-picks and seven convergence commits. The primary integration branch
+  remains clean at `3ab69c91b8c5b7759208a3449def341658bd5fd1`; the candidate
+  branched from parent `096e082...`, so it is not a fast-forward successor and
+  has not been promoted.
+- Reviewed the actual identity, snapshot composition, ArtifactRef, ToolResult,
+  WorkGraph, provider capability, diagnostic, readiness, and interface-budget
+  code. Typed cross-line ownership and the single-contract direction are real;
+  no session, scheduler, provider-default, Trajectory, or qita runtime was
+  introduced.
+- Independently passed 226 focused tests, full suite
+  `2010 passed, 50 skipped`, the 399-finding ratchet, stable flake8, stable mypy
+  on 84 files, and diff/readiness checks. Readiness results were 0/19 qualified
+  without receipts and 19/19 with the checked-in set, while every mode remained
+  `schema_not_ready` with no measurement or claim.
+- Reproduced a mixed-schema failure: the historical ToolResult reader accepts
+  current-only attempt, owner-generation, effect, and uncertainty fields under
+  the historical schema identifier. The historical grammar therefore is not
+  yet strict despite the current/historical class split.
+- Reproduced malformed capability acceptance: persisted capabilities can carry
+  string feature sequences, non-boolean flags, and a negative input budget; one
+  malformed variant escapes as raw `TypeError` instead of a typed codec error.
+- Reproduced diagnostic/privacy leaks for unenumerated absolute paths and common
+  API-key/JWT-like values. ProviderFailure leaves category unsanitized and
+  ArtifactRef accepts a secret-like model summary and embedded host path in a
+  resolver reference.
+- Found receipt and interface evidence mismatches: the item named canonical
+  ToolResult foundation still binds G1 historical bytes, and diagnostic helpers
+  classified as internal-private remain explicitly published through
+  `__all__`.
+- Replayed the candidate range onto the current integration baseline in a
+  disposable worktree. The first 28 commits applied; the final documentation
+  commit conflicted in CHANGELOG, both READMEs, and the four-lane playbook. The
+  temporary worktree was cleanly aborted and removed.
+- Inventoried 16 clean non-primary worktrees consuming approximately 10.13 GiB.
+  None were removed before promotion. G2-R2 owns the verified, non-forced
+  retirement receipt after the repaired baseline is promoted.
+- Decision: candidate direction is accepted, but **G2 remains open**. Dispatch
+  one G2-R2 repair/promotion owner. S2 is planned in
+  `docs/internal/plans/s2_runtime_wave.md` but remains blocked.

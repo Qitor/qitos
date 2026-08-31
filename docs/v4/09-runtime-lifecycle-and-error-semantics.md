@@ -1,6 +1,6 @@
 # Task 09 — runtime lifecycle and error semantics
 
-Status: 09A matrix/fixtures and C1-R outcome hardening implemented; later packages remain staged
+Status: 09A/C1-R integrated; additional contracts are in the unpromoted G2 candidate; G2-R2 and runtime packages pending
 Depends on: Task 01 and Task 08A
 Coordinates with: Tasks 02, 03, 05, 12, and 13
 Risk: high — failure, timeout, durability, and shutdown behavior

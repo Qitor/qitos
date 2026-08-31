@@ -1,6 +1,6 @@
 # Task 03 — tool outcome contract and coding-toolset consolidation
 
-Status: 03A/C-P4 accepted on the scalar-safe G1 baseline; 03B–E remain staged
+Status: 03A integrated; recovery/effect evolution is in the unpromoted G2 candidate; G2-R2 and 03B–E pending
 Depends on: Task 01
 Feeds: Task 04 artifacts, Task 12 recovery, Task 13 work outcomes, and v4 DX
 Risk: medium — broad kit surface, stable tool-result compatibility
