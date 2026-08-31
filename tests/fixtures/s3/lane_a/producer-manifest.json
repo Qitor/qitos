@@ -29,7 +29,7 @@
     },
     {
       "path": "tests/fixtures/s3/lane_a/qualification-evidence.json",
-      "sha256": "0cf27ae64f70ea593a94c78c42e63110fd73f4f1739740b85f8187b0ccb89894"
+      "sha256": "e67223c4b2857f69b621b91d4facff42ef1e69901e23dfa63a46c471610c027c"
     },
     {
       "path": "tests/fixtures/s3/lane_a/README.md",
@@ -55,6 +55,7 @@
     "tests/engine/test_session_fork.py::test_duplicate_operation_is_typed_and_does_not_create_second_child",
     "tests/engine/test_session_fork.py::test_store_failure_leaves_no_child_head",
     "tests/engine/test_session_fork.py::test_restored_child_supersedes_original_fork_owner",
+    "tests/engine/test_session_fork.py::test_cross_process_restore_fences_original_owner_with_events",
     "tests/engine/test_session_fork.py::test_clean_process_restores_and_continues_forked_child"
   ],
   "lane_c_consumer_contract": {

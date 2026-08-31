@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import json
+import multiprocessing
 import os
 from pathlib import Path
 import subprocess
@@ -199,6 +200,36 @@ def _completed(store: CheckpointStore):
     session = Engine(ForkAgent(), runtime=runtime).session("fork me")
     session.run()
     return session, runtime
+
+
+def _restore_child_worker(
+    db_path: str,
+    child_id: str,
+    owner_transferred: Any,
+    continue_run: Any,
+    result_queue: Any,
+) -> None:
+    store = SqliteCheckpointStore(db_path)
+    try:
+        runtime = RuntimeComposition(checkpoint_store=store)
+        engine = Engine(ForkAgent(), runtime=runtime)
+        runtime.bind_engine_resources(engine)
+        restored = Engine.restore(child_id, runtime=runtime)
+        owner_transferred.set()
+        if not continue_run.wait(timeout=10):
+            result_queue.put({"error": "release_timeout"})
+            return
+        result = restored.run()
+        result_queue.put(
+            {
+                "result": result.state.final_result,
+                "generation": restored.current_head.generation.value,
+            }
+        )
+    except Exception as exc:  # pragma: no cover - reported across process boundary
+        result_queue.put({"error": f"{type(exc).__name__}:{exc}"})
+    finally:
+        store.close()
 
 
 def test_current_head_fork_is_distinct_explicit_and_source_immutable(fork_store) -> None:
@@ -458,6 +489,44 @@ store.close()
         assert verify.get_session_head(child_id).generation == result["generation"]
     finally:
         verify.close()
+
+
+def test_cross_process_restore_fences_original_owner_with_events(tmp_path: Path) -> None:
+    db = tmp_path / "owner-fence.db"
+    store = SqliteCheckpointStore(str(db))
+    source, _ = _completed(store)
+    child = source.fork()
+    child_id = child.session_id.value
+
+    context = multiprocessing.get_context("spawn")
+    owner_transferred = context.Event()
+    continue_run = context.Event()
+    result_queue = context.Queue()
+    worker = context.Process(
+        target=_restore_child_worker,
+        args=(str(db), child_id, owner_transferred, continue_run, result_queue),
+    )
+    worker.start()
+    try:
+        assert owner_transferred.wait(timeout=10)
+        with pytest.raises(SessionContractError) as stale:
+            child.run()
+        assert stale.value.error_code is SessionErrorCode.SUPERSEDED_OWNER
+        continue_run.set()
+        outcome = result_queue.get(timeout=15)
+        worker.join(timeout=15)
+        assert not worker.is_alive()
+        assert worker.exitcode == 0
+        assert outcome.get("error") is None
+        assert outcome["result"] == "done:2"
+        assert outcome["generation"] > 1
+    finally:
+        continue_run.set()
+        worker.join(timeout=5)
+        if worker.is_alive():
+            worker.terminate()
+            worker.join(timeout=5)
+        store.close()
 
 
 def test_producer_bundle_uses_strict_readers_and_bound_digests() -> None:
