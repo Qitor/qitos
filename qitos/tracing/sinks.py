@@ -169,11 +169,15 @@ def project_record(
     if view == PrivacyView.RAW_PRIVATE:
         return TrajectoryRecord.from_dict(record.to_dict())
     projection = project_data(record.payload, view=view)
+    provenance_projection = project_data(record.record_provenance, view=view)
     updated = replace(
         record,
         payload=copy.deepcopy(dict(projection.data or {})),
+        record_provenance=copy.deepcopy(
+            dict(provenance_projection.data or {})
+        ),
         privacy_view=view,
-        loss=record.loss.merged(projection.loss),
+        loss=record.loss.merged(projection.loss, provenance_projection.loss),
         digest="",
     )
     return replace(updated, digest=updated.compute_digest())

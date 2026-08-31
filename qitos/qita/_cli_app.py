@@ -65,6 +65,19 @@ def main(argv: Optional[List[str]] = None) -> int:
     p_export.add_argument("--run", required=True, help="Run directory path")
     p_export.add_argument("--html", required=True, help="Output html file path")
 
+    p_inspect = sub.add_parser(
+        "inspect", help="Read-only Session and WorkGraph inspection"
+    )
+    p_inspect.add_argument(
+        "view", choices=("session", "graph", "timeline", "item")
+    )
+    p_inspect.add_argument("identity", help="Opaque session/run/work/attempt identity")
+    p_inspect.add_argument(
+        "--kind", choices=("session", "run", "work", "attempt"), default=None
+    )
+    p_inspect.add_argument("--logdir", default="./runs")
+    p_inspect.add_argument("--candidate-store", default=None)
+
     args = parser.parse_args(raw_args)
     if args.command == "board":
         return _cmd_board(
@@ -78,7 +91,94 @@ def main(argv: Optional[List[str]] = None) -> int:
         return _cmd_replay(run=args.run, host=args.host, port=args.port)
     if args.command == "export":
         return _cmd_export(run=args.run, html_path=args.html)
+    if args.command == "inspect":
+        return _cmd_inspect(
+            view=args.view,
+            identity=args.identity,
+            kind=args.kind,
+            logdir=args.logdir,
+            candidate_store=args.candidate_store,
+        )
     return 1
+
+
+def _cmd_inspect(
+    *,
+    view: str,
+    identity: str,
+    kind: Optional[str],
+    logdir: str,
+    candidate_store: Optional[str],
+) -> int:
+    """Render one bounded, redacted read model; never mutate runtime state."""
+    from qitos.qita.reader import candidate_file_reader, default_reader
+    from qitos.tracing.privacy import project_data
+    from qitos.tracing.trajectory import PrivacyView
+    from qitos.tracing.work_graph_reader import (
+        GraphSelector,
+        WorkGraphReadError,
+        WorkGraphReader,
+    )
+
+    default_kind = {
+        "session": "session",
+        "graph": "session",
+        "timeline": "session",
+        "item": "work",
+    }[view]
+    try:
+        reader = (
+            candidate_file_reader(candidate_store)
+            if candidate_store
+            else default_reader(logdir)
+        )
+        model = WorkGraphReader(reader).read(
+            GraphSelector(kind or default_kind, identity)
+        )
+        payload = model.to_dict()
+        if view == "session":
+            payload = {
+                "schema_version": payload["schema_version"],
+                "selector": payload["selector"],
+                "session_summary": payload["session_summary"],
+                "authoritative_head": payload["authoritative_head"],
+                "restore_generations": payload["restore_generations"],
+                "completeness": payload["completeness"],
+            }
+        elif view == "timeline":
+            payload = {
+                "schema_version": payload["schema_version"],
+                "selector": payload["selector"],
+                "timeline": payload["timeline"],
+                "completeness": payload["completeness"],
+            }
+        elif view == "item":
+            payload = {
+                "schema_version": payload["schema_version"],
+                "selector": payload["selector"],
+                "work_items": payload["work_items"],
+                "joins": payload["joins"],
+                "cancellations": payload["cancellations"],
+                "detachments": payload["detachments"],
+                "completeness": payload["completeness"],
+            }
+        safe = project_data(payload, view=PrivacyView.SAFE_DIAGNOSTIC)
+        print(json.dumps(safe.data, ensure_ascii=False, sort_keys=True, indent=2))
+        return 0
+    except (FileNotFoundError, ValueError) as exc:
+        code = str(exc) if str(exc) in {
+            "candidate_store_unavailable",
+            "candidate_store_invalid",
+        } else "reader_source_invalid"
+        print(json.dumps({
+            "status": "blocked",
+            "code": code,
+            "remediation": "provide qualified candidate bytes or a readable trace-v1 root",
+        }, sort_keys=True))
+        return 2
+    except WorkGraphReadError as exc:
+        print(json.dumps({"status": "blocked", **exc.to_dict()}, sort_keys=True))
+        return 2
 
 
 def _cmd_board(

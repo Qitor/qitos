@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import json
 from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.parse import quote
@@ -13,6 +14,30 @@ def default_reader(root: str | Path) -> Any:
     from qitos.tracing.readers import TraceCompatibilityReader
 
     return TraceCompatibilityReader(root)
+
+
+def candidate_file_reader(path: str | Path) -> Any:
+    """Open candidate trajectory bytes without creating or mutating a store."""
+    from qitos.tracing.readers import StoreTrajectoryReader
+    from qitos.tracing.store import MemoryTrajectoryStore
+    from qitos.tracing.trajectory import TrajectoryRecord
+
+    source = Path(path)
+    if not source.is_file():
+        raise FileNotFoundError("candidate_store_unavailable")
+    value = json.loads(source.read_text(encoding="utf-8"))
+    if not isinstance(value, dict) or not isinstance(value.get("records"), list):
+        raise ValueError("candidate_store_invalid")
+    records = tuple(
+        TrajectoryRecord.from_dict(item)
+        for item in value["records"]
+        if isinstance(item, dict)
+    )
+    if len(records) != len(value["records"]):
+        raise ValueError("candidate_store_invalid")
+    store = MemoryTrajectoryStore(store_id="qitos.qita.read_only_candidate")
+    store.append_batch(records)
+    return StoreTrajectoryReader(store)
 
 
 def _portable_asset_refs(payload: Dict[str, Any], run_dir: Path) -> None:
@@ -122,6 +147,7 @@ def discover_run_payloads(
 
 
 __all__ = [
+    "candidate_file_reader",
     "default_reader",
     "discover_run_payloads",
     "load_run_payload",

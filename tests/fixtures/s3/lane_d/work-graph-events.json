@@ -1,0 +1,154 @@
+{
+  "fixture_version": "qitos.s3.lane_d.work_graph_events/1",
+  "authority": "fixture_conformance_only",
+  "runtime_qualification": false,
+  "identities": {
+    "session_id": "session_1111111111111111",
+    "run_id": "run_1111111111111111",
+    "parent_work_item_id": "work_item_1111111111111111",
+    "child_work_item_id": "work_item_2222222222222222",
+    "unknown_work_item_id": "work_item_3333333333333333",
+    "parent_attempt_id": "attempt_1111111111111111",
+    "child_attempt_id": "attempt_2222222222222222",
+    "unknown_attempt_id": "attempt_3333333333333333"
+  },
+  "records": [
+    {
+      "event_type": "session_created",
+      "operation_id": "session-create-1",
+      "payload": {"lifecycle": "created", "authoritative_head": {"generation": 0, "owner_run_id": "run_1111111111111111"}}
+    },
+    {
+      "event_type": "run_started",
+      "operation_id": "run-start-1",
+      "payload": {"lifecycle": "running"}
+    },
+    {
+      "event_type": "work_declared",
+      "operation_id": "work-declare-parent",
+      "work_item_id": "work_item_1111111111111111",
+      "payload": {"lifecycle": "running", "owner_id": "agent_1111111111111111"}
+    },
+    {
+      "event_type": "owner_assigned",
+      "operation_id": "owner-parent-0",
+      "work_item_id": "work_item_1111111111111111",
+      "owner_generation": 0,
+      "payload": {"owner_id": "agent_1111111111111111"}
+    },
+    {
+      "event_type": "fan_out_declared",
+      "operation_id": "fan-out-1",
+      "work_item_id": "work_item_1111111111111111",
+      "payload": {"operation": "fan_out", "child_work_item_ids": ["work_item_2222222222222222", "work_item_3333333333333333"]}
+    },
+    {
+      "event_type": "work_declared",
+      "operation_id": "child-declare-1",
+      "work_item_id": "work_item_2222222222222222",
+      "parent_work_item_id": "work_item_1111111111111111",
+      "source_work_item_id": "work_item_1111111111111111",
+      "payload": {"operation": "fan_out", "lifecycle": "created", "owner_id": "agent_2222222222222222"}
+    },
+    {
+      "event_type": "work_attempt",
+      "operation_id": "child-attempt-1",
+      "work_item_id": "work_item_2222222222222222",
+      "attempt_id": "attempt_2222222222222222",
+      "owner_generation": 0,
+      "parent_work_item_id": "work_item_1111111111111111",
+      "payload": {"lifecycle": "running", "owner_id": "agent_2222222222222222"}
+    },
+    {
+      "event_type": "child_terminal",
+      "operation_id": "child-terminal-1",
+      "work_item_id": "work_item_2222222222222222",
+      "attempt_id": "attempt_2222222222222222",
+      "owner_generation": 0,
+      "parent_work_item_id": "work_item_1111111111111111",
+      "payload": {"lifecycle": "completed", "outcome_ref": "artifact:result-1"}
+    },
+    {
+      "event_type": "outcome_accepted",
+      "operation_id": "join-1",
+      "work_item_id": "work_item_2222222222222222",
+      "attempt_id": "attempt_2222222222222222",
+      "owner_generation": 0,
+      "parent_work_item_id": "work_item_1111111111111111",
+      "payload": {"disposition": "accepted", "outcome_ref": "artifact:result-1"}
+    },
+    {
+      "event_type": "work_declared",
+      "operation_id": "child-declare-2",
+      "work_item_id": "work_item_3333333333333333",
+      "parent_work_item_id": "work_item_1111111111111111",
+      "source_work_item_id": "work_item_1111111111111111",
+      "payload": {"operation": "fan_out", "lifecycle": "running", "owner_id": "agent_3333333333333333"}
+    },
+    {
+      "event_type": "outcome_unknown",
+      "operation_id": "child-unknown-2",
+      "work_item_id": "work_item_3333333333333333",
+      "attempt_id": "attempt_3333333333333333",
+      "owner_generation": 0,
+      "parent_work_item_id": "work_item_1111111111111111",
+      "payload": {"lifecycle": "paused", "uncertainty": "process_loss_after_dispatch"}
+    },
+    {
+      "event_type": "cancellation_requested",
+      "operation_id": "cancel-2",
+      "work_item_id": "work_item_3333333333333333",
+      "attempt_id": "attempt_3333333333333333",
+      "owner_generation": 0,
+      "parent_work_item_id": "work_item_1111111111111111",
+      "payload": {"propagation": "request_and_wait"}
+    },
+    {
+      "event_type": "cancellation_unresolved",
+      "operation_id": "cancel-2",
+      "work_item_id": "work_item_3333333333333333",
+      "attempt_id": "attempt_3333333333333333",
+      "owner_generation": 0,
+      "parent_work_item_id": "work_item_1111111111111111",
+      "payload": {"worker_state": "unknown"}
+    },
+    {
+      "event_type": "join_declared",
+      "operation_id": "join-1",
+      "work_item_id": "work_item_1111111111111111",
+      "payload": {"policy": "all_successful", "expected_child_ids": ["work_item_2222222222222222", "work_item_3333333333333333"]}
+    },
+    {
+      "event_type": "join_progressed",
+      "operation_id": "join-1",
+      "work_item_id": "work_item_1111111111111111",
+      "payload": {"accepted_child_ids": ["work_item_2222222222222222"], "outstanding_child_ids": ["work_item_3333333333333333"]}
+    },
+    {
+      "event_type": "ownership_transfer_requested",
+      "operation_id": "transfer-parent-1",
+      "work_item_id": "work_item_1111111111111111",
+      "attempt_id": "attempt_1111111111111111",
+      "owner_generation": 0,
+      "payload": {"from_owner_id": "agent_1111111111111111", "to_owner_id": "agent_4444444444444444"}
+    },
+    {
+      "event_type": "ownership_transfer_committed",
+      "operation_id": "transfer-parent-1",
+      "work_item_id": "work_item_1111111111111111",
+      "attempt_id": "attempt_1111111111111111",
+      "owner_generation": 1,
+      "payload": {"from_owner_id": "agent_1111111111111111", "to_owner_id": "agent_4444444444444444", "authoritative_head": {"generation": 1, "owner_run_id": "run_1111111111111111"}}
+    },
+    {
+      "event_type": "process_loss_recovered",
+      "operation_id": "restore-1",
+      "work_item_id": "work_item_1111111111111111",
+      "attempt_id": "attempt_1111111111111111",
+      "owner_generation": 1,
+      "source_session_id": "session_1111111111111111",
+      "source_work_item_id": "work_item_1111111111111111",
+      "payload": {"restore_generation": 1, "unknown_work_item_ids": ["work_item_3333333333333333"]}
+    }
+  ]
+}

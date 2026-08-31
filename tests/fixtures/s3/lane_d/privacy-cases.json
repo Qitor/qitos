@@ -1,0 +1,11 @@
+{
+  "fixture_version": "qitos.s3.lane_d.privacy_cases/1",
+  "cases": [
+    {"name": "secret_keys", "value": {"api_key": "not-for-output", "authorization": "Bearer not-for-output", "cookie": "sid=not-for-output"}, "codes": ["sensitive_key"]},
+    {"name": "jwt_pem", "value": ["aaaaaaaab.bbbbbbbbc.ccccccccd", "-----BEGIN PRIVATE KEY-----"], "codes": ["secret_value"]},
+    {"name": "paths", "value": ["/srv/private/file", "C:\\private\\file", "\\\\host\\share\\file", "file:///private/file", "~/private/file"], "codes": ["host_path"]},
+    {"name": "private_endpoints", "value": ["http://127.0.0.1:8000", "http://10.2.3.4:9000", "http://service.local:8080"], "codes": ["local_endpoint"]},
+    {"name": "provider_and_artifact", "value": {"raw_provider_response": {"private": true}, "artifact_body": "private body"}, "codes": ["provider_raw_payload", "artifact_body"]},
+    {"name": "oversized", "value": {"text": "xxxxxxxxxxxxxxxx"}, "codes": ["string_length_limit"], "max_string_chars": 4}
+  ]
+}

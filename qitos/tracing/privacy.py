@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import copy
 import dataclasses
 import re
 from dataclasses import dataclass
@@ -39,6 +38,9 @@ _PROVIDER_RAW_KEY_PARTS = frozenset(
         "rawresponse",
     }
 )
+_ARTIFACT_BODY_KEY_PARTS = frozenset(
+    {"artifactbody", "artifactcontent", "artifactpayload", "blobbody"}
+)
 _SECRET_PATTERNS = (
     re.compile(r"(?i)\bbearer\s+[a-z0-9._~+/=-]{8,}"),
     re.compile(r"(?i)\b(?:authorization|cookie|set-cookie)\s*:\s*\S+"),
@@ -57,10 +59,18 @@ _HOST_PATH_PATTERNS = (
     re.compile(r"(?:^|[\s\"'=])\\\\[^\\]+\\[^\\]+"),
     re.compile(r"(?:^|[\s\"'=])file://", re.IGNORECASE),
     re.compile(r"(?:^|[\s\"'=])~[/\\]"),
+    re.compile(r"(?:^|[\s\"'=])/(?:[A-Za-z0-9._-]+/)+[A-Za-z0-9._-]*"),
 )
 _LOCAL_ENDPOINT_PATTERNS = (
     re.compile(r"(?i)\b(?:localhost|127\.0\.0\.1)(?::\d+)?\b"),
     re.compile(r"(?i)https?://\[::1\](?::\d+)?"),
+    re.compile(
+        r"(?i)\b(?:https?://)?(?:10(?:\.\d{1,3}){3}|"
+        r"192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])"
+        r"(?:\.\d{1,3}){2}|169\.254(?:\.\d{1,3}){2}|0\.0\.0\.0)"
+        r"(?::\d+)?\b"
+    ),
+    re.compile(r"(?i)\bhttps?://[^\s/]+\.local(?::\d+)?\b"),
 )
 
 
@@ -138,6 +148,11 @@ def _provider_raw_key(key: Any) -> bool:
     return any(part in normalized for part in _PROVIDER_RAW_KEY_PARTS)
 
 
+def _artifact_body_key(key: Any) -> bool:
+    normalized = _normalized_key(key)
+    return any(part in normalized for part in _ARTIFACT_BODY_KEY_PARTS)
+
+
 def _unsafe_string_code(value: str) -> Optional[str]:
     if any(pattern.search(value) for pattern in _SECRET_PATTERNS):
         return "secret_value"
@@ -179,6 +194,7 @@ class _Projector:
         self.findings: List[ProjectionFinding] = []
         self.loss_entries: List[LossEntry] = []
         self.nodes = 0
+        self.active_container_ids: set[int] = set()
 
     def finding(self, code: str, location: str, action: str) -> None:
         self.findings.append(
@@ -213,6 +229,12 @@ class _Projector:
             return REDACTED
 
         if isinstance(value, Mapping):
+            container_id = id(value)
+            if container_id in self.active_container_ids:
+                self.finding("cyclic_object", location, "omitted")
+                self.finding("depth_limit", location, "omitted")
+                return OMITTED
+            self.active_container_ids.add(container_id)
             output: Dict[str, Any] = {}
             items = list(
                 islice(value.items(), self.limits.max_mapping_items + 1)
@@ -249,19 +271,30 @@ class _Projector:
                             "provider_raw_payload", safe_location, "reference_required"
                         )
                         continue
+                if self.view != PrivacyView.RAW_PRIVATE and _artifact_body_key(key):
+                    output[key_text] = OMITTED
+                    self.finding("artifact_body", safe_location, "omitted")
+                    continue
                 output[key_text] = self.project(
                     item,
                     depth=depth + 1,
                     location=safe_location,
                 )
+            self.active_container_ids.discard(container_id)
             return output
 
         if isinstance(value, (list, tuple, set, frozenset)):
+            container_id = id(value)
+            if container_id in self.active_container_ids:
+                self.finding("cyclic_object", location, "omitted")
+                self.finding("depth_limit", location, "omitted")
+                return OMITTED
+            self.active_container_ids.add(container_id)
             items = list(islice(iter(value), self.limits.max_sequence_items + 1))
             if len(items) > self.limits.max_sequence_items:
                 self.finding("sequence_item_limit", location, "truncated")
                 items = items[: self.limits.max_sequence_items]
-            return [
+            sequence_output = [
                 self.project(
                     item,
                     depth=depth + 1,
@@ -269,6 +302,8 @@ class _Projector:
                 )
                 for index, item in enumerate(items)
             ]
+            self.active_container_ids.discard(container_id)
+            return sequence_output
 
         if isinstance(value, str):
             if self.view != PrivacyView.RAW_PRIVATE:
@@ -305,14 +340,6 @@ def project_data(
     Findings contain only low-cardinality codes and positional locations.  A
     rejected key or value is never echoed into diagnostics.
     """
-    if view == PrivacyView.RAW_PRIVATE:
-        return ProjectionResult(
-            data=copy.deepcopy(_json_ready(value, private=True)),
-            view=view,
-            findings=(),
-            loss=LossReport(policy_id="qitos.projection/raw-private"),
-        )
-
     effective_limits = limits or (
         ProjectionLimits(
             max_depth=6,

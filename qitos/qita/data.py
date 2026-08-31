@@ -11,6 +11,7 @@ from ._cli_app import (
     _slug_run_id,
 )
 from .reader import (
+    candidate_file_reader,
     default_reader,
     discover_run_payloads,
     load_run_payload,
@@ -25,6 +26,7 @@ __all__ = [
     "_resolve_run",
     "_slug_run_id",
     "default_reader",
+    "candidate_file_reader",
     "discover_run_payloads",
     "load_run_payload",
     "load_session_payload",

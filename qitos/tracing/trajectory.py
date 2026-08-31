@@ -193,6 +193,11 @@ class TrajectoryRecord:
     tool_call_id: Optional[str] = None
     attempt_id: Optional[str] = None
     owner_generation: Optional[int] = None
+    operation_id: Optional[str] = None
+    source_session_id: Optional[str] = None
+    source_work_item_id: Optional[str] = None
+    producer_authority: Optional[str] = None
+    record_provenance: Dict[str, Any] = field(default_factory=dict)
     causation_id: Optional[str] = None
     correlation_id: Optional[str] = None
     parent_run_id: Optional[str] = None
@@ -267,6 +272,11 @@ class TrajectoryRecord:
             "tool_call_id": self.tool_call_id,
             "attempt_id": self.attempt_id,
             "owner_generation": self.owner_generation,
+            "operation_id": self.operation_id,
+            "source_session_id": self.source_session_id,
+            "source_work_item_id": self.source_work_item_id,
+            "producer_authority": self.producer_authority,
+            "record_provenance": copy.deepcopy(self.record_provenance),
             "causation_id": self.causation_id,
             "correlation_id": self.correlation_id,
             "parent_run_id": self.parent_run_id,
@@ -295,6 +305,9 @@ class TrajectoryRecord:
         raw_loss = value.get("loss") or {}
         if not isinstance(raw_loss, Mapping):
             raise ValueError("record loss must be an object")
+        raw_provenance = value.get("record_provenance") or {}
+        if not isinstance(raw_provenance, Mapping):
+            raise ValueError("record provenance must be an object")
         record = cls(
             record_id=str(value["record_id"]),
             sequence=(
@@ -326,6 +339,13 @@ class TrajectoryRecord:
                 if value.get("owner_generation") is not None
                 else None
             ),
+            operation_id=_optional_text(value.get("operation_id")),
+            source_session_id=_optional_text(value.get("source_session_id")),
+            source_work_item_id=_optional_text(
+                value.get("source_work_item_id")
+            ),
+            producer_authority=_optional_text(value.get("producer_authority")),
+            record_provenance=copy.deepcopy(dict(raw_provenance)),
             causation_id=_optional_text(value.get("causation_id")),
             correlation_id=_optional_text(value.get("correlation_id")),
             parent_run_id=_optional_text(value.get("parent_run_id")),

@@ -1,0 +1,14 @@
+{
+  "fixture_version": "qitos.s3.lane_d.graph_reader_cases/1",
+  "selector": {"scope": "session", "identity": "session_1111111111111111"},
+  "expected": {
+    "work_item_count": 3,
+    "edge_count": 2,
+    "fan_out_count": 1,
+    "join_count": 1,
+    "current_parent_owner": "agent_4444444444444444",
+    "current_parent_generation": 1,
+    "unknown_work_item_id": "work_item_3333333333333333",
+    "restore_count": 1
+  }
+}
