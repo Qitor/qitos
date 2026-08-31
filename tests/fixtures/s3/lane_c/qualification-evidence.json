@@ -1,7 +1,7 @@
 {
   "schema_version": "qitos.s3.lane_c.qualification_evidence/v1",
   "status": "qualified_integrated_a_b",
-  "integrated_runtime_commit": "291108655ba602c7aebcaad4419d89c1386c2edc",
+  "integrated_runtime_commit": "9815726bbf5500772d54ccb62503c2f469117105",
   "lane_a_consumed": true,
   "lane_b_consumed": true,
   "lane_a_binding": {
@@ -31,7 +31,8 @@
     "closed_join_late_outcome_discard",
     "operation_declaration_precedes_child_preparation",
     "prepared_fork_recovery_reuses_operation_and_child_identity",
-    "handoff_pre_and_post_commit_process_loss_has_one_owner"
+    "handoff_pre_and_post_commit_process_loss_has_one_owner",
+    "uncommitted_admission_receipt_rolls_back_to_dispatchable"
   ],
   "validation": {
     "focused_cross_lane": "107 passed",

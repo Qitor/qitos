@@ -143,3 +143,9 @@ commit before scheduler dispatch. A clean composition can reuse a committed
 fork receipt and the original operation identity after loss during preparation.
 Handoff loss before that commit retains the old owner, while loss after it
 retains the new owner, with no dual-authority interval.
+
+Admission persistence follows the same rule. Repair commit
+`9815726bbf5500772d54ccb62503c2f469117105` rolls an uncommitted queued or
+rejected receipt back to the last durable `dispatchable` fact, so a store
+failure cannot leave the live graph claiming backpressure state that the
+checkpoint never accepted.
