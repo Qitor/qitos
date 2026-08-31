@@ -1,0 +1,26 @@
+{
+  "schema_version": "qitos.session.fork_failure_matrix/v1",
+  "cases": [
+    {"case": "invalid_lifecycle", "error_code": "invalid_lifecycle_operation", "child_head": false},
+    {"case": "unsafe_snapshot", "error_code": "unsafe_pause_boundary", "child_head": false},
+    {"case": "missing_snapshot", "error_code": "snapshot_not_found", "child_head": false},
+    {"case": "snapshot_session_mismatch", "error_code": "snapshot_session_mismatch", "child_head": false},
+    {"case": "corrupt_snapshot", "error_code": "corrupt_snapshot", "child_head": false},
+    {"case": "unsupported_store", "error_code": "unsupported_capability", "child_head": false},
+    {"case": "persistence_failure", "error_code": "persistence_failed", "child_head": false},
+    {"case": "generation_conflict", "error_code": "generation_conflict", "child_head": true},
+    {"case": "superseded_owner", "error_code": "superseded_owner", "child_head": true},
+    {"case": "missing_resolver", "error_code": "missing_resolver", "child_head": true},
+    {"case": "incompatible_component", "error_code": "resolver_type_mismatch", "child_head": true},
+    {"case": "duplicate_fork_operation", "error_code": "duplicate_fork_operation", "child_head": true},
+    {"case": "unresolved_worker_or_effect", "error_code": "unresolved_effect", "child_head": false}
+  ],
+  "crash_windows": {
+    "before_declaration": "no child facts",
+    "after_source_verification": "no child facts until atomic commit",
+    "after_child_commit_before_response": "retry operation returns the persisted receipt or typed duplicate",
+    "source_owner_continues": "source generation is independent",
+    "resolver_missing": "child remains durable and inspectable",
+    "child_generation_advanced": "old owner is rejected"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "schema_version": "qitos.session.fork_ownership/v1",
+  "receipt": {
+    "operation_id": "fork_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "source_session_id": "session_11111111111111111111111111111111",
+    "source_snapshot_id": "snapshot_22222222222222222222222222222222",
+    "source_checkpoint_id": "checkpoint_33333333333333333333333333333333",
+    "source_work_item_id": "work_item_44444444444444444444444444444444",
+    "child_session_id": "session_55555555555555555555555555555555",
+    "child_snapshot_id": "snapshot_66666666666666666666666666666666",
+    "child_checkpoint_id": "checkpoint_77777777777777777777777777777777",
+    "child_run_id": "run_88888888888888888888888888888888",
+    "child_work_item_id": "work_item_99999999999999999999999999999999",
+    "child_attempt_id": "attempt_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "owner_generation": 0,
+    "durable": true,
+    "store_kind": "fixture"
+  },
+  "lineage_component": {
+    "work_item_id": {"kind": "work_item", "value": "work_item_99999999999999999999999999999999"},
+    "attempt_id": {"kind": "attempt", "value": "attempt_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+    "source_session_id": {"kind": "session", "value": "session_11111111111111111111111111111111"},
+    "source_snapshot_id": {"kind": "snapshot", "value": "snapshot_22222222222222222222222222222222"},
+    "source_checkpoint_id": {"kind": "checkpoint", "value": "checkpoint_33333333333333333333333333333333"},
+    "source_work_item_id": {"kind": "work_item", "value": "work_item_44444444444444444444444444444444"},
+    "fork_operation_id": "fork_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "child_head": {
+    "session_id": "session_55555555555555555555555555555555",
+    "snapshot_id": "snapshot_66666666666666666666666666666666",
+    "checkpoint_id": "checkpoint_77777777777777777777777777777777",
+    "generation": 0,
+    "owner_run_id": "run_88888888888888888888888888888888",
+    "lifecycle": "paused"
+  },
+  "relationships": [
+    {"relation": "forked_from", "source": "child_session_id", "target": "source_snapshot_id"},
+    {"relation": "run_work_item", "source": "child_run_id", "target": "child_work_item_id"},
+    {"relation": "work_item_attempt", "source": "child_work_item_id", "target": "child_attempt_id"}
+  ]
+}

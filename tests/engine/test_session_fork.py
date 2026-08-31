@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -17,6 +18,8 @@ from qitos.checkpoint.session import (
     ATOMIC_SESSION_FORK,
     CheckpointPersistenceError,
     SessionForkRequest,
+    SessionForkReceipt,
+    SessionHeadRecord,
     SessionSnapshotCommit,
 )
 from qitos.checkpoint.sqlite_store import SqliteCheckpointStore
@@ -34,6 +37,7 @@ from qitos.core.agent_module import AgentModule
 from qitos.core.decision import Decision
 from qitos.core.session import (
     CheckpointIdentity,
+    ForkLineageSnapshotComponent,
     SessionContractError,
     SessionErrorCode,
     SessionLifecycle,
@@ -47,6 +51,9 @@ from qitos.core.tool import tool
 from qitos.core.tool_registry import ToolRegistry
 from qitos.engine import Engine
 from qitos.engine.runtime import RuntimeComposition
+
+
+FIXTURE_ROOT = Path(__file__).parents[1] / "fixtures" / "s3" / "lane_a"
 
 
 @dataclass
@@ -451,3 +458,50 @@ store.close()
         assert verify.get_session_head(child_id).generation == result["generation"]
     finally:
         verify.close()
+
+
+def test_producer_bundle_uses_strict_readers_and_bound_digests() -> None:
+    manifest = json.loads(
+        (FIXTURE_ROOT / "producer-manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["implementation_producer_commit"] == (
+        "ae62ba1ea5fef7a472609dcb11d23a5f21733410"
+    )
+    for item in manifest["fixtures"]:
+        path = Path(item["path"])
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == item["sha256"]
+
+    ownership = json.loads(
+        (FIXTURE_ROOT / "fork-ownership.json").read_text(encoding="utf-8")
+    )
+    receipt = SessionForkReceipt.from_dict(ownership["receipt"])
+    lineage = ForkLineageSnapshotComponent.from_dict(
+        ownership["lineage_component"]
+    )
+    head = SessionHeadRecord(**ownership["child_head"])
+    assert receipt.child_session_id == head.session_id
+    assert receipt.child_work_item_id == lineage.work_item_id.value
+    assert receipt.source_snapshot_id == lineage.source_snapshot_id.value
+    assert receipt.operation_id == lineage.fork_operation_id
+
+
+def test_failure_fixture_covers_required_typed_cases() -> None:
+    matrix = json.loads(
+        (FIXTURE_ROOT / "failure-matrix.json").read_text(encoding="utf-8")
+    )
+    cases = {item["case"]: item["error_code"] for item in matrix["cases"]}
+    assert cases == {
+        "invalid_lifecycle": "invalid_lifecycle_operation",
+        "unsafe_snapshot": "unsafe_pause_boundary",
+        "missing_snapshot": "snapshot_not_found",
+        "snapshot_session_mismatch": "snapshot_session_mismatch",
+        "corrupt_snapshot": "corrupt_snapshot",
+        "unsupported_store": "unsupported_capability",
+        "persistence_failure": "persistence_failed",
+        "generation_conflict": "generation_conflict",
+        "superseded_owner": "superseded_owner",
+        "missing_resolver": "missing_resolver",
+        "incompatible_component": "resolver_type_mismatch",
+        "duplicate_fork_operation": "duplicate_fork_operation",
+        "unresolved_worker_or_effect": "unresolved_effect",
+    }
