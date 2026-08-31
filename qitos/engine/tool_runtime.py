@@ -251,7 +251,7 @@ class ToolBatchLedger:
                     action_id=action.action_id,
                     attempt_id=attempt,
                     owner_generation=owner_generation,
-                    action_payload=action.to_dict(),
+                    action_payload=_action_snapshot_payload(action),
                 )
             )
 
@@ -411,6 +411,40 @@ def _attempt_identity(action: Action) -> AttemptIdentity:
     if isinstance(raw, str) and raw.startswith("attempt_"):
         return AttemptIdentity(raw)
     return AttemptIdentity.generate()
+
+
+def _action_snapshot_payload(action: Action) -> Dict[str, Any]:
+    """Persist a safe declaration even when structural validation will fail."""
+    payload = action.to_dict()
+    try:
+        encoded = json.dumps(
+            payload,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+    except (TypeError, ValueError):
+        return {
+            "name": action.name,
+            "args": {},
+            "kind": (
+                action.kind.value
+                if hasattr(action.kind, "value")
+                else str(action.kind)
+            ),
+            "action_id": action.action_id,
+            "timeout_s": action.timeout_s,
+            "max_retries": action.max_retries,
+            "idempotent": action.idempotent,
+            "classification": action.classification,
+            "metadata": {
+                "snapshot_loss": "non_json_action_payload",
+            },
+        }
+    decoded = json.loads(encoded)
+    if not isinstance(decoded, dict):  # pragma: no cover - object writer invariant
+        raise TypeError("serialized action payload must be an object")
+    return decoded
 
 
 __all__ = [

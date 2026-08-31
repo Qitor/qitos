@@ -9,15 +9,13 @@ from typing import Any, Callable
 import pytest
 
 from qitos.core.artifact import ArtifactRef
-from qitos.tracing import (
+from qitos.tracing.store import (
     JsonTrajectoryStore,
     MemoryTrajectoryStore,
-    RecordKind,
-    TrajectoryQuery,
-    TrajectoryRecord,
     TrajectoryStore,
 )
 from qitos.tracing.store import StoreConflictError, StoreIntegrityError
+from qitos.tracing.trajectory import RecordKind, TrajectoryQuery, TrajectoryRecord
 
 
 ROOT = Path(__file__).resolve().parents[1]

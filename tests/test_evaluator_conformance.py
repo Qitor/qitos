@@ -12,7 +12,7 @@ from qitos.evaluate import (
     TrajectoryEvaluator,
 )
 from qitos.metric import Metric, MetricInput, MetricReport, MetricRegistry
-from qitos.tracing import RecordKind, Trajectory, TrajectoryRecord
+from qitos.tracing.trajectory import RecordKind, Trajectory, TrajectoryRecord
 
 
 def _view() -> Trajectory:

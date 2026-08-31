@@ -4,15 +4,17 @@ from dataclasses import replace
 
 import pytest
 
-from qitos.tracing import (
+from qitos.tracing.exporter import (
     CanonicalTrajectoryExporter,
     EventSummaryExporter,
+)
+from qitos.tracing.exporter import TrajectoryExportError
+from qitos.tracing.trajectory import (
     PrivacyView,
     RecordKind,
     Trajectory,
     TrajectoryRecord,
 )
-from qitos.tracing.exporter import TrajectoryExportError
 
 
 def _trajectory() -> Trajectory:

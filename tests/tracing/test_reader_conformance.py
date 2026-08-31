@@ -7,14 +7,16 @@ from typing import Any
 
 import pytest
 
-from qitos.tracing import (
-    MemoryTrajectoryStore,
-    PrivacyView,
-    RecordKind,
+from qitos.tracing.readers import (
     StoreTrajectoryReader,
     TraceCompatibilityReader,
-    TrajectoryQuery,
     TrajectoryReader,
+)
+from qitos.tracing.store import MemoryTrajectoryStore
+from qitos.tracing.trajectory import (
+    PrivacyView,
+    RecordKind,
+    TrajectoryQuery,
     TrajectoryRecord,
 )
 

@@ -51,10 +51,11 @@ class Action:
         )
 
     def to_dict(self) -> Dict[str, Any]:
+        kind = self.kind.value if isinstance(self.kind, ActionKind) else str(self.kind)
         return {
             "name": self.name,
             "args": dict(self.args),
-            "kind": self.kind.value,
+            "kind": kind,
             "action_id": self.action_id,
             "timeout_s": self.timeout_s,
             "max_retries": self.max_retries,

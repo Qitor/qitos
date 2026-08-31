@@ -4,9 +4,7 @@ from qitos.engine.events import EngineEvent, EngineEventType
 from qitos.engine.states import RuntimeEvent, RuntimePhase, StepRecord
 from qitos.render.events import RenderEvent
 from qitos.trace.events import TraceEvent, TraceStep
-from qitos.tracing import (
-    RecordKind,
-    RecordRole,
+from qitos.tracing.adapters import (
     classify_event,
     engine_event_to_record,
     render_event_to_record,
@@ -15,6 +13,7 @@ from qitos.tracing import (
     trace_event_to_record,
     trace_step_to_record,
 )
+from qitos.tracing.trajectory import RecordKind, RecordRole
 
 
 def test_event_vocabulary_covers_required_runtime_facts() -> None:

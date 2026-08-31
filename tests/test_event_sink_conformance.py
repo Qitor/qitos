@@ -6,15 +6,11 @@ from typing import Any, Callable
 
 import pytest
 
-from qitos.tracing import (
+from qitos.tracing.sinks import (
     EventSink,
     EventSinkDispatcher,
     FailurePolicy,
     InMemoryEventSink,
-    JsonTrajectoryStore,
-    PrivacyView,
-    RecordKind,
-    TrajectoryRecord,
     TrajectoryStoreEventSink,
 )
 from qitos.tracing.sinks import (
@@ -23,6 +19,8 @@ from qitos.tracing.sinks import (
     EventSinkError,
     SinkCapabilities,
 )
+from qitos.tracing.store import JsonTrajectoryStore
+from qitos.tracing.trajectory import PrivacyView, RecordKind, TrajectoryRecord
 
 
 ROOT = Path(__file__).resolve().parents[1]
