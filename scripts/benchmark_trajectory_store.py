@@ -12,15 +12,17 @@ import argparse
 import hashlib
 import json
 import re
+import runpy
 import subprocess
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
-from qitos.core.diagnostics import (
-    _diagnostic_key_is_sensitive,
-    _diagnostic_string_categories,
+_DIAGNOSTICS = runpy.run_path(
+    str(Path(__file__).resolve().parents[1] / "qitos" / "core" / "diagnostics.py")
 )
+_diagnostic_key_is_sensitive = _DIAGNOSTICS["_diagnostic_key_is_sensitive"]
+_diagnostic_string_categories = _DIAGNOSTICS["_diagnostic_string_categories"]
 
 
 RESULT_TYPE = "trajectory_readiness_report"
@@ -47,13 +49,15 @@ class ProducerBinding:
     fixture_sha256: str
     evidence_path: str
     evidence_sha256: str
+    producer_lineage: str
+    independent_consumer_test: str
 
 
 G2_PRODUCER_BINDINGS = {
     "lane_a": ProducerBinding(
         contract_id="qitos.session_contract_bundle",
         version="qitos.session_contract_bundle/v2",
-        source_commit="58864253a169d1bac5749ad2b2de5de6872c0da2",
+        source_commit="d90b6a99caa4b4c1d2f25807ac777085905d3ebd",
         fixture_path="tests/fixtures/session/fixture-manifest.json",
         fixture_sha256=(
             "952dc20f3c412830ef1f18fe73805cc6d8e04ecc28d89e4991883c983a983466"
@@ -62,11 +66,19 @@ G2_PRODUCER_BINDINGS = {
         evidence_sha256=(
             "7a7dfd831a4da4d45c2645d47404da8827f60aa498b92d9d98d92570cfe28834"
         ),
+        producer_lineage=(
+            "source:58864253a169d1bac5749ad2b2de5de6872c0da2;"
+            "replay:d90b6a99caa4b4c1d2f25807ac777085905d3ebd"
+        ),
+        independent_consumer_test=(
+            "tests/core/test_session_contract.py::"
+            "test_fixture_manifest_binds_exact_producer_bytes"
+        ),
     ),
     "lane_b": ProducerBinding(
         contract_id="qitos.request_contract_bundle",
         version="qitos.request_contract_bundle/v1",
-        source_commit="3cc29bea2bd311a2343862fd0b4f32636524bbb6",
+        source_commit="9241dd3ef379dafc8df299370bde3930241ffb03",
         fixture_path="tests/fixtures/conversation/request_contracts.json",
         fixture_sha256=(
             "a42f6c8ede18acf408348b9f38d657095cbe32bd4613659c46258eb18eedc637"
@@ -77,11 +89,19 @@ G2_PRODUCER_BINDINGS = {
         evidence_sha256=(
             "a72bc8d8627854b2b805a2e8ca762daaf0f50dc10b95b0af64bbd4a5399a04b1"
         ),
+        producer_lineage=(
+            "source:3cc29bea2bd311a2343862fd0b4f32636524bbb6;"
+            "replay:9241dd3ef379dafc8df299370bde3930241ffb03"
+        ),
+        independent_consumer_test=(
+            "tests/core/test_request_view.py::"
+            "test_stable_path_fixture_manifest_and_samples_cover_required_contracts"
+        ),
     ),
     "lane_c": ProducerBinding(
         contract_id="qitos.work_effect_contract_bundle",
         version="qitos.work_effect_contract_bundle/v2",
-        source_commit="bd7fca95e9ba9acfbbd9e8d0655a14ece066bcb6",
+        source_commit="39ae60a5664a26dfde5c3a444135a9c7f53c8c60",
         fixture_path="tests/fixtures/work_graph/g2-contract-manifest.json",
         fixture_sha256=(
             "d1112ac60a359af4bf6ff2525621214cea6dc8e52f2a03a8e69254e930a89964"
@@ -90,9 +110,22 @@ G2_PRODUCER_BINDINGS = {
         evidence_sha256=(
             "9ddef7c73b18698e6c9ec69431448b8a63501ac4527a4e64e44ee9d35596e26d"
         ),
+        producer_lineage=(
+            "source:bd7fca95e9ba9acfbbd9e8d0655a14ece066bcb6;"
+            "replay:39ae60a5664a26dfde5c3a444135a9c7f53c8c60"
+        ),
+        independent_consumer_test=(
+            "tests/core/test_work_graph.py::"
+            "test_g2_contract_manifest_binds_executable_c_lane_fixtures"
+        ),
     ),
 }
 G1_QUALIFICATION_AUTHORITY = "qitos.g1.integration_owner/v1"
+EVIDENCE_ROLES = {
+    "historical_compatibility",
+    "current_writer",
+    "contract_bundle",
+}
 
 SUPPORTED_SOURCE_CLASSES = {"campaign_long", "unrelated_agent"}
 SUPPORTED_STATUSES = {
@@ -150,6 +183,9 @@ class ContractRequirement:
     qualification_evidence_path: Optional[str] = None
     qualification_evidence_sha256: Optional[str] = None
     qualification_authority: Optional[str] = None
+    evidence_role: str = "contract_bundle"
+    producer_lineage: Optional[str] = None
+    independent_consumer_test: Optional[str] = None
     compatibility_status: str = "not_established"
     required_identity_bindings: Tuple[str, ...] = ()
     requires_lineage_evidence: bool = False
@@ -167,6 +203,8 @@ class ContractRequirement:
                 self.qualification_evidence_path,
                 self.qualification_evidence_sha256,
                 self.qualification_authority,
+                self.producer_lineage,
+                self.independent_consumer_test,
             )
         )
 
@@ -186,6 +224,8 @@ def _bind_g2_requirement(requirement: ContractRequirement) -> ContractRequiremen
         fixture_sha256=binding.fixture_sha256,
         qualification_evidence_path=binding.evidence_path,
         qualification_evidence_sha256=binding.evidence_sha256,
+        producer_lineage=binding.producer_lineage,
+        independent_consumer_test=binding.independent_consumer_test,
         compatibility_status="qualified_g2_contract",
     )
 
@@ -195,7 +235,7 @@ def _bind_g2_requirement(requirement: ContractRequirement) -> ContractRequiremen
 # own contract_id, while all producer bytes stay content- and commit-addressed.
 _CONTRACT_REQUIREMENTS = (
     ContractRequirement(
-        "lane_b.exchange_log_fixture_version",
+        "lane_b.exchange_log_historical_compatibility",
         "lane_b",
         "committed ExchangeLog fixture and producer-owned qualification evidence",
         "The accepted ExchangeLog foundation fixture must remain exactly bound.",
@@ -213,10 +253,16 @@ _CONTRACT_REQUIREMENTS = (
         ),
         qualification_authority=G1_QUALIFICATION_AUTHORITY,
         compatibility_status="qualified_foundation",
+        evidence_role="historical_compatibility",
+        producer_lineage="historical:g1-foundation",
+        independent_consumer_test=(
+            "tests/core/test_conversation.py::"
+            "test_versioned_semantic_fixture_manifest_exercises_all_required_cases"
+        ),
         runtime_behavior_required=False,
     ),
     ContractRequirement(
-        "lane_c.canonical_tool_result_fixture_version",
+        "lane_c.tool_result_historical_compatibility",
         "lane_c",
         "committed canonical ToolResult fixture and producer-owned qualification evidence",
         "The accepted ToolResult foundation fixture must remain exactly bound.",
@@ -234,6 +280,66 @@ _CONTRACT_REQUIREMENTS = (
         ),
         qualification_authority=G1_QUALIFICATION_AUTHORITY,
         compatibility_status="qualified_foundation",
+        evidence_role="historical_compatibility",
+        producer_lineage="historical:g1-foundation",
+        independent_consumer_test=(
+            "tests/core/test_tool_result.py::"
+            "test_contract_hardening_fixture_is_consumable_by_lanes_b_and_d"
+        ),
+        runtime_behavior_required=False,
+    ),
+    ContractRequirement(
+        "lane_b.exchange_log_current_writer",
+        "lane_b",
+        "committed current ExchangeLog writer fixture and qualification evidence",
+        "The current ExchangeLog writer bytes must remain exactly bound.",
+        "Use the independently consumed G2-R2 current-writer receipt.",
+        "qitos.exchange_log.v2+tool_result.v2",
+        producer_contract_id="qitos.exchange_log.current_writer",
+        producer_source_commit="00e9981216c73875225ec23f89d60e4bab4a9882",
+        fixture_path="tests/fixtures/conversation/current/canonical-writer.json",
+        fixture_sha256="13026eec1d9206e962d4b09419a3bb17b425c518db6e76bc8cd2d2ccd0133c08",
+        qualification_evidence_path=(
+            "tests/fixtures/conversation/current/qualification-evidence.json"
+        ),
+        qualification_evidence_sha256=(
+            "f988d7f6da5132382f5cd7d28ea54bde2b90239a5d8cf11689800bbde6a00d9f"
+        ),
+        qualification_authority=S1_QUALIFICATION_AUTHORITY,
+        evidence_role="current_writer",
+        producer_lineage="current:g2-r2",
+        independent_consumer_test=(
+            "tests/core/test_conversation.py::"
+            "test_current_writer_fixture_has_exact_nested_round_trip"
+        ),
+        compatibility_status="qualified_current_writer",
+        runtime_behavior_required=False,
+    ),
+    ContractRequirement(
+        "lane_c.tool_result_current_writer",
+        "lane_c",
+        "committed current ToolResult writer fixture and qualification evidence",
+        "The current ToolResult writer bytes must remain exactly bound.",
+        "Use the independently consumed G2-R2 current-writer receipt.",
+        "qitos.tool_result/v2",
+        producer_contract_id="qitos.tool_result.current_writer",
+        producer_source_commit="00e9981216c73875225ec23f89d60e4bab4a9882",
+        fixture_path="tests/fixtures/tool_results/current/canonical-writer.json",
+        fixture_sha256="40656edcd5d03765afd64fc928d13327da7d1c8d3132d32a4ab6f5ea6c6eda6b",
+        qualification_evidence_path=(
+            "tests/fixtures/tool_results/current/qualification-evidence.json"
+        ),
+        qualification_evidence_sha256=(
+            "e9f2a391949f0edc28278f0cdd995cf5992000bc540746135fa8a7f3f27f2a30"
+        ),
+        qualification_authority=S1_QUALIFICATION_AUTHORITY,
+        evidence_role="current_writer",
+        producer_lineage="current:g2-r2",
+        independent_consumer_test=(
+            "tests/core/test_tool_result.py::"
+            "test_current_writer_fixture_has_exact_strict_round_trip"
+        ),
+        compatibility_status="qualified_current_writer",
         runtime_behavior_required=False,
     ),
     ContractRequirement(
@@ -1221,6 +1327,66 @@ def _verify_receipt_file(
     return committed, out
 
 
+def _verify_independent_consumer_test(
+    *,
+    repository_root: Path,
+    commit: str,
+    declared_test: Any,
+    expected_test: str,
+    subject: str,
+) -> List[Diagnostic]:
+    if declared_test != expected_test:
+        return [
+            _diag(
+                "contract_receipt",
+                "independent_consumer_test_mismatch",
+                subject,
+                "independent_consumer_test",
+            )
+        ]
+    if not isinstance(declared_test, str) or declared_test.count("::") != 1:
+        return [
+            _diag(
+                "contract_receipt",
+                "independent_consumer_test_invalid",
+                subject,
+                "independent_consumer_test",
+            )
+        ]
+    logical_path, test_name = declared_test.split("::", 1)
+    if (
+        not logical_path.endswith(".py")
+        or not test_name.startswith("test_")
+        or portability_finding_codes(logical_path)
+    ):
+        return [
+            _diag(
+                "contract_receipt",
+                "independent_consumer_test_invalid",
+                subject,
+                "independent_consumer_test",
+            )
+        ]
+    current_path = repository_root / logical_path
+    committed = _committed_file_bytes(repository_root, commit, logical_path)
+    marker = f"def {test_name}".encode("utf-8")
+    if (
+        not current_path.is_file()
+        or marker not in current_path.read_bytes()
+        or committed is None
+        or marker not in committed
+    ):
+        return [
+            _diag(
+                "contract_receipt",
+                "independent_consumer_test_not_found",
+                subject,
+                "independent_consumer_test",
+            )
+        ]
+    return []
+
+
 def _validate_producer_evidence(
     payload: Optional[bytes],
     requirement: ContractRequirement,
@@ -1241,6 +1407,8 @@ def _validate_producer_evidence(
         "qualification_authority": requirement.qualification_authority,
         "qualified": True,
     }
+    if requirement.evidence_role == "current_writer":
+        expected["evidence_role"] = requirement.evidence_role
     if not isinstance(evidence, Mapping):
         return [_diag("contract_receipt", "producer_evidence_not_object", subject)]
     findings = [
@@ -1313,6 +1481,9 @@ def validate_contract_receipts(
         "qualification_evidence_path",
         "qualification_evidence_sha256",
         "qualification_authority",
+        "evidence_role",
+        "producer_lineage",
+        "independent_consumer_test",
     }
     for index, receipt in enumerate(normalized):
         subject = f"contract-receipt[{index}]"
@@ -1342,6 +1513,9 @@ def validate_contract_receipts(
             "fixture_path",
             "qualification_evidence_path",
             "qualification_authority",
+            "evidence_role",
+            "producer_lineage",
+            "independent_consumer_test",
         ):
             if not _nonempty(receipt.get(field)):
                 out.append(_diag("contract_receipt", "receipt_nonempty_string_required", subject, field))
@@ -1361,6 +1535,16 @@ def validate_contract_receipts(
                     "receipt_invalid_source_commit",
                     subject,
                     "producer_source_commit",
+                )
+            )
+            valid = False
+        if receipt.get("evidence_role") not in EVIDENCE_ROLES:
+            out.append(
+                _diag(
+                    "contract_receipt",
+                    "receipt_evidence_role_invalid",
+                    subject,
+                    "evidence_role",
                 )
             )
             valid = False
@@ -1451,6 +1635,22 @@ def validate_contract_receipts(
                         requirement.contract_id,
                     )
                 )
+            if receipt.get("evidence_role") != requirement.evidence_role:
+                receipt_findings.append(
+                    _diag(
+                        "contract_receipt",
+                        "evidence_role_mismatch",
+                        requirement.contract_id,
+                    )
+                )
+            if receipt.get("producer_lineage") != requirement.producer_lineage:
+                receipt_findings.append(
+                    _diag(
+                        "contract_receipt",
+                        "producer_lineage_mismatch",
+                        requirement.contract_id,
+                    )
+                )
             if receipt.get("fixture_sha256") != requirement.fixture_sha256:
                 receipt_findings.append(
                     _diag(
@@ -1506,6 +1706,15 @@ def validate_contract_receipts(
                 receipt_findings.extend(
                     _validate_producer_evidence(
                         evidence_bytes, requirement, requirement.contract_id
+                    )
+                )
+                receipt_findings.extend(
+                    _verify_independent_consumer_test(
+                        repository_root=repo_root,
+                        commit=commit,
+                        declared_test=receipt.get("independent_consumer_test"),
+                        expected_test=str(requirement.independent_consumer_test),
+                        subject=requirement.contract_id,
                     )
                 )
             out.extend(receipt_findings)
@@ -1750,6 +1959,9 @@ def build_readiness_result(
                 "fixture_digest": item.fixture_sha256,
                 "evidence_digest": item.qualification_evidence_sha256,
                 "authority": item.qualification_authority,
+                "evidence_role": item.evidence_role,
+                "producer_lineage": item.producer_lineage,
+                "independent_consumer_test": item.independent_consumer_test,
                 "compatibility_status": item.compatibility_status,
                 "runtime_behavior_required": item.runtime_behavior_required,
                 "required_artifact": item.required_artifact,

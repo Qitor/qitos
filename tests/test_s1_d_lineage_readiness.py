@@ -66,6 +66,8 @@ def _exact_contract(
 
     fixture_path = "producer/fixture.json"
     evidence_path = "producer/evidence.json"
+    consumer_path = "producer/test_consumer.py"
+    consumer_test = f"{consumer_path}::test_independent_consumer"
     fixture = {
         "schema_version": "producer.contract/1",
         "fact": "synthetic test-only committed bytes",
@@ -92,7 +94,11 @@ def _exact_contract(
         }
     _write_json(repo / fixture_path, fixture)
     _write_json(repo / evidence_path, evidence)
-    _run(repo, "add", fixture_path, evidence_path)
+    (repo / consumer_path).write_text(
+        "def test_independent_consumer():\n    assert True\n",
+        encoding="utf-8",
+    )
+    _run(repo, "add", fixture_path, evidence_path, consumer_path)
     _run(repo, "commit", "-m", "test: publish synthetic producer evidence")
     commit = _run(repo, "rev-parse", "HEAD")
     fixture_digest = hashlib.sha256((repo / fixture_path).read_bytes()).hexdigest()
@@ -111,6 +117,9 @@ def _exact_contract(
         qualification_evidence_path=evidence_path,
         qualification_evidence_sha256=evidence_digest,
         qualification_authority=module.S1_QUALIFICATION_AUTHORITY,
+        evidence_role="contract_bundle",
+        producer_lineage="synthetic:independent-producer",
+        independent_consumer_test=consumer_test,
         required_identity_bindings=(
             ("session", "run", "work", "owner_generation")
             if requires_identity
@@ -128,6 +137,9 @@ def _exact_contract(
         "qualification_evidence_path": evidence_path,
         "qualification_evidence_sha256": evidence_digest,
         "qualification_authority": module.S1_QUALIFICATION_AUTHORITY,
+        "evidence_role": requirement.evidence_role,
+        "producer_lineage": requirement.producer_lineage,
+        "independent_consumer_test": requirement.independent_consumer_test,
     }
     return repo, requirement, receipt, evidence
 
@@ -168,8 +180,17 @@ def test_stable_receipt_set_matches_its_independent_schema() -> None:
     Draft202012Validator(schema).validate(payload)
     assert payload["receipt_type"] == "trajectory_contract_qualification_receipts"
     assert payload["schema_version"] == "1"
-    assert len(payload["receipts"]) == 19
-    assert len({item["contract_id"] for item in payload["receipts"]}) == 19
+    assert len(payload["receipts"]) == 21
+    assert len({item["contract_id"] for item in payload["receipts"]}) == 21
+    roles = {item["contract_id"]: item["evidence_role"] for item in payload["receipts"]}
+    assert roles["lane_b.exchange_log_historical_compatibility"] == (
+        "historical_compatibility"
+    )
+    assert roles["lane_c.tool_result_historical_compatibility"] == (
+        "historical_compatibility"
+    )
+    assert roles["lane_b.exchange_log_current_writer"] == "current_writer"
+    assert roles["lane_c.tool_result_current_writer"] == "current_writer"
 
 
 @pytest.mark.parametrize(
@@ -242,6 +263,17 @@ def test_s1_inventory_is_complete_bound_and_owner_specific() -> None:
         assert item["fixture_digest"] == binding.fixture_sha256
         assert item["evidence_digest"] == binding.evidence_sha256
         assert item["current_qualification_state"] == "receipt_missing_or_rejected"
+    distinct_writer_evidence = {
+        "lane_b.exchange_log_historical_compatibility",
+        "lane_c.tool_result_historical_compatibility",
+        "lane_b.exchange_log_current_writer",
+        "lane_c.tool_result_current_writer",
+    }
+    assert distinct_writer_evidence <= set(contracts)
+    assert {
+        contracts[contract_id]["evidence_role"]
+        for contract_id in distinct_writer_evidence
+    } == {"historical_compatibility", "current_writer"}
 
 
 def test_exact_receipt_qualifies_only_its_owned_contract(
@@ -294,6 +326,9 @@ def test_exact_receipt_and_committed_bytes_qualify(
         ("wrong_digest", "producer_digest_mismatch"),
         ("invalid_authority", "qualification_authority_not_approved"),
         ("unsupported_schema", "contract_version_mismatch"),
+        ("wrong_role", "evidence_role_mismatch"),
+        ("wrong_lineage", "producer_lineage_mismatch"),
+        ("wrong_consumer", "independent_consumer_test_mismatch"),
     ],
 )
 def test_receipt_identity_failures_are_typed(
@@ -315,6 +350,14 @@ def test_receipt_identity_failures_are_typed(
         receipt["qualification_authority"] = "qitos.s1.lane_a.self/v1"
     elif mutation == "unsupported_schema":
         receipt["version"] = "producer.contract/999"
+    elif mutation == "wrong_role":
+        receipt["evidence_role"] = "current_writer"
+    elif mutation == "wrong_lineage":
+        receipt["producer_lineage"] = "synthetic:wrong-lineage"
+    elif mutation == "wrong_consumer":
+        receipt["independent_consumer_test"] = (
+            "producer/test_consumer.py::test_wrong_consumer"
+        )
 
     qualified, findings = module.validate_contract_receipts(
         [receipt], repository_root=repo

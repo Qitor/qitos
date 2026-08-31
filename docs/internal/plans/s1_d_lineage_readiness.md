@@ -1,18 +1,19 @@
 # S1 Lane D lineage and readiness plan
 
-Status: complete; runtime/readiness remains intentionally typed blocked
-Updated: 2026-08-30
+Status: G2-R2 contract receipts qualified; runtime/readiness remains typed blocked
+Updated: 2026-08-31
 Owner: Lane D / stable trajectory lineage, readiness, and developer experience
 Source branch: `feat/campaign-absorption`
 Source commit: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
 Branch: `codex/v4-s1-d-lineage-intake`
 Worktree: isolated S1-D worktree (host-local path intentionally omitted)
 
-G2 candidate update: the A/B/C producer bundles populate all 17 S1 requirements,
-but G2-R2 must distinguish historical compatibility receipts from current
-writer evidence and publish new current ToolResult/ExchangeLog fixtures. Normal
-readiness remains typed blocked because runtime consumers and the Trajectory
-writer/store/qita migration do not exist.
+G2-R2 update: the A/B/C producer bundles populate all 17 S1 requirements; two
+G1 foundations are now named only as historical compatibility evidence, and
+separate current ToolResult/ExchangeLog writer fixtures are commit- and
+digest-bound. The resulting inventory qualifies 21/21 contract receipts.
+Normal readiness remains typed blocked because runtime consumers and the
+Trajectory writer/store/qita migration do not exist.
 
 ## Objective
 
@@ -105,3 +106,8 @@ separate mechanical commit owned by the integration sequence.
 - [x] Scenario fixtures and privacy/portability tests implemented.
 - [x] Targeted and full validation complete.
 - [x] Diff, commits, clean status, and exact final HEAD recorded in the handoff.
+- [x] G2-R2 separated historical/current writer evidence and bound receipt
+      role, source/replay lineage, and independent consumer test.
+- [x] G2-R2 exact-receipt dry-run qualified 21/21 with zero receipt findings;
+      status stayed `schema_not_ready` with 11 non-contract blockers and empty
+      measurements/claims.

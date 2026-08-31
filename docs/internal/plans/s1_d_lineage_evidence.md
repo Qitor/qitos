@@ -1,6 +1,6 @@
 # S1-D lineage readiness and handoff evidence
 
-Status: G2 candidate receipt inventory present; G2-R2 requalification and runtime/Trajectory remain blocked
+Status: G2-R2 contract inventory qualified; runtime/Trajectory remain blocked
 Source branch: `feat/campaign-absorption`
 Source commit: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
 Lane branch: `codex/v4-s1-d-lineage-intake`
@@ -12,26 +12,26 @@ S1-D defines one future `Trajectory` target, extends the writer/reader census to
 strict A/B/C receipt/readiness inventory. It adds no writer, store, qita runtime,
 producer schema, compression/index choice, or performance claim.
 
-The current state remains intentionally `schema_not_ready`. The candidate binds
-the 17 G2 S1 requirements, but the two G1 foundation receipts are historical
-compatibility evidence rather than current-writer evidence. G2-R2 must publish
-separate current ToolResult and ExchangeLog producer receipts and re-run the
-inventory. Independent runtime, writer/store, publication, qita, and measurement
-blockers remain.
+The current state remains intentionally `schema_not_ready`. G2-R2 binds the 17
+G2 S1 requirements, names the two G1 foundations only as historical
+compatibility evidence, and publishes two distinct current-writer receipts for
+ToolResult and ExchangeLog. Independent runtime, writer/store, publication,
+qita, and measurement blockers remain.
 
 The G2 producer bundles are:
 
 | Owner | Producer commit | Bundle / evidence | Version | Qualified requirement count |
 |---|---|---|---|---:|
-| A | `58864253a169d1bac5749ad2b2de5de6872c0da2` | `tests/fixtures/session/fixture-manifest.json`; adjacent qualification evidence | `qitos.session_contract_bundle/v2` | 5 |
-| C | `bd7fca95e9ba9acfbbd9e8d0655a14ece066bcb6` | `tests/fixtures/work_graph/g2-contract-manifest.json`; adjacent qualification evidence | `qitos.work_effect_contract_bundle/v2` | 6 |
-| B | `3cc29bea2bd311a2343862fd0b4f32636524bbb6` | `tests/fixtures/conversation/request_contracts.json`; adjacent qualification evidence | `qitos.request_contract_bundle/v1` | 6 |
+| A | `d90b6a99caa4b4c1d2f25807ac777085905d3ebd` | `tests/fixtures/session/fixture-manifest.json`; adjacent qualification evidence | `qitos.session_contract_bundle/v2` | 5 |
+| C | `39ae60a5664a26dfde5c3a444135a9c7f53c8c60` | `tests/fixtures/work_graph/g2-contract-manifest.json`; adjacent qualification evidence | `qitos.work_effect_contract_bundle/v2` | 6 |
+| B | `9241dd3ef379dafc8df299370bde3930241ffb03` | `tests/fixtures/conversation/request_contracts.json`; adjacent qualification evidence | `qitos.request_contract_bundle/v1` | 6 |
 
-The pre-R2 candidate validation observed 19 qualified contract IDs and zero
-receipt findings under an inventory that conflated two historical foundations
-with current producer evidence. That count is superseded pending G2-R2 repair.
-The unchanged normal exit policy is exit 2 with `schema_not_ready`, no
-measurements, and no claims. The candidate suite was `2010 passed, 50 skipped`.
+The pre-R2 19/19 count is superseded. G2-R2 validates 21/21 distinct receipts:
+17 contract-bundle requirements, two historical compatibility contracts, and
+two current writer contracts. Every receipt binds its evidence role,
+source/replay lineage, and an exact independent consumer test in addition to
+commit, paths, digests, authority, and version. The unchanged normal exit
+policy is exit 2 with `schema_not_ready`, no measurements, and no claims.
 
 ## Canonical, derived, and compatibility decision
 
@@ -61,8 +61,10 @@ placeholder that Lane D may fill.
 
 | Contract ID | Owner | Producer commit | Fixture / evidence | Schema / digests | Authority | Compatibility | Exact blocker and remediation |
 |---|---|---|---|---|---|---|---|
-| `lane_b.exchange_log_fixture_version` | B | `2e46fc8e0228af42d6eaeaa6a665ffe5998c0bd5` | `tests/fixtures/conversation/v3/semantic_fixtures.json`; adjacent qualification evidence | `qitos.exchange_log.v2`; fixture `927e0ace…`; evidence `86d52fd2…` | `qitos.g1.integration_owner/v1` | qualified foundation | Qualified only as G1 foundation; does not clear RequestView or G2 behavior |
-| `lane_c.canonical_tool_result_fixture_version` | C | `9a0c5ed5d6c1c959ff277d3888f54c927be3e183` | `tests/fixtures/tool_results/v1/contract_hardening.json`; adjacent qualification evidence | `qitos.tool_result/v1`; fixture `b7f4dc6d…`; evidence `96b0e641…` | `qitos.g1.integration_owner/v1` | qualified foundation | Qualified only as G1 foundation; does not clear effect/work-graph behavior |
+| `lane_b.exchange_log_historical_compatibility` | B | `2e46fc8e0228af42d6eaeaa6a665ffe5998c0bd5` | `tests/fixtures/conversation/v3/semantic_fixtures.json`; adjacent qualification evidence | `qitos.exchange_log.v2`; fixture `927e0ace…`; evidence `86d52fd2…` | `qitos.g1.integration_owner/v1` | historical compatibility | Does not represent the current nested ToolResult writer |
+| `lane_c.tool_result_historical_compatibility` | C | `9a0c5ed5d6c1c959ff277d3888f54c927be3e183` | `tests/fixtures/tool_results/v1/contract_hardening.json`; adjacent qualification evidence | `qitos.tool_result/v1`; fixture `b7f4dc6d…`; evidence `96b0e641…` | `qitos.g1.integration_owner/v1` | historical compatibility | Does not represent the current ToolResult writer |
+| `lane_b.exchange_log_current_writer` | B | `00e9981216c73875225ec23f89d60e4bab4a9882` | `tests/fixtures/conversation/current/canonical-writer.json`; adjacent qualification evidence | `qitos.exchange_log.v2+tool_result.v2`; fixture `13026eec…`; evidence `f988d7f6…` | `qitos.s1.integration_owner/v1` | current writer | Contract bytes only; no provider/runtime claim |
+| `lane_c.tool_result_current_writer` | C | `00e9981216c73875225ec23f89d60e4bab4a9882` | `tests/fixtures/tool_results/current/canonical-writer.json`; adjacent qualification evidence | `qitos.tool_result/v2`; fixture `40656edc…`; evidence `e9f2a391…` | `qitos.s1.integration_owner/v1` | current writer | Contract bytes only; no executor/runtime claim |
 | `lane_a.identity_vocabulary` | A | — | — | — | `qitos.s1.integration_owner/v1` | not established | `producer_version_unestablished`; publish distinct identity bindings and reviewed evidence |
 | `lane_a.session_lifecycle` | A | — | — | — | same | not established | `producer_version_unestablished`; publish lifecycle, transitions, and typed invalid cases |
 | `lane_a.session_snapshot` | A | — | — | — | same | not established | `producer_version_unestablished`; publish immutable snapshot and explicit lineage evidence |
@@ -96,15 +98,17 @@ The validator covers:
   that does not contain the exact fixture/evidence paths;
 - wrong path, wrong digest, committed digest mismatch, and current working bytes
   differing from committed bytes;
-- unapproved authority and producer-owned evidence mismatch;
+- unapproved authority, evidence-role/source-lineage mismatch, missing exact
+  independent consumer, and producer-owned evidence mismatch;
 - conflicting identity bindings, missing lineage, and inferred parent edge;
 - exact qualified receipt; one receipt clearing only one owned blocker;
 - all exact receipts while runtime behavior remains `consumer_not_qualified`.
 
 Receipt qualification is derived. A receipt cannot contain `qualified=true`.
-The accepted authority, version, producer commit, paths, and digests are pinned
-by the inventory. Both current and committed bytes are verified. A producer
-fixture present in the working tree does not qualify itself.
+The accepted authority, version, evidence role, producer lineage, independent
+consumer test, producer commit, paths, and digests are pinned by the inventory.
+Both current and committed bytes are verified. A producer fixture present in
+the working tree does not qualify itself.
 
 The stable readiness fixture root is `tests/fixtures/readiness/`. Scenario files
 contain behavior labels only. Tests create temporary Git commits to obtain real

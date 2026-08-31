@@ -426,7 +426,7 @@ def test_exact_qualified_receipt_does_not_auto_qualify_other_contracts() -> None
         FIXTURES, dry_run=True, contract_receipts=[_receipt()]
     )
 
-    assert qualified == ["lane_b.exchange_log_fixture_version"]
+    assert qualified == ["lane_b.exchange_log_historical_compatibility"]
     missing_subjects = {
         item["subject"]
         for item in findings
@@ -468,7 +468,7 @@ def test_all_exact_committed_receipts_clear_contract_blockers_only() -> None:
 
 def test_r3_lane_c_receipt_cannot_qualify_the_r4_scalar_safe_producer() -> None:
     module = _load_script()
-    old_c = _verified_receipt("lane_c.canonical_tool_result_fixture_version")
+    old_c = _verified_receipt("lane_c.tool_result_historical_compatibility")
     old_c.update(
         {
             "producer_source_commit": "d50f41fb3b8190a953f9f37f278bf0b197af286b",
@@ -483,7 +483,7 @@ def test_r3_lane_c_receipt_cannot_qualify_the_r4_scalar_safe_producer() -> None:
 
     qualified, findings = module.validate_contract_receipts([old_c])
 
-    assert "lane_c.canonical_tool_result_fixture_version" not in qualified
+    assert "lane_c.tool_result_historical_compatibility" not in qualified
     assert "producer_source_commit_mismatch" in {
         item["code"] for item in findings
     }
@@ -514,7 +514,7 @@ def test_forged_receipt_fields_are_typed_and_cannot_qualify(
 
     qualified, findings = module.validate_contract_receipts([_receipt(**updates)])
 
-    assert "lane_b.exchange_log_fixture_version" not in qualified
+    assert "lane_b.exchange_log_historical_compatibility" not in qualified
     assert expected in {item["code"] for item in findings}
 
 
@@ -525,7 +525,7 @@ def test_receipt_source_commit_must_resolve_to_a_real_commit(
     missing_commit = "0" * 40
     requirements = tuple(
         replace(item, producer_source_commit=missing_commit)
-        if item.contract_id == "lane_b.exchange_log_fixture_version"
+        if item.contract_id == "lane_b.exchange_log_historical_compatibility"
         else item
         for item in module.CONTRACT_REQUIREMENTS
     )
@@ -535,7 +535,7 @@ def test_receipt_source_commit_must_resolve_to_a_real_commit(
         [_receipt(producer_source_commit=missing_commit)]
     )
 
-    assert "lane_b.exchange_log_fixture_version" not in qualified
+    assert "lane_b.exchange_log_historical_compatibility" not in qualified
     assert "producer_source_commit_not_found" in {
         item["code"] for item in findings
     }

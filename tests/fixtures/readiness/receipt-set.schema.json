@@ -22,7 +22,10 @@
           "fixture_sha256",
           "qualification_evidence_path",
           "qualification_evidence_sha256",
-          "qualification_authority"
+          "qualification_authority",
+          "evidence_role",
+          "producer_lineage",
+          "independent_consumer_test"
         ],
         "properties": {
           "contract_id": {"type": "string", "minLength": 1},
@@ -50,7 +53,20 @@
             "type": "string",
             "pattern": "^[0-9a-f]{64}$"
           },
-          "qualification_authority": {"type": "string", "minLength": 1}
+          "qualification_authority": {"type": "string", "minLength": 1},
+          "evidence_role": {
+            "enum": [
+              "historical_compatibility",
+              "current_writer",
+              "contract_bundle"
+            ]
+          },
+          "producer_lineage": {"type": "string", "minLength": 1},
+          "independent_consumer_test": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*://).+\\.py::test_[A-Za-z0-9_]+$"
+          }
         }
       }
     }
