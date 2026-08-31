@@ -1,5 +1,55 @@
 {
   "receipt_set_version": "qitos.s2.runtime-producer-receipt-set/1",
-  "receipts": [],
-  "status": "runtime_not_ready"
+  "receipts": [
+    {
+      "receipt_version": "qitos.s2.runtime-producer-receipt/1",
+      "lane": "A",
+      "qualification_authority": "qitos.integration.runtime-qualification/1",
+      "producer_commit": "42d6821e4ceee7a09d3dda9011e687a8cb64f5ba",
+      "fixture_path": "tests/fixtures/s2/g3/integrated-runtime-fixture.json",
+      "fixture_sha256": "9eb97a97a2edb68774c61ee8221b28d5cdbe56f0a02b75d1e1e0c515734e34ca",
+      "qualification_path": "tests/fixtures/s2/g3/lane-a-runtime-qualification.json",
+      "qualification_sha256": "bf4451a25f5d09c7188f5b1462376124fe446e444266ed68ac9064a12ce1a08b",
+      "scenarios": [
+        "session_continuity",
+        "pause_restore",
+        "stale_rejection",
+        "trace_cursor",
+        "artifact_reference",
+        "budget_continuity"
+      ]
+    },
+    {
+      "receipt_version": "qitos.s2.runtime-producer-receipt/1",
+      "lane": "B",
+      "qualification_authority": "qitos.integration.runtime-qualification/1",
+      "producer_commit": "42d6821e4ceee7a09d3dda9011e687a8cb64f5ba",
+      "fixture_path": "tests/fixtures/s2/g3/integrated-runtime-fixture.json",
+      "fixture_sha256": "9eb97a97a2edb68774c61ee8221b28d5cdbe56f0a02b75d1e1e0c515734e34ca",
+      "qualification_path": "tests/fixtures/s2/g3/lane-b-runtime-qualification.json",
+      "qualification_sha256": "6ab6d77542955e00e40d16df97e2f7c75060ab676118ccd04218593c84bab82d",
+      "scenarios": [
+        "request_reasoning_continuation",
+        "steering_applied_once",
+        "loss_declaration"
+      ]
+    },
+    {
+      "receipt_version": "qitos.s2.runtime-producer-receipt/1",
+      "lane": "C",
+      "qualification_authority": "qitos.integration.runtime-qualification/1",
+      "producer_commit": "42d6821e4ceee7a09d3dda9011e687a8cb64f5ba",
+      "fixture_path": "tests/fixtures/s2/g3/integrated-runtime-fixture.json",
+      "fixture_sha256": "9eb97a97a2edb68774c61ee8221b28d5cdbe56f0a02b75d1e1e0c515734e34ca",
+      "qualification_path": "tests/fixtures/s2/g3/lane-c-runtime-qualification.json",
+      "qualification_sha256": "6d2d7ea1f8f9c0f3a3c5852a24dbf8098062b59adc6c34f7952f94199b86c03d",
+      "scenarios": [
+        "parallel_tool_slots",
+        "effect_receipt",
+        "late_result_rejection"
+      ]
+    }
+  ],
+  "status": "s2_runtime_ready",
+  "trajectory_schema/publication_ready": false
 }

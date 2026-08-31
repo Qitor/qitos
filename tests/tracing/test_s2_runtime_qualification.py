@@ -134,9 +134,13 @@ def test_synthetic_runtime_evidence_is_rejected(tmp_path: Path) -> None:
     }
 
 
-def test_default_fixture_is_intentionally_empty_and_blocked() -> None:
+def test_default_exact_receipts_close_runtime_but_not_schema() -> None:
     path = ROOT / "tests" / "fixtures" / "s2" / "lane_d" / "producer-receipts.json"
     value = json.loads(path.read_text(encoding="utf-8"))
-    assert value["receipts"] == []
-    assert value["status"] == "runtime_not_ready"
-    assert load_receipts(path) == ()
+    result = qualify_runtime(load_receipts(path), repository_root=ROOT)
+    assert value["status"] == "s2_runtime_ready"
+    assert result.status == "s2_runtime_ready"
+    assert result.s2_runtime_ready is True
+    assert result.trajectory_schema_publication_ready is False
+    assert result.qita_store_reader_default is False
+    assert result.measurement_claims_available is False
