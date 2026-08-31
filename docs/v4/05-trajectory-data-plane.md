@@ -1,11 +1,30 @@
 # Task 05 — trajectory store v2 and observability migration
 
-Status: G2 readiness candidate remains schema-not-ready; G2-R2 pending; 05A freeze waits for runtime lineage
+Status: S2 runtime facts qualified; schema/publication remains blocked on G4/S3
 Depends on: Task 02 exchanges; Task 04 artifacts; Tasks 12–13 lineage
 Milestone: final v4 data-plane migration
 Risk: high — frozen v1 compatibility, replay, and research data fidelity
 
 ---
+
+## G3 qualification split (2026-08-31)
+
+Lane D now consumes explicit Session lifecycle commits and Engine runtime facts
+through the one extension-facing `EventSink` seam. Internal adapters project
+session/pause/restore, request/response/reasoning/continuation/loss, parallel
+batch/slot/effect/artifact, budget/context, stop/error, and exact lineage fields
+into the candidate `TrajectoryRecord` vocabulary without deriving identity from
+directory or run names. Required sink failure blocks; optional sink failure and
+flush/backpressure/durability remain observable reports.
+
+Exact-source receipts qualify the twelve S2 runtime scenarios and report
+`s2_runtime_ready=true`. Independently,
+`trajectory_schema/publication_ready=false`: the candidate record/store/reader/
+exporter types are absent from `qitos.tracing.__all__`, the candidate writer is
+off by default, qita's default is still frozen trace-v1 compatibility, and no
+schema-freeze, publication, compression, indexing, deduplication, or performance
+claim is made. G4 durable multi-agent lineage and publication evidence remain
+prerequisites.
 
 ## 1. Goal
 

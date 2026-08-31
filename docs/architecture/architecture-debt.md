@@ -46,11 +46,13 @@ Legend: **P0** structural risk (blocks refactors / can break imports), **P1** im
 - Why P0: callers cannot distinguish model output from infrastructure failure, timeout from cancellation, accepted from persisted work, or complete from degraded observability.
 - Exit: `docs/v4/09-runtime-lifecycle-and-error-semantics.md`, coordinated with Tasks 02, 03, and 05, defines typed failures, resource ownership, checkpoint receipts, and hook completeness.
 - D1 evidence (2026-08-29): exact consumers and missing receipt joins are listed in the Lane D census. Benchmark/fixture materialization explicitly blocks on Lane C timeout/cancellation, durability, hook-failure, and redaction fixtures rather than inferring their fields.
+- G3 convergence (2026-08-31): the single-agent Session path now records typed provider failure, lifecycle/effect uncertainty, partial-slot durability, required/optional sink delivery, and paused-head persistence. Python-thread/remote cancellation and external effect reconciliation remain capability-owned; generic hook swallowing outside the EventSink bridge remains D12 rather than being relabeled solved.
 
 ### D32. Session and multi-agent continuity are fragmented across in-process primitives
 - Where: `Engine.init_session`/`step`, `RunState`, checkpoint v2 `thread_id`, interrupt/resume, qita fork, `_handoff_runtime`, `DelegateTool`, and `FanOutTool` each carry part of session or child-work state.
 - Why P0: a fresh process cannot reconstruct one authoritative execution head with task, concrete state schema, exchanges, partial tool batch, context/artifacts, owner, children, budgets, and trace cursor. Handoff mutates live ownership and delegate/fan-out workers have no durable work graph, so restart can duplicate or orphan work.
 - Exit: Task 12 converges checkpoint v2 into one session-head/immutable-snapshot protocol and proves clean-process resume; Task 13 builds handoff/delegate/fan-out/spawn/fork/join over generation-checked work items. Task 05 does not freeze trajectory v2 before their lineage contracts land.
+- G3 convergence (2026-08-31): the single-agent half is closed through one checkpoint-backed Session head, canonical conversation/tool components, safe pause, and a 20-round fresh-process proof. The multi-agent half remains open: no persistent child scheduler, durable handoff/delegate/fan-out/spawn/join execution, or S3 process-loss drill has landed.
 
 ## P1 — Important architecture debt
 
@@ -73,7 +75,7 @@ Legend: **P0** structural risk (blocks refactors / can break imports), **P1** im
 - Fix: move `ReplaySession.fork` logic into qita or un-deprecate debug; port experiment to checkpoint v2.
 
 ### D11. God objects in the kernel
-- `Engine` (~2,000 lines, 33-param constructor), `_ModelRuntime` (~1,800 lines), `ActionExecutor` (~1,150 lines), `AgentModule` (contract+convenience, ~740 lines). Mixins mitigate but construction and wiring remain monolithic.
+- `Engine` (~2,000 lines, 34-param constructor including `self`), `_ModelRuntime` (~1,800 lines), `ActionExecutor` (~1,150 lines), `AgentModule` (contract+convenience, ~740 lines). Mixins mitigate but construction and wiring remain monolithic.
 - Fix direction: constructor config objects (`EngineConfig` exists — finish the migration), conversation kernel replaces `_model_runtime` assembly (v4/02).
 
 ### D12. Silent hook failure
@@ -101,9 +103,9 @@ Legend: **P0** structural risk (blocks refactors / can break imports), **P1** im
 - Exit: Task 09F runs a pinned parity spike; Task 10 adopts or explicitly defers the SDK behind the existing QitOS tool bridge.
 
 ### D29. Engine construction has multiple composition roots
-- `Engine` has a 33-argument constructor; `AgentModule._merge_run_defaults` constructs concrete env/trace/render/parser objects through reverse lazy imports; `config/builder.py` is another assembly path; `EngineConfig` is not the construction contract.
+- `Engine` has a reviewed 34-parameter signature including `self`; `runtime` is the S2 migration entry while historical checkpoint/action/context arguments still adapt into it. `AgentModule._merge_run_defaults` constructs concrete env/trace/render/parser objects through reverse lazy imports; `config/builder.py` is another assembly path; `EngineConfig` is not yet the construction contract.
 - Risk: private protocols mirror shared mutable state and new mechanisms land in oversized owners.
-- Exit: Task 02 establishes one typed composition root while keeping Engine as the public façade; do not add manager wrappers over the same mutable Engine.
+- Exit: S2 establishes `RuntimeComposition` as the typed migration root while keeping Engine as the façade. Move repeated historical argument groups behind it, document deprecation before removing spelling, and do not add manager wrappers or another mutable root.
 
 ### D30. qita route/data/render ownership is untested and monolithic
 - `_cli_app.py` is ~3,420 lines; the fork POST route references an undefined variable, while tests assert handler existence and HTML substrings rather than executing the route.

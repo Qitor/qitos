@@ -1,11 +1,29 @@
 # Task 03 — tool outcome contract and coding-toolset consolidation
 
-Status: 03A integrated; recovery/effect evolution is in the unpromoted G2 candidate; G2-R2 and 03B–E pending
+Status: S2 partial-batch persistence/recovery qualified at G3; broader 03D–E remain
 Depends on: Task 01
 Feeds: Task 04 artifacts, Task 12 recovery, Task 13 work outcomes, and v4 DX
 Risk: medium — broad kit surface, stable tool-result compatibility
 
 ---
+
+## G3 runtime convergence (2026-08-31)
+
+The existing `ActionExecutor` now owns one serializable batch ledger containing
+decision/action identity, declaration and completion order, slot results,
+attempt/owner generation, lifecycle/effect receipts, worker/cancellation facts,
+durability status, and reconciliation requirements. Under Session ownership,
+each terminal slot advances the canonical Session head by CAS before the event
+can say `persisted`; PendingWriteManager is not a recovery truth.
+
+Pause requests reach the executor's condition/event quiescence barrier. A live
+Python worker remains non-migratable and is never described as hard-cancelled;
+remote timeout does not imply remote cancellation. Fresh-process recovery skips
+terminal and committed-effect slots, rejects outcome-unknown/reconciliation
+work, and runs only idempotent eligible missing slots under the original batch,
+call, attempt, and effect identities before reduce/model proceeds. The G3
+counter proof establishes Session-head replay suppression, not exactly-once
+behavior in an external system.
 
 ## 1. Goal
 

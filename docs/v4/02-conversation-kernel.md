@@ -1,11 +1,29 @@
 # Task 02 — model I/O transaction kernel
 
-Status: 02A integrated; 02B contract is in the unpromoted G2 candidate; G2-R2 and 02C–02E pending
+Status: S2 runtime path qualified at G3; broader 02E/provider rollout remains
 Depends on: Task 01
 Unblocks: Task 04, Task 12 durable snapshots, and Task 05
 Risk: high — core persistence and every provider adapter
 
 ---
+
+## G3 runtime convergence (2026-08-31)
+
+The synchronous Engine path now derives `RequestView` from the canonical
+`ExchangeLog`, executes the provider-owned codec/transaction, and captures the
+same conversation through an Engine-owned Lane A runtime component. The
+component persists request/codec association, reasoning, resolver-only
+continuation references, context selection, compaction receipts, canonical
+ArtifactRef values, reconstruction requirements, and queued/applied steering.
+
+Restore places that component back into the same `_ModelRuntime`; it does not
+convert provider reasoning into `HistoryMessage`. Open-batch steering is
+durably queued and reconciled once at closure; terminal sessions return typed
+rejection. A missing continuation resolver fails typed unless explicit
+stateless loss is accepted. The 20-round clean-process fixture proves the
+lossless resolver path. Provider-default flips, live-key qualification, async
+convergence, and beginner `AgentModule(model=..., tools=..., instructions=...)`
+sugar remain separate work.
 
 ## 1. Goal
 

@@ -1,6 +1,6 @@
 # G2 public-interface budget
 
-Status: independently enforced for the G2 promotion candidate
+Status: G2 evidence preserved; independently enforced S2/current budget added
 Updated: 2026-08-31
 
 G2 adds persistence and migration contracts without expanding the root `qitos`
@@ -60,3 +60,36 @@ and documentation changes.
 This is a visibility budget, not a deletion target. Extension contracts remain
 available where required for independent implementations, while the beginner
 surface stays small.
+
+## S2/current review
+
+The G2 fixture above remains immutable historical evidence. S2 has a separate
+executable budget at
+`tests/fixtures/public_surface/s2-current-interface-budget.json`, enforced by
+`tests/test_s2_interface_budget.py`.
+
+| Surface | S2/current result |
+|---|---:|
+| root `qitos.__all__` | 41 |
+| `qitos.engine.__all__` | 27 |
+| `qitos.checkpoint.__all__` | 24 |
+| `qitos.models.__all__` | 28 |
+| `qitos.tracing.__all__` | 22 |
+| reviewed aggregate exports | 101 |
+| `Engine.__init__` parameters including `self` | 34 |
+
+The added `runtime` parameter is architecture-approved as a migration
+composition entry for checkpoint, lifecycle, event-sink, snapshot-component,
+and tool-policy ownership. Existing checkpoint/action/context constructor
+arguments remain compatibility adapters into that same composition; they are
+not a second mutable runtime truth. Follow-up work must move repeated groups
+behind the composition/config path and then deprecate redundant constructor
+spelling before considering any further Engine-parameter growth.
+
+Candidate Trajectory records, stores, readers, exporters, and adapters remain
+available only from their explicit unfrozen modules and are absent from
+`qitos.tracing.__all__`. Checkpoint CAS records, provider implementation
+records, and runtime component internals likewise require explicit module
+imports. The ordinary path remains `Engine(agent).session(task)` plus the small
+Session façade; it does not expose envelopes, registries, CAS records,
+durability receipts, codec reports, or Trajectory records.

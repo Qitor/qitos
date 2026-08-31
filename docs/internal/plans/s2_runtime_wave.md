@@ -1,6 +1,7 @@
 # S2 single-agent continuity runtime wave
 
-Status: ready for four-lane dispatch
+Status: S2 single-agent runtime closed at the qualified G3 candidate;
+Trajectory publication blocked
 Baseline: `446a347d1ac73636476ca2515a01da601b567c68`
 Updated: 2026-08-31
 Owner: v4 integration owner with four capability lanes
@@ -174,8 +175,14 @@ Required proof:
 - [x] All 17 retired-worktree branch refs remain available.
 - [x] No G2 contract/privacy/receipt/interface blocker remains.
 
-S2 implementation has not started. Lane A, C, B, and D must each be created
-from `446a347d1ac73636476ca2515a01da601b567c68`. Later ledger-only commits do
-not change the fixed dispatch ancestry. Persistent child scheduling,
-cross-process multi-agent execution, and parent/child process-loss drills remain
-S3 work.
+The A -> C -> B -> D producers were replayed onto integration source
+`47cd4dc5e1ed1b2b0d244bfc90fac031ec55be32` and converged by G3. The single-
+agent vertical is exact-source qualified through a deterministic 20-round
+parent/child process proof: canonical Session head, conversation, partial batch,
+safe pause, resolver-only restore, stale rejection, steering once, and eligible-
+missing recovery all pass without replaying the committed effect.
+
+This closes S2 runtime qualification only. Trajectory schema/publication,
+default writer rollout, qita migration, S3 persistent child scheduling,
+agent-authoring sugar, and external-world exactly-once effects remain explicitly
+unqualified.

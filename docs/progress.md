@@ -10,10 +10,49 @@ G2-R2 repair branch: `codex/v4-g2-r2-promotion` through `49fa15b5b0499e3f2a1bb4e
 Promoted G2 contract code head: `c0f19cd8f19a223fc84844f8a6a0ae4a5d0145aa`
 S2 dispatch baseline:
 `446a347d1ac73636476ca2515a01da601b567c68`
-Current gate: **G2 CLOSED; S2 authorized for four-lane dispatch**
+Current gate: **S2 single-agent runtime closed at the qualified G3 candidate;
+Trajectory publication blocked**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md)
 and [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md)
+
+## 0. S2 G3 runtime vertical convergence (2026-08-31)
+
+The fixed integration source was
+`47cd4dc5e1ed1b2b0d244bfc90fac031ec55be32`. G3 replayed the nine lane commits
+strictly A -> C -> B -> D, then closed the vertical blockers without adding a
+second Engine loop, executor, SessionStore, provider transaction path,
+ArtifactRef, or trajectory truth.
+
+- one checkpoint-backed Session head now captures the Engine-owned conversation
+  and tool-batch components and advances every terminal slot by owner/generation
+  CAS before reporting persistence;
+- pause reaches the existing executor's condition/event quiescence barrier and
+  cannot persist `PAUSED` while a framework worker can still advance the owner;
+- fresh-process recovery closes the original batch before reduce/model, skips
+  committed/terminal slots, refuses unknown outcomes, and runs only eligible
+  missing work with original identities;
+- the tracing-local ArtifactRef was removed; the repository has one canonical
+  framework class in `qitos/core/artifact.py`;
+- Engine and Session facts bridge into the one extension-facing EventSink;
+  qita inspection stays read-only on the frozen trace compatibility default;
+- the current interface budget remains 41 root exports and 101 classified
+  aggregate exports. The 34th Engine parameter (`runtime`, including `self` in
+  the count) is a reviewed migration entry with a contraction route.
+
+The deterministic SQLite E2E ran twenty independent parent/child process rounds
+using Event barriers and an offline provider. Every round restored reasoning and
+continuation, applied steering once, retained the artifact/budget/trajectory
+cursor facts, rejected the old owner, executed only the missing eligible slot,
+and kept the committed-effect counter at one.
+
+Exact-source A/B/C receipts bound to producer commit
+`42d6821e4ceee7a09d3dda9011e687a8cb64f5ba` qualify all twelve runtime facts:
+`s2_runtime_ready=true`. This does not qualify the candidate Trajectory schema
+or publication (`false`), enable its writer, migrate qita, implement the S3
+persistent child scheduler, add agent-authoring sugar, or establish external-
+world exactly-once effects. Promotion, primary-checkout reruns, push, and
+worktree retirement remain conditional on the final gate matrix.
 
 ## 1. Purpose and maintenance rule
 
@@ -35,20 +74,17 @@ Maintain it with these rules:
 
 ## 2. Current decision
 
-**G2 CLOSED.** The A/C/B/D contracts are integrated, all five independently
-audited R2 blocker groups are closed, and the original candidate remains only
-historical evidence. The promoted contract code head is
-`c0f19cd8f19a223fc84844f8a6a0ae4a5d0145aa`; the final qualified S2 dispatch
-baseline is `446a347d1ac73636476ca2515a01da601b567c68`. Local, tracking, and
-remote refs were verified at that SHA with `0/0` divergence.
+**G2 CLOSED; S2 RUNTIME CLOSED AT G3.** The historical fixed lane dispatch
+baseline remains `446a347d1ac73636476ca2515a01da601b567c68`. The integration
+source for G3 was `47cd4dc5e1ed1b2b0d244bfc90fac031ec55be32`; all A/C/B/D
+producer commits were replayed in the required order before convergence.
 
-**S2 READY.** The four-lane
-[`S2 runtime wave`](internal/plans/s2_runtime_wave.md) is authorized to create
-Lane A, C, B, and D from the fixed `446a347...` baseline. S2 implementation has
-not started: there is still no Session façade/runtime, SessionStore, persistent
-child scheduler, provider-default switch, Trajectory writer/store, or qita
-migration. This documentation-truth commit is a ledger-only successor and does
-not redefine the S2 dispatch baseline.
+The [`S2 runtime wave`](internal/plans/s2_runtime_wave.md) now has an executable
+single-agent Session vertical, exact-source runtime receipts, and a fully passed
+branch qualification matrix. The operational promotion still requires the
+primary-checkout rerun. There is no persistent child scheduler, provider-default
+flip, default Trajectory writer/store, qita migration, authoring sugar, or
+external exactly-once claim.
 
 ### G2-R2 repair qualification (pre-promotion)
 

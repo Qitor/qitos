@@ -7,12 +7,12 @@ Source tasks: Tasks 02–05 and 08–13
 Baseline: Task 01 complete; exact current integration status lives in
 [`docs/progress.md`](../progress.md)
 
-Current dispatch state: **G2 CLOSED; S2 READY.** G2-R2 contract code is promoted
+Current dispatch state: **S2 G3 runtime closed; Trajectory publication blocked.** G2-R2 contract code is promoted
 through `c0f19cd...`; primary-checkout gates passed and 17 superseded worktrees
 were retired without force while their branch refs remained. The fixed S2
-dispatch baseline is `446a347d1ac73636476ca2515a01da601b567c68`. No S2 runtime
-behavior has started, and later ledger-only commits do not change that dispatch
-ancestry.
+dispatch baseline is `446a347d1ac73636476ca2515a01da601b567c68`. The A/C/B/D
+producers were replayed onto integration source `47cd4dc...` and converged by
+G3; later ledger-only commits do not change their dispatch ancestry.
 
 ---
 
@@ -145,6 +145,13 @@ Required before default flips or compatibility deletion:
   trace cursor survive restore without duplicate committed effects;
 - stale owners/late workers cannot advance the head;
 - hook/trace/durability/effect uncertainty is visible in receipts.
+
+G3 receipt (2026-08-31): the SQLite/offline-provider vertical passes twenty
+independent clean parent/child process rounds with Event barriers, one
+committed effect, one deterministic running barrier, and one eligible missing
+slot. Exact-source receipts qualify all twelve S2 runtime facts. This gate does
+not authorize a Trajectory schema freeze/default writer, qita migration, G4/S3
+multi-agent scheduling, authoring sugar, or an external exactly-once claim.
 
 ### 3.4 Gate G4 — durable multi-agent continuity
 

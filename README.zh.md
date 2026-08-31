@@ -18,7 +18,8 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 
 ## 最新进展
 
-- **G2 CLOSED；S2 READY**：G2-R2 已将契约代码提升至 `c0f19cd...`，关闭五组独立审计发现的契约 blocker，并在保留全部 branch ref 的前提下安全回收 17 个过期 worktree。最终合格的 S2 dispatch baseline 固定为 `446a347d1ac73636476ca2515a01da601b567c68`；S2 四条线都必须从该 SHA 创建，后续 ledger-only 提交不会改变它。readiness 在无 receipts 时仍诚实保持 0/21、使用精确 receipts 时为 21/21；剩余 11 个 blocker 属于 S2 runtime/Trajectory，而不是 G2 契约缺陷。S2 implementation 尚未开始。
+- **S2 单智能体运行时已资格化，Trajectory 发布仍阻塞**：G3 在既有 `AgentModule + Engine` 内核中收敛了 Session 持久化、canonical conversation/model I/O、并行工具批次的部分持久化、quiescent pause、fresh-process 恢复、steering/continuation 与唯一 EventSink bridge。离线 SQLite 父/子进程证明独立运行 20 轮，committed effect 从不重放。这不代表冻结候选 Trajectory schema、默认启用 writer、迁移 qita、实现 S3 多智能体 scheduler/authoring sugar，也不保证外部 effect exactly-once。
+- **保留 G2 契约基线**：G2-R2 已将契约代码提升至 `c0f19cd...`，关闭五组独立审计发现的契约 blocker，并在保留全部 branch ref 的前提下安全回收 17 个过期 worktree。S2 lane 的固定 ancestry 仍为 `446a347d1ac73636476ca2515a01da601b567c68`；G3 随后把各 lane producer 重放到 `47cd4dc...` integration source，再完成上方所述的 runtime convergence。
 - **持久会话与原生多智能体架构**：[Task 12](docs/v4/12-session-runtime-and-persistence.md) 规划了以当前 canonical checkpoint 为唯一持久化机制的安全暂停、跨进程恢复、fork 与 effect-aware recovery；[Task 13](docs/v4/13-durable-multi-agent-work-graph.md) 则把 handoff、delegate、fan-out、spawn、fork、steer、join 明确为一个持久 work graph 上不同的所有权语义。[四产线手册](docs/v4/11-four-lane-execution-playbook.md)也已调整：G1 后工程质量成为跨线合并门禁，四条能力线转为 Session、Conversation/Context、Tools/Multi-Agent、Trajectory/qita/DX。
 - **静态 ratchet 资格验证与可执行贡献门禁**：确定性测试覆盖所有关键 baseline 转换；tool-schema workflow 与仓库测试现在共同执行同一个已提交入口，真实检查已注册 class tools，并包含受控 malformed-spec 失败证明。required-candidate、advisory、stale 与 release-only 角色继续明确记录，同时不声称掌握外部 branch-protection 配置。
 - **证据化 v4 集成进度账本**：[`docs/progress.md`](docs/progress.md) 现在持续记录各产线的准确 HEAD、集成结论、可执行复核探针、跨线契约阻断、合并顺序以及 G1/G2 检查表；收敛波次分支“已完成”与集成分支“已合入并通过资格验证”被明确区分。

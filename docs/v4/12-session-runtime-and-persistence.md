@@ -1,7 +1,6 @@
 # Task 12 — durable session runtime and process-independent resume
 
-Status: 12A contract code is promoted through `c0f19cd...`; S2 Lane A is
-authorized from `446a347d1ac73636476ca2515a01da601b567c68`; runtime not implemented
+Status: 12B–D single-agent runtime qualified at G3; 12E fork/qita migration remains
 Depends on: Task 01; coordinates with Tasks 02, 03, 04, and 09
 Unblocks: Task 05 schema freeze, Task 13 durable multi-agent work, and the v4
 long-horizon reference flow
@@ -54,10 +53,28 @@ They are not yet one durable session protocol:
 Task 12 converges these pieces in place. It must not add a second Engine, a
 parallel checkpoint store, or a durable Python-stack serializer.
 
-Dispatch note: G2 is closed and S2 is ready. Lane A must branch from the fixed
-S2 dispatch baseline `446a347d1ac73636476ca2515a01da601b567c68`. Later
-documentation-only ledger commits do not redefine that ancestry. This status
-authorizes implementation work; it does not claim the runtime exists.
+Dispatch note: G2 closed from fixed S2 dispatch baseline
+`446a347d1ac73636476ca2515a01da601b567c68`. G3 replayed the producers onto
+integration source `47cd4dc5e1ed1b2b0d244bfc90fac031ec55be32`; later
+documentation-only ledger commits do not redefine that ancestry.
+
+### G3 implementation receipt (2026-08-31)
+
+`Engine(agent).session(task)` is now the small façade over the one Engine loop.
+The canonical checkpoint store atomically advances one Session head and stores
+Engine-owned conversation and tool-batch components. Pause is cooperative and
+becomes persisted only after quiescence and synchronous head commit. Restore
+resolves the agent/model/tools/checkpoint/continuation resources, transfers the
+owner generation, closes an original open batch before model execution, and
+rejects stale parent or late terminal writes.
+
+The authoritative offline proof uses SQLite and twenty independent pairs of
+clean processes. It preserves state, budget, ExchangeLog, reasoning,
+continuation, artifact and trajectory cursor facts; applies steering once;
+does not rerun completed/committed slots; runs only the eligible missing slot;
+and reduces the original decision once. This is Session-head replay safety, not
+an exactly-once guarantee for external effects. Fork/qita migration and durable
+multi-agent scheduling remain 12E/S3 work.
 
 ## 3. Identity and lineage contract
 
@@ -268,21 +285,21 @@ the durable session identity.
 
 - [ ] Session, run, work item, checkpoint, exchange, tool call, and agent
   identities are distinct in schema, trace, and tests.
-- [ ] One versioned persistence truth restores in a fresh process without any
+- [x] One versioned persistence truth restores in a fresh process without any
   live object from the original process.
-- [ ] A partial parallel batch survives restore; completed slots are not rerun
+- [x] A partial parallel batch survives restore; completed slots are not rerun
   and missing slots close exactly once.
-- [ ] Queued steering survives restart and is consumed exactly once.
-- [ ] Stale owners and late workers cannot advance the session head.
-- [ ] Snapshot callers can distinguish accepted, persisted, failed, dropped,
+- [x] Queued steering survives restart and is consumed exactly once.
+- [x] Stale owners and late workers cannot advance the session head.
+- [x] Snapshot callers can distinguish accepted, persisted, failed, dropped,
   conflicted, non-migratable, and outcome-unknown states.
-- [ ] Secrets and host-only handles are resolver references, not snapshot data.
+- [x] Secrets and host-only handles are resolver references, not snapshot data.
 - [ ] Fork creates isolated lineage without mutating the source session.
 - [ ] Existing supported checkpoints either migrate through fixtures or fail
   with a documented typed incompatibility.
 - [ ] One campaign-derived and one unrelated-agent fixture pass the clean-process
   vertical slice.
-- [ ] No second Engine, scheduler, checkpoint store, or runtime-state truth is
+- [x] No second Engine, scheduler, checkpoint store, or runtime-state truth is
   introduced.
 
 ## 12. Verification
