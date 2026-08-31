@@ -95,6 +95,18 @@ class ForkAgent(AgentModule[ForkState, dict[str, Any], Action]):
         return state
 
 
+@dataclass
+class IncompatibleForkState(StateSchema):
+    incompatible: bool = True
+
+
+class IncompatibleForkAgent(ForkAgent):
+    name = "fork-agent"
+
+    def init_state(self, task: str, **kwargs: Any) -> IncompatibleForkState:
+        return IncompatibleForkState(task=task, max_steps=4)
+
+
 class PauseOnce:
     policy_id = "tests.fork.pause_once"
     supports_pause = True
@@ -422,6 +434,21 @@ def test_missing_resolver_keeps_committed_child_inspectable(tmp_path: Path) -> N
         assert reopened.get_session_head(child_id.value) == head_to_record(head, "paused")
     finally:
         reopened.close()
+
+
+def test_incompatible_resolved_component_cannot_claim_child() -> None:
+    store = InMemoryCheckpointStore()
+    source, _ = _completed(store)
+    child = source.fork()
+    head = child.current_head
+
+    runtime = RuntimeComposition(checkpoint_store=store)
+    incompatible_engine = Engine(IncompatibleForkAgent(), runtime=runtime)
+    runtime.bind_engine_resources(incompatible_engine)
+    with pytest.raises(SessionContractError) as incompatible:
+        Engine.restore(child.session_id, runtime=runtime)
+    assert incompatible.value.error_code is SessionErrorCode.RESOLVER_TYPE_MISMATCH
+    assert child.current_head == head
 
 
 def head_to_record(head, lifecycle: str):

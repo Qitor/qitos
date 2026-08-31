@@ -26,12 +26,12 @@
   ],
   "validation": {
     "lane_and_regression_group": "264 passed",
-    "producer_bundle": "16 passed",
+    "producer_bundle": "17 passed",
     "architecture_public_interface_and_paths": "16 passed",
     "static_quality": "passed; 376 findings baselined (354 active, 22 vendored/generated)",
     "stable_flake8": "passed; zero output",
     "stable_mypy": "Success: no issues found in 91 source files",
-    "full_pytest": "2268 passed, 50 skipped",
+    "full_pytest": "2269 passed, 50 skipped",
     "python": "3.12.7"
   }
 }
