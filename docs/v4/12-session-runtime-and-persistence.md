@@ -1,6 +1,7 @@
 # Task 12 — durable session runtime and process-independent resume
 
-Status: 12B–D single-agent runtime qualified at G3; 12E fork/qita migration remains
+Status: 12B–D single-agent runtime promoted and qualified; S3 fork/ownership
+runtime not started; qita/default migration remains S4
 Depends on: Task 01; coordinates with Tasks 02, 03, 04, and 09
 Unblocks: Task 05 schema freeze, Task 13 durable multi-agent work, and the v4
 long-horizon reference flow
@@ -53,10 +54,12 @@ They are not yet one durable session protocol:
 Task 12 converges these pieces in place. It must not add a second Engine, a
 parallel checkpoint store, or a durable Python-stack serializer.
 
-Dispatch note: G2 closed from fixed S2 dispatch baseline
-`446a347d1ac73636476ca2515a01da601b567c68`. G3 replayed the producers onto
-integration source `47cd4dc5e1ed1b2b0d244bfc90fac031ec55be32`; later
-documentation-only ledger commits do not redefine that ancestry.
+Historical dispatch note: G2 closed from S2 lane baseline
+`446a347d1ac73636476ca2515a01da601b567c68`, and G3 replayed the producers onto
+integration source `47cd4dc5e1ed1b2b0d244bfc90fac031ec55be32`. Those SHAs remain
+S2 provenance, not S3 dispatch sources. G3 was later promoted, revalidated in
+the primary checkout, pushed, and cleaned up at fixed pre-S3-closure source
+`3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`.
 
 ### G3 implementation receipt (2026-08-31)
 
@@ -73,8 +76,10 @@ clean processes. It preserves state, budget, ExchangeLog, reasoning,
 continuation, artifact and trajectory cursor facts; applies steering once;
 does not rerun completed/committed slots; runs only the eligible missing slot;
 and reduces the original decision once. This is Session-head replay safety, not
-an exactly-once guarantee for external effects. Fork/qita migration and durable
-multi-agent scheduling remain 12E/S3 work.
+an exactly-once guarantee for external effects. S3 now owns fork/ownership as
+Lane A and the durable scheduler as Lane C; neither implementation has started.
+The qita default-reader migration remains S4. See the executable
+[`S3 durable multi-agent wave`](../internal/plans/s3_durable_multi_agent_wave.md).
 
 ## 3. Identity and lineage contract
 

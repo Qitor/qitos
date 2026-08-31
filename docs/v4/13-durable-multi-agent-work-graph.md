@@ -1,8 +1,7 @@
 # Task 13 — durable multi-agent work graph and ownership transfer
 
-Status: 13A contract code is promoted through `c0f19cd...`; the S2 supporting
-slice is authorized from `446a347d1ac73636476ca2515a01da601b567c68`;
-persistent child scheduling remains deferred to S3
+Status: 13A contracts and the S2 supporting slice are promoted; S3 entry gate
+satisfied; durable multi-agent scheduler implementation not started
 Depends on: Task 12A–12D; consumes Tasks 02, 03, and 04 contracts
 Feeds: Task 05 lineage/observability, Task 10 convergence, and native multi-agent
 research methods
@@ -45,12 +44,15 @@ These are valuable in-process mechanisms, but not a durable multi-agent runtime:
 Task 13 evolves these mechanisms in place. It does not create a second agent
 loop or encode manager/reviewer/coder strategies into the framework.
 
-Dispatch note: G2 is closed and S2 is ready. The S2 tool/effect/work-graph
-supporting work must branch from fixed baseline
-`446a347d1ac73636476ca2515a01da601b567c68`; later documentation-only ledger
-commits do not redefine it. Task 13's persistent child scheduler and
-cross-process multi-agent execution remain S3 work, and no such runtime is
-implemented here.
+Historical dispatch note: S2 tool/effect/work-graph work branched from
+`446a347d1ac73636476ca2515a01da601b567c68`; that instruction is superseded for
+S3. S2 was subsequently converged, promoted, revalidated, pushed, and cleaned
+up at fixed pre-S3-closure source
+`3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`. The executable
+[`S3 durable multi-agent wave`](../internal/plans/s3_durable_multi_agent_wave.md)
+now assigns fork/ownership to A, context/authority transfer to B, durable
+scheduling to C, and work-graph observability/DX to D. No persistent child
+scheduler or cross-process multi-agent runtime is implemented yet.
 
 ## 3. Exact operation semantics
 

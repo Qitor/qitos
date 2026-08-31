@@ -1,6 +1,6 @@
 # G2 public-interface budget
 
-Status: G2 evidence preserved; independently enforced S2/current budget added
+Status: G2 evidence preserved; S2/current budget frozen for S3 dispatch
 Updated: 2026-08-31
 
 G2 adds persistence and migration contracts without expanding the root `qitos`
@@ -93,3 +93,19 @@ records, and runtime component internals likewise require explicit module
 imports. The ordinary path remains `Engine(agent).session(task)` plus the small
 Session façade; it does not expose envelopes, registries, CAS records,
 durability receipts, codec reports, or Trajectory records.
+
+## S3 freeze
+
+The measured S2/current counts above are the S3 dispatch ceiling, not a target
+for growth. S3 keeps root exports at 41, the four reviewed aggregates at
+27/24/28/22 (101 total), and `Engine.__init__` at 34 parameters including
+`self`. Root growth requires item-by-item G4 public-surface review; the Engine
+constructor gains no parameters.
+
+Proposed multi-agent authoring stays on the existing Session facade (`fork`,
+`handoff`, `delegate`, `spawn`, `fan_out`, and `join`) and behind replaceable
+module-level protocols. Model-callable tools adapt to the same runtime rather
+than defining a second surface. Advanced records remain module-level imports by
+default, and public `V1`, `V2`, `Legacy`, `Next`, or parallel Agent/Session/
+Runtime type tracks are forbidden. The full review contract is in
+[`s3_durable_multi_agent_wave.md`](../internal/plans/s3_durable_multi_agent_wave.md).

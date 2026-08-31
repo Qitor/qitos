@@ -7,12 +7,16 @@ Source tasks: Tasks 02–05 and 08–13
 Baseline: Task 01 complete; exact current integration status lives in
 [`docs/progress.md`](../progress.md)
 
-Current dispatch state: **S2 G3 runtime closed; Trajectory publication blocked.** G2-R2 contract code is promoted
-through `c0f19cd...`; primary-checkout gates passed and 17 superseded worktrees
-were retired without force while their branch refs remained. The fixed S2
-dispatch baseline is `446a347d1ac73636476ca2515a01da601b567c68`. The A/C/B/D
-producers were replayed onto integration source `47cd4dc...` and converged by
-G3; later ledger-only commits do not change their dispatch ancestry.
+Current dispatch state: **S2 CLOSED; S3 entry gate satisfied; S3 runtime not
+started.** The durable single-agent vertical and clean-process restore were
+qualified, promoted, repeated in the primary checkout, pushed, and verified at
+fixed pre-S3-closure source `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`;
+the previous-wave worktrees were retired without force and their branch refs
+remain. The historical S2 lane baseline `446a347...` and G3 integration source
+`47cd4dc...` remain provenance only. The four S3 lanes must branch from the one
+complete remote SHA published by this S3 dispatch closure, never from either
+historical source. Trajectory v2 remains unfrozen, its candidate reader is not
+the qita default, and no durable multi-agent scheduler exists yet.
 
 ---
 
@@ -95,7 +99,7 @@ in small packages through one closure wave and four capability waves.
 | G1-R — closed | retained trusted ratchet/CI evidence | canonical consumer green | C-P3 and C-P4 closed | exact scalar-safe C receipt refreshed | G1 passed; scalar-safe baseline promoted |
 | S1 — contracts | 12A identity/lifecycle/snapshot ADR | 02B RequestView + 04A/04B contract handoffs | 03 recovery fields + 13A graph ADR | session/work lineage schema proposal only | G2: identities, ownership, snapshots, effects, and resolver contracts reviewed |
 | S2 — single-agent vertical slice | 12B/C/D session head, safe pause, clean-process restore | 02C/D + context/artifact snapshot components | 03B/C effects and partial-batch recovery | observe the slice; no v2 freeze | G3: start -> parallel tools -> pause -> process exit -> restore -> finish, no duplicate committed effect |
-| S3 — durable multi-agent | Task 12 fork/ownership support | context/continuation transfer receipts | 13B/C/D handoff, delegate, spawn, fan-out/join | graph/timeline dual-read records | G4: partial child graph and ownership transfer survive process restart |
+| S3 — durable multi-agent | Session fork and ownership producer | context/continuation/authority transfer producer | one durable WorkGraph scheduler for handoff, delegate, spawn, fan-out/join | exact work-graph facts, read-only graph/timeline/DX | G4: partial child graph and ownership transfer survive process restart |
 | S4 — DX and convergence | 12E compatibility/CLI | 02E/04C/D rollout | 03D/E + 13E adapters | 05 schema freeze/store/export/qita rollout | G5: public example, two independent consumers, release and migration gates green |
 
 S1 branches start only from the exact final G1 accepted head reported by the
@@ -152,6 +156,10 @@ committed effect, one deterministic running barrier, and one eligible missing
 slot. Exact-source receipts qualify all twelve S2 runtime facts. This gate does
 not authorize a Trajectory schema freeze/default writer, qita migration, G4/S3
 multi-agent scheduling, authoring sugar, or an external exactly-once claim.
+Promotion receipt: G3 was subsequently fast-forwarded, revalidated in the
+primary checkout, pushed with local/tracking/remote identity, and its temporary
+worktree was retired. Statements elsewhere that these operational steps remain
+pending are historical pre-promotion evidence.
 
 ### 3.4 Gate G4 — durable multi-agent continuity
 
@@ -164,6 +172,13 @@ Required before freezing trajectory v2 or rolling out graph-aware defaults:
 - parent cancellation, detachment, timeout, late-result, and unknown-outcome
   semantics are typed and tested;
 - qita can navigate the graph without parsing run-name conventions.
+
+The executable nineteen-item subprocess/process-loss matrix, producer manifests,
+interface budget, and exact A -> B -> C -> D freeze order are fixed in
+[`s3_durable_multi_agent_wave.md`](../internal/plans/s3_durable_multi_agent_wave.md).
+Before all nineteen items pass, S3, durable multi-agent readiness, Trajectory
+schema freeze, production distributed scheduling, and release readiness remain
+unsupported claims.
 
 ### 3.5 Gate G5 — release convergence
 
@@ -991,7 +1006,18 @@ worktree as removable. Such a path blocks wave closure until reconciled.
 
 ## 11. Immediate dispatch order
 
-The G2-R2 task defined by
+The current instruction is the
+[`S3 durable multi-agent wave`](../internal/plans/s3_durable_multi_agent_wave.md).
+All four lanes receive the same complete remote SHA from the S3 dispatch
+promotion receipt, use independent branches/worktrees, and freeze producers in
+the order A -> B -> C -> D before G4 convergence. A owns Session fork/ownership,
+B owns context/continuation/authority transfer, C consumes their real committed
+types and fixtures to implement the durable scheduler, and D consumes real
+A/B/C runtime facts for exact-source qualification and read-only DX. Copied
+enums/fixtures or consumer simulations do not count as integration.
+
+The following S2 dispatch instruction is **historical and superseded**. The
+G2-R2 task defined by
 [`docs/internal/plans/g2_r2_promotion_audit.md`](../internal/plans/g2_r2_promotion_audit.md)
 has repaired the independently reproduced blockers, replayed the candidate,
 promoted contract code through `c0f19cd...`, revalidated the primary tree, and
@@ -1026,8 +1052,9 @@ dispatch:
    and receipts; no v2 freeze or performance claim.
 
 These packages were deliberately contract-first and low-conflict. Their
-versioned handoffs were later integrated and repaired by G2-R2. The current S2
-dispatch is now authorized from `446a347d1ac73636476ca2515a01da601b567c68`.
+versioned handoffs were later integrated and repaired by G2-R2. At that
+historical point, S2 dispatch was authorized from
+`446a347d1ac73636476ca2515a01da601b567c68`; that source is superseded for S3.
 
 At that historical gate, concurrency did not transfer semantic ownership. Lane
 A owned the identity vocabulary, and B/C/D could not qualify cross-lane

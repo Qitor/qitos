@@ -1,7 +1,7 @@
 # v4 framework round — decisions, metrics, and delivery contract
 
 Status: active acceptance anchor
-Updated: 2026-08-29
+Updated: 2026-08-31
 Scope: Tasks 01–05 and 08–13
 
 ---
@@ -142,10 +142,20 @@ Task 05 may continue its census, fixture qualification, and benchmark scaffold,
 but it does not freeze trajectory v2 until session/run/work-item/ownership
 lineage from Tasks 12–13 is available.
 
+Current gate truth: S2 is closed. Its durable single-agent and clean-process
+restore vertical has been promoted, revalidated in the primary checkout,
+pushed, and cleaned up. S3 is the runtime construction wave for Gate G; its
+entry gate is satisfied, but Session fork, authority transfer, the durable
+multi-agent scheduler, and graph-aware qita consumption are not implemented.
+Trajectory v2 therefore remains unfrozen and the candidate reader is not the
+qita default. The executable S3 ownership and G4 matrix live in
+[`s3_durable_multi_agent_wave.md`](../internal/plans/s3_durable_multi_agent_wave.md).
+
 The authoritative multi-agent dispatch and merge sequence is
 [`11-four-lane-execution-playbook.md`](11-four-lane-execution-playbook.md). It
-organizes these source tasks into four ownership lanes, four merge waves, and
-four evidence gates; it does not replace the task-level contracts.
+organizes these source tasks into four ownership lanes and evidence gates; the
+current S3 producer/consumer freeze is A -> B -> C -> D -> G4. It does not
+replace the task-level contracts.
 
 ## 6. Coding-agent working contract
 

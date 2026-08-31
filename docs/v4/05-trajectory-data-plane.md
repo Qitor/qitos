@@ -1,6 +1,7 @@
 # Task 05 — trajectory store v2 and observability migration
 
-Status: S2 runtime facts qualified; schema/publication remains blocked on G4/S3
+Status: S2 runtime closed and qualified; schema/publication remains blocked on
+S3/G4 and the S4 rollout review
 Depends on: Task 02 exchanges; Task 04 artifacts; Tasks 12–13 lineage
 Milestone: final v4 data-plane migration
 Risk: high — frozen v1 compatibility, replay, and research data fidelity
@@ -25,6 +26,11 @@ off by default, qita's default is still frozen trace-v1 compatibility, and no
 schema-freeze, publication, compression, indexing, deduplication, or performance
 claim is made. G4 durable multi-agent lineage and publication evidence remain
 prerequisites.
+
+S3 dispatch does not change this plane. Lane D may consume exact work-graph
+facts and add read-only inspection only after real A/B/C producers exist; it may
+not freeze the schema, switch the writer/store/reader defaults, or make qita a
+mutation authority. Those rollout decisions remain S4 work after G4.
 
 ## 1. Goal
 
