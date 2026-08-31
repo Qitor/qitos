@@ -1,0 +1,19 @@
+{
+  "evidence_version": "qitos.s2.g3.runtime-qualification/1",
+  "lane": "A",
+  "runtime_execution": true,
+  "synthetic": false,
+  "proof_tests": [
+    "tests/e2e/test_s2_g3_runtime_vertical.py::test_twenty_clean_process_vertical_continuity_rounds",
+    "tests/core/test_session_contract.py::test_head_compare_and_set_advances_once_and_rejects_stale_generation",
+    "tests/core/test_g2_contract_convergence.py"
+  ],
+  "scenario_results": [
+    {"scenario": "session_continuity", "status": "passed"},
+    {"scenario": "pause_restore", "status": "passed"},
+    {"scenario": "stale_rejection", "status": "passed"},
+    {"scenario": "trace_cursor", "status": "passed"},
+    {"scenario": "artifact_reference", "status": "passed"},
+    {"scenario": "budget_continuity", "status": "passed"}
+  ]
+}

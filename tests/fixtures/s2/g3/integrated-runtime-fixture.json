@@ -1,0 +1,12 @@
+{
+  "fixture_version": "qitos.s2.g3.integrated-runtime-fixture/1",
+  "checkpoint_store": "sqlite",
+  "process_model": "fresh-parent-and-child",
+  "provider": "deterministic-offline",
+  "parallel_tool_slots": 3,
+  "coordination": "threading-event-barrier",
+  "independent_rounds": 20,
+  "candidate_writer_default": false,
+  "external_effect_exactly_once_claimed": false,
+  "test": "tests/e2e/test_s2_g3_runtime_vertical.py"
+}

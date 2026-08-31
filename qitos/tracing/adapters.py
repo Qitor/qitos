@@ -6,6 +6,7 @@ import dataclasses
 from enum import Enum
 from typing import Any, Mapping, Optional
 
+from ..core.artifact import ArtifactRef
 from .trajectory import (
     LossEntry,
     LossReport,
@@ -245,6 +246,27 @@ def runtime_event_to_records(
                 payload={"effect": _json_value(payload["effect"])},
             )
         )
+        raw_artifacts = payload.get("artifact_refs", ())
+        for raw_artifact in raw_artifacts:
+            artifact = ArtifactRef.from_dict(raw_artifact)
+            records.append(
+                TrajectoryRecord.create(
+                    RecordKind.ARTIFACT,
+                    role=RecordRole.CANONICAL_RUNTIME_FACT,
+                    run_id=run_id,
+                    session_id=session_id,
+                    work_item_id=work_item_id,
+                    step_id=int(getattr(event, "step_id", 0)),
+                    phase=str(
+                        getattr(getattr(event, "phase", None), "value", "")
+                    )
+                    or None,
+                    agent_id=agent_id,
+                    tool_call_id=str(payload.get("slot_id") or "") or None,
+                    artifact_refs=(artifact,),
+                    payload={"artifact_id": artifact.artifact_id},
+                )
+            )
     return tuple(records)
 
 

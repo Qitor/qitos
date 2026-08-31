@@ -466,6 +466,10 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                     "completion_index": durable_receipt.slot.completion_index,
                     "disposition": durable_receipt.disposition.value,
                     "tool_result": durable_receipt.result.to_trace_safe_dict(),
+                    "artifact_refs": [
+                        reference.to_dict()
+                        for reference in durable_receipt.result.artifact_refs
+                    ],
                     "lifecycle": durable_receipt.lifecycle.to_dict(),
                     "effect": {
                         "state": durable_receipt.effect.state,

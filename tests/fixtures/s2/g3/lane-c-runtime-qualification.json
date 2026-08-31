@@ -1,0 +1,17 @@
+{
+  "evidence_version": "qitos.s2.g3.runtime-qualification/1",
+  "lane": "C",
+  "runtime_execution": true,
+  "synthetic": false,
+  "proof_tests": [
+    "tests/e2e/test_s2_g3_runtime_vertical.py::test_twenty_clean_process_vertical_continuity_rounds",
+    "tests/test_tool_runtime_conformance.py::test_recovery_does_not_replay_committed_effect",
+    "tests/test_tool_runtime_conformance.py::test_recovery_refuses_outcome_unknown_automatic_retry",
+    "tests/test_tool_runtime_conformance.py::test_duplicate_and_stale_terminal_submissions_are_suppressed"
+  ],
+  "scenario_results": [
+    {"scenario": "parallel_tool_slots", "status": "passed"},
+    {"scenario": "effect_receipt", "status": "passed"},
+    {"scenario": "late_result_rejection", "status": "passed"}
+  ]
+}

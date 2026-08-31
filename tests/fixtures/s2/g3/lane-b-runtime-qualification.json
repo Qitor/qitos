@@ -1,0 +1,16 @@
+{
+  "evidence_version": "qitos.s2.g3.runtime-qualification/1",
+  "lane": "B",
+  "runtime_execution": true,
+  "synthetic": false,
+  "proof_tests": [
+    "tests/e2e/test_s2_g3_runtime_vertical.py::test_twenty_clean_process_vertical_continuity_rounds",
+    "tests/test_continuation_resolver_conformance.py::test_unresolved_continuation_rejects_or_records_explicit_stateless_loss",
+    "tests/test_steering_conformance.py::test_queued_steering_survives_snapshot_restore_and_is_consumed_once"
+  ],
+  "scenario_results": [
+    {"scenario": "request_reasoning_continuation", "status": "passed"},
+    {"scenario": "steering_applied_once", "status": "passed"},
+    {"scenario": "loss_declaration", "status": "passed"}
+  ]
+}
