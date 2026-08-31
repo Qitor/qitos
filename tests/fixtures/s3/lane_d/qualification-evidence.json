@@ -1,0 +1,17 @@
+{
+  "evidence_version": "qitos.s3.lane_d.qualification_evidence/1",
+  "status": "waiting_on_lane_a_b_c",
+  "qualified_producers": [],
+  "qualified_scenarios": [],
+  "schema_frozen": false,
+  "writer_default": "frozen_trace_v1_unchanged",
+  "qita_reader_default": "frozen_trace_v1_compatibility",
+  "publication_ready": false,
+  "claims": [],
+  "measurements": [],
+  "blockers": [
+    "lane_a_branch_head_advanced_after_inventory_binding",
+    "lane_b_producer_file_digest_mismatch",
+    "lane_c_waiting_on_exact_lane_a_b_consumption"
+  ]
+}

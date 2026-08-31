@@ -1,0 +1,63 @@
+{
+  "inventory_version": "qitos.s3.lane_d.readiness_inventory/1",
+  "status": "waiting_on_lane_a_b_c",
+  "dependencies": [
+    {
+      "contract_id": "s3.a.session_fork_ownership",
+      "owner_lane": "A",
+      "producer_branch": "codex/v4-s3-a-session-fork",
+      "producer_commit": "ea8076c9d78742b25e2516fa610afac1ba9cfc2a",
+      "path": "tests/fixtures/s3/lane_a/producer-manifest.json",
+      "digest": "f9ce1622c09a8910c40a327aeb416a97cd361c4bd51dfd01121eaa55a7886209",
+      "schema_identifier": "qitos.session.fork_producer_manifest/v1",
+      "authority": "qitos.s3.g4.exact_source/1",
+      "compatibility": "direct_exact_source",
+      "test_binding": [
+        "tests/engine/test_session_fork.py::test_current_head_fork_is_distinct_explicit_and_source_immutable",
+        "tests/engine/test_session_fork.py::test_historical_snapshot_fork_and_source_child_continuation_are_isolated",
+        "tests/engine/test_session_fork.py::test_duplicate_operation_is_typed_and_does_not_create_second_child",
+        "tests/engine/test_session_fork.py::test_store_failure_leaves_no_child_head",
+        "tests/engine/test_session_fork.py::test_restored_child_supersedes_original_fork_owner",
+        "tests/engine/test_session_fork.py::test_cross_process_restore_fences_original_owner_with_events",
+        "tests/engine/test_session_fork.py::test_clean_process_restores_and_continues_forked_child"
+      ],
+      "qualification_state": "qualified",
+      "blocker": null,
+      "remediation": null
+    },
+    {
+      "contract_id": "s3.b.context_authority_transfer",
+      "owner_lane": "B",
+      "producer_branch": "codex/v4-s3-b-transfer-authority",
+      "producer_commit": "5efa1db19ae541234c562c4ba99e928d2381fc62",
+      "path": "tests/fixtures/context_transfer/v1/producer-manifest.json",
+      "digest": "d3b449206a219ed29417afaefadecf9452bb11c27a5f535722c30d3138bf1ed3",
+      "schema_identifier": "qitos.context_transfer.producer_manifest/v1",
+      "authority": "qitos.s3.g4.exact_source/1",
+      "compatibility": "direct_exact_source",
+      "test_binding": ["tests/core/test_context_transfer.py"],
+      "qualification_state": "waiting",
+      "blocker": "producer_file_digest_mismatch",
+      "remediation": "republish the Lane B bundle with every producer file digest matching committed bytes"
+    },
+    {
+      "contract_id": "s3.c.durable_work_runtime",
+      "owner_lane": "C",
+      "producer_branch": "codex/v4-s3-c-durable-work-runtime",
+      "producer_commit": "12edf48aa5dd2ed7c3c830baf9031116474bcc52",
+      "path": "tests/fixtures/s3/lane_c/producer-manifest.json",
+      "digest": "5632e4a7a224698ff8e7a05d754f776db03ce6fffa6ea70f577273a41437375e",
+      "schema_identifier": "qitos.s3.lane_c.producer_manifest/v1",
+      "authority": "qitos.s3.g4.exact_source/1",
+      "compatibility": "direct_exact_source",
+      "test_binding": [
+        "tests/core/test_work_graph.py",
+        "tests/engine/test_work_runtime.py",
+        "tests/e2e/test_multi_agent_process_restore.py"
+      ],
+      "qualification_state": "waiting",
+      "blocker": "lane_a_b_not_consumed",
+      "remediation": "rerun Lane C against the exact current A/B producer bundles and republish executable runtime evidence"
+    }
+  ]
+}
