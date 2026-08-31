@@ -1,0 +1,42 @@
+{
+  "schema_version": "qitos.s2.lane_b.evidence/v1",
+  "producer_commit": "60e8d94edb9a5f00434095a3489e1e1100185bea",
+  "baseline_commit": "446a347d1ac73636476ca2515a01da601b567c68",
+  "qualification": "offline_contract_qualified",
+  "fixtures": [
+    {
+      "path": "tests/fixtures/s2/lane_b/provider-capability-matrix.json",
+      "sha256": "41f07ab2f383238f208550d1b3081ab11d3c59146788b04e8dbaa34b4fd19cca"
+    },
+    {
+      "path": "tests/fixtures/s2/lane_b/semantic-contracts.json",
+      "sha256": "5dbde62e9d35dd3021a4a07c3ea504c2653a7ab0f73f14ab5798011cc1596fac"
+    },
+    {
+      "path": "tests/fixtures/s2/lane_b/unsupported-loss-matrix.json",
+      "sha256": "87e2ea70b4dae30aa3394f6ed853c262e7f0c0f3c9596ac0e03ae25f4771a893"
+    }
+  ],
+  "handoffs": {
+    "lane_a": {
+      "producer": "qitos.core.request_view.ConversationSnapshotComponent",
+      "schema_version": "qitos.conversation_component/v1",
+      "facts": ["exchange_log", "steering_receipts", "continuation_refs", "context_selection", "compaction_receipts", "artifact_refs"]
+    },
+    "lane_c": {
+      "producer": "qitos.core.request_view.RequestView.correlation_facts",
+      "facts": ["batch_id", "declaration_order", "completion_order", "provider_scopes"]
+    },
+    "lane_d": {
+      "producer": "qitos.engine._model_runtime._ModelRuntime",
+      "event_stages": ["request_view", "provider_transaction", "provider_failure"]
+    }
+  },
+  "validation": {
+    "full_pytest": {"passed": 2138, "skipped": 50},
+    "static_quality": "passed",
+    "flake8": "passed",
+    "mypy": "passed",
+    "live_provider_keys": "not_run_not_qualification_authority"
+  }
+}

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -563,3 +564,19 @@ def test_stable_semantic_and_loss_fixtures_are_strict_json() -> None:
         "stateless_replay",
         "malformed_response",
     }
+
+
+def test_lane_b_evidence_binds_fixtures_to_exact_producer_commit() -> None:
+    repository = Path(__file__).parent.parent
+    fixture_dir = Path(__file__).parent / "fixtures" / "s2" / "lane_b"
+    evidence = json.loads(
+        (fixture_dir / "evidence.json").read_text(encoding="utf-8")
+    )
+
+    assert evidence["schema_version"] == "qitos.s2.lane_b.evidence/v1"
+    assert evidence["producer_commit"] == (
+        "60e8d94edb9a5f00434095a3489e1e1100185bea"
+    )
+    for fixture in evidence["fixtures"]:
+        contents = (repository / fixture["path"]).read_bytes()
+        assert hashlib.sha256(contents).hexdigest() == fixture["sha256"]

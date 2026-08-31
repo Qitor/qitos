@@ -1,10 +1,11 @@
 # S2 Lane B model I/O runtime plan
 
-Status: in progress
+Status: producer complete; offline contract qualified
 Baseline: `446a347d1ac73636476ca2515a01da601b567c68`
 Branch: `codex/v4-s2-b-model-io`
 Worktree: `/Users/morinop/Desktop/WhitzardOS-s2-b`
 Read-only ledger successor: `47cd4dc5e1ed1b2b0d244bfc90fac031ec55be32`
+Producer commit: `60e8d94edb9a5f00434095a3489e1e1100185bea`
 
 ## Outcome
 
@@ -122,4 +123,3 @@ ratchets, static quality, flake8, mypy, the full test suite, and
   correlation; Lane B does not modify tool execution files.
 - Lane D consumes sanitized request, codec, continuation, context selection,
   compaction, steering, and provider-failure facts with exact fixture digests.
-
