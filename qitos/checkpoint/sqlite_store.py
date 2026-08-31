@@ -8,10 +8,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from contextlib import contextmanager
-from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional, Sequence
-from uuid import uuid4
+import threading
+from typing import Any, Iterator, List, Optional, Sequence
 
 from .store import (
     Checkpoint,
@@ -22,6 +20,19 @@ from .store import (
     CheckpointTuple,
     PendingWrite,
     StateVersions,
+)
+from .session import (
+    SESSION_PERSISTENCE_CAPABILITIES,
+    CheckpointPersistenceError,
+    CheckpointSessionError,
+    CheckpointSessionErrorCode,
+    SessionCommitReceipt,
+    SessionHeadRecord,
+    SessionSnapshotCommit,
+    SessionSnapshotRecord,
+    checkpoint_conflict,
+    generation_conflict,
+    owner_conflict,
 )
 
 
@@ -60,6 +71,24 @@ CREATE INDEX IF NOT EXISTS idx_checkpoints_thread
 
 CREATE INDEX IF NOT EXISTS idx_writes_checkpoint
     ON checkpoint_writes(checkpoint_id);
+
+CREATE TABLE IF NOT EXISTS session_heads (
+    session_id     TEXT PRIMARY KEY,
+    snapshot_id    TEXT NOT NULL,
+    checkpoint_id  TEXT NOT NULL REFERENCES checkpoints(checkpoint_id),
+    generation     INTEGER NOT NULL,
+    owner_run_id   TEXT NOT NULL,
+    lifecycle      TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS session_snapshot_index (
+    snapshot_id    TEXT PRIMARY KEY,
+    session_id     TEXT NOT NULL,
+    checkpoint_id  TEXT NOT NULL UNIQUE REFERENCES checkpoints(checkpoint_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_snapshots_session
+    ON session_snapshot_index(session_id);
 """
 
 
@@ -73,6 +102,7 @@ class SqliteCheckpointStore(CheckpointStore):
 
     def __init__(self, db_path: str) -> None:
         self._db_path = db_path
+        self._lock = threading.RLock()
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA synchronous=NORMAL")
@@ -81,9 +111,10 @@ class SqliteCheckpointStore(CheckpointStore):
 
     def close(self) -> None:
         """Close the database connection."""
-        if self._conn:
-            self._conn.close()
-            self._conn = None  # type: ignore[assignment]
+        with self._lock:
+            if self._conn:
+                self._conn.close()
+                self._conn = None  # type: ignore[assignment]
 
     def __enter__(self) -> SqliteCheckpointStore:
         return self
@@ -311,6 +342,216 @@ class SqliteCheckpointStore(CheckpointStore):
             self._conn.execute(
                 "DELETE FROM checkpoints WHERE checkpoint_id = ?", (cp_id,)
             )
+
+    # ---- durable Session protocol ----
+
+    def session_capabilities(self) -> frozenset[str]:
+        return SESSION_PERSISTENCE_CAPABILITIES
+
+    def commit_session_snapshot(
+        self, request: SessionSnapshotCommit
+    ) -> SessionCommitReceipt:
+        with self._lock:
+            try:
+                self._conn.execute("BEGIN IMMEDIATE")
+                current = self._load_session_head_row(request.session_id)
+                self._validate_session_cas(request, current)
+                parent_id = current.checkpoint_id if current is not None else None
+                self._conn.execute(
+                    "INSERT INTO checkpoints "
+                    "(checkpoint_id, thread_id, step, state_data, state_versions, "
+                    "versions_seen, parent_id, created_at, schema_version) "
+                    "VALUES (?, ?, ?, ?, '{}', '{}', ?, ?, ?)",
+                    (
+                        request.checkpoint_id,
+                        request.session_id,
+                        request.target_generation,
+                        json.dumps(
+                            {"session_snapshot": request.payload},
+                            ensure_ascii=False,
+                            allow_nan=False,
+                            sort_keys=True,
+                            separators=(",", ":"),
+                        ),
+                        parent_id,
+                        str(request.payload.get("created_at", "")),
+                        "qitos.session.snapshot/v2",
+                    ),
+                )
+                self._conn.execute(
+                    "INSERT INTO checkpoint_metadata "
+                    "(checkpoint_id, source, step_int, parents, run_id) "
+                    "VALUES (?, 'session', ?, '{}', ?)",
+                    (
+                        request.checkpoint_id,
+                        request.target_generation,
+                        request.owner_run_id,
+                    ),
+                )
+                self._conn.execute(
+                    "INSERT INTO session_snapshot_index "
+                    "(snapshot_id, session_id, checkpoint_id) VALUES (?, ?, ?)",
+                    (
+                        request.snapshot_id,
+                        request.session_id,
+                        request.checkpoint_id,
+                    ),
+                )
+                if current is None:
+                    self._conn.execute(
+                        "INSERT INTO session_heads "
+                        "(session_id, snapshot_id, checkpoint_id, generation, "
+                        "owner_run_id, lifecycle) VALUES (?, ?, ?, ?, ?, ?)",
+                        (
+                            request.session_id,
+                            request.snapshot_id,
+                            request.checkpoint_id,
+                            request.target_generation,
+                            request.owner_run_id,
+                            request.lifecycle,
+                        ),
+                    )
+                else:
+                    self._conn.execute(
+                        "UPDATE session_heads SET snapshot_id = ?, checkpoint_id = ?, "
+                        "generation = ?, owner_run_id = ?, lifecycle = ? "
+                        "WHERE session_id = ?",
+                        (
+                            request.snapshot_id,
+                            request.checkpoint_id,
+                            request.target_generation,
+                            request.owner_run_id,
+                            request.lifecycle,
+                            request.session_id,
+                        ),
+                    )
+                self._conn.commit()
+            except CheckpointSessionError:
+                self._conn.rollback()
+                raise
+            except sqlite3.IntegrityError as exc:
+                self._conn.rollback()
+                raise checkpoint_conflict() from exc
+            except (sqlite3.Error, TypeError, ValueError) as exc:
+                self._conn.rollback()
+                raise CheckpointPersistenceError() from exc
+
+        return SessionCommitReceipt(
+            session_id=request.session_id,
+            snapshot_id=request.snapshot_id,
+            checkpoint_id=request.checkpoint_id,
+            generation=request.target_generation,
+            owner_run_id=request.owner_run_id,
+            lifecycle=request.lifecycle,
+            durable=True,
+            store_kind="sqlite",
+        )
+
+    def get_session_head(self, session_id: str) -> Optional[SessionHeadRecord]:
+        with self._lock:
+            return self._load_session_head_row(session_id)
+
+    def get_session_snapshot(
+        self, snapshot_id: str
+    ) -> Optional[SessionSnapshotRecord]:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT i.session_id, i.snapshot_id, c.checkpoint_id, c.step, "
+                "m.run_id, h.lifecycle, c.state_data, c.parent_id "
+                "FROM session_snapshot_index i "
+                "JOIN checkpoints c ON c.checkpoint_id = i.checkpoint_id "
+                "LEFT JOIN checkpoint_metadata m ON m.checkpoint_id = c.checkpoint_id "
+                "LEFT JOIN session_heads h ON h.session_id = i.session_id "
+                "AND h.snapshot_id = i.snapshot_id WHERE i.snapshot_id = ?",
+                (snapshot_id,),
+            ).fetchone()
+        return self._session_record_from_row(row) if row is not None else None
+
+    def list_session_lineage(
+        self, session_id: str, *, limit: Optional[int] = None
+    ) -> Iterator[SessionSnapshotRecord]:
+        sql = (
+            "SELECT i.session_id, i.snapshot_id, c.checkpoint_id, c.step, "
+            "m.run_id, h.lifecycle, c.state_data, c.parent_id "
+            "FROM session_snapshot_index i "
+            "JOIN checkpoints c ON c.checkpoint_id = i.checkpoint_id "
+            "LEFT JOIN checkpoint_metadata m ON m.checkpoint_id = c.checkpoint_id "
+            "LEFT JOIN session_heads h ON h.session_id = i.session_id "
+            "AND h.snapshot_id = i.snapshot_id WHERE i.session_id = ? "
+            "ORDER BY c.step DESC, c.rowid DESC"
+        )
+        params: List[Any] = [session_id]
+        if limit is not None:
+            sql += " LIMIT ?"
+            params.append(limit)
+        with self._lock:
+            rows = self._conn.execute(sql, params).fetchall()
+        for row in rows:
+            yield self._session_record_from_row(row)
+
+    def _load_session_head_row(self, session_id: str) -> Optional[SessionHeadRecord]:
+        row = self._conn.execute(
+            "SELECT session_id, snapshot_id, checkpoint_id, generation, "
+            "owner_run_id, lifecycle FROM session_heads WHERE session_id = ?",
+            (session_id,),
+        ).fetchone()
+        return SessionHeadRecord(*row) if row is not None else None
+
+    @staticmethod
+    def _validate_session_cas(
+        request: SessionSnapshotCommit, current: Optional[SessionHeadRecord]
+    ) -> None:
+        if request.expected_generation is None:
+            if current is not None:
+                raise generation_conflict(None, current.generation)
+            return
+        if current is None:
+            raise generation_conflict(request.expected_generation, None)
+        if current.generation != request.expected_generation:
+            raise generation_conflict(request.expected_generation, current.generation)
+        if current.checkpoint_id != request.expected_checkpoint_id:
+            raise checkpoint_conflict()
+        if current.owner_run_id != request.expected_owner_run_id:
+            raise owner_conflict()
+
+    @staticmethod
+    def _session_record_from_row(row: tuple) -> SessionSnapshotRecord:
+        (
+            session_id,
+            snapshot_id,
+            checkpoint_id,
+            generation,
+            owner_run_id,
+            current_lifecycle,
+            state_data_json,
+            parent_checkpoint_id,
+        ) = row
+        try:
+            state_data = json.loads(state_data_json)
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise CheckpointSessionError(
+                CheckpointSessionErrorCode.CORRUPT_SNAPSHOT,
+                "Stored checkpoint JSON is corrupt.",
+                recoverable=False,
+            ) from exc
+        payload = state_data.get("session_snapshot") if isinstance(state_data, dict) else None
+        if not isinstance(payload, dict):
+            raise CheckpointSessionError(
+                CheckpointSessionErrorCode.INCOMPATIBLE_CHECKPOINT,
+                "Checkpoint does not contain a canonical Session snapshot.",
+                recoverable=False,
+            )
+        lifecycle = current_lifecycle or str(payload.get("lifecycle", ""))
+        return SessionSnapshotRecord(
+            session_id=session_id,
+            snapshot_id=snapshot_id,
+            checkpoint_id=checkpoint_id,
+            generation=generation,
+            owner_run_id=owner_run_id or "unknown",
+            lifecycle=lifecycle,
+            payload=payload,
+            parent_checkpoint_id=parent_checkpoint_id,
+        )
 
 
 __all__ = ["SqliteCheckpointStore"]

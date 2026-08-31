@@ -15,6 +15,18 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterator, List, NamedTuple, NewType, Optional, Sequence, TypedDict
 
+from .session import (
+    ATOMIC_SESSION_COMMIT,
+    LIST_SESSION_LINEAGE,
+    READ_SESSION_HEAD,
+    READ_SESSION_SNAPSHOT,
+    CheckpointCapabilityError,
+    SessionCommitReceipt,
+    SessionHeadRecord,
+    SessionSnapshotCommit,
+    SessionSnapshotRecord,
+)
+
 # ---------------------------------------------------------------------------
 # Core type aliases
 # ---------------------------------------------------------------------------
@@ -210,6 +222,34 @@ class CheckpointStore(ABC):
     @abstractmethod
     def delete(self, config: CheckpointConfig) -> None:
         """Delete a single checkpoint."""
+
+    # ---- durable Session protocol (optional for compatibility stores) ----
+
+    def session_capabilities(self) -> frozenset[str]:
+        """Return stable Session capabilities implemented by this store."""
+        return frozenset()
+
+    def commit_session_snapshot(
+        self, request: SessionSnapshotCommit
+    ) -> SessionCommitReceipt:
+        """Atomically persist an immutable snapshot and advance its head."""
+        raise CheckpointCapabilityError(ATOMIC_SESSION_COMMIT)
+
+    def get_session_head(self, session_id: str) -> Optional[SessionHeadRecord]:
+        """Read the current mutable head for one session."""
+        raise CheckpointCapabilityError(READ_SESSION_HEAD)
+
+    def get_session_snapshot(
+        self, snapshot_id: str
+    ) -> Optional[SessionSnapshotRecord]:
+        """Read one immutable Session snapshot by its distinct identity."""
+        raise CheckpointCapabilityError(READ_SESSION_SNAPSHOT)
+
+    def list_session_lineage(
+        self, session_id: str, *, limit: Optional[int] = None
+    ) -> Iterator[SessionSnapshotRecord]:
+        """List immutable snapshots for a session, newest first."""
+        raise CheckpointCapabilityError(LIST_SESSION_LINEAGE)
 
     # ---- async interface (default: delegate to sync) ----
 

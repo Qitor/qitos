@@ -50,6 +50,7 @@ from .critic import Critic
 from .hooks import EngineHook, HookContext
 from .parser import Parser
 from .recovery import RecoveryPolicy, build_failure_report
+from .runtime import RuntimeComposition
 from .search import Search
 from .states import (
     ContextConfig,
@@ -311,7 +312,24 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         interceptors: Optional[List[ToolInterceptor]] = None,
         auto_approve: bool = False,
         action_execution_policy: Optional[Any] = None,
+        runtime: Optional[RuntimeComposition] = None,
     ):
+        if runtime is not None and checkpoint_store is not None:
+            if (
+                runtime.checkpoint_store is not None
+                and runtime.checkpoint_store is not checkpoint_store
+            ):
+                raise ValueError(
+                    "runtime.checkpoint_store and checkpoint_store must be identical"
+                )
+            runtime.checkpoint_store = checkpoint_store
+        self.runtime = runtime or RuntimeComposition(
+            checkpoint_store=checkpoint_store,
+            durability_mode=checkpoint_durability,
+        )
+        if runtime is not None:
+            checkpoint_store = runtime.checkpoint_store
+            checkpoint_durability = runtime.durability_mode
         self.agent = agent
         self.agent_registry = agent_registry
         self._delegate_depth = delegate_depth
@@ -375,7 +393,11 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         # Action execution policy is public API and must survive executor
         # rebuilds (handoff, resume). Stored alongside the other executor
         # dependencies so _build_action_executor() is the single source of truth.
-        self._action_execution_policy = action_execution_policy
+        self._action_execution_policy = (
+            action_execution_policy
+            if action_execution_policy is not None
+            else self.runtime.tool_execution_policy
+        )
         self._permission_pipeline = resolved_pipeline
         self._rbw_enforcer = resolved_rbw
         self._permission_interaction_callback = permission_interaction_callback
@@ -389,6 +411,9 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self._last_env_result: Optional[EnvStepResult] = None
         self._token_usage: int = 0
         self._active_run_id: str = ""
+        self._session_handle: Any = None
+        self._session_run_id: str = ""
+        self._session_paused: bool = False
         self._runtime_history: History = _EngineWindowHistory(window_size=24)
         self._tool_loop_detector: Optional[ToolCallLoopDetector] = (
             loop_detector
@@ -465,6 +490,8 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
 
         # Cancellation token — shared with EngineResult for external cancel
         self._cancel_token = CancelToken()
+        if self.runtime.context_model_runtime is not None:
+            self.runtime.context_model_runtime.bind(self)
 
     def _build_action_executor(self, tool_registry: Any) -> Optional[ActionExecutor]:
         """Construct an ActionExecutor carrying every engine-level dependency.
@@ -561,6 +588,40 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
     def clear_hooks(self) -> None:
         """Remove all runtime hooks."""
         self.hooks = []
+
+    def session(
+        self, task: str | Task, session_id: Any = None
+    ) -> Any:
+        """Create one durable Session facade using this Engine composition."""
+        from ..core.session import SessionIdentity
+        from .session_runtime import Session
+
+        identity = None
+        if session_id is not None:
+            identity = (
+                session_id
+                if isinstance(session_id, SessionIdentity)
+                else SessionIdentity(str(session_id))
+            )
+        return Session._create(self, task, identity)
+
+    @classmethod
+    def restore(
+        cls,
+        session_id: Any,
+        *,
+        resolvers: Any = None,
+        runtime: Optional[RuntimeComposition] = None,
+    ) -> Any:
+        """Restore a Session in a fresh Engine through explicit resolvers."""
+        from .session_runtime import restore_session
+
+        return restore_session(
+            cls,
+            session_id,
+            resolvers=resolvers,
+            runtime=runtime,
+        )
 
     # ------------------------------------------------------------------
     # Public step-by-step API for interactive REPLs and external drivers
@@ -862,6 +923,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         # Check for resume-from-checkpoint internal kwargs
         _resume_state = kwargs.pop("_resume_state", None)
         _resume_step = kwargs.pop("_resume_step", None)
+        _session_steering = kwargs.pop("_session_steering", None)
 
         self._reset_run_state()
         # Wire delegate interceptor to engine's event list
@@ -882,7 +944,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                 self.recovery_policy.reset()
             except Exception as exc:
                 _logger.debug("Failed to reset recovery_policy: %s", exc)
-        self._active_run_id = (
+        self._active_run_id = self._session_run_id or (
             str(getattr(self.trace_writer, "run_id", "")).strip()
             if self.trace_writer is not None
             else ""
@@ -932,6 +994,13 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self._active_task = task_text
         self._active_task_obj = task_obj
         self._active_state = state
+        if _session_steering is not None:
+            self._history_append(
+                "user",
+                str(_session_steering),
+                int(_resume_step or getattr(state, "current_step", 0)),
+                metadata={"source": "session_steering"},
+            )
         started_at = time.monotonic()
         self._hydrate_trace_metadata(task_obj=task_obj, task_text=task_text)
 
@@ -1358,6 +1427,27 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                     ),
                 )
 
+                if (
+                    not stop
+                    and self._session_handle is not None
+                    and self._session_handle._on_safe_boundary(
+                        state=state,
+                        task=task_obj or task_text,
+                        step_id=step_id,
+                    )
+                ):
+                    self._session_paused = True
+                    self._emit(
+                        step_id,
+                        RuntimePhase.SESSION_PAUSED,
+                        payload={
+                            "session_id": self._session_handle.session_id.value,
+                            "run_id": self._session_handle.run_id.value,
+                            "generation": self._session_handle.current_head.generation.value,
+                        },
+                    )
+                    break
+
                 if stop:
                     self._emit(
                         step_id,
@@ -1395,7 +1485,11 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                 }
             )
             # Checkpoint on cancellation (immediate mode)
-            if self._cancel_token.is_cancel_requested and self._checkpoint_store is not None:
+            if (
+                self._cancel_token.is_cancel_requested
+                and self._checkpoint_store is not None
+                and self._session_handle is None
+            ):
                 try:
                     self._save_checkpoint(
                         step_id, state, task_text, source="cancel_immediate"
@@ -1413,7 +1507,9 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             self._cleanup_mcp_servers()
 
         if self.trace_writer is not None:
-            if state.stop_reason == StopReason.UNRECOVERABLE_ERROR.value:
+            if self._session_paused:
+                status = "paused"
+            elif state.stop_reason == StopReason.UNRECOVERABLE_ERROR.value:
                 status = "failed"
             elif state.stop_reason == StopReason.CANCELLED_IMMEDIATE.value:
                 status = "stopped"
@@ -1498,6 +1594,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             has_shared_memory=self._shared_memory is not None,
             has_env=self.env is not None,
             tool_count=len(self.tool_registry) if self.tool_registry else 0,
+            runtime_composition=self.runtime.export_config().to_dict(),
         )
 
     # -- Trace extraction helpers ----------------------------------------------
@@ -1741,7 +1838,10 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         payload: Optional[Dict[str, Any]] = None,
         error: Optional[str] = None,
     ) -> None:
+        before = len(self.events)
         self._trace_runtime.emit(step_id, phase, ok=ok, payload=payload, error=error)
+        if self.runtime.event_sink is not None and len(self.events) > before:
+            self.runtime.event_sink.emit(self.events[-1])
 
     def _write_trace_event(self, event: RuntimeEvent) -> None:
         self._trace_runtime.write_trace_event(event)
@@ -1755,6 +1855,10 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
     def _save_checkpoint_if_needed(
         self, step_id: int, state: StateT, task_text: str, task_obj: Optional[Any]
     ) -> None:
+        # SessionSnapshot is the sole persistence truth while a Session facade
+        # owns the run. Do not write a competing state-only checkpoint.
+        if self._session_handle is not None:
+            return
         # --- New CheckpointStore path ---
         if self._checkpoint_store is not None:
             self._save_checkpoint(step_id, state, task_text, source="loop")
@@ -2280,6 +2384,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self._critic_modified_prompt = None
         self._critic_instruction_patch = None
         self._cancel_token.clear()
+        self._session_paused = False
 
     # -- MCP server lifecycle helpers --
 

@@ -34,6 +34,7 @@ class _EngineProtocol(Protocol):
     search: Any
     branch_selector: Any
     history_policy: Any
+    runtime: Any
 
     _active_run_id: str
     _active_task: str
@@ -53,6 +54,8 @@ class _EngineProtocol(Protocol):
     _resolved_protocol_source: str
     _context_runtime: Any
     _trace_runtime: Any
+    _session_handle: Any
+    _session_run_id: str
 
     def _dispatch_hook(self, method_name: str, ctx: Any) -> None:
         ...

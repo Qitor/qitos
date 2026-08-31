@@ -107,6 +107,8 @@ def _references() -> tuple[ResolverReference, ...]:
                 ResolverNamespace.PROVIDER_CONTINUATION,
                 "provider_continuation.resolve",
             ),
+            (ResolverNamespace.AGENT, "agent.module"),
+            (ResolverNamespace.RUNTIME_EVENT_SINK, "runtime.events"),
         )
     )
 
