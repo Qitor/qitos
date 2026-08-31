@@ -60,6 +60,12 @@ Each row is completed immediately after replay and focused validation.
 | B | `b229e0b80a55a1add64fdb88fbe5b632f8d15ad8` | `a31284f` | none | 38 passed: ContextTransfer contract |
 | B | `5efa1db19ae541234c562c4ba99e928d2381fc62` | `04caa1f` | none | 38 passed: ContextTransfer producer bundle |
 | B repair | confirmed bad manifest digest | `8bbfd6580e03f77f51777e696d78ee783bc09f75` | corrected plan digest and refreshed all changed producer bytes; added commit/path/digest/test-node verifier | 216 passed; Python 3.12.7 static ratchet passed |
+| C | `72c9372412d6791f107de63b7f02d13dd549f94c` | `ceb103f` | none | 16 passed: atomic WorkGraph mutations |
+| C | `9c39b3fdfcaff4dd33fc73a55a464927d1f58bca` | `ab82928` | auto-merged A additions in `runtime.py` and `session_runtime.py`; no manual conflict | 65 passed: C runtime + A fork + B transfer |
+| C | `12edf48aa5dd2ed7c3c830baf9031116474bcc52` | `ef415f8` | none; original waiting evidence intentionally failed its stale digest assertion | 10 passed, 1 expected exact-source evidence failure before repair |
+| C repair | integrated A/B durable runtime | `66a0e535d28c89f05bb4577eb343142289c8b412` | replaced digest-derived IDs and callable scheduler contract; consumed real fork/transfer receipts | 107 passed; focused flake8/mypy passed |
+| C join repair | all-successful typed terminal failure | `b4e4d8542d29dcbd07d7b063bbcd2b5e4761c545` | no conflict | 30 passed: WorkGraph/runtime/process restore |
+| C evidence | integrated exact-source qualification | `336ede9db49d0d1ff20fe7668017bdae7712fccd` | refreshed manifest/digests/nodes and shrank ratchet baseline | 88 passed; Python 3.12.7 ratchet passed with 369 findings |
 
 ## Gate policy
 
