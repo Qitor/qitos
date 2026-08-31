@@ -1,0 +1,35 @@
+{
+  "schema_version": "qitos.s2_current_interface_budget/v1",
+  "reviewed_policy": {
+    "root_exports": 41,
+    "engine_init_parameters_including_self": 34,
+    "engine_runtime_parameter_approved": true,
+    "aggregate_exports": 101
+  },
+  "modules": {
+    "qitos.engine": {
+      "beginner-facing": ["AsyncEngine", "Engine", "EngineResult", "EngineEvent", "EngineEventType", "EventStream", "Session", "SessionInspection", "StepSummary", "ContextConfig", "RuntimeBudget"],
+      "extension-facing": ["CancelMode", "CancelToken", "EngineHook", "HookContext", "ToolHookContext", "ToolCallLoopDetector", "RuntimeComposition", "LifecyclePolicy", "critic"],
+      "persistence-internal": ["CriticTrace", "EngineConfig", "HandoffTrace", "ContextTelemetry", "RuntimeEvent", "RuntimePhase", "StepRecord"],
+      "internal-private": []
+    },
+    "qitos.checkpoint": {
+      "beginner-facing": ["InMemoryCheckpointStore", "SqliteCheckpointStore"],
+      "extension-facing": ["CheckpointStore", "DurabilityManager", "DurabilityMode", "CheckpointCapabilityError", "CheckpointConflictError", "CheckpointPersistenceError", "CheckpointSessionError", "CheckpointSessionErrorCode", "fork_checkpoint", "list_fork_history"],
+      "persistence-internal": ["Checkpoint", "CheckpointConfig", "CheckpointId", "CheckpointMetadata", "CheckpointTuple", "PendingWrite", "StateVersions", "StateVersionTracker", "PendingWriteManager", "session_snapshot_from_checkpoint", "CheckpointData", "CheckpointManager"],
+      "internal-private": []
+    },
+    "qitos.models": {
+      "beginner-facing": ["Model", "ModelFactory", "OpenAIModel", "OpenAICompatibleModel", "AzureOpenAIModel", "AnthropicModel", "GeminiModel", "LiteLLMModel", "OllamaModel", "OllamaGenerateModel", "LMStudioModel", "VLLMModel"],
+      "extension-facing": ["AsyncModel", "ModelStreamChunk", "infer_context_window", "ModelProfile", "infer_model_profile", "infer_default_protocol", "known_model_profiles", "OpenAICompatibleAdapter", "adapter_for_kind", "build_model_for_preset", "AsyncOpenAIModel", "AsyncOpenAICompatibleModel", "CodecReport", "ProviderCapabilities", "ProviderFailure", "ProviderCodec"],
+      "persistence-internal": [],
+      "internal-private": []
+    },
+    "qitos.tracing": {
+      "beginner-facing": [],
+      "extension-facing": ["Trace", "Span", "SpanData", "SpanType", "TraceProcessor", "TracingMode", "TracingProvider", "LegacyTraceWriterProcessor", "set_trace_processors", "add_trace_processor", "set_tracing_disabled", "set_tracing_mode", "get_tracing_provider", "create_trace", "EventSink", "SinkCapabilities", "FailurePolicy", "BackpressurePolicy", "DurabilityReceipt", "DurabilityStatus", "WandbTraceProcessor", "MlflowTraceProcessor"],
+      "persistence-internal": [],
+      "internal-private": []
+    }
+  }
+}

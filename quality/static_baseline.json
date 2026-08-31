@@ -1,10 +1,10 @@
 {
   "counts": {
-    "active": 372,
+    "active": 354,
     "by_category": {
-      "contract": 143,
-      "correctness": 35,
-      "hygiene": 194,
+      "contract": 131,
+      "correctness": 32,
+      "hygiene": 191,
       "vendored/generated": 22
     },
     "by_owner": {
@@ -22,8 +22,7 @@
       "E704": 8,
       "E722": 1,
       "E741": 3,
-      "F401": 120,
-      "F402": 1,
+      "F401": 118,
       "F541": 37,
       "F811": 1,
       "F821": 3,
@@ -47,15 +46,15 @@
       "var-annotated": 11
     },
     "by_semantic_category": {
-      "contract": 163,
-      "correctness": 36,
-      "hygiene": 195
+      "contract": 151,
+      "correctness": 33,
+      "hygiene": 192
     },
     "by_tool": {
-      "flake8": 199,
-      "mypy": 195
+      "flake8": 195,
+      "mypy": 181
     },
-    "total": 394,
+    "total": 376,
     "vendored_generated": 22
   },
   "created_from": "fb75cd5902fedf50d5e67dd617e62cd981c3128f",
@@ -177,7 +176,7 @@
       "column": 1,
       "correctness_kind": null,
       "id": "b13d7fb262d0e53d6f294f4c515ce53c9708551a0db0fd66e3a1ace204c7d4ab",
-      "line": 13,
+      "line": 11,
       "message": "'typing.List' imported but unused",
       "occurrence": 1,
       "owner": "Lane C / Tasks 03/09/10",
@@ -193,7 +192,7 @@
       "column": 1,
       "correctness_kind": null,
       "id": "20ed0d5dae2ca780d29e41eb8f980d04a5e5cef3c58aeae8b1bbef2eb501ce06",
-      "line": 15,
+      "line": 14,
       "message": "'.store.CheckpointId' imported but unused",
       "occurrence": 1,
       "owner": "Lane C / Tasks 03/09/10",
@@ -2577,7 +2576,7 @@
       "column": 1,
       "correctness_kind": null,
       "id": "65fddb51dcb2ae7a90679d380bbc07e2d1885f7d9f73ee98565497c93dee8b2e",
-      "line": 32,
+      "line": 33,
       "message": "'.server.MCPToolInfo' imported but unused",
       "occurrence": 1,
       "owner": "Lane C / Tasks 03/09/10",
@@ -2593,7 +2592,7 @@
       "column": 9,
       "correctness_kind": null,
       "id": "e1bc7d5e10478637f6c2021321c3fffb55ffb9aa1f1cb8d84e191638286c8c6f",
-      "line": 88,
+      "line": 89,
       "message": "local variable 'runtime_context' is assigned to but never used",
       "occurrence": 1,
       "owner": "Lane C / Tasks 03/09/10",
@@ -2609,7 +2608,7 @@
       "column": 9,
       "correctness_kind": null,
       "id": "656aa35b266eb85644037175d4f097f35eed56cc1de296c23de2b301baa220c5",
-      "line": 89,
+      "line": 90,
       "message": "local variable 'env' is assigned to but never used",
       "occurrence": 1,
       "owner": "Lane C / Tasks 03/09/10",
@@ -2625,7 +2624,7 @@
       "column": 9,
       "correctness_kind": null,
       "id": "4738da243977575e6a6821ac893322d29e426c10a62c1739ac81e27d7ce49bed",
-      "line": 90,
+      "line": 91,
       "message": "local variable 'ops' is assigned to but never used",
       "occurrence": 1,
       "owner": "Lane C / Tasks 03/09/10",
