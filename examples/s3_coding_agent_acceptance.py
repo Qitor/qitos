@@ -96,6 +96,7 @@ def current_status() -> AcceptanceStatus:
     session = Engine(OfflineCodingAgent(), runtime=runtime).session("inspect one module")
     session.run()
     child = session.delegate("offline-coder", task="review the recorded summary")
+    assert child.operation_id
     session.join([child.operation_id], policy="all")
     fresh_runtime = RuntimeComposition(
         checkpoint_store=runtime.checkpoint_store,
@@ -104,7 +105,10 @@ def current_status() -> AcceptanceStatus:
         work_runtime=DurableWorkRuntime(OfflineScheduler()),
     )
     restored = Engine.restore(session.session_id, runtime=fresh_runtime)
-    restored.inspect()
+    inspection = restored.inspect()
+    assert inspection.head.session_id == session.session_id
+    assert inspection.snapshot_integrity
+    assert inspection.lifecycle.value == "restoring"
     return AcceptanceStatus(
         status="completed",
         code="qualified_public_shape",

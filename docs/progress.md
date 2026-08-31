@@ -1,7 +1,7 @@
 # v4 integration progress
 
 Status: active integration ledger
-Updated: 2026-08-31
+Updated: 2026-09-01
 Integration branch: `feat/campaign-absorption`
 Independently reviewed runtime baseline: `5ef8ab657f6452ae48c931beea79106e2cca34c6`
 S1 dispatch baseline: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
@@ -13,13 +13,42 @@ Historical S2 dispatch baseline:
 Promoted S2 runtime head:
 `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`
 S3 plan freeze: `52e050d9bc1ee0d4c6dcc78c90a5497c25722648`
-Current gate: **S2 CLOSED; S3 entry gate satisfied; S3 runtime not started;
-Trajectory publication blocked**
+S3 convergence source: `851f7902f15da670e72f4c04d7453cf37201aee7`
+Current gate: **S3 DETERMINISTIC CANDIDATE QUALIFIED; LIVE CONFIGURATION,
+PROMOTION, AND TRAJECTORY PUBLICATION BLOCKED**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md)
 and [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md)
 
-## 0. S2 promotion closure and S3 entry (2026-08-31)
+## 0. S3 deterministic convergence candidate (2026-09-01)
+
+The convergence branch replayed the verified A/B/C/D source branches strictly
+in that order from `851f7902f15da670e72f4c04d7453cf37201aee7`. It repaired B's
+stale producer digest, replaced C's placeholder IDs and callable scheduler
+payload with real A fork receipts, real B transfer receipts, and reconstructable
+JSON-only work descriptors, then requalified D against both the immutable
+source-lane heads and the committed replay/repair bytes actually executed.
+
+The deterministic G4 test passed twenty independent SQLite graph process-loss
+rounds plus twenty declaration/preparation-crash rounds.
+Each round terminates the original process abruptly, restores through a fresh
+Engine/runtime composition, retains completed work, dispatches only eligible
+queued work with its original operation identity, marks missing running work
+`outcome_unknown` without replay, closes a quorum join once, rejects duplicate
+and late outcomes, preserves one handoff owner, and exposes graph/timeline facts
+through read-only qita inspection. Two unrelated consumers and the compact
+coding-agent public-shape example also pass.
+
+This is a candidate, not a promoted baseline. No explicit provider, model,
+credential source, budget, network permission, or tool policy was supplied, so
+`live_model_qualification=blocked_configuration`. No main-branch update, push,
+release claim, or worktree cleanup is authorized. Candidate Trajectory remains
+unfrozen and off by default; qita remains on frozen trace-v1 compatibility;
+distributed scheduling, hard cancellation, and exactly-once external effects
+remain unsupported. Exact replay and gate evidence is recorded in
+[`s3_g4_convergence_evidence.md`](internal/plans/s3_g4_convergence_evidence.md).
+
+## 0.1 S2 promotion closure and S3 entry (2026-08-31)
 
 S2 is closed. The G3 candidate was fast-forwarded into
 `feat/campaign-absorption`, its required primary-checkout gates were repeated,

@@ -1,6 +1,6 @@
 # G2 public-interface budget
 
-Status: G2 evidence preserved; S2/current budget frozen for S3 dispatch
+Status: G2 evidence preserved; S3 convergence candidate remains within the frozen budget
 Updated: 2026-08-31
 
 G2 adds persistence and migration contracts without expanding the root `qitos`
@@ -109,3 +109,14 @@ than defining a second surface. Advanced records remain module-level imports by
 default, and public `V1`, `V2`, `Legacy`, `Next`, or parallel Agent/Session/
 Runtime type tracks are forbidden. The full review contract is in
 [`s3_durable_multi_agent_wave.md`](../internal/plans/s3_durable_multi_agent_wave.md).
+
+## G4 candidate review
+
+The converged S3 candidate reuses the existing Session façade and module-level
+extension protocols. Its executable budget remains exactly 41 root exports,
+27/24/28/22 reviewed aggregate exports (101 total), and 34
+`Engine.__init__` parameters including `self`. No root export, aggregate export,
+Engine constructor parameter, or parallel versioned Agent/Session/Runtime type
+was approved or added. This budget pass does not promote the branch: live-model
+qualification is blocked by absent configuration, while the candidate
+Trajectory plane stays unfrozen and non-default.

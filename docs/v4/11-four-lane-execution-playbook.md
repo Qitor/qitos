@@ -1,22 +1,25 @@
 # v4 four-lane execution playbook
 
 Status: active dispatch specification
-Updated: 2026-08-31
+Updated: 2026-09-01
 Nature: orchestration document, not a fifth architecture or a new public API
 Source tasks: Tasks 02–05 and 08–13
 Baseline: Task 01 complete; exact current integration status lives in
 [`docs/progress.md`](../progress.md)
 
-Current dispatch state: **S2 CLOSED; S3 entry gate satisfied; S3 runtime not
-started.** The durable single-agent vertical and clean-process restore were
+Current dispatch state: **S3 deterministic candidate qualified; live
+configuration and promotion blocked.** The durable single-agent vertical and clean-process restore were
 qualified, promoted, repeated in the primary checkout, pushed, and verified at
 fixed pre-S3-closure source `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`;
 the previous-wave worktrees were retired without force and their branch refs
 remain. The historical S2 lane baseline `446a347...` and G3 integration source
 `47cd4dc...` remain provenance only. The four S3 lanes must branch from the one
 complete remote SHA published by this S3 dispatch closure, never from either
-historical source. Trajectory v2 remains unfrozen, its candidate reader is not
-the qita default, and no durable multi-agent scheduler exists yet.
+historical source. The fixed `851f790...` replay subsequently converged the four
+S3 lanes and passed twenty deterministic process-loss rounds. It remains an
+unpromoted candidate because no live matrix was supplied. Trajectory v2 remains
+unfrozen, its candidate reader is not the qita default, and distributed or
+external-effect exactly-once behavior is not claimed.
 
 ---
 
@@ -966,14 +969,18 @@ fifth implementation. Its responsibilities are:
 5. run gate-level verification on the integrated branch;
 6. update task evidence/status and record stop-gate decisions.
 
-### 10.1 Current S3 dashboard template
+### 10.1 Current S3 convergence dashboard
 
 | Lane | Current package | Branch/PR | Lease | Producer/consumer gate | Gate status |
 |---|---|---|---|---|---|
-| A | Session fork and ownership | created only from final S3 remote dispatch SHA | Session/checkpoint | publish exact commit/path/digest and C consumer contract | not started |
-| B | context, continuation, and authority transfer | created only from final S3 remote dispatch SHA | request/context/codec | publish exact commit/path/digest and C consumer contract | not started |
-| C | durable multi-agent scheduler | created only from final S3 remote dispatch SHA | WorkGraph/work runtime/tool adapters | consume real A/B types and fixtures; publish runtime facts to D | blocked on A/B producer freeze |
-| D | work-graph observability and DX | created only from final S3 remote dispatch SHA | tracing/qita/evaluate/examples | consume real A/B/C facts; qualify two patterns and public example | blocked on A/B/C runtime facts |
+| A | Session fork and ownership | `codex/v4-s3-a-session-fork` | Session/checkpoint | exact source plus replayed producer manifest consumed by C | qualified candidate |
+| B | context, continuation, and authority transfer | `codex/v4-s3-b-transfer-authority` | request/context/codec | repaired manifest and real transfer receipts consumed by C | qualified candidate |
+| C | durable multi-agent scheduler | `codex/v4-s3-c-durable-work-runtime` | WorkGraph/work runtime/tool adapters | real A/B receipts and reconstructable descriptors published to D | qualified candidate |
+| D | work-graph observability and DX | `codex/v4-s3-d-graph-observability` | tracing/qita/evaluate/examples | exact A/B/C facts, two patterns, public-shape example | qualified candidate |
+
+G4 deterministic convergence passed twenty rounds. The independent live gate is
+`blocked_configuration`, so the dashboard does not authorize promotion, push,
+cleanup, or default-branch readiness.
 
 ### 10.1.1 Historical G2 contract-stage dashboard (superseded)
 

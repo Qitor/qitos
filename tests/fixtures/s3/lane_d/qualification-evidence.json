@@ -33,6 +33,10 @@
     "direct_and_model_callable_fact_parity",
     "all_all_successful_first_success_and_quorum_join_receipts",
     "closed_join_late_outcome_discard",
+    "operation_declaration_precedes_child_preparation",
+    "prepared_fork_recovery_reuses_operation_and_child_identity",
+    "handoff_pre_and_post_commit_process_loss_has_one_owner",
+    "uncommitted_admission_receipt_rolls_back_to_dispatchable",
     "multi_agent_process_loss"
   ],
   "schema_frozen": false,

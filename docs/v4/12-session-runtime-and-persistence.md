@@ -1,7 +1,7 @@
 # Task 12 — durable session runtime and process-independent resume
 
-Status: 12B–D single-agent runtime promoted and qualified; S3 fork/ownership
-runtime not started; qita/default migration remains S4
+Status: 12B–D promoted; S3 fork/ownership deterministic candidate qualified;
+live promotion blocked; qita/default migration remains S4
 Depends on: Task 01; coordinates with Tasks 02, 03, 04, and 09
 Unblocks: Task 05 schema freeze, Task 13 durable multi-agent work, and the v4
 long-horizon reference flow
@@ -76,8 +76,9 @@ clean processes. It preserves state, budget, ExchangeLog, reasoning,
 continuation, artifact and trajectory cursor facts; applies steering once;
 does not rerun completed/committed slots; runs only the eligible missing slot;
 and reduces the original decision once. This is Session-head replay safety, not
-an exactly-once guarantee for external effects. S3 now owns fork/ownership as
-Lane A and the durable scheduler as Lane C; neither implementation has started.
+an exactly-once guarantee for external effects. S3 owns fork/ownership as
+Lane A and the durable scheduler as Lane C. Their deterministic convergence is
+recorded below.
 The qita default-reader migration remains S4. See the executable
 [`S3 durable multi-agent wave`](../internal/plans/s3_durable_multi_agent_wave.md).
 
@@ -338,3 +339,19 @@ Stop for review before:
 - freezing Task 05 trajectory v2 without session/run/work-item lineage;
 - making a distributed queue, hosted daemon, or product-specific coordinator a
   dependency of the base framework.
+
+## 14. S3 fork and ownership receipt
+
+The convergence candidate implements immutable-source Session fork with a
+distinct child session/run/work/attempt identity set, atomic generation-zero
+child head and fork declaration, real fork receipts consumed by the durable
+work descriptor, owner supersession/fencing, and clean-process child restore.
+The A source branch remains fixed at
+`9442647767bc9a7c45ed3bf07bc4f289412544ed`; the replayed producer bytes are
+bound at `1025f121d6de7fd3cff9e71558de44df3d36134a`.
+
+Twenty G4 graph process-loss rounds plus twenty declaration/preparation-crash
+rounds exercise these facts through the integrated multi-agent runtime. This is deterministic candidate evidence, not a promoted
+baseline or an exactly-once guarantee for external effects. Live qualification
+is blocked by absent configuration and qita's default-reader migration remains
+S4.

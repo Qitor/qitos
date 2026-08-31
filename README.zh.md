@@ -18,7 +18,7 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 
 ## 最新进展
 
-- **S2 已关闭，S3 派发合同已冻结**：持久单智能体 vertical 与 clean-process restore 已完成资格验证、提升、主工作树复验、推送和清理，收口至 `3af0ee3...`。[S3 wave](docs/internal/plans/s3_durable_multi_agent_wave.md) 现已固定 A -> B -> C -> D producer ownership 与 19 项 G4 process-loss 门禁。S3 实现尚未开始：Session fork runtime 和持久多智能体 scheduler 都不存在，Trajectory v2 仍未冻结，候选 trajectory reader 也不是 qita 默认 reader。
+- **S3 确定性候选已收敛，发布门仍阻断**：从固定 `851f790...` 严格按 A -> B -> C -> D 回放后，现已具备 Session fork、严格上下文/权限转移、可重建的持久 WorkGraph runtime，以及只读 qita graph/timeline 检查。20 个独立 SQLite work-graph 进程丢失轮次及另外 20 个 preparation-crash 轮次均通过，已完成或 `outcome_unknown` 工作不会被重放，fork child 也不会被重复创建。由于本轮没有提供 live-model 矩阵，候选不会提升：Trajectory v2 仍未冻结且默认关闭，qita 仍默认读取冻结的 trace-v1，也不声称分布式或外部副作用 exactly-once。详见 [G4 证据](docs/internal/plans/s3_g4_convergence_evidence.md)。
 - **保留历史派发 ancestry**：`c0f19cd...` 的 G2-R2 契约代码、`446a347...` 的 S2 lane source 与 `47cd4dc...` 的 G3 integration source 继续作为审计证据，而非当前派发点。后续四条 S3 产线必须使用 S3 dispatch closure 公布的同一个完整远端 SHA。
 - **持久会话与原生多智能体架构**：[Task 12](docs/v4/12-session-runtime-and-persistence.md) 规划了以当前 canonical checkpoint 为唯一持久化机制的安全暂停、跨进程恢复、fork 与 effect-aware recovery；[Task 13](docs/v4/13-durable-multi-agent-work-graph.md) 则把 handoff、delegate、fan-out、spawn、fork、steer、join 明确为一个持久 work graph 上不同的所有权语义。[四产线手册](docs/v4/11-four-lane-execution-playbook.md)也已调整：G1 后工程质量成为跨线合并门禁，四条能力线转为 Session、Conversation/Context、Tools/Multi-Agent、Trajectory/qita/DX。
 - **静态 ratchet 资格验证与可执行贡献门禁**：确定性测试覆盖所有关键 baseline 转换；tool-schema workflow 与仓库测试现在共同执行同一个已提交入口，真实检查已注册 class tools，并包含受控 malformed-spec 失败证明。required-candidate、advisory、stale 与 release-only 角色继续明确记录，同时不声称掌握外部 branch-protection 配置。

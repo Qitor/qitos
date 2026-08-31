@@ -1,8 +1,7 @@
 # S3 durable multi-agent wave
 
-Status: dispatch contract frozen; S2 entry gate satisfied; S3 runtime
-implementation not started
-Updated: 2026-08-31
+Status: deterministic G4 candidate qualified; live configuration and promotion blocked
+Updated: 2026-09-01
 Owner: G4 integration owner
 Source baseline before this documentation closure:
 `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`
@@ -14,7 +13,8 @@ execution over the existing `AgentModule + Engine + Session + CheckpointStore +
 WorkGraph` architecture.
 
 This document freezes ownership, producer/consumer handoffs, merge order,
-interface budgets, and the G4 acceptance gate. It does not implement S3. The
+interface budgets, and the G4 acceptance gate. The later convergence described
+in section 15 implements and qualifies the deterministic candidate. The
 only valid four-lane dispatch source is the complete remote SHA produced after
 this documentation closure is fast-forwarded, revalidated, pushed, and verified.
 The promotion receipt publishes that SHA; this file deliberately does not try
@@ -344,7 +344,7 @@ S4, not S3, owns:
 S3 first proves the runtime mechanisms. S4 then concentrates on making the
 proven mechanisms smaller, easier, and stable for general agent authors.
 
-## 14. Known gaps at dispatch
+## 14. Known gaps at dispatch (historical)
 
 - `SessionOperation.FORK` and semantic fixtures exist, but no Session fork
   runtime/facade exists.
@@ -360,3 +360,26 @@ proven mechanisms smaller, easier, and stable for general agent authors.
   unfrozen and its candidate writer/store/reader remain non-default.
 - external-effect exactly-once and hard worker termination remain deliberately
   unsupported without backend-specific proof.
+
+## 15. G4 convergence disposition
+
+The fixed-source convergence replay completed A -> B -> C -> D and qualified
+all nineteen deterministic items. The authoritative G4 scenario uses twenty
+independent SQLite graph databases plus twenty preparation-crash databases,
+event barriers, bounded subprocesses, and abrupt original-process termination.
+It proves declarations precede child preparation, committed forks are reused,
+completed work is not recreated,
+eligible queued work resumes with the original operation identity, missing
+running work becomes `outcome_unknown` without replay, join decisions are
+single-consumption and closed against duplicate/late results, and handoff,
+cancellation, detachment, budgets, capabilities, privacy, direct/tool parity,
+consumer, example, and qita facts remain coherent.
+
+The frozen public-surface counts remain 41/27/24/28/22/101/34. Candidate
+Trajectory remains unfrozen and off; qita's default remains frozen trace-v1.
+The user supplied no explicit live provider/model/credential/budget/network/tool
+matrix, so `live_model_qualification=blocked_configuration`. Consequently the
+candidate is not promoted or pushed, source worktrees are retained, and no S3
+release/default-branch readiness claim is authorized. The exact replay ledger
+and validation receipts live in
+[`s3_g4_convergence_evidence.md`](s3_g4_convergence_evidence.md).

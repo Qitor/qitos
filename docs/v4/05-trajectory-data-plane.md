@@ -1,7 +1,7 @@
 # Task 05 — trajectory store v2 and observability migration
 
-Status: S2 runtime closed and qualified; schema/publication remains blocked on
-S3/G4 and the S4 rollout review
+Status: S3 deterministic lineage qualified; schema/publication remains blocked
+on live configuration and the S4 rollout review
 Depends on: Task 02 exchanges; Task 04 artifacts; Tasks 12–13 lineage
 Milestone: final v4 data-plane migration
 Risk: high — frozen v1 compatibility, replay, and research data fidelity
@@ -27,10 +27,18 @@ schema-freeze, publication, compression, indexing, deduplication, or performance
 claim is made. G4 durable multi-agent lineage and publication evidence remain
 prerequisites.
 
-S3 dispatch does not change this plane. Lane D may consume exact work-graph
+The S3 convergence candidate does not promote this plane. Lane D consumes exact work-graph
 facts and add read-only inspection only after real A/B/C producers exist; it may
 not freeze the schema, switch the writer/store/reader defaults, or make qita a
 mutation authority. Those rollout decisions remain S4 work after G4.
+
+The deterministic G4 candidate now proves clean-process work/session/ownership/
+join lineage and read-only qita graph/timeline inspection across twenty
+independent SQLite rounds. That evidence qualifies the runtime input to this
+task, but it does not freeze the candidate schema, enable its writer, change the
+qita default from frozen trace-v1, or authorize publication. Live-model
+qualification is `blocked_configuration` because no explicit matrix was
+provided.
 
 ## 1. Goal
 

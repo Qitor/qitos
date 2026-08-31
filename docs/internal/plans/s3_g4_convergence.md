@@ -1,6 +1,6 @@
 # S3 G4 convergence plan
 
-Status: in progress
+Status: deterministic and repository candidate qualified; live blocked; not promoted
 Updated: 2026-09-01
 Owner: G4 integration owner
 Fixed source: `851f7902f15da670e72f4c04d7453cf37201aee7`
@@ -28,22 +28,22 @@ clean before this convergence worktree was created.
 
 ## Execution sequence
 
-- [ ] Replay A's five commits and run focused validation after each replay.
-- [ ] Replay B's two commits, recompute every producer digest, repair its
+- [x] Replay A's five commits and run focused validation after each replay.
+- [x] Replay B's two commits, recompute every producer digest, repair its
   manifest/evidence, and add executable manifest binding verification.
-- [ ] Replay C's three commits and replace independent placeholders with real A
+- [x] Replay C's three commits and replace independent placeholders with real A
   fork/lineage and B transfer/authority consumption.
-- [ ] Repair operation identity, reconstructable descriptors, queued recovery,
+- [x] Repair operation identity, reconstructable descriptors, queued recovery,
   crash-window state transitions, ownership, joins, cancellation, and direct /
   model-callable parity.
-- [ ] Replay D's four commits and refresh exact-source bindings and executable
+- [x] Replay D's four commits and refresh exact-source bindings and executable
   readiness over the integrated bytes.
-- [ ] Add and run the bounded SQLite subprocess G4 scenario for at least twenty
+- [x] Add and run the bounded SQLite subprocess G4 scenario for at least twenty
   independent rounds.
-- [ ] Run consumers, coding-agent acceptance, qita/privacy/readiness, interface
+- [x] Run consumers, coding-agent acceptance, qita/privacy/readiness, interface
   budgets, static/lint/type, full pytest, package, diff, and secret gates.
-- [ ] Update shared documentation and publish exact qualification evidence.
-- [ ] Record live-model qualification as blocked configuration unless an
+- [x] Update shared documentation and publish exact qualification evidence.
+- [x] Record live-model qualification as blocked configuration unless an
   explicit provider/model/credential/budget/network/tool matrix is supplied.
 
 ## Replay ledger
@@ -66,6 +66,16 @@ Each row is completed immediately after replay and focused validation.
 | C repair | integrated A/B durable runtime | `66a0e535d28c89f05bb4577eb343142289c8b412` | replaced digest-derived IDs and callable scheduler contract; consumed real fork/transfer receipts | 107 passed; focused flake8/mypy passed |
 | C join repair | all-successful typed terminal failure | `b4e4d8542d29dcbd07d7b063bbcd2b5e4761c545` | no conflict | 30 passed: WorkGraph/runtime/process restore |
 | C evidence | integrated exact-source qualification | `336ede9db49d0d1ff20fe7668017bdae7712fccd` | refreshed manifest/digests/nodes and shrank ratchet baseline | 88 passed; Python 3.12.7 ratchet passed with 369 findings |
+| C state repair | declaration-before-preparation crash convergence | `291108655ba602c7aebcaad4419d89c1386c2edc` | added declared -> prepared -> dispatchable state and reusable fork recovery; verified handoff pre/post commit ownership | 18 focused passes; 20 graph rounds plus 20 preparation-crash rounds |
+| C final evidence | refreshed exact integrated manifest | `733e45b765a0fd66ad674bf664cd3af4022c4284` | rebound changed runtime/tests and new process scenario | C and D executable manifest gates passed |
+| C admission repair | failed queue/reject receipt persistence | `9815726bbf5500772d54ccb62503c2f469117105` | rollback to last durable dispatchable fact | 16 focused work-runtime passes |
+| C final binding | crash-state producer manifest | `e9b6fe68d5549ca8d798ad5c112224b358144bfb` | rebound final runtime, tests, plan, and evidence | C and D executable manifest gates passed |
+| D | `1c5e2ae6c49eb0eba2ec4afa3d793d74c9179333` | `012a2978e75d9490c0fa3e15c30dee6ad355c55f` | none | 7 passed: work-graph reader |
+| D | `99137d0fed6177e7575f3171c0f349e054d3a390` | `d42a5eef3e264baf48a443f1a691cd1f1edb48a4` | none | 3 passed: exact-source readiness |
+| D | `882eec1ad4f1b27b23e19c6a3223b47c5e8b0426` | `1788e7c242b68ec8fb2646258db02d9b46a75aed` | none | 2 passed: independent consumers |
+| D | `ca620cdc8e9ad86bb196bdba482ebfde237784c3` | `ca9c03a824dec30169fd25ded0f7c5a86700a300` | none | 12 passed: final blocked evidence |
+| D repair | integrated exact-source qualification | `7f3a809a0eeefd90883aa87654da7e1aa5a2d6ef` | bound source heads separately from replay/repair bytes; completed public-shape example | 47 passed; qualifier `s3_lane_d_qualified` |
+| G4 | deterministic clean-process convergence | `163cda22a9d8518eaf016d5d2cca6dccc9be2112` | added bounded abrupt-exit create/restore fixture | 20 independent database rounds passed |
 
 ## Gate policy
 

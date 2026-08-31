@@ -202,11 +202,11 @@ heads while binding the committed replay or repair bytes actually executed:
   `1025f121d6de7fd3cff9e71558de44df3d36134a`;
 - B source `5efa1db19ae541234c562c4ba99e928d2381fc62`, repaired producer
   `8bbfd6580e03f77f51777e696d78ee783bc09f75`; and
-- C source `12edf48aa5dd2ed7c3c830baf9031116474bcc52`, integrated producer
-  `336ede9db49d0d1ff20fe7668017bdae7712fccd`.
+- C source `12edf48aa5dd2ed7c3c830baf9031116474bcc52`, final integrated producer
+  `e9b6fe68d5549ca8d798ad5c112224b358144bfb`.
 
 The integrated qualifier is now `s3_lane_d_qualified` with all three producer
-rows and 27 executable scenarios qualified. This does not freeze or promote the
+rows and 31 executable scenarios qualified. This does not freeze or promote the
 candidate Trajectory plane, and it is not release qualification.
 
 Validation completed on this Lane D branch:

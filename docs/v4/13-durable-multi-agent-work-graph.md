@@ -1,7 +1,6 @@
 # Task 13 — durable multi-agent work graph and ownership transfer
 
-Status: 13A contracts and the S2 supporting slice are promoted; S3 entry gate
-satisfied; durable multi-agent scheduler implementation not started
+Status: S3 durable runtime deterministic candidate qualified; live promotion blocked
 Depends on: Task 12A–12D; consumes Tasks 02, 03, and 04 contracts
 Feeds: Task 05 lineage/observability, Task 10 convergence, and native multi-agent
 research methods
@@ -50,9 +49,9 @@ S3. S2 was subsequently converged, promoted, revalidated, pushed, and cleaned
 up at fixed pre-S3-closure source
 `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`. The executable
 [`S3 durable multi-agent wave`](../internal/plans/s3_durable_multi_agent_wave.md)
-now assigns fork/ownership to A, context/authority transfer to B, durable
-scheduling to C, and work-graph observability/DX to D. No persistent child
-scheduler or cross-process multi-agent runtime is implemented yet.
+assigned fork/ownership to A, context/authority transfer to B, durable
+scheduling to C, and work-graph observability/DX to D. The convergence receipt
+below records the resulting deterministic candidate.
 
 ## 3. Exact operation semantics
 
@@ -262,25 +261,25 @@ string conventions such as delegate-name suffixes.
 
 ## 12. Acceptance criteria
 
-- [ ] Handoff, delegate, fan-out, spawn, fork, and steer have distinct tested
+- [x] Handoff, delegate, fan-out, spawn, fork, and steer have distinct tested
   ownership semantics.
-- [ ] Exactly one owner/generation may advance a work item.
-- [ ] Handoff survives process death before and after ownership commit without
+- [x] Exactly one owner/generation may advance a work item.
+- [x] Handoff survives process death before and after ownership commit without
   two active owners.
-- [ ] Delegated/spawned children have durable identities, checkpoints, outcomes,
+- [x] Delegated/spawned children have durable identities, checkpoints, outcomes,
   budgets, capability grants, and trace lineage.
-- [ ] Partial fan-out restores without recreating completed children; join
+- [x] Partial fan-out restores without recreating completed children; join
   consumes each child outcome once.
-- [ ] Parent cancellation, detachment, timeout, and late-result behavior are
+- [x] Parent cancellation, detachment, timeout, and late-result behavior are
   explicit and observable.
-- [ ] Context/state transfer reports selections and losses and never leaks
+- [x] Context/state transfer reports selections and losses and never leaks
   secrets or host-only handles.
-- [ ] Direct API and model-callable tool adapters use the same graph protocol.
-- [ ] qita can navigate parent/child/handoff lineage without parsing run-ID
+- [x] Direct API and model-callable tool adapters use the same graph protocol.
+- [x] qita can navigate parent/child/handoff lineage without parsing run-ID
   naming conventions.
-- [ ] A local executor proves the protocol; no distributed service is required
+- [x] A local executor proves the protocol; no distributed service is required
   by the base package.
-- [ ] Two unrelated multi-agent patterns consume the primitives without adding
+- [x] Two unrelated multi-agent patterns consume the primitives without adding
   strategy vocabulary to core/engine.
 
 ## 13. Verification
@@ -317,3 +316,26 @@ Stop for review before:
 - making Redis, a queue server, Kubernetes, or any product/role strategy a base
   dependency;
 - freezing Task 05 v2 before work-item and ownership lineage are represented.
+
+## 15. S3 deterministic convergence receipt
+
+The integrated runtime persists reconstructable JSON-only work descriptors and
+real fork/context-transfer receipts before dispatch, supports bounded admission
+and queued recovery, marks missing running workers `outcome_unknown` without
+automatic replay, and gives handoff/delegate/spawn/fan-out/join distinct graph
+facts. Generation fences, cancellation propagation, request-and-wait,
+detachment, least-privilege budget/capability allocation, direct/tool parity,
+deterministic join closure, and read-only qita lineage are executable facts.
+
+The authoritative G4 scenario passed twenty independent SQLite graph rounds
+plus twenty declaration/preparation-crash rounds with abrupt original-process
+termination and fresh restore. Both
+unrelated consumer patterns and the compact coding-agent example pass. The
+candidate intentionally makes no distributed scheduler, hard-cancellation, or
+external-effect exactly-once claim.
+
+Live-model qualification is `blocked_configuration`, so this receipt does not
+promote or push a baseline and does not authorize source-worktree cleanup or a
+default-branch readiness claim. Candidate Trajectory remains unfrozen/off and
+qita remains on frozen trace-v1. Exact evidence is in
+[`s3_g4_convergence_evidence.md`](../internal/plans/s3_g4_convergence_evidence.md).
