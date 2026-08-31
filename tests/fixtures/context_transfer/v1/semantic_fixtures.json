@@ -1,0 +1,36 @@
+{
+  "schema_version": "qitos.context_transfer.fixtures/v1",
+  "dispatch_source": "851f7902f15da670e72f4c04d7453cf37201aee7",
+  "plan_schema": "qitos.context_transfer_plan/v1",
+  "receipt_schema": "qitos.context_transfer_receipt/v1",
+  "cases": [
+    {"case_id": "full_context", "policy": "full", "expected": "accepted"},
+    {"case_id": "recent_window", "policy": "recent_window", "expected": "accepted"},
+    {"case_id": "compacted_context", "policy": "compacted", "expected": "accepted_with_declared_loss"},
+    {"case_id": "no_context", "policy": "none", "expected": "accepted"},
+    {"case_id": "custom_deterministic", "policy": "custom", "expected": "source_order"},
+    {"case_id": "parallel_multimodal", "expected": "whole_exchange_preserved"},
+    {"case_id": "queued_steering", "expected": "durable_queue_not_model_input"},
+    {"case_id": "continuation_exact", "expected": "preserved"},
+    {"case_id": "continuation_incompatible", "expected": "typed_reject"},
+    {"case_id": "continuation_expired", "expected": "typed_reject"},
+    {"case_id": "continuation_stateless", "expected": "approved_loss"},
+    {"case_id": "state_projection", "expected": "validated_projection"},
+    {"case_id": "state_projection_failure", "expected": "typed_reject"},
+    {"case_id": "artifact_private", "expected": "explicit_authorization"},
+    {"case_id": "capability_escalation", "expected": "typed_reject"},
+    {"case_id": "budget_escalation", "expected": "typed_reject"},
+    {"case_id": "portable_boundary", "expected": "secret_path_endpoint_reject"},
+    {"case_id": "strict_round_trip", "expected": "integrity_verified"},
+    {"case_id": "third_party_protocols", "expected": "conformant"}
+  ],
+  "unsupported": [
+    "scheduler_execution",
+    "live_provider_or_sdk_persistence",
+    "callable_projector_persistence",
+    "secret_inheritance",
+    "host_path_identity",
+    "unapproved_continuation_loss",
+    "blind_state_copy"
+  ]
+}
