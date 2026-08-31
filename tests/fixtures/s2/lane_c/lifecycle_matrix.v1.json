@@ -1,0 +1,93 @@
+{
+  "schema_version": "qitos.s2_lane_c.lifecycle_matrix/v1",
+  "rows": [
+    {
+      "resource_kind": "sync_function",
+      "owner": "executor call frame",
+      "completion_signal": "function return or exception",
+      "cancellation_capability": "none",
+      "timeout_behavior": "observer may time out while its Python worker continues",
+      "cleanup_responsibility": "tool closes resources it opened",
+      "process_loss_behavior": "unfinished outcome is unknown",
+      "migration": "non_migratable",
+      "late_result_handling": "suppress terminal replacement and record late completion"
+    },
+    {
+      "resource_kind": "async_coroutine",
+      "owner": "executor-owned task while awaited",
+      "completion_signal": "task result, exception, or cancellation acknowledgement",
+      "cancellation_capability": "cooperative",
+      "timeout_behavior": "deadline requests task cancellation and awaits acknowledgement",
+      "cleanup_responsibility": "coroutine and transport context owners",
+      "process_loss_behavior": "unfinished outcome is unknown",
+      "migration": "non_migratable",
+      "late_result_handling": "generation-check and suppress stale terminal replacement"
+    },
+    {
+      "resource_kind": "thread",
+      "owner": "thread creator",
+      "completion_signal": "thread completion event",
+      "cancellation_capability": "none",
+      "timeout_behavior": "deadline does not terminate a running Python thread",
+      "cleanup_responsibility": "creator joins or explicitly abandons with a receipt",
+      "process_loss_behavior": "unfinished outcome is unknown",
+      "migration": "non_migratable",
+      "late_result_handling": "never advance a restored owner generation"
+    },
+    {
+      "resource_kind": "subprocess",
+      "owner": "process creator",
+      "completion_signal": "owned process wait status",
+      "cancellation_capability": "terminate_owned_process",
+      "timeout_behavior": "terminate then optionally kill only an owned process",
+      "cleanup_responsibility": "creator closes pipes and reaps the child",
+      "process_loss_behavior": "external effects may require reconciliation",
+      "migration": "non_migratable",
+      "late_result_handling": "reject output from stale or already-terminal attempts"
+    },
+    {
+      "resource_kind": "http_client",
+      "owner": "client creator; injected clients remain borrowed",
+      "completion_signal": "response/task completion",
+      "cancellation_capability": "cooperative",
+      "timeout_behavior": "transport deadline; remote outcome may remain unknown",
+      "cleanup_responsibility": "close only internally created clients/responses",
+      "process_loss_behavior": "remote request outcome may require reconciliation",
+      "migration": "non_migratable",
+      "late_result_handling": "generation-check and suppress stale response commits"
+    },
+    {
+      "resource_kind": "mcp_request",
+      "owner": "MCP transport owner",
+      "completion_signal": "JSON-RPC response/task completion",
+      "cancellation_capability": "cooperative",
+      "timeout_behavior": "request deadline does not imply server-side cancellation",
+      "cleanup_responsibility": "transport owner closes client or owned server process",
+      "process_loss_behavior": "request outcome may require reconciliation",
+      "migration": "non_migratable",
+      "late_result_handling": "reject responses for stale request attempts"
+    },
+    {
+      "resource_kind": "environment_operation",
+      "owner": "environment implementation",
+      "completion_signal": "Env operation result or exception",
+      "cancellation_capability": "none",
+      "timeout_behavior": "capability-specific; no universal hard-cancel claim",
+      "cleanup_responsibility": "environment closes resources it owns",
+      "process_loss_behavior": "unfinished external state is unknown",
+      "migration": "non_migratable",
+      "late_result_handling": "reject stale-generation state advancement"
+    },
+    {
+      "resource_kind": "background_operation",
+      "owner": "background operation creator",
+      "completion_signal": "adapter-owned acknowledgement",
+      "cancellation_capability": "none",
+      "timeout_behavior": "deadline yields worker-still-running without termination proof",
+      "cleanup_responsibility": "creator supplies bounded shutdown and acknowledgement",
+      "process_loss_behavior": "unfinished outcome is unknown",
+      "migration": "non_migratable",
+      "late_result_handling": "record late outcome without replacing terminal state"
+    }
+  ]
+}

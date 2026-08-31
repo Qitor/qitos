@@ -1,0 +1,167 @@
+{
+  "schema_version": "qitos.s2_lane_c.runtime_handoff/v1",
+  "baseline": "446a347d1ac73636476ca2515a01da601b567c68",
+  "batch": {
+    "schema_version": "qitos.tool_batch_snapshot/v1",
+    "batch_id": "batch:fixture:lane-c",
+    "owner_generation": 7,
+    "declaration_order": [
+      "call:first",
+      "call:second"
+    ],
+    "completion_order": [
+      "call:second",
+      "call:first"
+    ],
+    "closed": true,
+    "slots": [
+      {
+        "slot_id": "call:first",
+        "declaration_index": 0,
+        "action_name": "fixture_first",
+        "action_id": "call:first",
+        "attempt_id": {
+          "kind": "attempt",
+          "value": "attempt_11111111111111111111111111111111"
+        },
+        "owner_generation": 7,
+        "completion_index": 1,
+        "terminal_status": "success",
+        "result_ref": "result:fixture:first"
+      },
+      {
+        "slot_id": "call:second",
+        "declaration_index": 1,
+        "action_name": "fixture_second",
+        "action_id": "call:second",
+        "attempt_id": {
+          "kind": "attempt",
+          "value": "attempt_22222222222222222222222222222222"
+        },
+        "owner_generation": 7,
+        "completion_index": 0,
+        "terminal_status": "success",
+        "result_ref": "result:fixture:second"
+      }
+    ]
+  },
+  "partial_snapshots": [
+    {
+      "completion_order": [],
+      "open_slots": [
+        "call:first",
+        "call:second"
+      ],
+      "closed": false
+    },
+    {
+      "completion_order": [
+        "call:second"
+      ],
+      "open_slots": [
+        "call:first"
+      ],
+      "closed": false
+    },
+    {
+      "completion_order": [
+        "call:second",
+        "call:first"
+      ],
+      "open_slots": [],
+      "closed": true
+    }
+  ],
+  "terminal_receipts": [
+    {
+      "schema_version": "qitos.tool_terminal_receipt/v1",
+      "slot_id": "call:second",
+      "completion_index": 0,
+      "disposition": "committed",
+      "lifecycle": {
+        "schema_version": "qitos.tool_lifecycle_receipt/v1",
+        "resource_kind": "async_coroutine",
+        "state": "terminal",
+        "owner_generation": 7,
+        "worker_still_running": false,
+        "outcome_unknown": false,
+        "migratable": true
+      },
+      "effect": {
+        "schema_version": "qitos.tool_effect_receipt/v1",
+        "effect_ref": null,
+        "effect_state": "no_effect_declared",
+        "idempotency_ref": null,
+        "retry_disposition": "non_retryable",
+        "reconciliation_required": false,
+        "outcome_unknown": false
+      }
+    },
+    {
+      "schema_version": "qitos.tool_terminal_receipt/v1",
+      "slot_id": "call:first",
+      "completion_index": 1,
+      "disposition": "committed",
+      "lifecycle": {
+        "schema_version": "qitos.tool_lifecycle_receipt/v1",
+        "resource_kind": "sync_function",
+        "state": "terminal",
+        "owner_generation": 7,
+        "worker_still_running": false,
+        "outcome_unknown": false,
+        "migratable": true
+      },
+      "effect": {
+        "schema_version": "qitos.tool_effect_receipt/v1",
+        "effect_ref": "effect:fixture-write",
+        "effect_state": "committed",
+        "idempotency_ref": "idem:fixture-write:7",
+        "retry_disposition": "non_retryable",
+        "reconciliation_required": false,
+        "outcome_unknown": false
+      }
+    }
+  ],
+  "quiescence_examples": [
+    {
+      "resource_kind": "thread",
+      "state": "worker_still_running",
+      "pause_state": "non_migratable",
+      "cancellation_capability": "none",
+      "worker_still_running": true,
+      "outcome_unknown": false
+    },
+    {
+      "resource_kind": "http_client",
+      "state": "outcome_unknown",
+      "pause_state": "non_migratable",
+      "cancellation_capability": "cooperative",
+      "worker_still_running": false,
+      "outcome_unknown": true
+    },
+    {
+      "resource_kind": "async_coroutine",
+      "state": "cancelled",
+      "pause_state": "quiesced",
+      "cancellation_capability": "cooperative",
+      "worker_still_running": false,
+      "outcome_unknown": false
+    }
+  ],
+  "suppressed_terminals": [
+    {
+      "slot_id": "call:first",
+      "submitted_owner_generation": 6,
+      "authoritative_owner_generation": 7,
+      "disposition": "stale_owner_rejected",
+      "advances_state": false
+    },
+    {
+      "slot_id": "call:first",
+      "submitted_owner_generation": 7,
+      "authoritative_owner_generation": 7,
+      "disposition": "duplicate_ignored",
+      "advances_state": false
+    }
+  ]
+}

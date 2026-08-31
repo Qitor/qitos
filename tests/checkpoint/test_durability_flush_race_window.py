@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-import logging
-import queue
 import threading
 
-from qitos.checkpoint.durability import DurabilityManager, DurabilityMode
+from qitos.checkpoint.durability import (
+    DurabilityManager,
+    DurabilityMode,
+    DurabilityWriteState,
+)
 from qitos.checkpoint.store import Checkpoint, CheckpointConfig, CheckpointId
 
 
@@ -21,49 +23,68 @@ class _BlockingStore:
         return config
 
 
-def test_worker_can_drain_full_queue_before_flush_sentinel(caplog) -> None:
-    """Deterministically prove the race in the historical warning assertion."""
-    store = _BlockingStore()
-    manager = DurabilityManager.__new__(DurabilityManager)
-    manager._store = store
-    manager._mode = DurabilityMode.ASYNC
-    manager._buffer = []
-    manager._queue = queue.Queue(maxsize=1)
-    manager._shutdown = threading.Event()
-    manager._worker = threading.Thread(target=manager._async_worker, daemon=True)
+class _ImmediateStore:
+    def put(self, *args: object) -> CheckpointConfig:
+        config = args[0]
+        assert isinstance(config, CheckpointConfig)
+        return config
 
+
+def test_flush_waits_for_real_store_completion_ack() -> None:
+    """The flush barrier cannot complete merely because a queue item was taken."""
+    store = _BlockingStore()
+    manager = DurabilityManager(store, mode=DurabilityMode.ASYNC)  # type: ignore[arg-type]
     checkpoint = Checkpoint(
         id=CheckpointId("cp-race"),
         thread_id="thread-race",
         step=0,
         state_data={},
     )
-    manager._queue.put_nowait(
-        (CheckpointConfig(thread_id="thread-race"), checkpoint, {}, {}, None, None)
+    _, queued = manager.put_with_receipt(
+        CheckpointConfig(thread_id="thread-race"), checkpoint, {}, {}
     )
-    assert manager._queue.full()
-    manager._worker.start()
+    assert queued.state is DurabilityWriteState.QUEUED
     assert store.started.wait(timeout=2.0)
-    assert manager._queue.empty()
 
     flush_done = threading.Event()
+    holder = []
 
     def _flush() -> None:
-        manager.flush()
+        holder.append(manager.flush(timeout=2.0))
         flush_done.set()
 
-    with caplog.at_level(logging.WARNING, logger="qitos.checkpoint.durability"):
-        flushing = threading.Thread(target=_flush)
-        flushing.start()
-        # The worker is blocked in store.put, so a successful enqueue means the
-        # sentinel occupied the slot that was full before the worker's get().
-        for _ in range(1000):
-            if manager._queue.full():
-                break
-            threading.Event().wait(0.001)
-        assert manager._queue.full()
-        store.release.set()
-        flushing.join(timeout=2.0)
+    flushing = threading.Thread(target=_flush)
+    flushing.start()
+    assert not flush_done.wait(timeout=0.05)
+    store.release.set()
+    assert flush_done.wait(timeout=2.0)
+    flushing.join(timeout=2.0)
 
-    assert flush_done.is_set()
-    assert not any("queue full during flush" in record.message for record in caplog.records)
+    assert holder[0].complete is True
+    assert holder[0].durable is True
+    assert holder[0].completed_sequence >= queued.sequence
+    manager.shutdown()
+
+
+def test_fast_store_ack_cannot_regress_to_queued() -> None:
+    """Producer publication cannot overwrite a worker's terminal receipt."""
+    manager = DurabilityManager(
+        _ImmediateStore(), mode=DurabilityMode.ASYNC  # type: ignore[arg-type]
+    )
+    target = 128
+    for index in range(target):
+        checkpoint = Checkpoint(
+            id=CheckpointId(f"cp-fast-{index}"),
+            thread_id="thread-fast",
+            step=index,
+            state_data={},
+        )
+        manager.put_with_receipt(
+            CheckpointConfig(thread_id="thread-fast"), checkpoint, {}, {}
+        )
+
+    receipt = manager.flush(timeout=2.0)
+    assert receipt.complete is True
+    assert receipt.durable is True
+    assert receipt.completed_sequence == target
+    manager.shutdown()

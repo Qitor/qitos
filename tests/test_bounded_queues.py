@@ -85,21 +85,15 @@ def test_durability_manager_full_queue_logs_warning(caplog):
         dm.shutdown()
 
 
-def test_durability_manager_flush_full_queue_logs_warning(caplog):
-    """Flushing when the queue is full logs a warning for the sentinel."""
+def test_durability_manager_flush_uses_ack_barrier_not_queue_sentinel():
+    """An empty accepted prefix is immediately and honestly durable."""
     store = InMemoryCheckpointStore()
     dm = DurabilityManager(store, mode=DurabilityMode.ASYNC)
     try:
         assert dm._queue is not None
-        # Fill the queue to capacity with dummy items
-        for _ in range(4096):
-            dm._queue.put_nowait("dummy")
-        # Flush should not block; should log a warning about the sentinel
-        with caplog.at_level(logging.WARNING, logger="qitos.checkpoint.durability"):
-            dm.flush()
-        assert any("queue full" in rec.message.lower() for rec in caplog.records)
+        receipt = dm.flush(timeout=0.0)
+        assert receipt.target_sequence == 0
+        assert receipt.complete is True
+        assert receipt.durable is True
     finally:
-        # Force shutdown even if flush couldn't send sentinel
-        dm._shutdown.set()
-        if dm._worker is not None:
-            dm._worker.join(timeout=2.0)
+        dm.shutdown()

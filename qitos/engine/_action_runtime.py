@@ -5,9 +5,11 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, Generic, List, Optional, TypeVar, cast
 
+from ..checkpoint.store import CheckpointConfig
 from ..core.action import Action
 from ..core.decision import Decision
-from ..core.tool_result import ToolResult, ToolResultContractError
+from ..core.tool_result import ToolResult
+from ..core.tool_runtime import ToolBatchSnapshot, ToolTerminalReceipt
 from ._protocol import _EngineProtocol
 from .states import RuntimePhase, StepRecord
 
@@ -231,18 +233,114 @@ class _ActionRuntime(Generic[StateT, ActionT]):
         # Execute non-blocked actions
         executable_actions = [a for i, a in enumerate(actions) if i not in blocked_indices]
         executable_indices = [i for i in range(len(actions)) if i not in blocked_indices]
-        execution = engine.executor.execute(executable_actions, env=engine.env, state=state)
+        batch_id = (
+            f"batch:{getattr(engine, '_active_run_id', '') or 'run'}:{record.step_id}"
+        )
+        state_metadata = getattr(state, "metadata", None)
+        owner_generation = 0
+        if isinstance(state_metadata, dict):
+            raw_generation = state_metadata.get("owner_generation", 0)
+            if isinstance(raw_generation, int) and not isinstance(raw_generation, bool):
+                owner_generation = max(0, raw_generation)
+
+        def _safe_batch_payload(snapshot: ToolBatchSnapshot) -> Dict[str, Any]:
+            return {
+                "schema_version": snapshot.schema_version,
+                "batch_id": snapshot.batch_id,
+                "completion_order": list(snapshot.completion_order),
+                "declaration_order": list(snapshot.declaration_order),
+                "closed": snapshot.closed,
+                "slots": [
+                    {
+                        "slot_id": slot.slot_id,
+                        "declaration_index": slot.declaration_index,
+                        "action_name": slot.action_name,
+                        "action_id": slot.action_id,
+                        "attempt_id": slot.attempt_id.to_dict(),
+                        "owner_generation": slot.owner_generation,
+                        "status": slot.result.status if slot.result else "open",
+                    }
+                    for slot in snapshot.slots
+                ],
+            }
+
+        def _on_partial_batch(snapshot: ToolBatchSnapshot) -> None:
+            pending = getattr(engine, "_pending_write_manager", None)
+            if pending is not None:
+                for slot in snapshot.slots:
+                    pending.begin_task(
+                        slot.slot_id,
+                        "tool_terminal",
+                        owner_generation=slot.owner_generation,
+                    )
+            engine._emit(
+                record.step_id,
+                RuntimePhase.ACT,
+                payload={
+                    "stage": "tool_batch_snapshot",
+                    "tool_batch": _safe_batch_payload(snapshot),
+                },
+            )
+
+        def _on_terminal(receipt: ToolTerminalReceipt) -> None:
+            pending = getattr(engine, "_pending_write_manager", None)
+            persistence = None
+            if pending is not None:
+                config = CheckpointConfig(
+                    thread_id=getattr(engine, "_active_run_id", "") or "run",
+                    checkpoint_id=getattr(engine, "_last_checkpoint_id", None),
+                )
+                persistence = pending.complete_task(
+                    receipt.slot.slot_id,
+                    receipt.to_dict(),
+                    config,
+                    owner_generation=receipt.slot.owner_generation,
+                )
+            engine._emit(
+                record.step_id,
+                RuntimePhase.ACT,
+                payload={
+                    "stage": "tool_slot_terminal",
+                    "slot_id": receipt.slot.slot_id,
+                    "completion_index": receipt.slot.completion_index,
+                    "disposition": receipt.disposition.value,
+                    "tool_result": receipt.result.to_trace_safe_dict(),
+                    "lifecycle": receipt.lifecycle.to_dict(),
+                    "effect": {
+                        "state": receipt.effect.state,
+                        "retry_disposition": receipt.effect.retry_disposition,
+                        "reconciliation_required": (
+                            receipt.effect.reconciliation_required
+                        ),
+                        "outcome_unknown": receipt.effect.outcome_unknown,
+                    },
+                    "persistence": persistence.to_dict() if persistence else None,
+                    "tool_batch": _safe_batch_payload(receipt.batch_snapshot),
+                },
+            )
+
+        batch_execution = engine.executor.execute_batch(
+            executable_actions,
+            env=engine.env,
+            state=state,
+            batch_id=batch_id,
+            owner_generation=owner_generation,
+            terminal_callback=_on_terminal,
+            partial_batch_callback=_on_partial_batch,
+        )
+        execution = list(batch_execution.results_in_declaration_order)
         exec_stats = dict(getattr(engine.executor, "last_execution_stats", {}) or {})
+        exec_stats["tool_batch"] = _safe_batch_payload(batch_execution.snapshot)
         # Build tool_invocations from execution results (executable only)
         exec_invocations = [
             {
-                "tool_name": item.name,
+                "tool_name": item.tool_name,
                 "toolset_name": item.metadata.get("toolset_name"),
                 "toolset_version": item.metadata.get("toolset_version"),
                 "source": item.metadata.get("source"),
                 "attempts": item.attempts,
                 "latency_ms": item.latency_ms,
-                "status": item.status.value,
+                "status": item.status,
                 "error_category": item.metadata.get("error_category"),
                 "error": item.error,
                 # Issue #35: observable action lifecycle — ordering, terminal
@@ -259,46 +357,7 @@ class _ActionRuntime(Generic[StateT, ActionT]):
         ]
         if exec_stats:
             record.action_execution = exec_stats
-        results: List[ToolResult] = []
-        for item in execution:
-            try:
-                result = ToolResult.from_action_result(item)
-            except ToolResultContractError as exc:
-                result = ToolResult.execution_error(
-                    code=exc.code,
-                    error=(
-                        "Tool returned a value that violates the canonical result "
-                        f"contract ({exc.code})."
-                    ),
-                    tool_name=item.name,
-                    action_id=item.action_id,
-                    attempts=item.attempts,
-                    latency_ms=item.latency_ms,
-                    metadata={
-                        "source": "tool_result_boundary",
-                        "contract_error_code": exc.code,
-                    },
-                )
-            output = result.output
-            output_status = ""
-            output_error = None
-            if result.status == "success" and isinstance(output, dict):
-                output_status = str(output.get("status") or "").strip().lower()
-                output_error = output.get("error") or output.get("message")
-            if output_status in {"error", "failed", "denied", "needs_user_input"}:
-                result = ToolResult.semantic_error(
-                    code=output_status,
-                    error=str(output_error or output_status),
-                    output=output,
-                    tool_name=result.tool_name,
-                    action_id=result.action_id,
-                    model_output=result.model_output,
-                    attempts=result.attempts,
-                    latency_ms=result.latency_ms,
-                    metadata=result.metadata,
-                )
-
-            results.append(result)
+        results: List[ToolResult] = list(execution)
 
         # Merge blocked results and execution results back into original action order
         if blocked_indices:
