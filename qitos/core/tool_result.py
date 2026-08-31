@@ -10,6 +10,11 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Literal, Mapping, TYPE_CHECKING
 
 from .artifact import ArtifactContractError, ArtifactRef
+from .diagnostics import (
+    _diagnostic_key_is_secret,
+    _diagnostic_key_is_sensitive,
+    _diagnostic_string_categories,
+)
 from .session import AttemptIdentity, SnapshotComponentCodec
 
 if TYPE_CHECKING:
@@ -86,16 +91,6 @@ _CURRENT_FIELDS = frozenset(
         "retry_disposition", "reconciliation_required", "outcome_unknown",
         "late_result", "owner_generation", "stale_owner", "batch_closure",
     }
-)
-_SENSITIVE_KEY = re.compile(
-    r"(?:authorization|cookie|credential|password|passwd|secret|token|api[_-]?key|headers?)",
-    re.IGNORECASE,
-)
-_HOST_PATH = re.compile(
-    r"(?<![\w.:])(?:/(?!/)[^\s,;:'\"<>]+|~[/\\][^\s,;:'\"<>]+|[A-Za-z]:\\[^\s,;:'\"<>]+|file://[^\s,;:'\"<>]+)"
-)
-_SECRET_TEXT = re.compile(
-    r"(?i)(authorization\s*[:=]\s*(?:bearer\s+)?|bearer\s+|(?:api[_-]?key|token|password|secret)\s*[:=]\s*)[^\s,;]+"
 )
 _SAFE_IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _BATCH_SLOT_STATES = frozenset(
@@ -394,11 +389,24 @@ def _merge_facts(target: Dict[str, int], source: Dict[str, int]) -> None:
 
 
 def _redact_text(value: str, facts: Dict[str, int]) -> str:
-    redacted, count = _SECRET_TEXT.subn(r"\1[REDACTED]", value)
-    facts["secret_values"] += count
-    redacted, count = _HOST_PATH.subn("[REDACTED_PATH]", redacted)
-    facts["host_paths"] += count
-    return redacted
+    categories = _diagnostic_string_categories(value)
+    has_path = bool(categories & {
+        "absolute_posix_path",
+        "windows_path",
+        "windows_unc_path",
+        "file_uri",
+        "home_path",
+        "local_endpoint",
+    })
+    if has_path:
+        facts["host_paths"] += 1
+    if "secret" in categories:
+        facts["secret_values"] += 1
+    if has_path:
+        return "[REDACTED_PATH]"
+    if categories:
+        return "[REDACTED]"
+    return value
 
 
 def _safe_identifier(value: str | None, facts: Dict[str, int]) -> str | None:
@@ -412,11 +420,7 @@ def _safe_identifier(value: str | None, facts: Dict[str, int]) -> str | None:
 
 
 def _mapping_key_is_sensitive(value: str) -> bool:
-    return bool(
-        _SENSITIVE_KEY.search(value)
-        or _SECRET_TEXT.search(value)
-        or _HOST_PATH.search(value)
-    )
+    return _diagnostic_key_is_sensitive(value)
 
 
 def _redact_value(
@@ -461,7 +465,7 @@ def _redact_value(
             key = str(raw_key)
             secret_count = facts["secret_values"]
             redacted_key_text = _redact_text(key, facts)
-            sensitive_name = bool(_SENSITIVE_KEY.search(key))
+            sensitive_name = _diagnostic_key_is_secret(key)
             sensitive_key = sensitive_name or redacted_key_text != key
             if sensitive_key:
                 if sensitive_name and facts["secret_values"] == secret_count:

@@ -318,6 +318,27 @@ secret values, provider payloads, credentials, or host paths. Framework-created
 resources populate the beginner default resolver set; explicit injection is an
 advanced capability.
 
+The shared diagnostic boundary is conservative and recursive. It treats any
+absolute POSIX path (not only known home roots), Windows drive or UNC path,
+file/home path, local/private endpoint, authorization/cookie/header value,
+common API/AWS key, JWT-like value, and PEM private-key marker as unsafe.
+Sensitive mapping names suppress both the name and their complete value;
+safe-named nested leaves are inspected independently. Readiness diagnostics,
+provider failures, work-graph identifiers, and ToolResult model/trace
+projections use this same classification and never include the rejected value.
+These helpers remain implementation-private rather than supported extension
+APIs.
+
+`ProviderFailure` applies the boundary to category, message, provider, API mode,
+error code, and recursively nested details. It retains only typed retryability
+and status facts, bounded remediation from a finite framework mapping, and a
+SHA-256 correlation digest computed from the already-sanitized record.
+`ArtifactRef` accepts portable logical tokens only: artifact/resolver/encoding
+tokens cannot contain path separators, media type has an explicit token/token
+grammar, and model summaries must be non-empty, bounded, and diagnostic-safe.
+Both artifact serializers revalidate the reference before crossing their
+boundary.
+
 ## Typed failures
 
 Every `SessionContractError` has `error_code`, concise message, `recoverable`,

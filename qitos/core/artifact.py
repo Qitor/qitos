@@ -11,7 +11,11 @@ from .diagnostics import diagnostic_string_is_sensitive
 
 ARTIFACT_REF_SCHEMA_VERSION = "qitos.artifact_ref/v1"
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
-_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:@/+\-]{0,255}$")
+_LOGICAL_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:@+\-]{0,255}$")
+_MEDIA_TYPE = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9!#$&^_.+\-]{0,126}/"
+    r"[A-Za-z0-9][A-Za-z0-9!#$&^_.+\-]{0,126}$"
+)
 _SENSITIVITY = frozenset({"public", "internal", "confidential", "restricted"})
 
 
@@ -28,9 +32,10 @@ def _fail(code: str, message: str) -> ArtifactContractError:
 
 
 def _safe_token(value: Any, field: str) -> str:
+    pattern = _MEDIA_TYPE if field == "media_type" else _LOGICAL_TOKEN
     if (
         not isinstance(value, str)
-        or _TOKEN.fullmatch(value) is None
+        or pattern.fullmatch(value) is None
         or diagnostic_string_is_sensitive(value)
     ):
         raise _fail("invalid_artifact_reference", f"{field} is invalid")
@@ -74,15 +79,19 @@ class ArtifactRef:
         ):
             raise _fail("invalid_artifact_digest", "artifact provenance digest is invalid")
         if self.model_summary is not None:
-            if not isinstance(self.model_summary, str) or diagnostic_string_is_sensitive(
-                self.model_summary
+            if (
+                not isinstance(self.model_summary, str)
+                or not self.model_summary.strip()
+                or len(self.model_summary) > 1024
+                or diagnostic_string_is_sensitive(self.model_summary)
             ):
                 raise _fail("unsafe_model_projection", "artifact model summary is unsafe")
-            object.__setattr__(self, "model_summary", self.model_summary[:1024])
+            object.__setattr__(self, "model_summary", self.model_summary.strip())
         if not isinstance(self.required, bool):
             raise _fail("invalid_artifact_reference", "artifact required flag must be boolean")
 
     def to_dict(self) -> Dict[str, Any]:
+        self.__post_init__()
         return {
             "schema_version": self.schema_version,
             "artifact_id": self.artifact_id,
@@ -100,6 +109,7 @@ class ArtifactRef:
     def to_model_projection(self) -> Dict[str, Any]:
         """Return the allowlisted model-facing reference facts."""
 
+        self.__post_init__()
         return {
             "artifact_id": self.artifact_id,
             "sha256": self.sha256,

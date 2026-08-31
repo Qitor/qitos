@@ -12,7 +12,7 @@ import math
 from dataclasses import dataclass, field, fields, is_dataclass
 from typing import Any, Dict, Iterable, Literal, Mapping, Type, TypeVar
 
-from .diagnostics import safe_diagnostic_text
+from .diagnostics import diagnostic_string_is_sensitive, safe_diagnostic_text
 from .session import (
     AgentIdentity,
     AttemptIdentity,
@@ -98,7 +98,11 @@ def _clone_json(value: Any, path: str) -> Any:
 
 
 def _identifier(value: Any, path: str) -> str:
-    if not isinstance(value, str) or not value.strip():
+    if (
+        not isinstance(value, str)
+        or not value.strip()
+        or diagnostic_string_is_sensitive(value)
+    ):
         raise _fail("invalid_identifier", f"{path} must be a non-empty string")
     return value.strip()
 

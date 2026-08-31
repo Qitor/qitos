@@ -151,10 +151,13 @@ count remains typed and is not treated as secret content. Aggregate loss facts
 continue to equal the sum of per-field facts. Canonical persistence is outside
 both projection roles and stays lossless.
 
-Until Lane B publishes `ArtifactRef`, canonical `artifact_refs` is an array of
-objects with required non-empty `artifact_id` and optional `media_type`,
-`byte_length`, `encoding`, `sensitivity`, and object-valued `provenance`.
-Unknown keys, including host-path slots, fail canonical parsing.
+Canonical `artifact_refs` uses the one core `ArtifactRef` contract. Each entry
+contains a content digest, portable logical artifact/resolver/encoding tokens,
+an explicit media type and byte length, sensitivity/provenance facts, and an
+optional bounded model summary. References never contain a host path, secret,
+artifact body, or free-form resolver URI. Construction, strict reading,
+persistence, and model projection all enforce that same grammar; unknown keys
+and unsafe logical tokens fail with a typed non-echoing contract error.
 
 ## Failure and validation boundary
 

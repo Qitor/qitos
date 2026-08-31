@@ -7,6 +7,7 @@ provider's payload on behalf of another provider.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, Mapping, Optional, Protocol, runtime_checkable
@@ -475,10 +476,26 @@ class ProviderFailure(Exception):
     error_code: Optional[str] = None
     redacted_details: Mapping[str, Any] = field(default_factory=dict)
     schema_version: str = PROVIDER_FAILURE_SCHEMA_VERSION
+    remediation: str = field(init=False)
+    correlation_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
         if self.schema_version != PROVIDER_FAILURE_SCHEMA_VERSION:
             raise CodecError("unsupported provider failure schema")
+        if not isinstance(self.retryable, bool):
+            raise CodecError("provider failure retryable must be boolean")
+        if self.status_code is not None and (
+            not isinstance(self.status_code, int)
+            or isinstance(self.status_code, bool)
+            or not 100 <= self.status_code <= 599
+        ):
+            raise CodecError("provider failure status_code is invalid")
+        if not isinstance(self.redacted_details, Mapping):
+            raise CodecError("provider failure details must be an object")
+        safe_category = safe_diagnostic_text(
+            self.category,
+            fallback="provider_error",
+        )
         safe_message = safe_diagnostic_text(
             self.message,
             fallback="Provider request failed; inspect the typed category and retryability.",
@@ -490,12 +507,45 @@ class ProviderFailure(Exception):
             if self.error_code is not None
             else None
         )
-        safe_details = redact_diagnostic_value(dict(self.redacted_details))
+        safe_details = redact_diagnostic_value(self.redacted_details)
+        if not isinstance(safe_details, dict):
+            raise CodecError("provider failure details must be an object")
+        remediation_by_category = {
+            "provider_refusal": "Review the request against the provider policy.",
+            "provider_exception": "Retry only when retryable or inspect provider health.",
+            "malformed_response": "Inspect provider codec compatibility.",
+        }
+        remediation = remediation_by_category.get(
+            safe_category,
+            "Inspect the typed provider failure and codec report.",
+        )
+        correlation_material = {
+            "category": safe_category,
+            "message": safe_message,
+            "provider": safe_provider,
+            "api_mode": safe_api_mode,
+            "retryable": self.retryable,
+            "status_code": self.status_code,
+            "error_code": safe_error_code,
+            "redacted_details": safe_details,
+        }
+        correlation_digest = hashlib.sha256(
+            json.dumps(
+                correlation_material,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            ).encode("utf-8")
+        ).hexdigest()
+        object.__setattr__(self, "category", safe_category)
         object.__setattr__(self, "message", safe_message)
         object.__setattr__(self, "provider", safe_provider)
         object.__setattr__(self, "api_mode", safe_api_mode)
         object.__setattr__(self, "error_code", safe_error_code)
         object.__setattr__(self, "redacted_details", safe_details)
+        object.__setattr__(self, "remediation", remediation)
+        object.__setattr__(self, "correlation_digest", correlation_digest)
         _strict_json(safe_details, "provider_failure.redacted_details")
         Exception.__init__(self, safe_message)
 
@@ -509,6 +559,8 @@ class ProviderFailure(Exception):
             "retryable": self.retryable,
             "status_code": self.status_code,
             "error_code": self.error_code,
+            "remediation": self.remediation,
+            "correlation_digest": self.correlation_digest,
             "redacted_details": json.loads(
                 json.dumps(dict(self.redacted_details), allow_nan=False)
             ),

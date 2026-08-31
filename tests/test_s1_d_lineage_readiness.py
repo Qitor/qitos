@@ -531,6 +531,38 @@ def test_privacy_and_portability_findings_never_echo_rejected_values() -> None:
     assert "authorization" not in rendered
 
 
+@pytest.mark.parametrize(
+    "value",
+    [
+        "/etc/passwd",
+        "/usr/local/private/data.json",
+        "/Library/Application Support/private.db",
+        r"C:\Users\example\private.txt",
+        r"\\server\share\private.txt",
+        "file:///var/private/data.json",
+        "~/private/data.json",
+        "localhost",
+        "127.0.0.1:9000",
+        "http://[::1]:9010/private",
+        "Authorization: Bearer synthetic-bearer-value",
+        "Cookie: synthetic-cookie-value",
+        "sk-proj-syntheticcredential",
+        "AKIAABCDEFGHIJKLMNOP",
+        "abcdefgh.ijklmnop.qrstuvwx",
+        "-----BEGIN PRIVATE KEY-----",
+    ],
+)
+def test_readiness_uses_shared_non_echoing_safety_boundary(value: str) -> None:
+    module = _load_script()
+    receipt = {"contract_id": "lane_x.unknown", "safe_name": value}
+
+    _, findings = module.validate_contract_receipts([receipt])
+    rendered = json.dumps(findings, sort_keys=True)
+
+    assert findings
+    assert value not in rendered
+
+
 def test_new_readiness_artifacts_are_portable() -> None:
     module = _load_script()
     checked = [

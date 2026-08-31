@@ -17,6 +17,11 @@ from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
+from qitos.core.diagnostics import (
+    _diagnostic_key_is_sensitive,
+    _diagnostic_string_categories,
+)
+
 
 RESULT_TYPE = "trajectory_readiness_report"
 RESULT_SCHEMA_VERSION = "1"
@@ -433,26 +438,6 @@ PLANNED_VIEWS = ["raw_private", "redacted_public"]
 
 _SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
-_WINDOWS_DRIVE_RE = re.compile(r"(?:^|[\s(\"'=])[A-Za-z]:[\\/]")
-_HOME_EXPANSION_RE = re.compile(r"(?:^|[\s(\"'=])~[\\/]")
-_POSIX_HOST_PATH_RE = re.compile(
-    r"(?:^|[\s(\"'=])/(?:Users|home|private|tmp|var|etc|opt|mnt|Volumes)(?:/|\b)"
-)
-_LOCAL_ENDPOINT_RE = re.compile(
-    r"(?:https?|ssh)://(?:localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0|"
-    r"\[?::1\]?|(?:\d{1,3}\.){3}\d{1,3})(?::\d+)?",
-    re.IGNORECASE,
-)
-_SENSITIVE_KEY_RE = re.compile(
-    r"(?:^|[_-])(?:api[_-]?key|authorization|cookie|credential|header|password|"
-    r"raw[_-]?provider[_-]?payload|secret|token)(?:$|[_-])",
-    re.IGNORECASE,
-)
-_SECRET_VALUE_RE = re.compile(
-    r"(?:bearer\s+[A-Za-z0-9._~+/=-]{8,}|sk-[A-Za-z0-9_-]{8,}|"
-    r"(?:api[_-]?key|password|secret|token)\s*[:=]\s*\S+)",
-    re.IGNORECASE,
-)
 
 Diagnostic = Dict[str, str]
 
@@ -498,19 +483,21 @@ def _sha256(value: Any) -> bool:
 def portability_finding_codes(value: str) -> List[str]:
     """Return typed findings without returning the inspected value."""
     codes = set()
-    if value.startswith("/") or _POSIX_HOST_PATH_RE.search(value):
-        codes.add("absolute_posix_path")
-    if _WINDOWS_DRIVE_RE.search(value):
-        codes.add("windows_drive_path")
-    if "file://" in value.lower():
-        codes.add("file_uri")
-    if _HOME_EXPANSION_RE.search(value):
-        codes.add("home_expansion_path")
+    category_codes = {
+        "absolute_posix_path": "absolute_posix_path",
+        "windows_path": "windows_drive_path",
+        "windows_unc_path": "windows_unc_path",
+        "file_uri": "file_uri",
+        "home_path": "home_expansion_path",
+        "local_endpoint": "host_endpoint",
+    }
+    for category in _diagnostic_string_categories(value):
+        code = category_codes.get(category)
+        if code:
+            codes.add(code)
     normalized = value.replace("\\", "/")
     if normalized.startswith("../") or "/../" in normalized:
         codes.add("repository_external_path")
-    if _LOCAL_ENDPOINT_RE.search(value):
-        codes.add("host_endpoint")
     return sorted(codes)
 
 
@@ -546,7 +533,7 @@ def privacy_diagnostics(value: Any, subject: str) -> List[Diagnostic]:
             for index, key in enumerate(sorted(item, key=lambda raw: str(raw))):
                 child = f"{field}.mapping[{index}]"
                 token = str(key)
-                if _SENSITIVE_KEY_RE.search(token):
+                if _diagnostic_key_is_sensitive(token):
                     code = (
                         "raw_provider_payload"
                         if "provider" in token.lower() and "payload" in token.lower()
@@ -559,7 +546,10 @@ def privacy_diagnostics(value: Any, subject: str) -> List[Diagnostic]:
             for index, child in enumerate(item):
                 visit(child, f"{field}[{index}]")
             return
-        if isinstance(item, str) and _SECRET_VALUE_RE.search(item):
+        if (
+            isinstance(item, str)
+            and "secret" in _diagnostic_string_categories(item)
+        ):
             findings.append(_diag("privacy", "secret_value", subject, field))
 
     visit(value, "$")
