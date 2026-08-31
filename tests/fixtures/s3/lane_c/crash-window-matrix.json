@@ -1,0 +1,17 @@
+{
+  "schema_version": "qitos.s3.lane_c.crash_windows/v1",
+  "windows": {
+    "before_declaration_commit": "no_operation",
+    "declaration_committed_before_dispatch": "eligible",
+    "dispatch_before_attempt_commit": "outcome_unknown",
+    "child_running_process_exit": "reattach_or_unknown",
+    "completion_committed_parent_unobserved": "consume_once",
+    "accepted_before_join_commit": "generation_cas",
+    "closed_join_late_result": "discarded",
+    "handoff_before_commit": "old_owner_authoritative",
+    "handoff_after_commit_before_start": "new_owner_authoritative",
+    "cancel_requested_worker_running": "worker_still_running",
+    "store_commit_failure": "typed_failure",
+    "resolver_or_scheduler_unavailable": "typed_blocked"
+  }
+}

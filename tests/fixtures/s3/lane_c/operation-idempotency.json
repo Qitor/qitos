@@ -1,0 +1,8 @@
+{
+  "schema_version": "qitos.s3.lane_c.operation_idempotency/v1",
+  "same_identity_same_digest": "original_receipt",
+  "same_identity_different_digest": "operation_identity_conflict",
+  "terminal_replay": "not_dispatched",
+  "unattachable_inflight": "outcome_unknown",
+  "automatic_unknown_replay": false
+}

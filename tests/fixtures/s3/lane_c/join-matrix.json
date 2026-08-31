@@ -1,0 +1,14 @@
+{
+  "schema_version": "qitos.s3.lane_c.join_matrix/v1",
+  "policies": {
+    "all": {"closes": "all_terminal"},
+    "all_successful": {"closes": "all_terminal", "success_required": true},
+    "first_success": {"closes": "first_success"},
+    "quorum": {"closes": "n_successes"}
+  },
+  "reducer": {
+    "persistence": "reference_and_digest_only",
+    "serialized_callables": false
+  },
+  "late_outcome": "discarded_without_generation_advance"
+}

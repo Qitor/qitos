@@ -1,0 +1,18 @@
+{
+  "schema_version": "qitos.s3.lane_c.runtime_handoff/v1",
+  "lane_d_consumes": [
+    "work_graph/v3",
+    "work_graph.snapshot_component/v3",
+    "operation_receipts",
+    "join_generation_and_terminal_receipt",
+    "late_and_discarded_outcomes"
+  ],
+  "lane_a_binding": "available_at_feba1bf6d2312b82c7f03ce0b3c1f07e50712938_not_consumed",
+  "lane_b_binding": "missing_producer_manifest_at_851f7902f15da670e72f4c04d7453cf37201aee7",
+  "unsupported": [
+    "distributed_scheduler",
+    "hard_thread_cancellation",
+    "exactly_once_external_effects",
+    "complete_g4"
+  ]
+}
