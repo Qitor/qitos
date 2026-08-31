@@ -43,11 +43,11 @@ def classify_event(
         return RecordKind.ERROR
     if "ERROR" in upper:
         return RecordKind.ERROR
-    if stage == "model_input" or any(
+    if stage in {"model_input", "request_view"} or any(
         token in upper for token in ("MODEL_REQUEST", "MODEL_INPUT")
     ):
         return RecordKind.MODEL_REQUEST
-    if stage == "model_output" or any(
+    if stage in {"model_output", "provider_transaction"} or any(
         token in upper for token in ("MODEL_RESPONSE", "MODEL_OUTPUT")
     ):
         return RecordKind.MODEL_RESPONSE
@@ -81,9 +81,13 @@ def classify_event(
         for token in ("HANDOFF", "DELEGATE", "FANOUT", "JOIN", "SPAWN", "WORK")
     ):
         return RecordKind.WORK_GRAPH
-    if "TOOL_BATCH" in upper:
+    if stage == "tool_batch_snapshot" or "TOOL_BATCH" in upper:
         return RecordKind.TOOL_BATCH
-    if "TOOL" in upper or upper in {"ACT", "ACT_ERROR", "ACTION"}:
+    if stage == "tool_slot_terminal" or "TOOL" in upper or upper in {
+        "ACT",
+        "ACT_ERROR",
+        "ACTION",
+    }:
         return RecordKind.TOOL_SLOT
     if "ARTIFACT" in upper:
         return RecordKind.ARTIFACT
@@ -159,6 +163,89 @@ def runtime_event_to_record(
             entries=tuple(losses),
         ),
     )
+
+
+def session_lifecycle_event_to_record(event: Any) -> TrajectoryRecord:
+    """Adapt an explicit Session-head commit without inferring lineage."""
+    lifecycle = str(getattr(event, "lifecycle", ""))
+    kind = {
+        "paused": RecordKind.PAUSE,
+        "restoring": RecordKind.RESTORE,
+    }.get(lifecycle, RecordKind.SESSION)
+    return TrajectoryRecord.create(
+        kind,
+        role=RecordRole.CANONICAL_RUNTIME_FACT,
+        session_id=str(getattr(event, "session_id")),
+        run_id=str(getattr(event, "run_id")),
+        snapshot_id=str(getattr(event, "snapshot_id")),
+        checkpoint_ref=str(getattr(event, "checkpoint_id")),
+        owner_generation=int(getattr(event, "generation")),
+        occurred_at=str(getattr(event, "captured_at")),
+        payload={
+            "lifecycle": lifecycle,
+            "durability": str(getattr(event, "durability", "persisted")),
+        },
+    )
+
+
+def runtime_event_to_records(
+    event: Any,
+    *,
+    run_id: str,
+    session_id: Optional[str] = None,
+    work_item_id: Optional[str] = None,
+    agent_id: Optional[str] = None,
+) -> tuple[TrajectoryRecord, ...]:
+    """Expand one runtime publication into independently queryable facts."""
+    primary = runtime_event_to_record(
+        event,
+        run_id=run_id,
+        session_id=session_id,
+        work_item_id=work_item_id,
+        agent_id=agent_id,
+    )
+    raw = getattr(event, "payload", {}) or {}
+    payload = raw if isinstance(raw, Mapping) else {}
+    stage = str(payload.get("stage", ""))
+    records = [primary]
+    if stage == "provider_transaction":
+        for kind, key in (
+            (RecordKind.REASONING, "reasoning"),
+            (RecordKind.CONTINUATION, "continuation_refs"),
+            (RecordKind.LOSS, "loss"),
+        ):
+            if payload.get(key):
+                records.append(
+                    TrajectoryRecord.create(
+                        kind,
+                        role=RecordRole.CANONICAL_RUNTIME_FACT,
+                        run_id=run_id,
+                        session_id=session_id,
+                        work_item_id=work_item_id,
+                        step_id=int(getattr(event, "step_id", 0)),
+                        phase=str(getattr(getattr(event, "phase", None), "value", ""))
+                        or None,
+                        agent_id=agent_id,
+                        payload={key: _json_value(payload[key])},
+                    )
+                )
+    if stage == "tool_slot_terminal" and payload.get("effect") is not None:
+        records.append(
+            TrajectoryRecord.create(
+                RecordKind.EFFECT,
+                role=RecordRole.CANONICAL_RUNTIME_FACT,
+                run_id=run_id,
+                session_id=session_id,
+                work_item_id=work_item_id,
+                step_id=int(getattr(event, "step_id", 0)),
+                phase=str(getattr(getattr(event, "phase", None), "value", ""))
+                or None,
+                agent_id=agent_id,
+                tool_call_id=str(payload.get("slot_id") or "") or None,
+                payload={"effect": _json_value(payload["effect"])},
+            )
+        )
+    return tuple(records)
 
 
 def engine_event_to_record(
@@ -350,6 +437,8 @@ __all__ = [
     "engine_event_to_record",
     "render_event_to_record",
     "runtime_event_to_record",
+    "runtime_event_to_records",
+    "session_lifecycle_event_to_record",
     "span_to_record",
     "step_record_to_record",
     "trace_event_to_record",

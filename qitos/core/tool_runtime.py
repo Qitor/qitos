@@ -26,7 +26,7 @@ from typing import (
     cast,
 )
 
-from .session import AttemptIdentity
+from .session import AttemptIdentity, SnapshotComponentCodec
 from .tool_result import EffectState, RetryDisposition, ToolResult
 
 if TYPE_CHECKING:
@@ -38,6 +38,7 @@ TOOL_LIFECYCLE_RECEIPT_SCHEMA_VERSION = "qitos.tool_lifecycle_receipt/v1"
 TOOL_EFFECT_RECEIPT_SCHEMA_VERSION = "qitos.tool_effect_receipt/v1"
 TOOL_BATCH_SNAPSHOT_SCHEMA_VERSION = "qitos.tool_batch_snapshot/v1"
 TOOL_TERMINAL_RECEIPT_SCHEMA_VERSION = "qitos.tool_terminal_receipt/v1"
+TOOL_BATCH_COMPONENT_SCHEMA_VERSION = "qitos.tool_batch_component/v1"
 
 
 class ToolResourceKind(str, Enum):
@@ -123,6 +124,30 @@ class ToolLifecycleSpec:
             "migration": self.migration.value,
             "late_result_handling": self.late_result_handling,
         }
+
+    @classmethod
+    def from_dict(cls, value: Any) -> "ToolLifecycleSpec":
+        data = _strict_mapping(
+            value,
+            "lifecycle.spec",
+            {
+                "resource_kind",
+                "owner",
+                "completion_signal",
+                "cancellation_capability",
+                "timeout_behavior",
+                "cleanup_responsibility",
+                "process_loss_behavior",
+                "migration",
+                "late_result_handling",
+            },
+        )
+        data["resource_kind"] = ToolResourceKind(data["resource_kind"])
+        data["cancellation_capability"] = CancellationCapability(
+            data["cancellation_capability"]
+        )
+        data["migration"] = MigrationDisposition(data["migration"])
+        return cls(**data)
 
 
 _LIFECYCLE_ROWS = {
@@ -246,6 +271,23 @@ class ToolEffectDeclaration:
         )
         object.__setattr__(self, "metadata", _clone_json(self.metadata))
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "effect_ref": self.effect_ref,
+            "idempotency_key": self.idempotency_key,
+            "metadata": _clone_json(self.metadata),
+        }
+
+    @classmethod
+    def from_dict(cls, value: Any) -> "ToolEffectDeclaration":
+        return cls(
+            **_strict_mapping(
+                value,
+                "effect.declaration",
+                {"effect_ref", "idempotency_key", "metadata"},
+            )
+        )
+
 
 EffectDeclarationFactory = Callable[
     [Dict[str, Any], Dict[str, Any]], Optional[ToolEffectDeclaration]
@@ -282,13 +324,9 @@ class ToolEffectReceipt:
         return self.declaration.idempotency_key if self.declaration else None
 
     def to_dict(self) -> Dict[str, Any]:
-        declaration = None
-        if self.declaration is not None:
-            declaration = {
-                "effect_ref": self.declaration.effect_ref,
-                "idempotency_key": self.declaration.idempotency_key,
-                "metadata": _clone_json(self.declaration.metadata),
-            }
+        declaration = (
+            self.declaration.to_dict() if self.declaration is not None else None
+        )
         return {
             "schema_version": self.schema_version,
             "declaration": declaration,
@@ -297,6 +335,27 @@ class ToolEffectReceipt:
             "reconciliation_required": self.reconciliation_required,
             "outcome_unknown": self.outcome_unknown,
         }
+
+    @classmethod
+    def from_dict(cls, value: Any) -> "ToolEffectReceipt":
+        data = _strict_mapping(
+            value,
+            "effect",
+            {
+                "schema_version",
+                "declaration",
+                "state",
+                "retry_disposition",
+                "reconciliation_required",
+                "outcome_unknown",
+            },
+        )
+        data["declaration"] = (
+            ToolEffectDeclaration.from_dict(data["declaration"])
+            if data["declaration"] is not None
+            else None
+        )
+        return cls(**data)
 
 
 @dataclass(frozen=True)
@@ -357,6 +416,33 @@ class ToolLifecycleReceipt:
             "migratable": self.migratable,
         }
 
+    @classmethod
+    def from_dict(cls, value: Any) -> "ToolLifecycleReceipt":
+        data = _strict_mapping(
+            value,
+            "lifecycle",
+            {
+                "schema_version",
+                "attempt_id",
+                "spec",
+                "state",
+                "owner_generation",
+                "started_at",
+                "completed_at",
+                "worker_still_running",
+                "outcome_unknown",
+                "migratable",
+            },
+        )
+        reported_migratable = data.pop("migratable")
+        data["attempt_id"] = AttemptIdentity.from_dict(data["attempt_id"])
+        data["spec"] = ToolLifecycleSpec.from_dict(data["spec"])
+        data["state"] = ToolLifecycleState(data["state"])
+        result = cls(**data)
+        if result.migratable is not reported_migratable:
+            raise ValueError("lifecycle migratable projection is inconsistent")
+        return result
+
 
 @dataclass(frozen=True)
 class ToolSlotSnapshot:
@@ -366,8 +452,12 @@ class ToolSlotSnapshot:
     action_id: Optional[str]
     attempt_id: AttemptIdentity
     owner_generation: int
+    action_payload: Dict[str, Any]
     result: Optional[ToolResult] = None
     completion_index: Optional[int] = None
+    lifecycle: Optional[ToolLifecycleReceipt] = None
+    effect: Optional[ToolEffectReceipt] = None
+    durability_status: str = "open"
 
     def __post_init__(self) -> None:
         if not isinstance(self.slot_id, str) or not self.slot_id:
@@ -386,6 +476,15 @@ class ToolSlotSnapshot:
             raise ValueError("completion_index must be null or non-negative")
         if (self.result is None) != (self.completion_index is None):
             raise ValueError("result and completion_index must appear together")
+        _require_json(self.action_payload, "slot.action_payload")
+        if self.action_payload.get("name") != self.action_name:
+            raise ValueError("slot action payload name does not match action_name")
+        if self.durability_status not in {"open", "pending", "persisted", "failed"}:
+            raise ValueError("slot durability_status is unsupported")
+        if self.result is None and self.durability_status != "open":
+            raise ValueError("open slot must have open durability status")
+        if self.result is not None and self.durability_status == "open":
+            raise ValueError("terminal slot must declare durability status")
 
     @property
     def terminal(self) -> bool:
@@ -399,9 +498,76 @@ class ToolSlotSnapshot:
             "action_id": self.action_id,
             "attempt_id": self.attempt_id.to_dict(),
             "owner_generation": self.owner_generation,
+            "action": _clone_json(self.action_payload),
             "result": self.result.to_persistence_dict() if self.result else None,
             "completion_index": self.completion_index,
+            "lifecycle": self.lifecycle.to_dict() if self.lifecycle else None,
+            "effect": self.effect.to_dict() if self.effect else None,
+            "worker_still_running": bool(
+                self.lifecycle.worker_still_running if self.lifecycle else False
+            ),
+            "cancellation_or_timeout": (
+                self.result.status in {"cancelled", "timed_out"}
+                if self.result is not None
+                else False
+            ),
+            "durability_status": self.durability_status,
+            "reconciliation_required": bool(
+                self.effect.reconciliation_required if self.effect else False
+            ),
         }
+
+    @classmethod
+    def from_dict(cls, value: Any) -> "ToolSlotSnapshot":
+        data = _strict_mapping(
+            value,
+            "tool_batch.slot",
+            {
+                "slot_id",
+                "declaration_index",
+                "action_name",
+                "action_id",
+                "attempt_id",
+                "owner_generation",
+                "action",
+                "result",
+                "completion_index",
+                "lifecycle",
+                "effect",
+                "worker_still_running",
+                "cancellation_or_timeout",
+                "durability_status",
+                "reconciliation_required",
+            },
+        )
+        worker = data.pop("worker_still_running")
+        cancellation = data.pop("cancellation_or_timeout")
+        reconciliation = data.pop("reconciliation_required")
+        data["action_payload"] = data.pop("action")
+        data["attempt_id"] = AttemptIdentity.from_dict(data["attempt_id"])
+        data["result"] = (
+            ToolResult.from_canonical_dict(data["result"])
+            if data["result"] is not None
+            else None
+        )
+        data["lifecycle"] = (
+            ToolLifecycleReceipt.from_dict(data["lifecycle"])
+            if data["lifecycle"] is not None
+            else None
+        )
+        data["effect"] = (
+            ToolEffectReceipt.from_dict(data["effect"])
+            if data["effect"] is not None
+            else None
+        )
+        result = cls(**data)
+        if bool(result.lifecycle and result.lifecycle.worker_still_running) is not worker:
+            raise ValueError("slot worker-running projection is inconsistent")
+        if bool(result.result and result.result.status in {"cancelled", "timed_out"}) is not cancellation:
+            raise ValueError("slot cancellation projection is inconsistent")
+        if bool(result.effect and result.effect.reconciliation_required) is not reconciliation:
+            raise ValueError("slot reconciliation projection is inconsistent")
+        return result
 
 
 @dataclass(frozen=True)
@@ -410,6 +576,7 @@ class ToolBatchSnapshot:
     slots: tuple[ToolSlotSnapshot, ...]
     completion_order: tuple[str, ...] = ()
     closed: bool = False
+    decision_payload: Dict[str, Any] = field(default_factory=dict)
     schema_version: str = TOOL_BATCH_SNAPSHOT_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -433,6 +600,7 @@ class ToolBatchSnapshot:
             raise ValueError("completion order must name every terminal slot once")
         if self.closed != (len(terminal_ids) == len(self.slots)):
             raise ValueError("closed must exactly match terminal slot coverage")
+        _require_json(self.decision_payload, "tool_batch.decision")
 
     @property
     def declaration_order(self) -> tuple[str, ...]:
@@ -492,7 +660,32 @@ class ToolBatchSnapshot:
             "completion_order": list(self.completion_order),
             "declaration_order": list(self.declaration_order),
             "closed": self.closed,
+            "decision": _clone_json(self.decision_payload),
         }
+
+    @classmethod
+    def from_dict(cls, value: Any) -> "ToolBatchSnapshot":
+        data = _strict_mapping(
+            value,
+            "tool_batch",
+            {
+                "schema_version",
+                "batch_id",
+                "slots",
+                "completion_order",
+                "declaration_order",
+                "closed",
+                "decision",
+            },
+        )
+        declared_order = tuple(data.pop("declaration_order"))
+        data["decision_payload"] = data.pop("decision")
+        data["slots"] = tuple(ToolSlotSnapshot.from_dict(item) for item in data["slots"])
+        data["completion_order"] = tuple(data["completion_order"])
+        result = cls(**data)
+        if result.declaration_order != declared_order:
+            raise ValueError("tool batch declaration order is inconsistent")
+        return result
 
 
 @dataclass(frozen=True)
@@ -640,8 +833,50 @@ def _clone_json(value: Any) -> Any:
     return value
 
 
+def _strict_mapping(value: Any, path: str, fields: set[str]) -> Dict[str, Any]:
+    if not isinstance(value, Mapping) or set(value) != fields:
+        raise ValueError(f"{path} shape is invalid")
+    return dict(value)
+
+
+def _encode_tool_batch_component(value: Any) -> Mapping[str, Any]:
+    if value is not None and not isinstance(value, ToolBatchSnapshot):
+        raise TypeError("tool-batch component requires ToolBatchSnapshot or None")
+    return {
+        "schema_version": TOOL_BATCH_COMPONENT_SCHEMA_VERSION,
+        "batch": value.to_dict() if value is not None else None,
+    }
+
+
+def _decode_tool_batch_component(value: Any) -> Optional[ToolBatchSnapshot]:
+    data = _strict_mapping(
+        value,
+        "tool_batch_component",
+        {"schema_version", "batch"},
+    )
+    if data["schema_version"] != TOOL_BATCH_COMPONENT_SCHEMA_VERSION:
+        raise ValueError("unsupported tool-batch component schema")
+    return (
+        ToolBatchSnapshot.from_dict(data["batch"])
+        if data["batch"] is not None
+        else None
+    )
+
+
+TOOL_BATCH_SNAPSHOT_COMPONENT_CODEC = SnapshotComponentCodec(
+    slot="tool_batch",
+    owner="qitos.tool_runtime",
+    schema_version=TOOL_BATCH_COMPONENT_SCHEMA_VERSION,
+    required=True,
+    encode=_encode_tool_batch_component,
+    decode=_decode_tool_batch_component,
+)
+
+
 __all__ = [
     "TOOL_BATCH_SNAPSHOT_SCHEMA_VERSION",
+    "TOOL_BATCH_COMPONENT_SCHEMA_VERSION",
+    "TOOL_BATCH_SNAPSHOT_COMPONENT_CODEC",
     "TOOL_EFFECT_RECEIPT_SCHEMA_VERSION",
     "TOOL_LIFECYCLE_MATRIX",
     "TOOL_LIFECYCLE_RECEIPT_SCHEMA_VERSION",

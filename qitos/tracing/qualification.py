@@ -63,22 +63,34 @@ class RuntimeQualificationResult:
     qualified_lanes: Tuple[str, ...]
     qualified_scenarios: Tuple[str, ...]
     findings: Tuple[QualificationFinding, ...]
-    runtime_producer_qualified: bool
-    trajectory_schema_frozen: bool = False
+    s2_runtime_ready: bool
+    trajectory_schema_publication_ready: bool = False
     qita_store_reader_default: bool = False
-    publication_ready: bool = False
     measurement_claims_available: bool = False
+
+    @property
+    def runtime_producer_qualified(self) -> bool:
+        return self.s2_runtime_ready
+
+    @property
+    def trajectory_schema_frozen(self) -> bool:
+        return False
+
+    @property
+    def publication_ready(self) -> bool:
+        return self.trajectory_schema_publication_ready
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "status": self.status,
-            "runtime_producer_qualified": self.runtime_producer_qualified,
+            "s2_runtime_ready": self.s2_runtime_ready,
             "qualified_lanes": list(self.qualified_lanes),
             "qualified_scenarios": list(self.qualified_scenarios),
             "findings": [finding.to_dict() for finding in self.findings],
-            "trajectory_schema_frozen": self.trajectory_schema_frozen,
+            "trajectory_schema/publication_ready": (
+                self.trajectory_schema_publication_ready
+            ),
             "qita_store_reader_default": self.qita_store_reader_default,
-            "publication_ready": self.publication_ready,
             "measurement_claims_available": self.measurement_claims_available,
             "claims": [],
             "measurements": [],
@@ -273,11 +285,11 @@ def qualify_runtime(
         for scenario in qualified_by_lane[lane]
     )
     return RuntimeQualificationResult(
-        status="runtime_qualified" if runtime_ready else "runtime_not_ready",
+        status="s2_runtime_ready" if runtime_ready else "s2_runtime_blocked",
         qualified_lanes=tuple(sorted(qualified_by_lane)),
         qualified_scenarios=scenarios,
         findings=tuple(findings),
-        runtime_producer_qualified=runtime_ready,
+        s2_runtime_ready=runtime_ready,
     )
 
 

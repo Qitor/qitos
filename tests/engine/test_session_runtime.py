@@ -18,6 +18,11 @@ from qitos.core.tool import tool
 from qitos.core.tool_registry import ToolRegistry
 from qitos.engine import Engine
 from qitos.engine.runtime import LifecyclePolicy, RuntimeComposition
+from qitos.tracing.sinks import (
+    DurabilityReceipt,
+    DurabilityStatus,
+    SinkCapabilities,
+)
 
 
 @dataclass
@@ -85,9 +90,17 @@ class FailPausedCommitStore(InMemoryCheckpointStore):
 class CollectingEventSink:
     def __init__(self) -> None:
         self.events = []
+        self.capabilities = SinkCapabilities(sink_id="tests.session-events")
 
-    def emit(self, event) -> None:
-        self.events.append(event)
+    def receive(self, record):
+        self.events.append(record)
+        return DurabilityReceipt(DurabilityStatus.ACCEPTED, accepted_count=1)
+
+    def flush(self):
+        return DurabilityReceipt(DurabilityStatus.PERSISTED)
+
+    def close(self):
+        return DurabilityReceipt(DurabilityStatus.PERSISTED)
 
 
 def test_beginner_session_path_delegates_to_engine_and_completes() -> None:
@@ -160,13 +173,12 @@ def test_runtime_event_sink_receives_explicit_session_lineage() -> None:
     session = Engine(CounterAgent(), runtime=runtime).session("count")
     result = session.run()
     lifecycle_events = [
-        event for event in sink.events if hasattr(event, "snapshot_id")
+        event for event in sink.events if event.snapshot_id is not None
     ]
-    assert [event.lifecycle for event in lifecycle_events] == [
-        "created",
-        "running",
-        "completed",
-    ]
+    lifecycles = [event.payload["lifecycle"] for event in lifecycle_events]
+    assert lifecycles[0] == "created"
+    assert lifecycles[-1] == "completed"
+    assert set(lifecycles[1:-1]) == {"running"}
     assert all(event.session_id == session.session_id.value for event in lifecycle_events)
     assert all(event.run_id == result.run_id for event in lifecycle_events)
 

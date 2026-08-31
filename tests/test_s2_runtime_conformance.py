@@ -14,7 +14,6 @@ import pytest
 
 import qitos
 from qitos.checkpoint import (
-    ATOMIC_SESSION_COMMIT,
     Checkpoint,
     CheckpointCapabilityError,
     CheckpointConfig,
@@ -25,13 +24,16 @@ from qitos.checkpoint import (
     CheckpointTuple,
     InMemoryCheckpointStore,
     PendingWrite,
+    SqliteCheckpointStore,
+    StateVersions,
+)
+from qitos.checkpoint.session import (
+    ATOMIC_SESSION_COMMIT,
     SESSION_PERSISTENCE_CAPABILITIES,
     SessionCommitReceipt,
     SessionHeadRecord,
     SessionSnapshotCommit,
     SessionSnapshotRecord,
-    SqliteCheckpointStore,
-    StateVersions,
 )
 from qitos.core.action import Action, ActionExecutionPolicy
 from qitos.core.agent_module import AgentModule

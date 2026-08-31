@@ -97,7 +97,7 @@ def _receipt_repo(
 
 def test_missing_producer_receipts_report_runtime_not_ready() -> None:
     result = qualify_runtime([], repository_root=ROOT)
-    assert result.status == "runtime_not_ready"
+    assert result.status == "s2_runtime_blocked"
     assert result.runtime_producer_qualified is False
     assert result.trajectory_schema_frozen is False
     assert result.qita_store_reader_default is False
@@ -113,7 +113,7 @@ def test_missing_producer_receipts_report_runtime_not_ready() -> None:
 def test_exact_committed_a_b_c_receipts_can_qualify(tmp_path: Path) -> None:
     repo, receipts = _receipt_repo(tmp_path)
     result = qualify_runtime(receipts, repository_root=repo)
-    assert result.status == "runtime_qualified"
+    assert result.status == "s2_runtime_ready"
     assert result.runtime_producer_qualified is True
     assert result.qualified_lanes == ("A", "B", "C")
     assert set(result.qualified_scenarios) == {
@@ -127,7 +127,7 @@ def test_exact_committed_a_b_c_receipts_can_qualify(tmp_path: Path) -> None:
 def test_synthetic_runtime_evidence_is_rejected(tmp_path: Path) -> None:
     repo, receipts = _receipt_repo(tmp_path, synthetic_lanes=("B",))
     result = qualify_runtime(receipts, repository_root=repo)
-    assert result.status == "runtime_not_ready"
+    assert result.status == "s2_runtime_blocked"
     assert "B" not in result.qualified_lanes
     assert "synthetic_evidence_rejected" in {
         finding.code for finding in result.findings

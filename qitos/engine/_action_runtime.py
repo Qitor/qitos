@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+from dataclasses import replace
 from typing import Any, Dict, Generic, List, Optional, TypeVar, cast
 
 from ..checkpoint.store import CheckpointConfig
 from ..core.action import Action
+from ..core.conversation import ExchangeLog, ToolBatchBuilder, ToolResultItem
 from ..core.decision import Decision
+from ..core.request_view import reconcile_steering_receipts
 from ..core.tool_result import ToolResult
 from ..core.tool_runtime import ToolBatchSnapshot, ToolTerminalReceipt
 from ._protocol import _EngineProtocol
@@ -233,12 +237,26 @@ class _ActionRuntime(Generic[StateT, ActionT]):
         # Execute non-blocked actions
         executable_actions = [a for i, a in enumerate(actions) if i not in blocked_indices]
         executable_indices = [i for i in range(len(actions)) if i not in blocked_indices]
-        batch_id = (
+        declared_batch_ids = {
+            str(value)
+            for action in executable_actions
+            if (
+                value := action.metadata.get("conversation_batch_id")
+                if isinstance(action.metadata, dict)
+                else None
+            )
+        }
+        if len(declared_batch_ids) > 1:
+            raise ValueError("one action execution cannot span conversation batches")
+        batch_id = next(iter(declared_batch_ids), None) or (
             f"batch:{getattr(engine, '_active_run_id', '') or 'run'}:{record.step_id}"
         )
-        state_metadata = getattr(state, "metadata", None)
         owner_generation = 0
-        if isinstance(state_metadata, dict):
+        session_handle = getattr(engine, "_session_handle", None)
+        if session_handle is not None:
+            owner_generation = session_handle.current_head.generation.value
+        state_metadata = getattr(state, "metadata", None)
+        if session_handle is None and isinstance(state_metadata, dict):
             raw_generation = state_metadata.get("owner_generation", 0)
             if isinstance(raw_generation, int) and not isinstance(raw_generation, bool):
                 owner_generation = max(0, raw_generation)
@@ -259,14 +277,65 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                         "attempt_id": slot.attempt_id.to_dict(),
                         "owner_generation": slot.owner_generation,
                         "status": slot.result.status if slot.result else "open",
+                        "durability_status": slot.durability_status,
+                        "worker_still_running": bool(
+                            slot.lifecycle.worker_still_running
+                            if slot.lifecycle
+                            else False
+                        ),
+                        "reconciliation_required": bool(
+                            slot.effect.reconciliation_required
+                            if slot.effect
+                            else False
+                        ),
                     }
                     for slot in snapshot.slots
                 ],
             }
 
+        def _with_decision(snapshot: ToolBatchSnapshot) -> ToolBatchSnapshot:
+            return replace(
+                snapshot,
+                decision_payload={
+                    "mode": decision.mode,
+                    "rationale": decision.rationale,
+                    "meta": dict(decision.meta),
+                },
+            )
+
         def _on_partial_batch(snapshot: ToolBatchSnapshot) -> None:
+            snapshot = _with_decision(snapshot)
+            current = getattr(engine, "_qitos_tool_batch_snapshot", None)
+            already_persisted = bool(
+                isinstance(current, ToolBatchSnapshot)
+                and current.batch_id == snapshot.batch_id
+                and current.completion_order == snapshot.completion_order
+                and all(
+                    not slot.terminal or slot.durability_status == "persisted"
+                    for slot in current.slots
+                )
+            )
+            persistence = None
+            if already_persisted and isinstance(current, ToolBatchSnapshot):
+                snapshot = current
+            elif session_handle is not None:
+                durable, head = session_handle._persist_tool_batch(
+                    snapshot,
+                    state=state,
+                    task=engine._active_task_obj or engine._active_task,
+                    step_id=record.step_id,
+                )
+                snapshot = durable
+                persistence = {
+                    "status": "persisted",
+                    "generation": head.generation,
+                    "snapshot_id": head.snapshot_id,
+                    "checkpoint_id": head.checkpoint_id,
+                }
+            elif session_handle is None:
+                engine._qitos_tool_batch_snapshot = snapshot
             pending = getattr(engine, "_pending_write_manager", None)
-            if pending is not None:
+            if pending is not None and session_handle is None:
                 for slot in snapshot.slots:
                     pending.begin_task(
                         slot.slot_id,
@@ -279,13 +348,102 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                 payload={
                     "stage": "tool_batch_snapshot",
                     "tool_batch": _safe_batch_payload(snapshot),
+                    "persistence": persistence,
                 },
             )
 
         def _on_terminal(receipt: ToolTerminalReceipt) -> None:
+            enriched_snapshot = _with_decision(receipt.batch_snapshot)
+            enriched_slot = next(
+                slot
+                for slot in enriched_snapshot.slots
+                if slot.slot_id == receipt.slot.slot_id
+            )
+            receipt = replace(
+                receipt,
+                slot=enriched_slot,
+                batch_snapshot=enriched_snapshot,
+            )
+            conversation = getattr(engine, "_qitos_exchange_log", None)
+            if session_handle is not None:
+                session_handle._record_tool_conversation_terminal(receipt)
+            elif isinstance(conversation, ExchangeLog):
+                open_batch = conversation.open_batch_id()
+                if open_batch == receipt.batch_snapshot.batch_id:
+                    builder = ToolBatchBuilder(conversation, open_batch)
+                    call = next(
+                        (
+                            item
+                            for item in builder.calls
+                            if item.identity.call_id == receipt.slot.slot_id
+                            or item.identity.call_id == receipt.slot.action_id
+                        ),
+                        None,
+                    )
+                    if call is None:
+                        raise ValueError(
+                            "tool terminal has no matching conversation call"
+                        )
+                    item_digest = hashlib.sha256(
+                        (
+                            f"{open_batch}:{call.identity.call_id}:"
+                            f"{receipt.slot.attempt_id.value}"
+                        ).encode("utf-8")
+                    ).hexdigest()[:24]
+                    builder.record_result(
+                        ToolResultItem(
+                            item_id=f"tool_result_{item_digest}",
+                            exchange_id=builder.exchange_id,
+                            identity=call.identity,
+                            batch_id=open_batch,
+                            result=receipt.result,
+                            synthetic=receipt.result.error_code == "missing_worker",
+                            closure_reason=(
+                                "missing_worker"
+                                if receipt.result.error_code == "missing_worker"
+                                else None
+                            ),
+                        )
+                    )
+                    engine._qitos_exchange_log = conversation
+                    if conversation.open_batch_id() is None:
+                        receipts = tuple(
+                            getattr(engine, "_qitos_steering_receipts", ()) or ()
+                        )
+                        engine._qitos_steering_receipts = (
+                            reconcile_steering_receipts(
+                                conversation,
+                                receipts,
+                                boundary_id=f"closed_{open_batch}",
+                            )
+                        )
             pending = getattr(engine, "_pending_write_manager", None)
             persistence = None
-            if pending is not None:
+            durable_receipt = receipt
+            if session_handle is not None:
+                durable, head = session_handle._persist_tool_batch(
+                    receipt.batch_snapshot,
+                    state=state,
+                    task=engine._active_task_obj or engine._active_task,
+                    step_id=record.step_id,
+                )
+                durable_slot = next(
+                    slot for slot in durable.slots if slot.slot_id == receipt.slot.slot_id
+                )
+                durable_receipt = type(receipt)(
+                    disposition=receipt.disposition,
+                    slot=durable_slot,
+                    lifecycle=receipt.lifecycle,
+                    effect=receipt.effect,
+                    batch_snapshot=durable,
+                )
+                persistence = {
+                    "status": "persisted",
+                    "generation": head.generation,
+                    "snapshot_id": head.snapshot_id,
+                    "checkpoint_id": head.checkpoint_id,
+                }
+            elif pending is not None:
                 config = CheckpointConfig(
                     thread_id=getattr(engine, "_active_run_id", "") or "run",
                     checkpoint_id=getattr(engine, "_last_checkpoint_id", None),
@@ -296,26 +454,37 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                     config,
                     owner_generation=receipt.slot.owner_generation,
                 )
+            persistence_payload: Any = persistence
+            if persistence is not None and hasattr(persistence, "to_dict"):
+                persistence_payload = persistence.to_dict()
             engine._emit(
                 record.step_id,
                 RuntimePhase.ACT,
                 payload={
                     "stage": "tool_slot_terminal",
-                    "slot_id": receipt.slot.slot_id,
-                    "completion_index": receipt.slot.completion_index,
-                    "disposition": receipt.disposition.value,
-                    "tool_result": receipt.result.to_trace_safe_dict(),
-                    "lifecycle": receipt.lifecycle.to_dict(),
+                    "slot_id": durable_receipt.slot.slot_id,
+                    "completion_index": durable_receipt.slot.completion_index,
+                    "disposition": durable_receipt.disposition.value,
+                    "tool_result": durable_receipt.result.to_trace_safe_dict(),
+                    "lifecycle": durable_receipt.lifecycle.to_dict(),
                     "effect": {
-                        "state": receipt.effect.state,
-                        "retry_disposition": receipt.effect.retry_disposition,
+                        "state": durable_receipt.effect.state,
+                        "retry_disposition": durable_receipt.effect.retry_disposition,
                         "reconciliation_required": (
-                            receipt.effect.reconciliation_required
+                            durable_receipt.effect.reconciliation_required
                         ),
-                        "outcome_unknown": receipt.effect.outcome_unknown,
+                        "outcome_unknown": durable_receipt.effect.outcome_unknown,
                     },
-                    "persistence": persistence.to_dict() if persistence else None,
-                    "tool_batch": _safe_batch_payload(receipt.batch_snapshot),
+                    "persistence": persistence_payload,
+                    "tool_batch": _safe_batch_payload(
+                        durable_receipt.batch_snapshot
+                    ),
+                    "steering_receipts": [
+                        item.to_dict()
+                        for item in tuple(
+                            getattr(engine, "_qitos_steering_receipts", ()) or ()
+                        )
+                    ],
                 },
             )
 

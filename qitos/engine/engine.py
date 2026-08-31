@@ -27,6 +27,7 @@ from ..core.decision import Decision
 from ..core.errors import ErrorCategory, StopReason
 from ..core.env import Env, EnvObservation, EnvStepResult
 from ..core.history import History, HistoryMessage, HistoryPolicy
+from ..core.conversation import ExchangeLog
 from ..core.interceptor import InterceptorChain, ToolInterceptor
 from ..core.memory import Memory, MemoryRecord
 from ..core.state import StateSchema
@@ -414,6 +415,10 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self._session_handle: Any = None
         self._session_run_id: str = ""
         self._session_paused: bool = False
+        self._qitos_exchange_log: Any = None
+        self._qitos_steering_receipts: tuple[Any, ...] = ()
+        self._qitos_tool_batch_snapshot: Any = None
+        self._qitos_restored_conversation_pending: bool = False
         self._runtime_history: History = _EngineWindowHistory(window_size=24)
         self._tool_loop_detector: Optional[ToolCallLoopDetector] = (
             loop_detector
@@ -994,13 +999,20 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self._active_task = task_text
         self._active_task_obj = task_obj
         self._active_state = state
-        if _session_steering is not None:
-            self._history_append(
-                "user",
+        if self._session_handle is not None and _session_steering is not None:
+            self._session_handle._submit_steering(
                 str(_session_steering),
-                int(_resume_step or getattr(state, "current_step", 0)),
-                metadata={"source": "session_steering"},
+                state=state,
+                task=task_obj or task_text,
+                step_id=int(_resume_step or getattr(state, "current_step", 0)),
             )
+        if self._session_handle is not None:
+            conversation = getattr(self, "_qitos_exchange_log", None)
+            if (
+                isinstance(conversation, ExchangeLog)
+                and conversation.open_batch_id() is None
+            ):
+                self._qitos_restored_conversation_pending = True
         started_at = time.monotonic()
         self._hydrate_trace_metadata(task_obj=task_obj, task_text=task_text)
 
@@ -1321,21 +1333,58 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                 else:
                     try:
                         action_results = self._run_act(state, decision, record)
-                        observation = self._build_observation_after_action(
-                            state=state,
-                            step_id=step_id,
-                            started_at=started_at,
-                            decision=decision,
-                            action_results=action_results,
+                        batch = getattr(self, "_qitos_tool_batch_snapshot", None)
+                        partial_pause = bool(
+                            self._session_handle is not None
+                            and batch is not None
+                            and not batch.closed
+                            and self._session_handle._pause_requested.is_set()
                         )
-                        record.observation = observation
-                        self._memory_append("observation", observation, record.step_id)
-                        self._run_reduce(state, observation, decision, record)
-                        # Early exit: if reduce set final_result, set stop reason
-                        # so critics don't override it and FinalResultCriteria catches it
-                        fr = getattr(state, 'final_result', None)
-                        if isinstance(fr, str) and fr and state.stop_reason is None:
-                            state.set_stop("final", fr)
+                        if partial_pause:
+                            assert batch is not None
+                        if partial_pause and self._session_handle._on_safe_boundary(
+                            state=state,
+                            task=task_obj or task_text,
+                            step_id=step_id,
+                            advance_step=False,
+                        ):
+                            self._session_paused = True
+                            self._emit(
+                                step_id,
+                                RuntimePhase.SESSION_PAUSED,
+                                payload={
+                                    "session_id": self._session_handle.session_id.value,
+                                    "run_id": self._session_handle.run_id.value,
+                                    "generation": (
+                                        self._session_handle.current_head.generation.value
+                                    ),
+                                    "open_batch_id": getattr(
+                                        batch, "batch_id", None
+                                    ),
+                                },
+                            )
+                        else:
+                            observation = self._build_observation_after_action(
+                                state=state,
+                                step_id=step_id,
+                                started_at=started_at,
+                                decision=decision,
+                                action_results=action_results,
+                            )
+                            record.observation = observation
+                            self._memory_append(
+                                "observation", observation, record.step_id
+                            )
+                            self._run_reduce(state, observation, decision, record)
+                            # Early exit: if reduce set final_result, set stop reason
+                            # so critics don't override it and FinalResultCriteria catches it
+                            fr = getattr(state, "final_result", None)
+                            if (
+                                isinstance(fr, str)
+                                and fr
+                                and state.stop_reason is None
+                            ):
+                                state.set_stop("final", fr)
                     except Exception as exc:
                         failed_phase = self._infer_failed_phase(record)
                         if not self._recover(state, failed_phase, exc):
@@ -1365,6 +1414,10 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                         state.advance_step()
                         step_id += 1
                         continue
+
+                if self._session_paused:
+                    self._finalize_step(record, state)
+                    break
 
                 critic_result = self._apply_critics(state, record)
                 # Support both legacy str return and new dict return
@@ -1557,6 +1610,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             _cancel_token=self._cancel_token,
         )
         self._notify_run_end(result)
+        self.runtime.flush_events()
         self._clear_active_context()
         return result
 
@@ -1841,7 +1895,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         before = len(self.events)
         self._trace_runtime.emit(step_id, phase, ok=ok, payload=payload, error=error)
         if self.runtime.event_sink is not None and len(self.events) > before:
-            self.runtime.event_sink.emit(self.events[-1])
+            self.runtime.publish_event(self.events[-1], engine=self)
 
     def _write_trace_event(self, event: RuntimeEvent) -> None:
         self._trace_runtime.write_trace_event(event)

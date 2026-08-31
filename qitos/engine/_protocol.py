@@ -56,6 +56,10 @@ class _EngineProtocol(Protocol):
     _trace_runtime: Any
     _session_handle: Any
     _session_run_id: str
+    _qitos_exchange_log: Any
+    _qitos_steering_receipts: Any
+    _qitos_tool_batch_snapshot: Any
+    _qitos_restored_conversation_pending: bool
 
     def _dispatch_hook(self, method_name: str, ctx: Any) -> None:
         ...

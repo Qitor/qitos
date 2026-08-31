@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import threading
-from dataclasses import asdict, dataclass, is_dataclass
+import hashlib
+import time
+from dataclasses import asdict, dataclass, is_dataclass, replace
 from datetime import datetime, timezone
 from enum import Enum
 import re
@@ -45,6 +47,19 @@ from ..core.session import (
     lifecycle_allows,
     lifecycle_can_transition,
 )
+from ..core.action import Action
+from ..core.conversation import (
+    ExchangeLog,
+    ToolBatchBuilder,
+    ToolResultItem,
+)
+from ..core.decision import Decision
+from ..core.request_view import (
+    SteeringReceipt,
+    reconcile_steering_receipts,
+    submit_steering,
+)
+from ..core.tool_runtime import ToolBatchSnapshot, ToolTerminalReceipt
 from ..core.state import StateSchema
 from ..core.task import Task
 from .runtime import (
@@ -99,6 +114,7 @@ class Session:
         self._lock = threading.RLock()
         self._lifecycle = SessionLifecycle.CREATED
         self._pause_receipt: Optional[PauseReceipt] = None
+        self._quiescence_receipt: Any = None
         self._parent_run_id: Optional[RunIdentity] = None
 
     @property
@@ -156,6 +172,11 @@ class Session:
             if not lifecycle_allows(lifecycle, SessionOperation.PAUSE):
                 raise _invalid_operation(lifecycle, SessionOperation.PAUSE)
             self._pause_requested.set()
+            executor = getattr(self._engine, "executor", None)
+            if executor is not None and callable(
+                getattr(executor, "request_pause", None)
+            ):
+                self._quiescence_receipt = executor.request_pause(0.0)
             self._lifecycle = SessionLifecycle.PAUSE_REQUESTED
             receipt = PauseReceipt(
                 session_id=self._session_id,
@@ -169,6 +190,62 @@ class Session:
             return receipt
 
     request_pause = pause
+
+    def steer(self, text: str) -> SteeringReceipt:
+        """Durably submit one canonical steering item to this Session."""
+        with self._lock:
+            head = self._require_head()
+            snapshot = self._load_snapshot(head)
+            state = self._engine.current_state
+            task: str | Task = self._engine._active_task_obj or self._engine._active_task
+            if state is None:
+                state, task, step_id = self._restore_core_state(snapshot)
+            else:
+                step_id = int(getattr(state, "current_step", 0))
+            return self._submit_steering(
+                text,
+                state=state,
+                task=task,
+                step_id=step_id,
+            )
+
+    def _submit_steering(
+        self,
+        text: str,
+        *,
+        state: StateSchema,
+        task: str | Task,
+        step_id: int,
+    ) -> SteeringReceipt:
+        engine = self._engine
+        log = getattr(engine, "_qitos_exchange_log", None)
+        if not isinstance(log, ExchangeLog):
+            log = ExchangeLog(log_id=f"session_log_{self._session_id.value}")
+            engine._qitos_exchange_log = log
+        receipts = tuple(getattr(engine, "_qitos_steering_receipts", ()) or ())
+        sequence = max((item.sequence for item in receipts), default=-1) + 1
+        lifecycle = SessionLifecycle(self._require_head().lifecycle)
+        boundary_id = log.open_batch_id() or f"before_model_{step_id}"
+        receipt = submit_steering(
+            log,
+            str(text),
+            sequence=sequence,
+            boundary_id=boundary_id,
+            exchange_id=f"steering_exchange_{sequence}",
+            session_status=lifecycle.value,
+        )
+        engine._qitos_steering_receipts = receipts + (receipt,)
+        if receipt.disposition == "rejected":
+            return receipt
+        head = self._require_head()
+        self._commit_snapshot(
+            state=state,
+            task=task,
+            lifecycle=lifecycle,
+            step_id=step_id,
+            expected_head=head,
+        )
+        return receipt
 
     def run(self, *, steering: Optional[str] = None) -> "EngineResult[Any]":
         """Run or resume through the one canonical Engine loop."""
@@ -192,8 +269,18 @@ class Session:
             )
             self._engine._session_handle = self
             self._engine._session_run_id = self._run_id.value
+            self._engine._active_state = state
+            self._engine._active_task_obj = task if isinstance(task, Task) else None
+            self._engine._active_task = (
+                task.objective if isinstance(task, Task) else str(task)
+            )
 
         try:
+            next_step = self._recover_tool_batch(
+                state=state,
+                task=task,
+                step_id=next_step,
+            )
             result = self._engine.run(
                 task,
                 _resume_state=state,
@@ -225,6 +312,7 @@ class Session:
             terminal = _terminal_lifecycle(result)
             self._transition(terminal)
             current = self._require_head()
+            self._engine._qitos_tool_batch_snapshot = None
             self._commit_snapshot(
                 state=result.state,
                 task=task,
@@ -253,8 +341,189 @@ class Session:
         )
         return self.current_head
 
+    def _persist_tool_batch(
+        self,
+        snapshot: ToolBatchSnapshot,
+        *,
+        state: StateSchema,
+        task: str | Task,
+        step_id: int,
+    ) -> tuple[ToolBatchSnapshot, SessionHeadRecord]:
+        """Advance the canonical Session head for one batch-state transition."""
+        with self._lock:
+            head = self._require_head()
+            if head.owner_run_id != self._run_id.value:
+                raise _session_error(
+                    SessionErrorCode.SUPERSEDED_OWNER,
+                    "A superseded Session owner cannot persist a tool terminal.",
+                    recoverable=False,
+                    metadata={"owner_run_id": self._run_id.value},
+                )
+            durable = replace(
+                snapshot,
+                slots=tuple(
+                    replace(slot, durability_status="persisted")
+                    if slot.terminal and slot.durability_status == "pending"
+                    else slot
+                    for slot in snapshot.slots
+                ),
+            )
+            previous = getattr(self._engine, "_qitos_tool_batch_snapshot", None)
+            self._engine._qitos_tool_batch_snapshot = durable
+            try:
+                persisted = self._commit_snapshot(
+                    state=state,
+                    task=task,
+                    lifecycle=SessionLifecycle.RUNNING,
+                    step_id=step_id,
+                    expected_head=head,
+                    expected_owner_run_id=self._run_id.value,
+                )
+            except CheckpointSessionError as exc:
+                self._engine._qitos_tool_batch_snapshot = previous
+                raise _translate_checkpoint_error(exc) from exc
+            return durable, persisted
+
+    def _record_tool_conversation_terminal(
+        self, receipt: ToolTerminalReceipt
+    ) -> None:
+        conversation = getattr(self._engine, "_qitos_exchange_log", None)
+        if not isinstance(conversation, ExchangeLog):
+            return
+        open_batch = conversation.open_batch_id()
+        if open_batch != receipt.batch_snapshot.batch_id:
+            return
+        builder = ToolBatchBuilder(conversation, open_batch)
+        call = next(
+            (
+                item
+                for item in builder.calls
+                if item.identity.call_id == receipt.slot.slot_id
+                or item.identity.call_id == receipt.slot.action_id
+            ),
+            None,
+        )
+        if call is None:
+            raise ValueError("tool terminal has no matching conversation call")
+        item_digest = hashlib.sha256(
+            (
+                f"{open_batch}:{call.identity.call_id}:"
+                f"{receipt.slot.attempt_id.value}"
+            ).encode("utf-8")
+        ).hexdigest()[:24]
+        builder.record_result(
+            ToolResultItem(
+                item_id=f"tool_result_{item_digest}",
+                exchange_id=builder.exchange_id,
+                identity=call.identity,
+                batch_id=open_batch,
+                result=receipt.result,
+                synthetic=receipt.result.error_code == "missing_worker",
+                closure_reason=(
+                    "missing_worker"
+                    if receipt.result.error_code == "missing_worker"
+                    else None
+                ),
+            )
+        )
+        self._engine._qitos_exchange_log = conversation
+        if conversation.open_batch_id() is None:
+            receipts = tuple(
+                getattr(self._engine, "_qitos_steering_receipts", ()) or ()
+            )
+            self._engine._qitos_steering_receipts = reconcile_steering_receipts(
+                conversation,
+                receipts,
+                boundary_id=f"closed_{open_batch}",
+            )
+
+    def _recover_tool_batch(
+        self,
+        *,
+        state: StateSchema,
+        task: str | Task,
+        step_id: int,
+    ) -> int:
+        snapshot = getattr(self._engine, "_qitos_tool_batch_snapshot", None)
+        if not isinstance(snapshot, ToolBatchSnapshot):
+            return step_id
+        if self._engine.executor is None:
+            raise _session_error(
+                SessionErrorCode.MISSING_RESOLVER,
+                "Incomplete tool batch recovery requires its tool registry.",
+                recoverable=True,
+            )
+
+        def _terminal(receipt: ToolTerminalReceipt) -> None:
+            self._record_tool_conversation_terminal(receipt)
+            durable, _ = self._persist_tool_batch(
+                receipt.batch_snapshot,
+                state=state,
+                task=task,
+                step_id=step_id,
+            )
+            self._engine._qitos_tool_batch_snapshot = durable
+
+        execution = self._engine.executor.resume_batch(
+            snapshot,
+            terminal_callback=_terminal,
+            partial_batch_callback=lambda current: None,
+            env=self._engine.env,
+            state=state,
+        )
+        closed = getattr(self._engine, "_qitos_tool_batch_snapshot", None)
+        if not isinstance(closed, ToolBatchSnapshot):
+            closed = execution.snapshot
+        if not closed.closed:
+            return step_id
+
+        actions = [
+            Action.from_dict(dict(slot.action_payload))
+            for slot in sorted(closed.slots, key=lambda item: item.declaration_index)
+        ]
+        payload = closed.decision_payload
+        decision = Decision.act(
+            actions,
+            rationale=payload.get("rationale"),
+            meta=dict(payload.get("meta") or {}),
+        )
+        from .states import StepRecord
+
+        record = StepRecord(step_id=step_id, decision=decision, actions=actions)
+        results = list(closed.results_in_declaration_order)
+        record.action_results = results
+        observation = self._engine._build_observation_after_action(
+            state,
+            step_id,
+            time.monotonic(),
+            decision,
+            [item.to_dict() for item in results],
+        )
+        record.observation = observation
+        commit_results = getattr(self._engine.agent, "commit_action_results", None)
+        if callable(commit_results):
+            commit_results(state, actions, results, step_id=step_id)
+        self._engine._run_reduce(state, observation, decision, record)
+        if int(getattr(state, "current_step", 0)) <= step_id:
+            state.advance_step()
+        self._engine._qitos_tool_batch_snapshot = None
+        self._commit_snapshot(
+            state=state,
+            task=task,
+            lifecycle=SessionLifecycle.RUNNING,
+            step_id=step_id + 1,
+            expected_head=self._require_head(),
+            expected_owner_run_id=self._run_id.value,
+        )
+        return step_id + 1
+
     def _on_safe_boundary(
-        self, *, state: StateSchema, task: str | Task, step_id: int
+        self,
+        *,
+        state: StateSchema,
+        task: str | Task,
+        step_id: int,
+        advance_step: bool = True,
     ) -> bool:
         """Engine callback after a complete step and before the next operation."""
         context = RuntimeSnapshotContext(
@@ -281,14 +550,17 @@ class Session:
             if self._lifecycle is SessionLifecycle.RUNNING:
                 self._lifecycle = SessionLifecycle.PAUSE_REQUESTED
             self._lifecycle = SessionLifecycle.PAUSING
-            if int(getattr(state, "current_step", 0)) <= step_id:
+            if advance_step and int(getattr(state, "current_step", 0)) <= step_id:
                 state.advance_step()
+            batch = getattr(self._engine, "_qitos_tool_batch_snapshot", None)
+            if isinstance(batch, ToolBatchSnapshot) and batch.closed:
+                self._engine._qitos_tool_batch_snapshot = None
             try:
                 self._commit_snapshot(
                     state=state,
                     task=task,
                     lifecycle=SessionLifecycle.PAUSED,
-                    step_id=step_id + 1,
+                    step_id=step_id + 1 if advance_step else step_id,
                     expected_head=head,
                     pause_safety=safety,
                 )
@@ -424,6 +696,15 @@ class Session:
             agent.llm = model.resource
         if tools is not None:
             agent.tool_registry = tools.resource
+        continuation = resolved.get(ResolverNamespace.PROVIDER_CONTINUATION)
+        artifacts = resolved.get(ResolverNamespace.ARTIFACT_STORE)
+        if continuation is not None or artifacts is not None:
+            config = dict(getattr(agent, "config", {}) or {})
+            if continuation is not None:
+                config["continuation_resolver"] = continuation.resource
+            if artifacts is not None:
+                config["artifact_resolver"] = artifacts.resource
+            agent.config = config
 
         progress = _component_payload(snapshot, ComponentSlot.ENGINE_PROGRESS.value)
         budget_payload = _component_payload(
@@ -609,7 +890,7 @@ class Session:
         receipt = self._store.commit_session_snapshot(request)
         self._lifecycle = lifecycle
         if self._runtime.event_sink is not None:
-            self._runtime.event_sink.emit(
+            self._runtime.publish_event(
                 SessionLifecycleEvent(
                     session_id=receipt.session_id,
                     run_id=receipt.owner_run_id,
@@ -617,7 +898,8 @@ class Session:
                     checkpoint_id=receipt.checkpoint_id,
                     generation=receipt.generation,
                     lifecycle=receipt.lifecycle,
-                )
+                ),
+                engine=self._engine,
             )
         return self._require_head()
 

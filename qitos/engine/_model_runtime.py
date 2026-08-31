@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import re
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Dict, Generic, List, Optional, TypeVar, cast
 
@@ -14,6 +15,8 @@ from ..core._json_repair import escape_json_string_control_chars
 from ..core.action import Action
 from ..core.conversation import (
     ExchangeLog,
+    ReasoningBlock,
+    ReasoningReference,
     ToolResultItem,
     history_messages_to_exchange_log,
 )
@@ -647,6 +650,8 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             context_selection=request.selection,
             compaction_receipts=request.compaction_receipts,
             artifact_refs=artifact_refs,
+            last_request_view=request,
+            last_codec_report=transaction.codec_report.to_dict(),
         )
         setattr(self.engine, "_qitos_conversation_component", component)
         setattr(self.engine, "_qitos_last_request_view", request)
@@ -659,6 +664,30 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                 "request_id": request.request_id,
                 "assistant_item_id": transaction.assistant_item.item_id,
                 "codec_report": transaction.codec_report.to_dict(),
+                "reasoning": [
+                    {
+                        "kind": part.kind,
+                        "reference_id": part.reference_id,
+                        "provider_scope": part.provider_scope,
+                    }
+                    for part in transaction.assistant_item.parts
+                    if isinstance(part, (ReasoningBlock, ReasoningReference))
+                ],
+                "continuation_refs": [
+                    reference.to_dict()
+                    for reference in transaction.continuation_refs
+                ],
+                "loss": {
+                    "fallback": transaction.codec_report.fallback,
+                    "lossy_fields": list(transaction.codec_report.lossy_fields),
+                    "unsupported": list(transaction.codec_report.unsupported),
+                }
+                if (
+                    transaction.codec_report.fallback != "none"
+                    or transaction.codec_report.lossy_fields
+                    or transaction.codec_report.unsupported
+                )
+                else None,
                 "conversation_component_digest": component.to_dict()["digest"],
             },
         )
@@ -726,7 +755,31 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
         )
         previous = getattr(self.engine, "_qitos_exchange_log", None)
         if isinstance(previous, ExchangeLog):
-            log = self._restore_provider_parts(log, previous)
+            if bool(
+                getattr(
+                    self.engine,
+                    "_qitos_restored_conversation_pending",
+                    False,
+                )
+            ):
+                restored = ExchangeLog.from_dict(
+                    previous.to_persistence_dict()
+                )
+                known_item_ids = {item.item_id for item in restored.items}
+                for item in log.items:
+                    if item.item_id in known_item_ids:
+                        item = replace(
+                            item,
+                            item_id=(
+                                f"resume_{step_id}_{item.item_id}"
+                            ),
+                        )
+                    restored.append(item)
+                    known_item_ids.add(item.item_id)
+                log = restored
+                self.engine._qitos_restored_conversation_pending = False
+            else:
+                log = self._restore_provider_parts(log, previous)
         return log, instructions
 
     def _restore_provider_parts(
@@ -2195,6 +2248,12 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                 record.decision_source = "parser"
             return None
         actions: List[Action] = []
+        exchange_log = getattr(self.engine, "_qitos_exchange_log", None)
+        open_batch_id = (
+            exchange_log.open_batch_id()
+            if isinstance(exchange_log, ExchangeLog)
+            else None
+        )
         for item in response.tool_calls:
             normalized = self._action_from_tool_call(item)
             if normalized is None:
@@ -2212,6 +2271,8 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                     },
                 )
                 return None
+            if open_batch_id is not None:
+                normalized.metadata["conversation_batch_id"] = open_batch_id
             actions.append(normalized)
         decision: Decision[ActionT] = cast(
             Decision[ActionT],

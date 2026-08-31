@@ -23,6 +23,7 @@ from ..core.tool_runtime import (
     PartialBatchCallback,
     TerminalResultCallback,
     ToolBatchExecution,
+    ToolBatchSnapshot,
     ToolEffectPolicy,
     ToolTerminalReceipt,
 )
@@ -73,6 +74,16 @@ class ToolWorkerTimeout(TimeoutError):
         self.worker_still_running = bool(worker_still_running)
 
 
+class ToolBatchRecoveryError(RuntimeError):
+    """Typed refusal to replay a slot without sufficient safety facts."""
+
+    def __init__(self, code: str, batch_id: str, slot_id: str) -> None:
+        self.code = code
+        self.batch_id = batch_id
+        self.slot_id = slot_id
+        super().__init__(f"{code}: batch={batch_id} slot={slot_id}")
+
+
 class ActionExecutor:
     """Executes normalized actions against a tool registry."""
 
@@ -111,6 +122,7 @@ class ActionExecutor:
 
             quiescence_barrier = QuiescenceBarrier()
         self._quiescence_barrier = quiescence_barrier
+        self._pause_requested = threading.Event()
         self._stats_lock = threading.Lock()
         # Populated by execute(); consumed by the trace layer.
         self.last_execution_stats: Dict[str, Any] = {}
@@ -179,6 +191,7 @@ class ActionExecutor:
         """Execute a bounded batch and publish every terminal slot immediately."""
         if not actions:
             raise ValueError("execute_batch() requires at least one action")
+        self._pause_requested.clear()
         self._reset_execution_stats()
         ledger = ToolBatchLedger(
             actions, batch_id=batch_id, owner_generation=owner_generation
@@ -215,7 +228,11 @@ class ActionExecutor:
         for segment_index, segment in enumerate(segments):
             if aborted is None and self._is_cancelled():
                 aborted = "cancel_token"
+            if aborted is None and self._pause_requested.is_set():
+                aborted = "pause_requested"
             if aborted is not None:
+                if aborted == "pause_requested":
+                    continue
                 for index in segment:
                     receipt = self._execute_canonical_slot(
                         actions[index],
@@ -258,9 +275,10 @@ class ActionExecutor:
             pool = ThreadPoolExecutor(max_workers=max_workers)
             futures: Dict[Any, int] = {}
             try:
-                for index in segment:
-                    future = pool.submit(
-                        self._execute_canonical_slot,
+                def _parallel_slot(index: int) -> Optional[ToolTerminalReceipt]:
+                    if self._pause_requested.is_set():
+                        return None
+                    return self._execute_canonical_slot(
                         actions[index],
                         index=index,
                         ledger=ledger,
@@ -271,6 +289,9 @@ class ActionExecutor:
                         terminal_callback=terminal_callback,
                         partial_batch_callback=partial_batch_callback,
                     )
+
+                for index in segment:
+                    future = pool.submit(_parallel_slot, index)
                     futures[future] = index
                 pending = set(futures)
                 while pending:
@@ -278,9 +299,9 @@ class ActionExecutor:
                     for future in done:
                         index = futures[future]
                         try:
-                            receipt = future.result()
+                            parallel_receipt = future.result()
                         except Exception as exc:  # pragma: no cover - defensive
-                            receipt = self._execute_canonical_slot(
+                            parallel_receipt = self._execute_canonical_slot(
                                 actions[index],
                                 index=index,
                                 ledger=ledger,
@@ -293,15 +314,22 @@ class ActionExecutor:
                                 prevented_status=ActionStatus.ERROR,
                                 prevented_reason=f"missing_worker:{type(exc).__name__}",
                             )
+                        if parallel_receipt is None:
+                            continue
+                        receipt = parallel_receipt
                         receipts[receipt.slot.slot_id] = receipt
                         if aborted is None and self._should_fail_fast(receipt.result):
                             aborted = "fail_fast"
                     if aborted is None and self._is_cancelled():
                         aborted = "cancel_token"
+                    if aborted is None and self._pause_requested.is_set():
+                        aborted = "pause_requested"
                     if aborted is not None and pending:
                         still_running = set()
                         for future in pending:
                             if future.cancel():
+                                if aborted == "pause_requested":
+                                    continue
                                 index = futures[future]
                                 receipt = self._execute_canonical_slot(
                                     actions[index],
@@ -326,7 +354,12 @@ class ActionExecutor:
         if aborted is not None:
             self.last_execution_stats["cancel_source"] = aborted
         final_snapshot = ledger.snapshot()
-        for slot in final_snapshot.missing_slots:
+        missing_slots = (
+            ()
+            if aborted == "pause_requested"
+            else final_snapshot.missing_slots
+        )
+        for slot in missing_slots:
             receipt = self._execute_canonical_slot(
                 actions[slot.declaration_index],
                 index=slot.declaration_index,
@@ -344,6 +377,58 @@ class ActionExecutor:
         return self._finish_batch(
             ledger, receipts, tracker, segments=len(segments)
         )
+
+    def resume_batch(
+        self,
+        snapshot: ToolBatchSnapshot,
+        *,
+        terminal_callback: Optional[TerminalResultCallback] = None,
+        partial_batch_callback: Optional[PartialBatchCallback] = None,
+        env: Optional[Env] = None,
+        state: Any = None,
+    ) -> ToolBatchExecution:
+        """Execute only safe missing slots under the original batch identities."""
+        for slot in snapshot.slots:
+            result = slot.result
+            if result is not None and (
+                result.outcome_unknown or result.reconciliation_required
+            ):
+                raise ToolBatchRecoveryError(
+                    "reconciliation_required", snapshot.batch_id, slot.slot_id
+                )
+        if snapshot.closed:
+            return ToolBatchExecution(snapshot=snapshot, terminal_receipts=())
+
+        ledger = ToolBatchLedger.from_snapshot(snapshot)
+        actions = {
+            slot.declaration_index: Action.from_dict(dict(slot.action_payload))
+            for slot in snapshot.slots
+        }
+        self._reset_execution_stats()
+        self._publish_partial(snapshot, partial_batch_callback)
+        tracker = _ConcurrencyTracker()
+        receipts: Dict[str, ToolTerminalReceipt] = {}
+        for slot in snapshot.missing_slots:
+            action = actions[slot.declaration_index]
+            if not action.idempotent:
+                raise ToolBatchRecoveryError(
+                    "missing_slot_not_safe_to_retry",
+                    snapshot.batch_id,
+                    slot.slot_id,
+                )
+            receipt = self._execute_canonical_slot(
+                action,
+                index=slot.declaration_index,
+                ledger=ledger,
+                env=env,
+                state=state,
+                tracker=tracker,
+                segment_index=0,
+                terminal_callback=terminal_callback,
+                partial_batch_callback=partial_batch_callback,
+            )
+            receipts[receipt.slot.slot_id] = receipt
+        return self._finish_batch(ledger, receipts, tracker, segments=1)
 
     def _reset_execution_stats(self) -> None:
         self.last_execution_stats = {
@@ -565,6 +650,7 @@ class ActionExecutor:
                         "error_type": type(exc).__name__,
                     }
                 )
+            raise
 
     def _publish_partial(
         self,
@@ -584,6 +670,7 @@ class ActionExecutor:
                         "error_type": type(exc).__name__,
                     }
                 )
+            raise
 
     def _late_worker_completed(
         self,
@@ -609,6 +696,7 @@ class ActionExecutor:
 
     def request_pause(self, timeout: float) -> Any:
         """Expose the capability-driven quiescence barrier to session runtime."""
+        self._pause_requested.set()
         return self._quiescence_barrier.request_pause(timeout)
 
     def _is_concurrency_safe(self, tool_name: str) -> bool:

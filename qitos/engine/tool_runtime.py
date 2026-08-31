@@ -234,6 +234,7 @@ class ToolBatchLedger:
         self._publication_lock = threading.Lock()
         self._completion_order: list[str] = []
         self._slots: list[ToolSlotSnapshot] = []
+        self._decision_payload: Dict[str, Any] = {}
         used: set[str] = set()
         for index, action in enumerate(actions):
             candidate = str(action.action_id or f"{self.batch_id}:slot:{index}")
@@ -250,6 +251,7 @@ class ToolBatchLedger:
                     action_id=action.action_id,
                     attempt_id=attempt,
                     owner_generation=owner_generation,
+                    action_payload=action.to_dict(),
                 )
             )
 
@@ -344,6 +346,9 @@ class ToolBatchLedger:
                 current,
                 result=enriched,
                 completion_index=completion_index,
+                lifecycle=lifecycle,
+                effect=effect,
+                durability_status="pending",
             )
             self._completion_order.append(slot_id)
             partial = self._snapshot_unlocked()
@@ -359,6 +364,27 @@ class ToolBatchLedger:
                 batch_snapshot=snapshot,
             )
 
+    @classmethod
+    def from_snapshot(cls, snapshot: ToolBatchSnapshot) -> "ToolBatchLedger":
+        """Resume the one ledger identity without rewriting terminal slots."""
+        from ..core.action import Action
+
+        actions = [
+            Action.from_dict(dict(slot.action_payload))
+            for slot in sorted(snapshot.slots, key=lambda item: item.declaration_index)
+        ]
+        owner_generation = snapshot.slots[0].owner_generation
+        ledger = cls(
+            actions,
+            batch_id=snapshot.batch_id,
+            owner_generation=owner_generation,
+        )
+        with ledger._lock:
+            ledger._slots = list(snapshot.slots)
+            ledger._completion_order = list(snapshot.completion_order)
+            ledger._decision_payload = dict(snapshot.decision_payload)
+        return ledger
+
     def _slot_index(self, slot_id: str) -> int:
         for index, slot in enumerate(self._slots):
             if slot.slot_id == slot_id:
@@ -372,6 +398,7 @@ class ToolBatchLedger:
             slots=tuple(self._slots),
             completion_order=tuple(self._completion_order),
             closed=terminal_count == len(self._slots),
+            decision_payload=dict(self._decision_payload),
         )
 
 

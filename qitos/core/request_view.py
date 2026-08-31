@@ -1176,6 +1176,8 @@ class ConversationSnapshotComponent:
     context_selection: Optional[SelectionReport] = None
     compaction_receipts: tuple[CompactionReceipt, ...] = ()
     artifact_refs: tuple[ArtifactRef, ...] = ()
+    last_request_view: Optional[RequestView] = None
+    last_codec_report_json: Optional[str] = field(default=None, repr=False)
     reconstruction_requirements: tuple[str, ...] = (
         "exchange_log_reader",
         "continuation_resolver",
@@ -1216,6 +1218,27 @@ class ConversationSnapshotComponent:
                 raise UnsafeSnapshotComponentError(
                     "snapshot continuation attachments must contain resolver references only"
                 )
+        if self.last_codec_report_json is not None:
+            report = _json_value(self.last_codec_report_json)
+            if not isinstance(report, Mapping):
+                raise UnsafeSnapshotComponentError(
+                    "snapshot codec report must be a JSON object"
+                )
+            if self.last_request_view is None:
+                raise UnsafeSnapshotComponentError(
+                    "snapshot codec report requires its associated RequestView"
+                )
+            if report.get("request_id") != self.last_request_view.request_id:
+                raise UnsafeSnapshotComponentError(
+                    "snapshot request and codec report identities do not match"
+                )
+
+    @property
+    def last_codec_report(self) -> Optional[Dict[str, Any]]:
+        if self.last_codec_report_json is None:
+            return None
+        value = _json_value(self.last_codec_report_json)
+        return dict(value)
 
     @property
     def exchange_log(self) -> ExchangeLog:
@@ -1232,6 +1255,10 @@ class ConversationSnapshotComponent:
             ),
             "compaction_receipts": [item.to_dict() for item in self.compaction_receipts],
             "artifact_refs": [item.to_dict() for item in self.artifact_refs],
+            "last_request_view": (
+                self.last_request_view.to_dict() if self.last_request_view else None
+            ),
+            "last_codec_report": self.last_codec_report,
             "reconstruction_requirements": list(self.reconstruction_requirements),
         }
         payload["digest"] = _digest(payload)
@@ -1247,6 +1274,8 @@ class ConversationSnapshotComponent:
         context_selection: Optional[SelectionReport] = None,
         compaction_receipts: Iterable[CompactionReceipt] = (),
         artifact_refs: Iterable[ArtifactRef] = (),
+        last_request_view: Optional[RequestView] = None,
+        last_codec_report: Optional[Mapping[str, Any]] = None,
         reconstruction_requirements: Optional[Iterable[str]] = None,
     ) -> "ConversationSnapshotComponent":
         return cls(
@@ -1256,6 +1285,12 @@ class ConversationSnapshotComponent:
             context_selection=context_selection,
             compaction_receipts=tuple(compaction_receipts),
             artifact_refs=tuple(artifact_refs),
+            last_request_view=last_request_view,
+            last_codec_report_json=(
+                _json_text(dict(last_codec_report), "last_codec_report")
+                if last_codec_report is not None
+                else None
+            ),
             reconstruction_requirements=tuple(
                 reconstruction_requirements
                 or ("exchange_log_reader", "continuation_resolver", "artifact_resolver")
@@ -1273,11 +1308,19 @@ class ConversationSnapshotComponent:
                 "context_selection",
                 "compaction_receipts",
                 "artifact_refs",
+                "last_request_view",
+                "last_codec_report",
                 "reconstruction_requirements",
                 "digest",
             }
         )
-        data = _strict_object(value, path="conversation_component", fields=fields)
+        legacy_fields = fields - frozenset({"last_request_view", "last_codec_report"})
+        data = _strict_object(
+            value,
+            path="conversation_component",
+            fields=fields,
+            required=legacy_fields,
+        )
         if data["schema_version"] != CONVERSATION_COMPONENT_SCHEMA_VERSION:
             raise UnsupportedRequestVersionError(
                 f"unsupported conversation component: {data['schema_version']!r}"
@@ -1304,6 +1347,16 @@ class ConversationSnapshotComponent:
             ),
             artifact_refs=tuple(
                 ArtifactRef.from_dict(item) for item in data["artifact_refs"]
+            ),
+            last_request_view=(
+                RequestView.from_dict(data["last_request_view"])
+                if data.get("last_request_view") is not None
+                else None
+            ),
+            last_codec_report_json=(
+                _json_text(data["last_codec_report"], "last_codec_report")
+                if data.get("last_codec_report") is not None
+                else None
             ),
             reconstruction_requirements=tuple(data["reconstruction_requirements"]),
         )

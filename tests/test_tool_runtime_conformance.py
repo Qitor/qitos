@@ -26,7 +26,7 @@ from qitos.core.tool_runtime import (
     ToolLifecycleState,
     ToolResourceKind,
 )
-from qitos.engine.action_executor import ActionExecutor
+from qitos.engine.action_executor import ActionExecutor, ToolBatchRecoveryError
 from qitos.engine.tool_runtime import ToolBatchLedger
 from qitos.mcp.bridge import mcp_server_to_function_tools
 from qitos.mcp.server import MCPServer, MCPToolInfo
@@ -467,6 +467,22 @@ def test_declared_effect_failure_is_not_retried_or_guessed() -> None:
     assert backend.duplicate_effects == 0
 
 
+def test_recovery_refuses_outcome_unknown_automatic_retry() -> None:
+    backend = _EffectBackend()
+    executor = ActionExecutor(ToolRegistry().register(_CommitThenFail(backend)))
+    execution = executor.execute_batch(
+        [Action("effectful", action_id="call:unknown")],
+        batch_id="batch:outcome-unknown",
+    )
+
+    with pytest.raises(ToolBatchRecoveryError) as blocked:
+        executor.resume_batch(execution.snapshot)
+
+    assert blocked.value.code == "reconciliation_required"
+    assert len(backend.keys) == 1
+    assert backend.duplicate_effects == 0
+
+
 def test_committed_effect_is_terminal_and_non_retryable() -> None:
     backend = _EffectBackend()
     result = ActionExecutor(
@@ -478,6 +494,22 @@ def test_committed_effect_is_terminal_and_non_retryable() -> None:
     assert result.retry_disposition == "non_retryable"
     assert result.idempotency_ref is not None
     assert len(backend.keys) == 1
+
+
+def test_recovery_does_not_replay_committed_effect() -> None:
+    backend = _EffectBackend()
+    executor = ActionExecutor(ToolRegistry().register(_CommitSuccessfully(backend)))
+    execution = executor.execute_batch(
+        [Action("effect_success", action_id="call:committed")],
+        batch_id="batch:committed-recovery",
+    )
+
+    recovered = executor.resume_batch(execution.snapshot)
+
+    assert recovered.snapshot == execution.snapshot
+    assert recovered.terminal_receipts == ()
+    assert len(backend.keys) == 1
+    assert backend.duplicate_effects == 0
     assert backend.duplicate_effects == 0
 
 

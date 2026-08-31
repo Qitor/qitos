@@ -50,6 +50,19 @@ class Action:
             metadata=payload.get("metadata", {}),
         )
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "args": dict(self.args),
+            "kind": self.kind.value,
+            "action_id": self.action_id,
+            "timeout_s": self.timeout_s,
+            "max_retries": self.max_retries,
+            "idempotent": self.idempotent,
+            "classification": self.classification,
+            "metadata": dict(self.metadata),
+        }
+
 
 @dataclass
 class ActionResult:

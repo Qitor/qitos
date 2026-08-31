@@ -10,13 +10,13 @@ from qitos.checkpoint import (
     CheckpointConflictError,
     CheckpointSessionErrorCode,
     InMemoryCheckpointStore,
-    SessionSnapshotCommit,
     SqliteCheckpointStore,
     Checkpoint,
     CheckpointConfig,
     CheckpointId,
     session_snapshot_from_checkpoint,
 )
+from qitos.checkpoint.session import SessionSnapshotCommit
 
 
 def _commit(
@@ -142,7 +142,7 @@ def test_state_only_checkpoint_is_typed_incompatible_not_guessed() -> None:
         {"run_id": "legacy-run"},
         {},
     )
-    from qitos.checkpoint import CheckpointSessionError
+    from qitos.checkpoint.session import CheckpointSessionError
 
     with pytest.raises(CheckpointSessionError) as incompatible:
         session_snapshot_from_checkpoint(

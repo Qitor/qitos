@@ -31,6 +31,8 @@ TOOL_REGISTRY_CAPABILITY = "tools.execute"
 ENVIRONMENT_CAPABILITY = "environment.observe"
 CHECKPOINT_STORE_CAPABILITY = "checkpoint.session"
 EVENT_SINK_CAPABILITY = "runtime.events"
+PROVIDER_CONTINUATION_CAPABILITY = "provider.continuation"
+ARTIFACT_RESOLVER_CAPABILITY = "artifact.resolve"
 DEFAULT_CHECKPOINT_REFERENCE = ResolverReference(
     ResolverNamespace.CHECKPOINT_STORE,
     "default:session",
@@ -89,15 +91,28 @@ class LifecyclePolicy:
         return False
 
     def pause_safety(self, context: RuntimeSnapshotContext) -> PauseSafety:
-        return PauseSafety(boundary=SafeBoundaryKind.AFTER_TOOL_RESULT)
-
-
-@runtime_checkable
-class RuntimeEventSink(Protocol):
-    """Process-local subscriber for canonical runtime events."""
-
-    def emit(self, event: Any) -> None:
-        ...
+        executor = getattr(context.engine, "executor", None)
+        batch = getattr(context.engine, "_qitos_tool_batch_snapshot", None)
+        if executor is None or not callable(getattr(executor, "request_pause", None)):
+            return PauseSafety(boundary=SafeBoundaryKind.AFTER_MODEL_RESULT)
+        receipt = executor.request_pause(0.0)
+        attempts = tuple(getattr(receipt, "attempts", ()) or ())
+        unresolved = sum(
+            bool(getattr(item, "outcome_unknown", False)) for item in attempts
+        )
+        return PauseSafety(
+            boundary=(
+                SafeBoundaryKind.AFTER_TOOL_RESULT
+                if batch is not None
+                else SafeBoundaryKind.AFTER_MODEL_RESULT
+            ),
+            completed_slots_recorded=True,
+            open_slots_recorded=True,
+            framework_workers_quiesced=bool(
+                getattr(receipt, "migratable", False)
+            ),
+            unresolved_effect_count=int(unresolved),
+        )
 
 
 @runtime_checkable
@@ -160,14 +175,33 @@ class RuntimeComposition:
     durability_mode: DurabilityMode = DurabilityMode.SYNC
     lifecycle_policy: LifecyclePolicy = field(default_factory=LifecyclePolicy)
     snapshot_components: tuple[RuntimeSnapshotComponent, ...] = ()
-    event_sink: Optional[RuntimeEventSink] = None
+    event_sink: Any = None
+    event_sink_failure_policy: Any = None
+    event_sink_view: Any = None
     tool_execution_policy: Any = None
     context_model_runtime: Optional[ContextModelRuntime] = None
+    event_sink_reports: list[Any] = field(default_factory=list, init=False)
+    _event_dispatcher: Any = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
+        from ._snapshot_components import DEFAULT_RUNTIME_SNAPSHOT_COMPONENTS
+        from ..tracing.sinks import (
+            EventSink,
+            EventSinkDispatcher,
+            FailurePolicy,
+        )
+        from ..tracing.trajectory import PrivacyView
+
         if not isinstance(self.resolvers, ResolverRegistry):
             self.resolvers = ResolverRegistry(self.resolvers)  # type: ignore[arg-type]
-        self.snapshot_components = tuple(self.snapshot_components)
+        configured = tuple(self.snapshot_components)
+        configured_slots = {component.codec.slot for component in configured}
+        defaults = tuple(
+            component
+            for component in DEFAULT_RUNTIME_SNAPSHOT_COMPONENTS
+            if component.codec.slot not in configured_slots
+        )
+        self.snapshot_components = defaults + configured
         for component in self.snapshot_components:
             if (
                 not hasattr(component, "codec")
@@ -181,10 +215,26 @@ class RuntimeComposition:
             required = ("supports_pause", "should_pause", "pause_safety")
             if any(not hasattr(self.lifecycle_policy, name) for name in required):
                 raise TypeError("lifecycle_policy does not implement the runtime seam")
-        if self.event_sink is not None and not isinstance(
-            self.event_sink, RuntimeEventSink
-        ):
-            raise TypeError("event_sink must implement emit(event)")
+        if self.event_sink_failure_policy is None:
+            self.event_sink_failure_policy = FailurePolicy.REQUIRED
+        elif not isinstance(self.event_sink_failure_policy, FailurePolicy):
+            self.event_sink_failure_policy = FailurePolicy(
+                self.event_sink_failure_policy
+            )
+        if self.event_sink_view is None:
+            self.event_sink_view = PrivacyView.REDACTED_PUBLIC
+        elif not isinstance(self.event_sink_view, PrivacyView):
+            self.event_sink_view = PrivacyView(self.event_sink_view)
+        if self.event_sink is not None:
+            if not isinstance(self.event_sink, EventSink):
+                raise TypeError("event_sink must implement qitos.tracing.sinks.EventSink")
+            dispatcher = EventSinkDispatcher()
+            dispatcher.add_sink(
+                self.event_sink,
+                failure_policy=self.event_sink_failure_policy,
+                view=self.event_sink_view,
+            )
+            self._event_dispatcher = dispatcher
         if self.context_model_runtime is not None and (
             not hasattr(self.context_model_runtime, "capability_id")
             or not callable(getattr(self.context_model_runtime, "bind", None))
@@ -249,6 +299,44 @@ class RuntimeComposition:
             capabilities.add(str(self.context_model_runtime.capability_id))
         return frozenset(capabilities)
 
+    def publish_event(self, event: Any, *, engine: Any = None) -> Any:
+        """Bridge a runtime fact through the single public EventSink seam."""
+        if self._event_dispatcher is None:
+            return None
+        from ..tracing.adapters import (
+            runtime_event_to_records,
+            session_lifecycle_event_to_record,
+        )
+
+        if isinstance(event, SessionLifecycleEvent):
+            records: tuple[Any, ...] = (
+                session_lifecycle_event_to_record(event),
+            )
+        else:
+            handle = getattr(engine, "_session_handle", None)
+            records = runtime_event_to_records(
+                event,
+                run_id=str(getattr(engine, "_active_run_id", "") or "runtime"),
+                session_id=(
+                    handle.session_id.value if handle is not None else None
+                ),
+                agent_id=str(getattr(getattr(engine, "agent", None), "name", ""))
+                or None,
+            )
+        reports = []
+        for record in records:
+            report = self._event_dispatcher.receive(record)
+            self.event_sink_reports.append(report)
+            reports.append(report)
+        return tuple(reports)
+
+    def flush_events(self) -> Any:
+        if self._event_dispatcher is None:
+            return None
+        report = self._event_dispatcher.flush()
+        self.event_sink_reports.append(report)
+        return report
+
     def bind_engine_resources(self, engine: Any) -> tuple[ResolverReference, ...]:
         """Bind explicit local defaults and return logical persisted references."""
         store = self.ensure_checkpoint_store()
@@ -293,6 +381,39 @@ class RuntimeComposition:
             )
             self.resolvers.register_resource(environment_reference, environment)
             references.append(environment_reference)
+
+        agent_config = dict(getattr(engine.agent, "config", {}) or {})
+        continuation_resolver = agent_config.get(
+            "continuation_resolver",
+            getattr(model, "qitos_continuation_resolver", None),
+        )
+        if continuation_resolver is not None:
+            continuation_reference = ResolverReference(
+                ResolverNamespace.PROVIDER_CONTINUATION,
+                str(
+                    getattr(
+                        continuation_resolver,
+                        "resolver_key",
+                        "continuation:active",
+                    )
+                ),
+                PROVIDER_CONTINUATION_CAPABILITY,
+            )
+            self.resolvers.register_resource(
+                continuation_reference,
+                continuation_resolver,
+            )
+            references.append(continuation_reference)
+
+        artifact_resolver = agent_config.get("artifact_resolver")
+        if artifact_resolver is not None:
+            artifact_reference = ResolverReference(
+                ResolverNamespace.ARTIFACT_STORE,
+                str(getattr(artifact_resolver, "resolver_key", "artifact:active")),
+                ARTIFACT_RESOLVER_CAPABILITY,
+            )
+            self.resolvers.register_resource(artifact_reference, artifact_resolver)
+            references.append(artifact_reference)
 
         if self.event_sink is not None:
             sink_reference = ResolverReference(
@@ -367,6 +488,7 @@ def _json_safe(value: Any) -> Any:
 
 __all__ = [
     "AGENT_CAPABILITY",
+    "ARTIFACT_RESOLVER_CAPABILITY",
     "CHECKPOINT_STORE_CAPABILITY",
     "ContextModelRuntime",
     "DEFAULT_CHECKPOINT_REFERENCE",
@@ -374,9 +496,9 @@ __all__ = [
     "EVENT_SINK_CAPABILITY",
     "LifecyclePolicy",
     "MODEL_CAPABILITY",
+    "PROVIDER_CONTINUATION_CAPABILITY",
     "RuntimeComposition",
     "RuntimeCompositionConfig",
-    "RuntimeEventSink",
     "RuntimeSnapshotComponent",
     "RuntimeSnapshotContext",
     "SessionLifecycleEvent",
