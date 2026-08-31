@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, Mapping, Optional, Protocol, runtime_checkable
 
@@ -31,6 +32,10 @@ _SUPPORTED_FEATURE_VALUES = frozenset(
         "artifact_references",
         "reasoning",
         "continuation",
+        "streaming",
+        "ordered_interleaving",
+        "provider_metadata",
+        "steering",
     }
 )
 _REASONING_MODE_VALUES = frozenset(
@@ -46,6 +51,19 @@ _MULTIMODAL_TYPE_VALUES = frozenset(
     {"text", "image_url", "image_base64", "image_file"}
 )
 _MISSING_CAPABILITY_FIELD = object()
+_PROVIDER_FAILURE_CATEGORIES = frozenset(
+    {
+        "provider_refusal",
+        "provider_exception",
+        "malformed_response",
+        "unsupported_request",
+        "authentication",
+        "rate_limit",
+        "timeout",
+        "transport",
+        "cancelled",
+    }
+)
 
 
 class CodecError(RuntimeError):
@@ -114,6 +132,7 @@ def _capability_sequence(
     *,
     field_name: str,
     allowed: frozenset[str],
+    allow_namespaced_extensions: bool = False,
 ) -> tuple[str, ...]:
     if not isinstance(value, (list, tuple)):
         raise CodecError(f"{field_name} must be an explicit string sequence")
@@ -124,7 +143,14 @@ def _capability_sequence(
     normalized = tuple(value)
     if len(normalized) != len(set(normalized)):
         raise CodecError(f"{field_name} must not contain duplicates")
-    if any(item not in allowed for item in normalized):
+    if any(
+        item not in allowed
+        and not (
+            allow_namespaced_extensions
+            and re.fullmatch(r"x\.[a-z0-9][a-z0-9_.-]{2,127}", item)
+        )
+        for item in normalized
+    ):
         raise CodecError(f"{field_name} contains an unsupported capability value")
     return normalized
 
@@ -207,6 +233,7 @@ class ProviderCapabilities:
                 self.supported_features,
                 field_name="supported_features",
                 allowed=_SUPPORTED_FEATURE_VALUES,
+                allow_namespaced_extensions=True,
             ),
         )
         object.__setattr__(
@@ -475,6 +502,7 @@ class ProviderFailure(Exception):
     status_code: Optional[int] = None
     error_code: Optional[str] = None
     redacted_details: Mapping[str, Any] = field(default_factory=dict)
+    codec_report: Optional[CodecReport] = None
     schema_version: str = PROVIDER_FAILURE_SCHEMA_VERSION
     remediation: str = field(init=False)
     correlation_digest: str = field(init=False)
@@ -492,10 +520,19 @@ class ProviderFailure(Exception):
             raise CodecError("provider failure status_code is invalid")
         if not isinstance(self.redacted_details, Mapping):
             raise CodecError("provider failure details must be an object")
+        if self.codec_report is not None and not isinstance(
+            self.codec_report, CodecReport
+        ):
+            raise CodecError("provider failure codec_report must be CodecReport")
         safe_category = safe_diagnostic_text(
             self.category,
-            fallback="provider_error",
+            fallback="provider_exception",
         )
+        category_was_redacted = safe_category != self.category
+        if safe_category not in _PROVIDER_FAILURE_CATEGORIES and not re.fullmatch(
+            r"x\.[a-z0-9][a-z0-9_.-]{2,127}", safe_category
+        ):
+            raise CodecError("provider failure category is unsupported")
         safe_message = safe_diagnostic_text(
             self.message,
             fallback="Provider request failed; inspect the typed category and retryability.",
@@ -514,10 +551,20 @@ class ProviderFailure(Exception):
             "provider_refusal": "Review the request against the provider policy.",
             "provider_exception": "Retry only when retryable or inspect provider health.",
             "malformed_response": "Inspect provider codec compatibility.",
+            "unsupported_request": "Change the request policy or configured provider capabilities.",
+            "authentication": "Check the provider credential configuration outside request data.",
+            "rate_limit": "Retry according to the provider retry guidance.",
+            "timeout": "Retry only when the operation is safe and retryable.",
+            "transport": "Inspect provider health and network reachability.",
+            "cancelled": "Start a new request only if the session is still running.",
         }
-        remediation = remediation_by_category.get(
-            safe_category,
-            "Inspect the typed provider failure and codec report.",
+        remediation = (
+            "Inspect the typed provider failure and codec report."
+            if category_was_redacted
+            else remediation_by_category.get(
+                safe_category,
+                "Inspect the typed provider failure and codec report.",
+            )
         )
         correlation_material = {
             "category": safe_category,
@@ -528,6 +575,9 @@ class ProviderFailure(Exception):
             "status_code": self.status_code,
             "error_code": safe_error_code,
             "redacted_details": safe_details,
+            "codec_report": (
+                self.codec_report.to_dict() if self.codec_report is not None else None
+            ),
         }
         correlation_digest = hashlib.sha256(
             json.dumps(
@@ -564,6 +614,9 @@ class ProviderFailure(Exception):
             "redacted_details": json.loads(
                 json.dumps(dict(self.redacted_details), allow_nan=False)
             ),
+            "codec_report": (
+                self.codec_report.to_dict() if self.codec_report is not None else None
+            ),
         }
 
 
@@ -599,7 +652,10 @@ def capability_mismatches(
         missing.add("parallel_tool_calls")
     if request.tool_schemas and not capabilities.supports_tool_schemas:
         missing.add("tool_schemas")
-    if request.reasoning_policy.mode not in capabilities.reasoning_modes:
+    if (
+        "reasoning" in request.capability_requirements
+        and request.reasoning_policy.mode not in capabilities.reasoning_modes
+    ):
         missing.add(f"reasoning:{request.reasoning_policy.mode}")
     return tuple(sorted(missing))
 

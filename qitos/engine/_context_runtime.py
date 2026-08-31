@@ -5,6 +5,21 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any, Dict, Iterable, List, Optional
 
+from ..core.context import (
+    ArtifactRefContributor,
+    ContextRequest,
+    DeclaredContextBudgetPolicy,
+    PriorityContextSelectionPolicy,
+    ProjectContextContributor,
+    RuntimeInstructionContributor,
+    SessionContextContributor,
+    UserContextContributor,
+    collect_context_contributions,
+    default_unit_counter,
+)
+from ..core.request_view import RequestTarget
+from ..models.codec import ProviderCapabilities
+from ..models.provider import adapter_for_model
 from ._protocol import _EngineProtocol
 from .states import ContextConfig, ContextTelemetry
 
@@ -102,6 +117,118 @@ class _ContextRuntime:
             except Exception:
                 pass
         return self.engine._estimate_tokens(payload), "engine_estimate"
+
+    def build_request_context(
+        self,
+        *,
+        llm: Any,
+        request_key: str,
+        target: RequestTarget,
+        runtime_instructions: Iterable[str] = (),
+        artifact_refs: Iterable[Any] = (),
+    ) -> Dict[str, Any]:
+        """Resolve explicit context services without provider-specific logic."""
+
+        agent_config = dict(getattr(self.engine.agent, "config", {}) or {})
+        adapter = adapter_for_model(llm)
+        capabilities = ProviderCapabilities.from_model(adapter)
+        budget_policy = agent_config.get("context_budget_policy")
+        if budget_policy is None:
+            budget_policy = DeclaredContextBudgetPolicy(
+                default_max_input_units=max(
+                    2,
+                    int(self.config.default_context_window or 120_000),
+                ),
+                unit=str(agent_config.get("context_budget_unit") or "tokens"),
+                protected_recent_exchanges=int(
+                    agent_config.get("protected_recent_exchanges", 1)
+                ),
+            )
+        budget = budget_policy.budget_for(
+            target=target,
+            declared_max_input_units=capabilities.max_input_units,
+            reserved_output_units=max(0, int(getattr(llm, "max_tokens", 0) or 0)),
+        )
+        contributors = list(agent_config.get("context_contributors") or [])
+        instructions = tuple(
+            str(value).strip()
+            for value in runtime_instructions
+            if str(value).strip()
+        )
+        if instructions:
+            contributors.append(
+                RuntimeInstructionContributor(
+                    contributor_id="runtime_instructions",
+                    instructions=instructions,
+                )
+            )
+        for key, contributor_type, source in (
+            ("project_context", ProjectContextContributor, "project:context"),
+            ("user_context", UserContextContributor, "user:context"),
+            ("session_context", SessionContextContributor, "session:context"),
+        ):
+            if key in agent_config and agent_config[key] is not None:
+                contributors.append(
+                    contributor_type(
+                        contributor_id=key,
+                        source=source,
+                        value=agent_config[key],
+                        priority=10,
+                    )
+                )
+        references = tuple(artifact_refs)
+        if references:
+            contributors.append(
+                ArtifactRefContributor(
+                    contributor_id="artifact_references",
+                    artifact_refs=references,
+                )
+            )
+        context_request = ContextRequest(
+            request_key=request_key,
+            target=target,
+            session_id=(
+                str(agent_config["session_id"])
+                if agent_config.get("session_id") is not None
+                else None
+            ),
+            project_id=(
+                str(agent_config["project_id"])
+                if agent_config.get("project_id") is not None
+                else None
+            ),
+            user_id=(
+                str(agent_config["user_id"])
+                if agent_config.get("user_id") is not None
+                else None
+            ),
+            metadata={"source": "engine.model_request"},
+        )
+        contributions = collect_context_contributions(
+            contributors, context_request
+        )
+        selection_policy = agent_config.get("context_selection_policy")
+        if selection_policy is None:
+            selection_policy = PriorityContextSelectionPolicy()
+
+        def counter(value: Any, unit: str) -> int:
+            if unit == "tokens":
+                count, _ = self.count_tokens(value, llm)
+                return max(0, int(count))
+            return default_unit_counter(value, unit)
+
+        return {
+            "budget": budget,
+            "contributions": contributions,
+            "selection_policy": selection_policy,
+            "unit_counter": counter,
+            "compaction_policy": agent_config.get("compaction_policy"),
+            "continuation_resolver": agent_config.get(
+                "continuation_resolver",
+                getattr(adapter, "qitos_continuation_resolver", None),
+            ),
+            "allow_codec_loss": bool(agent_config.get("allow_codec_loss", False)),
+        }
 
     def build_pre_request(
         self,

@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from datetime import datetime
 from dataclasses import dataclass, field, replace
 from typing import Any, Dict, Iterable, Literal, Mapping, Optional, Protocol, Sequence
 
@@ -20,6 +21,7 @@ from .conversation import (
     AssistantItem,
     ConversationValidationError,
     ExchangeLog,
+    ReasoningBlock,
     ReasoningReference,
     SteeringItem,
     ToolResultItem,
@@ -257,6 +259,19 @@ class ContinuationRef:
             object.__setattr__(self, name, _non_empty(getattr(self, name), name))
         if self.payload_digest is not None and not _SHA256.fullmatch(self.payload_digest):
             raise RequestContractError("payload_digest must be a lowercase SHA-256 digest")
+        if self.expires_at is not None:
+            try:
+                parsed_expiry = datetime.fromisoformat(
+                    self.expires_at.replace("Z", "+00:00")
+                )
+            except ValueError as exc:
+                raise RequestContractError(
+                    "continuation expires_at must be ISO-8601"
+                ) from exc
+            if parsed_expiry.tzinfo is None:
+                raise RequestContractError(
+                    "continuation expires_at must include a timezone"
+                )
 
     def assert_compatible(self, target: RequestTarget) -> None:
         if (
@@ -374,7 +389,16 @@ class ContextContribution:
 class ContextContributor(Protocol):
     """Explicit provider of request-scoped context; never a global registry."""
 
-    def contribute(self) -> Sequence[ContextContribution]:
+    contributor_id: str
+
+    def contribute(self, request: Any = None) -> Sequence[ContextContribution]:
+        """Return immutable contributions for an optional ContextRequest.
+
+        The optional default preserves source compatibility for the S1
+        zero-argument protocol while allowing S2 contributors to inspect
+        provider-neutral request/session identity.
+        """
+
         ...
 
 
@@ -536,7 +560,10 @@ def _item_categories(item: Any) -> set[str]:
             categories.add("tool_calls")
             if len(item.tool_calls()) > 1:
                 categories.add("parallel_tool_calls")
-        if any(isinstance(part, ReasoningReference) for part in item.parts):
+        if any(
+            isinstance(part, (ReasoningReference, ReasoningBlock))
+            for part in item.parts
+        ):
             categories.add("reasoning")
         if any(
             isinstance(part, AssistantContent) and part.block.type != "text"
@@ -773,6 +800,8 @@ class RequestView:
         continuation: Optional[ContinuationRef] = None,
         context_budget: Optional[ContextBudget] = None,
         context_contributions: Iterable[ContextContribution] = (),
+        context_selection_policy: Any = None,
+        context_unit_counter: Any = None,
         compaction_receipts: Iterable[CompactionReceipt] = (),
         artifact_refs: Iterable[ArtifactRef] = (),
         available_artifact_ids: Optional[Iterable[str]] = None,
@@ -814,6 +843,19 @@ class RequestView:
                 result_projection="model",
             )
 
+        if context_unit_counter is None:
+            def count_units(value: Any, unit: str) -> int:
+                encoded = _json_text(value, "context_unit_value")
+                if unit == "characters":
+                    return len(encoded)
+                if unit == "tokens":
+                    return max(1, (len(encoded) + 3) // 4)
+                raise RequestContractError(
+                    f"unsupported context budget unit: {unit!r}"
+                )
+        else:
+            count_units = context_unit_counter
+
         exchange_order: list[str] = []
         exchange_items: Dict[str, list[Any]] = {}
         for exchange_item in items:
@@ -822,44 +864,36 @@ class RequestView:
                 exchange_items[exchange_item.exchange_id] = []
             exchange_items[exchange_item.exchange_id].append(exchange_item)
         group_units = {
-            exchange_id: len(
-                _json_text(
-                    [
-                        projected_by_id[exchange_item.item_id]
-                        for exchange_item in exchange_items[exchange_id]
-                    ],
-                    f"exchange.{exchange_id}",
-                )
+            exchange_id: count_units(
+                [
+                    projected_by_id[exchange_item.item_id]
+                    for exchange_item in exchange_items[exchange_id]
+                ],
+                budget.unit,
             )
             for exchange_id in exchange_order
         }
-        instruction_units = len(_json_text(instruction_values, "instructions"))
-        schema_units = len(_json_text(schema_values, "tool_schemas"))
+        instruction_units = count_units(instruction_values, budget.unit)
+        schema_units = count_units(schema_values, budget.unit)
 
-        contributions = sorted(
-            tuple(context_contributions),
-            key=lambda contribution: (
-                -contribution.priority,
-                contribution.contribution_id,
-            ),
-        )
-        selected_context: list[ContextContribution] = []
-        omitted_context: list[ContextContribution] = []
         used = instruction_units + schema_units
-        for contribution in contributions:
-            units = len(contribution._content_json)
-            if not contribution.model_visible:
-                omitted_context.append(contribution)
-                continue
-            if used + units <= budget.available_input_units:
-                selected_context.append(contribution)
-                used += units
-            elif contribution.required:
-                raise UnsafeRequestBoundaryError(
-                    f"required context {contribution.contribution_id!r} exceeds budget"
-                )
-            else:
-                omitted_context.append(contribution)
+        contributions = tuple(context_contributions)
+        if context_selection_policy is None:
+            from .context import PriorityContextSelectionPolicy
+
+            context_selection_policy = PriorityContextSelectionPolicy()
+        try:
+            context_selection = context_selection_policy.select(
+                contributions,
+                budget=budget,
+                already_used_units=used,
+                counter=count_units,
+            )
+        except RequestContractError as exc:
+            raise UnsafeRequestBoundaryError(str(exc)) from exc
+        selected_context = list(context_selection.selected)
+        omitted_context = list(context_selection.omitted)
+        used += int(context_selection.selected_units)
 
         protected = set(
             exchange_order[-budget.protected_recent_exchanges :]
@@ -914,7 +948,10 @@ class RequestView:
             instruction_units
             + schema_units
             + sum(group_units.values())
-            + sum(len(contribution._content_json) for contribution in contributions)
+            + sum(
+                count_units(contribution.content_value, budget.unit)
+                for contribution in contributions
+            )
         )
         selection = SelectionReport(
             selected_item_ids=tuple(
@@ -937,7 +974,11 @@ class RequestView:
             selected_units=used,
             omitted_units=max(0, total_units - used),
             unit=budget.unit,
-            reasons=("exchange_safe_budget_selection",),
+            reasons=(
+                "exchange_safe_budget_selection",
+                f"context_policy:{context_selection.policy_id}",
+                *context_selection.reasons,
+            ),
         )
         correlations: list[Dict[str, Any]] = []
         for exchange_item in selected_items:
@@ -1000,6 +1041,9 @@ class RequestView:
                 contribution.to_dict() for contribution in selected_context
             ],
             "continuation": continuation.to_dict() if continuation else None,
+            "compaction_receipts": [
+                receipt.to_dict() for receipt in compaction_receipts
+            ],
         }
         request_id = f"request_{_digest(provisional)[:24]}"
         result = cls(

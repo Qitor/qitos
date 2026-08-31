@@ -1,0 +1,53 @@
+{
+  "schema_version": "qitos.s2.lane_b.semantic_contracts/v1",
+  "canonical_path": [
+    "exchange_log",
+    "context_selection",
+    "request_view",
+    "provider_adapter_codec",
+    "transport",
+    "typed_response",
+    "exchange_log"
+  ],
+  "conversation_truth": "qitos.exchange_log/v3",
+  "compatibility_inputs": [
+    "qitos.history_message",
+    "openai_shaped_message_dict"
+  ],
+  "assistant_part_order": [
+    "reasoning_block",
+    "content",
+    "tool_call",
+    "tool_call"
+  ],
+  "correlation": {
+    "provider_scope": "fixture:native",
+    "batch_id": "batch-fixture",
+    "declaration_order": ["call-first", "call-second"],
+    "completion_order": ["call-second", "call-first"]
+  },
+  "continuation_snapshot_fields": [
+    "reference_id",
+    "resolver_key",
+    "provider",
+    "model",
+    "api_mode",
+    "attachment_id",
+    "payload_digest",
+    "expires_at"
+  ],
+  "forbidden_snapshot_fields": [
+    "credential",
+    "header",
+    "cookie",
+    "endpoint",
+    "host_path",
+    "provider_sdk_object",
+    "raw_provider_response"
+  ],
+  "event_fact_stages": [
+    "request_view",
+    "provider_transaction",
+    "provider_failure"
+  ]
+}

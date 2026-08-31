@@ -8,11 +8,294 @@ going through an OpenAI-compatible proxy.
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, Iterator, List, Optional
+import json
+from typing import Any, Dict, Iterator, List, Mapping, Optional
 
 import requests
 
 from .base import Model, ModelFactory, ModelStreamChunk
+from ..core.conversation import (
+    ArgumentParseStatus,
+    AssistantContent,
+    CallIdentity,
+    ReasoningBlock,
+    ToolCall,
+)
+from ..core.multimodal import ContentBlock
+from ..core.request_view import RequestView
+from .codec import (
+    CodecCapabilityError,
+    CodecReport,
+    ProviderCapabilities,
+    report_for_request,
+    validate_codec_result,
+)
+from .provider import (
+    ContinuationResolution,
+    LegacyMessageCodec,
+    ProviderDecodedResponse,
+)
+
+
+class AnthropicMessagesCodec(LegacyMessageCodec):
+    codec_id = "qitos.anthropic.messages"
+    codec_version = "v1"
+
+    def encode(
+        self,
+        request: RequestView,
+        *,
+        capabilities: Optional[ProviderCapabilities] = None,
+        transport: Optional[Any] = None,
+        allow_loss: bool = False,
+    ) -> tuple[Dict[str, Any], CodecReport]:
+        resolved = capabilities or ProviderCapabilities.from_model(transport)
+        system_parts: list[str] = []
+        messages: list[Dict[str, Any]] = []
+        losses: list[str] = []
+        for instruction in request.instructions:
+            content = str(instruction.get("content") or "")
+            if instruction.get("role") in {"system", "developer"}:
+                system_parts.append(content)
+            else:
+                messages.append({"role": "user", "content": content})
+        for contribution in request.context_contributions:
+            content = json.dumps(
+                contribution.get("content"), ensure_ascii=False, sort_keys=True
+            )
+            placement = contribution.get("requested_placement")
+            if placement in {"system", "developer"}:
+                system_parts.append(content)
+            else:
+                messages.append({"role": "user", "content": content})
+        for item in request.selected_items:
+            kind = item.get("kind")
+            if kind in {"user", "steering"}:
+                blocks: list[Dict[str, Any]] = []
+                for block in item.get("content") or []:
+                    block_type = block.get("type")
+                    if block_type == "text":
+                        blocks.append({"type": "text", "text": block.get("text", "")})
+                    elif block_type == "image_base64":
+                        blocks.append(
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": block.get("mime_type", "image/png"),
+                                    "data": block.get("data", ""),
+                                },
+                            }
+                        )
+                    else:
+                        losses.append(f"multimodal.{block_type}")
+                messages.append({"role": "user", "content": blocks})
+            elif kind == "assistant":
+                blocks = []
+                for part in item.get("parts") or []:
+                    part_kind = part.get("kind")
+                    if part_kind == "content":
+                        block = part.get("block") or {}
+                        if block.get("type") == "text":
+                            blocks.append({"type": "text", "text": block.get("text", "")})
+                        else:
+                            losses.append(
+                                f"assistant.multimodal.{block.get('type')}"
+                            )
+                    elif part_kind in {"reasoning_reference", "reasoning_block"}:
+                        if request.continuation is None:
+                            losses.append("assistant.reasoning")
+                    elif part_kind == "tool_call":
+                        parsed = part.get("parsed_arguments")
+                        if not isinstance(parsed, dict):
+                            raise CodecCapabilityError(
+                                "Anthropic tool_use requires parsed object arguments"
+                            )
+                        blocks.append(
+                            {
+                                "type": "tool_use",
+                                "id": part.get("call_id"),
+                                "name": part.get("name"),
+                                "input": parsed,
+                            }
+                        )
+                messages.append({"role": "assistant", "content": blocks})
+            elif kind == "tool_result":
+                result = item.get("result") or {}
+                output = result.get("model_output")
+                if output is None:
+                    output = result.get("error") or ""
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": item.get("call_id"),
+                                "content": (
+                                    output
+                                    if isinstance(output, str)
+                                    else json.dumps(output, ensure_ascii=False)
+                                ),
+                                "is_error": result.get("status") != "success",
+                            }
+                        ],
+                    }
+                )
+        tools = []
+        for schema in request.tool_schemas:
+            function = schema.get("function") if schema.get("type") == "function" else schema
+            if not isinstance(function, dict) or not function.get("name"):
+                raise CodecCapabilityError("Anthropic tool schema is malformed")
+            tools.append(
+                {
+                    "name": function.get("name"),
+                    "description": function.get("description", ""),
+                    "input_schema": function.get(
+                        "parameters", {"type": "object", "properties": {}}
+                    ),
+                }
+            )
+        report = report_for_request(
+            request,
+            resolved,
+            codec_id=self.codec_id,
+            codec_version=self.codec_version,
+            reasoning=(
+                "signed_block_replay"
+                if request.continuation is not None
+                else ("dropped" if "assistant.reasoning" in losses else "not_present")
+            ),
+            continuation=(
+                "resolver_required" if request.continuation else "not_requested"
+            ),
+            supported=request.capability_requirements,
+            multimodal_conversion=("image_base64->anthropic.image",),
+            tool_schema_conversion=("function.parameters->input_schema",),
+            lossy_fields=losses,
+        )
+        return validate_codec_result(
+            {
+                "system": "\n\n".join(part for part in system_parts if part),
+                "messages": messages,
+                "tools": tools,
+            },
+            report,
+            allow_loss=allow_loss,
+        )
+
+    def apply_continuation(
+        self,
+        payload: Dict[str, Any],
+        resolution: ContinuationResolution,
+        *,
+        request: RequestView,
+        report: CodecReport,
+    ) -> tuple[Dict[str, Any], CodecReport]:
+        _ = request
+        value = resolution.payload
+        blocks = value.get("thinking_blocks") if isinstance(value, dict) else None
+        if not isinstance(blocks, list):
+            raise CodecCapabilityError(
+                "Anthropic continuation must resolve to thinking_blocks"
+            )
+        updated = dict(payload)
+        messages = [dict(message) for message in updated.get("messages") or []]
+        target_index = next(
+            (
+                index
+                for index in range(len(messages) - 1, -1, -1)
+                if messages[index].get("role") == "assistant"
+            ),
+            None,
+        )
+        if target_index is None:
+            raise CodecCapabilityError(
+                "Anthropic continuation has no assistant turn to restore"
+            )
+        existing = list(messages[target_index].get("content") or [])
+        messages[target_index]["content"] = [dict(block) for block in blocks] + existing
+        updated["messages"] = messages
+        return updated, CodecReport.from_dict(
+            {**report.to_dict(), "continuation": "applied", "lossless": report.lossless}
+        )
+
+    def decode(
+        self, response: Any, *, request: RequestView
+    ) -> ProviderDecodedResponse:
+        if not isinstance(response, dict):
+            raise CodecCapabilityError("Anthropic response must be a JSON object")
+        provider_scope = f"{request.target.provider}:{request.target.api_mode}"
+        attachment_id = f"continuation_attachment_{request.request_id}"
+        thinking_blocks: list[Dict[str, Any]] = []
+        parts: list[Any] = []
+        batch_id = f"batch_{request.request_id}"
+        for index, block in enumerate(response.get("content") or []):
+            if not isinstance(block, dict):
+                continue
+            kind = block.get("type")
+            if kind == "text":
+                parts.append(
+                    AssistantContent(
+                        ContentBlock(type="text", text=str(block.get("text") or ""))
+                    )
+                )
+            elif kind in {"thinking", "redacted_thinking"}:
+                parts.append(
+                    ReasoningBlock(
+                        provider_scope=provider_scope,
+                        reference_id=str(
+                            block.get("id")
+                            or f"reasoning_{request.request_id}_{index}"
+                        ),
+                        block_type=str(kind),
+                        summary=(
+                            str(block.get("thinking"))
+                            if block.get("thinking") is not None
+                            else None
+                        ),
+                        attachment_id=attachment_id,
+                    )
+                )
+                thinking_blocks.append(dict(block))
+            elif kind == "tool_use":
+                raw_input = block.get("input")
+                parsed: Dict[str, Any] = (
+                    dict(raw_input) if isinstance(raw_input, dict) else {}
+                )
+                parts.append(
+                    ToolCall(
+                        identity=CallIdentity(
+                            provider_scope,
+                            str(block.get("id") or f"call_{request.request_id}_{index}"),
+                        ),
+                        batch_id=batch_id,
+                        name=str(block.get("name") or ""),
+                        raw_arguments=json.dumps(parsed, ensure_ascii=False, sort_keys=True),
+                        parsed_arguments=dict(parsed),
+                        parse_status=ArgumentParseStatus.PARSED,
+                    )
+                )
+        usage = response.get("usage") if isinstance(response.get("usage"), dict) else None
+        return ProviderDecodedResponse(
+            parts=tuple(parts),
+            usage=usage,
+            finish_reason=(
+                str(response.get("stop_reason"))
+                if response.get("stop_reason") is not None
+                else None
+            ),
+            model_name=str(response.get("model") or request.target.model),
+            provider_metadata={
+                key: response[key]
+                for key in ("id", "type", "stop_sequence")
+                if key in response
+            },
+            continuation_payload=(
+                {"thinking_blocks": thinking_blocks} if thinking_blocks else None
+            ),
+            continuation_attachment_id=(attachment_id if thinking_blocks else None),
+        )
 
 
 class AnthropicModel(Model):
@@ -30,14 +313,59 @@ class AnthropicModel(Model):
     qitos_api_mode = "messages"
     qitos_capabilities_by_api_mode = {
         "messages": {
-            "supported_features": ("text",),
-            "reasoning_modes": ("drop",),
-            "multimodal_types": ("text",),
-            "supports_parallel_tool_calls": False,
-            "supports_tool_schemas": False,
-            "supports_continuation": False,
+            "supported_features": (
+                "text",
+                "multimodal",
+                "tool_calls",
+                "tool_results",
+                "tool_schemas",
+                "parallel_tool_calls",
+                "reasoning",
+                "continuation",
+                "ordered_interleaving",
+                "provider_metadata",
+            ),
+            "reasoning_modes": (
+                "preserve_if_supported",
+                "signed_block_replay",
+                "drop",
+            ),
+            "multimodal_types": ("text", "image_base64"),
+            "supports_parallel_tool_calls": True,
+            "supports_tool_schemas": True,
+            "supports_continuation": True,
         }
     }
+
+    def qitos_provider_codec(self) -> AnthropicMessagesCodec:
+        return AnthropicMessagesCodec()
+
+    def qitos_transport(self, payload: Mapping[str, Any]) -> Any:
+        headers = {
+            "x-api-key": self.api_key,
+            "anthropic-version": self.api_version,
+            "content-type": "application/json",
+        }
+        request_payload: Dict[str, Any] = {
+            "model": self.model,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "messages": list(payload.get("messages") or []),
+        }
+        if payload.get("system"):
+            request_payload["system"] = payload["system"]
+        if payload.get("tools"):
+            request_payload["tools"] = payload["tools"]
+        response = requests.post(
+            f"{self.base_url}/v1/messages",
+            headers=headers,
+            json=request_payload,
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+        result = response.json()
+        self._set_last_usage(self._usage_from_response(result))
+        return result
 
     def __init__(
         self,

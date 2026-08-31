@@ -15,9 +15,91 @@ Ollama 环境变量配置：
 
 import os
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from .base import Model
+from ..core.conversation import AssistantContent
+from ..core.multimodal import ContentBlock
+from ..core.request_view import RequestView
+from .provider import (
+    LegacyMessageCodec,
+    ProviderDecodedResponse,
+    decode_openai_like_response,
+)
+from .openai import OpenAIChatCodec
+
+
+class OllamaChatCodec(LegacyMessageCodec):
+    codec_id = "qitos.ollama.chat"
+    codec_version = "v1"
+
+    def decode(
+        self, response: Any, *, request: RequestView
+    ) -> ProviderDecodedResponse:
+        decoded = decode_openai_like_response(response, request=request)
+        if isinstance(response, dict):
+            usage = {
+                "prompt_tokens": response.get("prompt_eval_count"),
+                "completion_tokens": response.get("eval_count"),
+                "total_tokens": int(response.get("prompt_eval_count") or 0)
+                + int(response.get("eval_count") or 0),
+            }
+            return ProviderDecodedResponse(
+                parts=decoded.parts,
+                usage=usage,
+                finish_reason=("stop" if response.get("done") else None),
+                model_name=str(response.get("model") or request.target.model),
+                provider_metadata={"done_reason": response.get("done_reason")},
+            )
+        return decoded
+
+
+class OllamaGenerateCodec(LegacyMessageCodec):
+    codec_id = "qitos.ollama.generate"
+    codec_version = "v1"
+
+    def decode(
+        self, response: Any, *, request: RequestView
+    ) -> ProviderDecodedResponse:
+        if not isinstance(response, dict) or not isinstance(response.get("response"), str):
+            return decode_openai_like_response(response, request=request)
+        return ProviderDecodedResponse(
+            parts=(
+                AssistantContent(
+                    ContentBlock(type="text", text=str(response.get("response") or ""))
+                ),
+            ),
+            usage={
+                "prompt_tokens": response.get("prompt_eval_count"),
+                "completion_tokens": response.get("eval_count"),
+                "total_tokens": int(response.get("prompt_eval_count") or 0)
+                + int(response.get("eval_count") or 0),
+            },
+            finish_reason=("stop" if response.get("done") else None),
+            model_name=str(response.get("model") or request.target.model),
+        )
+
+
+def _local_openai_transport(
+    adapter: Any, payload: Mapping[str, Any]
+) -> Dict[str, Any]:
+    import urllib.request
+
+    request_payload: Dict[str, Any] = {
+        "model": adapter.model,
+        "messages": list(payload.get("messages") or []),
+        "temperature": adapter.temperature,
+        "max_tokens": adapter.max_tokens,
+    }
+    request_payload.update(dict(payload.get("options") or {}))
+    request = urllib.request.Request(
+        f"{adapter.base_url}/chat/completions",
+        data=json.dumps(request_payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=adapter.timeout) as response:
+        return json.loads(response.read().decode("utf-8"))
 
 
 _LOCAL_TEXT_CAPABILITIES = {
@@ -54,6 +136,37 @@ class OllamaModel(Model):
     qitos_transport_id = "ollama"
     qitos_api_mode = "chat"
     qitos_capabilities_by_api_mode = {"chat": _LOCAL_TEXT_CAPABILITIES}
+
+    def qitos_provider_codec(self) -> OllamaChatCodec:
+        return OllamaChatCodec()
+
+    def qitos_transport(self, payload: Mapping[str, Any]) -> Any:
+        import urllib.request
+
+        request_payload: Dict[str, Any] = {
+            "model": self.model,
+            "messages": list(payload.get("messages") or []),
+            "stream": False,
+            "options": {
+                "temperature": self.temperature,
+                "num_predict": self.max_tokens,
+            },
+        }
+        if self.format:
+            request_payload["format"] = self.format
+        options = dict(payload.get("options") or {})
+        if options.get("tools"):
+            request_payload["tools"] = options["tools"]
+        request = urllib.request.Request(
+            f"{self.host}/api/chat",
+            data=json.dumps(request_payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            result = json.loads(response.read().decode("utf-8"))
+        self._set_last_usage(self._usage_from_response(result))
+        return result
 
     def __init__(
         self,
@@ -232,6 +345,31 @@ class OllamaGenerateModel(Model):
     qitos_api_mode = "generate"
     qitos_capabilities_by_api_mode = {"generate": _LOCAL_TEXT_CAPABILITIES}
 
+    def qitos_provider_codec(self) -> OllamaGenerateCodec:
+        return OllamaGenerateCodec()
+
+    def qitos_transport(self, payload: Mapping[str, Any]) -> Any:
+        import urllib.request
+
+        prompt = self._build_prompt(list(payload.get("messages") or []))
+        request_payload = {
+            "model": self.model,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": self.temperature,
+                "num_predict": self.max_tokens,
+            },
+        }
+        request = urllib.request.Request(
+            f"{self.host}/api/generate",
+            data=json.dumps(request_payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            return json.loads(response.read().decode("utf-8"))
+
     def __init__(
         self,
         model: str = "llama3",
@@ -362,6 +500,14 @@ class LMStudioModel(Model):
     qitos_capabilities_by_api_mode = {
         "chat_completions": _LOCAL_TEXT_CAPABILITIES
     }
+
+    def qitos_provider_codec(self) -> OpenAIChatCodec:
+        return OpenAIChatCodec()
+
+    def qitos_transport(self, payload: Mapping[str, Any]) -> Any:
+        result = _local_openai_transport(self, payload)
+        self._set_last_usage(self._usage_from_response(result))
+        return result
 
     def __init__(
         self,
@@ -517,6 +663,12 @@ class VLLMModel(Model):
     qitos_capabilities_by_api_mode = {
         "chat_completions": _LOCAL_TEXT_CAPABILITIES
     }
+
+    def qitos_provider_codec(self) -> OpenAIChatCodec:
+        return OpenAIChatCodec()
+
+    def qitos_transport(self, payload: Mapping[str, Any]) -> Any:
+        return _local_openai_transport(self, payload)
 
     def __init__(
         self,

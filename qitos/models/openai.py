@@ -9,11 +9,20 @@ import json
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, Iterator, List, Optional, cast
+from typing import Any, AsyncIterator, Dict, Iterator, List, Mapping, Optional, cast
 
+from ..core.conversation import (
+    ArgumentParseStatus,
+    AssistantContent,
+    CallIdentity,
+    ReasoningBlock,
+    ToolCall,
+)
 from ..core.model_response import ModelResponse
+from ..core.request_view import RequestView
 from ..core.tool import RetryPolicy
 from ..core.multimodal import (
+    ContentBlock,
     content_to_text,
     ensure_data_url,
     file_to_data_url,
@@ -29,6 +38,19 @@ from ._openai_responses import (
     _responses_stream,
 )
 from .base import Model, ModelStreamChunk
+from .codec import (
+    CodecReport,
+    ProviderCapabilities,
+    report_for_request,
+    validate_codec_result,
+)
+from .provider import (
+    ContinuationResolution,
+    LegacyMessageCodec,
+    ProviderDecodedResponse,
+    decode_openai_like_response,
+    request_view_to_compat_messages,
+)
 
 
 GLM_TOKENIZER_ENV_VARS = ("QITOS_GLM_TOKENIZER_PATH", "GLM_TOKENIZER_PATH")
@@ -222,6 +244,197 @@ def _normalize_messages_for_tokenizer(payload: List[Any]) -> List[Dict[str, str]
     return messages
 
 
+class OpenAIChatCodec(LegacyMessageCodec):
+    """Chat Completions codec; reasoning replay is loss-explicit."""
+
+    codec_id = "qitos.openai.chat_completions"
+    codec_version = "v1"
+
+
+class OpenAIResponsesCodec(LegacyMessageCodec):
+    """Responses codec preserving ordered native items and continuation."""
+
+    codec_id = "qitos.openai.responses"
+    codec_version = "v1"
+
+    def encode(
+        self,
+        request: RequestView,
+        *,
+        capabilities: Optional[ProviderCapabilities] = None,
+        transport: Optional[Any] = None,
+        allow_loss: bool = False,
+    ) -> tuple[Dict[str, Any], CodecReport]:
+        resolved = capabilities or ProviderCapabilities.from_model(transport)
+        messages, projected_losses = request_view_to_compat_messages(request)
+        losses = list(projected_losses)
+        reasoning = "not_present"
+        if "assistant.reasoning" in losses:
+            if request.continuation is not None:
+                losses.remove("assistant.reasoning")
+                reasoning = "native_item_continuation"
+            else:
+                reasoning = "dropped"
+        options: Dict[str, Any] = {}
+        if request.tool_schemas:
+            options["tools"] = list(request.tool_schemas)
+        report = report_for_request(
+            request,
+            resolved,
+            codec_id=self.codec_id,
+            codec_version=self.codec_version,
+            reasoning=reasoning,
+            continuation=(
+                "resolver_required" if request.continuation else "not_requested"
+            ),
+            supported=request.capability_requirements,
+            lossy_fields=losses,
+        )
+        return validate_codec_result(
+            {"messages": messages, "options": options},
+            report,
+            allow_loss=allow_loss,
+        )
+
+    def apply_continuation(
+        self,
+        payload: Dict[str, Any],
+        resolution: ContinuationResolution,
+        *,
+        request: RequestView,
+        report: CodecReport,
+    ) -> tuple[Dict[str, Any], CodecReport]:
+        _ = request
+        updated = dict(payload)
+        options = dict(updated.get("options") or {})
+        continuation = resolution.payload
+        response_id = (
+            continuation.get("response_id")
+            if isinstance(continuation, dict)
+            else continuation
+        )
+        if not isinstance(response_id, str) or not response_id.strip():
+            from .codec import CodecCapabilityError
+
+            raise CodecCapabilityError(
+                "OpenAI Responses continuation must resolve to response_id"
+            )
+        options["previous_response_id"] = response_id
+        updated["options"] = options
+        return updated, CodecReport.from_dict(
+            {**report.to_dict(), "continuation": "applied", "lossless": report.lossless}
+        )
+
+    def decode(
+        self, response: Any, *, request: RequestView
+    ) -> ProviderDecodedResponse:
+        if not isinstance(response, ModelResponse) or not response.native_items:
+            return decode_openai_like_response(response, request=request)
+        provider_scope = f"{request.target.provider}:{request.target.api_mode}"
+        attachment_id = f"continuation_attachment_{request.request_id}"
+        parts: list[Any] = []
+        continuation_items: list[Dict[str, Any]] = []
+        batch_id = f"batch_{request.request_id}"
+        for index, item in enumerate(response.native_items):
+            if not isinstance(item, dict):
+                continue
+            kind = str(item.get("type") or "")
+            if kind == "reasoning":
+                summary_parts = []
+                for summary in item.get("summary") or []:
+                    if isinstance(summary, dict) and summary.get("text"):
+                        summary_parts.append(str(summary["text"]))
+                parts.append(
+                    ReasoningBlock(
+                        provider_scope=provider_scope,
+                        reference_id=str(
+                            item.get("id")
+                            or f"reasoning_{request.request_id}_{index}"
+                        ),
+                        block_type="responses_reasoning",
+                        summary="".join(summary_parts) or None,
+                        attachment_id=attachment_id,
+                        metadata={"status": item.get("status")},
+                    )
+                )
+                continuation_items.append(dict(item))
+                continue
+            if kind == "message":
+                for block in item.get("content") or []:
+                    if not isinstance(block, dict):
+                        continue
+                    if block.get("type") in {"output_text", "text"}:
+                        parts.append(
+                            AssistantContent(
+                                ContentBlock(
+                                    type="text", text=str(block.get("text") or "")
+                                )
+                            )
+                        )
+                continue
+            if kind == "function_call":
+                raw_arguments = str(item.get("arguments") or "{}")
+                parse_error: Optional[str]
+                try:
+                    parsed_value = json.loads(raw_arguments)
+                except json.JSONDecodeError as exc:
+                    parsed = None
+                    parse_status = ArgumentParseStatus.MALFORMED_RAW
+                    parse_error = exc.__class__.__name__
+                else:
+                    parsed = parsed_value if isinstance(parsed_value, dict) else None
+                    parse_status = (
+                        ArgumentParseStatus.PARSED
+                        if parsed is not None
+                        else ArgumentParseStatus.PARSED_INVALID
+                    )
+                    parse_error = None if parsed is not None else "arguments_not_object"
+                parts.append(
+                    ToolCall(
+                        identity=CallIdentity(
+                            provider_scope,
+                            str(
+                                item.get("call_id")
+                                or f"call_{request.request_id}_{index}"
+                            ),
+                        ),
+                        batch_id=batch_id,
+                        name=str(item.get("name") or ""),
+                        raw_arguments=raw_arguments,
+                        parsed_arguments=parsed,
+                        parse_status=parse_status,
+                        parse_error=parse_error,
+                        metadata={
+                            "response_item_id": item.get("id"),
+                            "status": item.get("status"),
+                        },
+                    )
+                )
+        if not parts:
+            return decode_openai_like_response(response, request=request)
+        response_id = response.metadata.get("id")
+        continuation_payload = (
+            {"response_id": response_id, "native_reasoning": continuation_items}
+            if isinstance(response_id, str) and response_id
+            else None
+        )
+        return ProviderDecodedResponse(
+            parts=tuple(parts),
+            usage=response.usage,
+            finish_reason=response.finish_reason,
+            model_name=response.model_name,
+            provider_metadata={
+                key: value
+                for key, value in response.metadata.items()
+                if key in {"id", "status", "previous_response_id", "api_mode"}
+            },
+            continuation_payload=continuation_payload,
+            continuation_attachment_id=(
+                attachment_id if continuation_payload is not None else None
+            ),
+        )
+
+
 class OpenAIModel(Model):
     """
     OpenAI model calling implementation
@@ -249,6 +462,7 @@ class OpenAIModel(Model):
             "supported_features": (
                 "text", "multimodal", "tool_calls", "tool_results", "tool_schemas",
                 "parallel_tool_calls", "artifact_references",
+                "streaming", "ordered_interleaving", "provider_metadata",
             ),
             "reasoning_modes": ("drop",),
             "multimodal_types": ("text", "image_url", "image_base64", "image_file"),
@@ -260,6 +474,7 @@ class OpenAIModel(Model):
             "supported_features": (
                 "text", "multimodal", "tool_calls", "tool_results", "tool_schemas",
                 "parallel_tool_calls", "artifact_references", "reasoning", "continuation",
+                "streaming", "ordered_interleaving", "provider_metadata",
             ),
             "reasoning_modes": ("preserve_if_supported", "native_item_continuation", "drop"),
             "multimodal_types": ("text", "image_url", "image_base64", "image_file"),
@@ -268,6 +483,11 @@ class OpenAIModel(Model):
             "supports_continuation": True,
         },
     }
+
+    def qitos_provider_codec(self) -> Any:
+        if str(getattr(self, "api_mode", self.qitos_api_mode)) == "responses":
+            return OpenAIResponsesCodec()
+        return OpenAIChatCodec()
 
     def __init__(
         self,
@@ -941,6 +1161,35 @@ class AzureOpenAIModel(OpenAICompatibleModel):
     """
 
     qitos_provider_id = "azure-openai"
+
+    def qitos_provider_capabilities(self) -> Dict[str, Any]:
+        capabilities = super().qitos_provider_capabilities()
+        capabilities["supported_features"] = tuple(
+            feature
+            for feature in capabilities["supported_features"]
+            if feature != "streaming"
+        )
+        return capabilities
+
+    def qitos_transport(self, payload: Mapping[str, Any]) -> Any:
+        import openai
+
+        client = openai.AzureOpenAI(
+            api_key=self.api_key,
+            azure_endpoint=self.endpoint,
+            api_version=self.api_version,
+            timeout=self.timeout,
+        )
+        options = dict(payload.get("options") or {})
+        response = client.chat.completions.create(
+            model=self.deployment or "",
+            messages=cast(Any, _to_openai_messages(list(payload.get("messages") or []))),
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            **options,
+        )
+        self._set_last_usage(self._usage_from_response(response))
+        return response
 
     def __init__(
         self,

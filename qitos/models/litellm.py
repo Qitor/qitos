@@ -4,9 +4,17 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from .base import Model, ModelFactory
+from .provider import LegacyMessageCodec
+
+
+class LiteLLMChatCodec(LegacyMessageCodec):
+    """Conservative meta-provider codec; backend-specific features stay off."""
+
+    codec_id = "qitos.litellm.chat_completions"
+    codec_version = "v1"
 
 
 class LiteLLMModel(Model):
@@ -34,6 +42,34 @@ class LiteLLMModel(Model):
             "supports_continuation": False,
         }
     }
+
+    def qitos_provider_codec(self) -> LiteLLMChatCodec:
+        return LiteLLMChatCodec()
+
+    def qitos_transport(self, payload: Mapping[str, Any]) -> Any:
+        try:
+            import litellm
+        except ImportError as exc:
+            raise RuntimeError("LiteLLM optional dependency is unavailable") from exc
+        request_kwargs: Dict[str, Any] = {
+            "model": self.model,
+            "messages": list(payload.get("messages") or []),
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+            "timeout": self.timeout,
+        }
+        if self.api_key:
+            request_kwargs["api_key"] = self.api_key
+        if self.api_base:
+            request_kwargs["api_base"] = self.api_base
+        if self.api_version:
+            request_kwargs["api_version"] = self.api_version
+        if self.custom_llm_provider:
+            request_kwargs["custom_llm_provider"] = self.custom_llm_provider
+        request_kwargs.update(dict(payload.get("options") or {}))
+        response = litellm.completion(**request_kwargs)
+        self._set_last_usage(self._usage_from_response(response))
+        return response
 
     def __init__(
         self,

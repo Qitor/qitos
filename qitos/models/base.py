@@ -13,8 +13,9 @@ import os
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Callable, Dict, Iterator, List, Mapping, Optional, Type
+from typing import Any, AsyncIterator, Callable, Dict, Iterator, List, Mapping, Optional, Type, cast
 
+from ..core.model_response import ModelResponse
 from ..core.multimodal import content_to_text, normalize_messages
 from ..core.tool import RetryPolicy
 from .context_registry import infer_context_window
@@ -103,6 +104,16 @@ class Model(ABC):
         self.context_window = self._resolve_context_window(context_window)
         self.retry_policy = retry
         self._last_usage: Optional[Dict[str, Any]] = None
+        # The process-local default keeps opaque continuation bytes outside
+        # RequestView/ExchangeLog. Durable sessions replace it with a resolver
+        # whose logical key can be reconstructed by Lane A.
+        from .provider import InMemoryContinuationResolver
+
+        self.qitos_continuation_resolver = InMemoryContinuationResolver(
+            resolver_key=(
+                f"continuation:{self.qitos_provider_id or 'model'}:memory"
+            )
+        )
 
     def qitos_request_target(self) -> Dict[str, str]:
         """Return the adapter-owned request target declaration."""
@@ -133,6 +144,108 @@ class Model(ABC):
             else None
         )
         return result
+
+    def qitos_provider_codec(self) -> Any:
+        """Return the adapter-owned codec used by the S2 transaction path.
+
+        The base implementation is the explicit legacy message codec. Official
+        adapters override it beside their transport; third-party subclasses can
+        do the same without changing Engine.
+        """
+
+        from .provider import LegacyMessageCodec
+
+        return LegacyMessageCodec()
+
+    def qitos_transport(self, payload: Mapping[str, Any]) -> Any:
+        """Dispatch a codec payload without exposing credentials to the codec."""
+
+        messages = list(payload.get("messages") or [])
+        options = dict(getattr(self, "default_request_kwargs", {}) or {})
+        options.update(dict(payload.get("options") or {}))
+        return self.call_raw(messages, **options)
+
+    def qitos_stream_transport(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        on_delta: Any = None,
+    ) -> Any:
+        """Aggregate one typed stream for codec response decoding."""
+
+        messages = list(payload.get("messages") or [])
+        options = dict(getattr(self, "default_request_kwargs", {}) or {})
+        options.update(dict(payload.get("options") or {}))
+        text_parts: List[str] = []
+        usage: Optional[Dict[str, Any]] = None
+        tool_calls: Optional[List[Dict[str, Any]]] = None
+        native_items: Optional[List[Dict[str, Any]]] = None
+        accumulated_native_items: List[Dict[str, Any]] = []
+        metadata: Dict[str, Any] = {}
+        for chunk in self.stream(messages, **options):
+            text = str(getattr(chunk, "text", "") or "")
+            if text:
+                text_parts.append(text)
+                if callable(on_delta):
+                    on_delta(text)
+            chunk_items = getattr(chunk, "native_items", None)
+            if isinstance(chunk_items, list):
+                accumulated_native_items.extend(
+                    dict(item) for item in chunk_items if isinstance(item, dict)
+                )
+            if getattr(chunk, "done", False):
+                chunk_usage = getattr(chunk, "usage", None)
+                if isinstance(chunk_usage, dict):
+                    usage = dict(chunk_usage)
+                chunk_calls = getattr(chunk, "tool_calls", None)
+                if isinstance(chunk_calls, list):
+                    tool_calls = [dict(item) for item in chunk_calls]
+                chunk_items = getattr(chunk, "native_items", None)
+                if isinstance(chunk_items, list):
+                    native_items = [dict(item) for item in chunk_items]
+                event_metadata = getattr(chunk, "event_metadata", None)
+                if isinstance(event_metadata, dict):
+                    metadata.update(event_metadata)
+        return ModelResponse(
+            text="".join(text_parts),
+            raw=None,
+            usage=usage,
+            finish_reason="stop",
+            tool_calls=tool_calls,
+            model_name=str(self.model),
+            provider=self.qitos_request_target()["provider"],
+            metadata=metadata,
+            native_items=(accumulated_native_items or native_items),
+        )
+
+    def qitos_normalize_failure(
+        self, error: BaseException, *, report: Any = None
+    ) -> Exception:
+        from ..core.request_view import RequestTarget
+        from .provider import normalize_provider_failure
+
+        target = RequestTarget.from_dict(self.qitos_request_target())
+        return normalize_provider_failure(error, target=target, report=report)
+
+    def execute_request(
+        self,
+        request: Any,
+        *,
+        allow_loss: bool = False,
+        continuation_resolver: Any = None,
+    ) -> Any:
+        """Execute one immutable RequestView through this provider adapter."""
+
+        from .provider import ProviderAdapter, execute_provider_request
+
+        return execute_provider_request(
+            cast(ProviderAdapter, self),
+            request,
+            allow_loss=allow_loss,
+            continuation_resolver=(
+                continuation_resolver or self.qitos_continuation_resolver
+            ),
+        )
 
     @abstractmethod
     def _call_api(self, messages: List[Dict[str, Any]], **kwargs: Any) -> str:
