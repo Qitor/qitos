@@ -1,6 +1,6 @@
 # S3 Lane D work-graph observability
 
-Status: in progress; independent D surfaces authorized, runtime qualification waiting on A/B/C
+Status: independent D surfaces complete; runtime qualification waiting on B/C
 Updated: 2026-08-31
 Baseline: `851f7902f15da670e72f4c04d7453cf37201aee7`
 Branch: `codex/v4-s3-d-graph-observability`
@@ -165,15 +165,54 @@ result rather than pretending the durable workflow completed.
 - [x] Fixed baseline, branch, worktree, and source rules verified.
 - [x] Required architecture, Session, WorkGraph, trajectory, trace, qita,
   evaluate, tests, and S2 qualification sources inspected.
-- [ ] Candidate work-graph event adapter and unified read model.
-- [ ] Candidate/compatibility/third-party conformance tests.
-- [ ] One-family qita read-only inspection UX and typed blocks.
-- [ ] Privacy/portability regression corpus and non-echoing diagnostics.
-- [ ] Exact-source readiness validator, script, inventory, and evidence output.
-- [ ] Two independent offline consumers and coding-agent acceptance example.
-- [ ] Targeted, S2, architecture/interface, static, lint/type, full pytest, and
+- [x] Candidate work-graph event adapter and unified read model.
+- [x] Candidate/compatibility/third-party conformance tests.
+- [x] One-family qita read-only inspection UX and typed blocks.
+- [x] Privacy/portability regression corpus and non-echoing diagnostics.
+- [x] Exact-source readiness validator, script, inventory, and evidence output.
+- [x] Two independent offline consumers and coding-agent acceptance example.
+- [x] Targeted, S2, architecture/interface, static, lint/type, full pytest, and
   `git diff --check` validation.
-- [ ] Read-only A/B/C finalization check, coherent commits, and clean worktree.
+- [x] Read-only A/B/C finalization check and coherent commits.
+
+## Finalization evidence
+
+The read-only branch audit observed:
+
+- Lane A bundle `9442647767bc9a7c45ed3bf07bc4f289412544ed`:
+  exact manifest and fixture digests match committed bytes; executable fork,
+  restore, owner-fencing, and incompatible-component tests are bound. Qualified.
+- Lane B bundle `5efa1db19ae541234c562c4ba99e928d2381fc62`:
+  real plan/receipt types, semantic fixtures, strict readers, and executable
+  tests exist, but the manifest's digest for
+  `docs/internal/plans/s3_b_transfer_authority.md` does not match the committed
+  bundle byte. Exact-source qualification therefore remains blocked.
+- Lane C bundle `12edf48aa5dd2ed7c3c830baf9031116474bcc52`:
+  real scheduler seam and bounded process-loss test exist, but its own manifest
+  and evidence say `waiting_on_lane_a_b`, `lane_a_consumed=false`, and
+  `lane_b_consumed=false`. It cannot qualify runtime readiness.
+
+Accordingly the qualification output is `waiting_on_lane_a_b_c`, qualifies only
+Lane A, keeps `claims=[]` and `measurements=[]`, and does not run a C process-loss
+test as though its unconsumed A/B dependencies were ready.
+
+Validation completed on this Lane D branch:
+
+- focused tracing/qita/core multi-agent group: 185 passed;
+- new privacy compatibility rerun: 19 passed;
+- S2 runtime/session clean-process group: 11 passed;
+- architecture/public/interface/no-local-path gates: 16 passed;
+- stable flake8: clean; stable mypy: 91 files, no issues;
+- static ratchet: passed under the Anaconda interpreter that owns the quality
+  tool metadata (376 baselined findings: 354 active, 22 vendored/generated);
+- full suite: 2264 passed, 50 skipped; and
+- `git diff --check`: clean.
+
+The first Homebrew-Python static-ratchet invocation was blocked because flake8
+and mypy metadata live in the Anaconda environment; the same repository script
+then passed with `/opt/anaconda3/bin/python`. A documentation-listed process
+restore filename was absent; the actual tracked
+`tests/e2e/test_session_core_process_restore.py` was run and passed.
 
 ## Unsupported claims
 

@@ -1,8 +1,15 @@
 {
   "evidence_version": "qitos.s3.lane_d.qualification_evidence/1",
   "status": "waiting_on_lane_a_b_c",
-  "qualified_producers": [],
-  "qualified_scenarios": [],
+  "qualified_producers": ["s3.a.session_fork_ownership"],
+  "qualified_scenarios": [
+    "immutable source snapshot and unchanged source head",
+    "distinct child session run work-item attempt snapshot and checkpoint identities",
+    "atomic child generation-zero head and fork declaration",
+    "Memory SQLite and independent CheckpointStore conformance",
+    "owner supersession and stale-owner rejection",
+    "bounded clean-process child restore and continuation"
+  ],
   "schema_frozen": false,
   "writer_default": "frozen_trace_v1_unchanged",
   "qita_reader_default": "frozen_trace_v1_compatibility",
@@ -10,7 +17,6 @@
   "claims": [],
   "measurements": [],
   "blockers": [
-    "lane_a_branch_head_advanced_after_inventory_binding",
     "lane_b_producer_file_digest_mismatch",
     "lane_c_waiting_on_exact_lane_a_b_consumption"
   ]
