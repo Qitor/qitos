@@ -497,3 +497,47 @@ def test_closed_join_records_late_child_without_reducing_twice() -> None:
     assert join.accepted_child_ids == [_work("child:fast")]
     assert join.discarded_child_ids == [_work("child:late")]
     assert join.generation == 1
+
+
+def test_all_successful_join_closes_with_typed_failure_receipt() -> None:
+    graph = WorkGraph("graph:join:all-successful-failure")
+    graph.add_work_item(_item("root", "parent"))
+    graph.add_fan_out(
+        group_id="fan:all-successful-failure",
+        parent_work_item_id=_work("root"),
+        children=[
+            _item("child:ok", "worker", parent="root"),
+            _item("child:failed", "worker", parent="root"),
+        ],
+    )
+    graph.declare_join(
+        join_id="join:all-successful-failure",
+        parent_work_item_id=_work("root"),
+        child_work_item_ids=[_work("child:ok"), _work("child:failed")],
+        policy="all_successful",
+    )
+    outcomes = [
+        ToolResult(output="ok"),
+        ToolResult(
+            status="error",
+            error="failed",
+            error_kind="execution",
+            error_code="child_failed",
+        ),
+    ]
+    for child, outcome in zip(("child:ok", "child:failed"), outcomes):
+        graph.record_completion(
+            completion_id=f"completion:{child}",
+            work_item_id=_work(child),
+            owner_generation=0,
+            outcome=outcome,
+        )
+        graph.accept_join_result(
+            "join:all-successful-failure", _work(child)
+        )
+
+    join = graph.joins[0]
+    assert join.state == "closed"
+    assert join.terminal_receipt_ref == (
+        "join_failed:join:all-successful-failure:2"
+    )

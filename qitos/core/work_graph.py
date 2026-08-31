@@ -1057,6 +1057,11 @@ class WorkGraph:
             or (join.policy == "first_success" and bool(successful))
             or (join.policy == "quorum" and len(successful) >= int(join.quorum or 0))
         )
+        successful_close = not (
+            join.policy == "all_successful"
+            and closed
+            and len(successful) != len(join.child_work_item_ids)
+        )
         self.joins[join_index] = replace_join(
             join,
             accepted_child_ids=accepted,
@@ -1065,7 +1070,10 @@ class WorkGraph:
             generation=join.generation + 1,
             state="closed" if closed else "open",
             terminal_receipt_ref=(
-                f"join_terminal:{join.join_id}:{join.generation + 1}" if closed else None
+                f"{'join_terminal' if successful_close else 'join_failed'}:"
+                f"{join.join_id}:{join.generation + 1}"
+                if closed
+                else None
             ),
         )
 
