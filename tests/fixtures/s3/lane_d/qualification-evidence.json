@@ -1,14 +1,39 @@
 {
   "evidence_version": "qitos.s3.lane_d.qualification_evidence/1",
-  "status": "waiting_on_lane_a_b_c",
-  "qualified_producers": ["s3.a.session_fork_ownership"],
+  "status": "s3_lane_d_qualified",
+  "qualified_producers": [
+    "s3.a.session_fork_ownership",
+    "s3.b.context_authority_transfer",
+    "s3.c.durable_work_runtime"
+  ],
   "qualified_scenarios": [
     "immutable source snapshot and unchanged source head",
     "distinct child session run work-item attempt snapshot and checkpoint identities",
     "atomic child generation-zero head and fork declaration",
     "Memory SQLite and independent CheckpointStore conformance",
     "owner supersession and stale-owner rejection",
-    "bounded clean-process child restore and continuation"
+    "bounded clean-process child restore and continuation",
+    "strict_plan_and_receipt_round_trip",
+    "exchange_safe_immutable_child_input",
+    "typed_continuation_preservation_or_loss",
+    "typed_state_projection",
+    "canonical_artifact_reference_transfer",
+    "five_way_least_privilege_authority",
+    "safe_bounded_model_and_diagnostic_views",
+    "independent_policy_and_projector_conformance",
+    "fresh_default_operation_identity_and_explicit_retry",
+    "same_id_same_payload_idempotency_and_typed_conflict",
+    "reconstructable_descriptor_scheduler_protocol",
+    "queued_eligible_recovery_and_bounded_admission",
+    "missing_running_worker_to_outcome_unknown_without_replay",
+    "real_session_fork_child_identity_and_owner_fencing",
+    "accepted_context_transfer_persisted_before_dispatch",
+    "least_privilege_budget_and_capability_receipts",
+    "handoff_single_owner_and_superseded_source_fencing",
+    "direct_and_model_callable_fact_parity",
+    "all_all_successful_first_success_and_quorum_join_receipts",
+    "closed_join_late_outcome_discard",
+    "multi_agent_process_loss"
   ],
   "schema_frozen": false,
   "writer_default": "frozen_trace_v1_unchanged",
@@ -16,8 +41,5 @@
   "publication_ready": false,
   "claims": [],
   "measurements": [],
-  "blockers": [
-    "lane_b_producer_file_digest_mismatch",
-    "lane_c_waiting_on_exact_lane_a_b_consumption"
-  ]
+  "blockers": []
 }

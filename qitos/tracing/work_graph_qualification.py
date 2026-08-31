@@ -40,6 +40,7 @@ _REQUIRED_FIELDS = {
     "contract_id",
     "owner_lane",
     "producer_branch",
+    "source_commit",
     "producer_commit",
     "path",
     "digest",
@@ -158,11 +159,14 @@ def _validate_dependency(
         findings.append(S3ReadinessFinding("executable_test_binding_missing", contract_id))
 
     declared_commit = str(dependency.get("producer_commit") or "")
+    source_commit = str(dependency.get("source_commit") or "")
     branch_commit = _commit_for_branch(repository_root, branch)
+    if not re.fullmatch(r"[0-9a-f]{40}", source_commit):
+        findings.append(S3ReadinessFinding("source_commit_unknown", contract_id))
+    elif branch_commit != source_commit:
+        findings.append(S3ReadinessFinding("producer_ref_mismatch", contract_id))
     if not re.fullmatch(r"[0-9a-f]{40}", declared_commit):
         findings.append(S3ReadinessFinding("producer_commit_unknown", contract_id))
-    elif branch_commit != declared_commit:
-        findings.append(S3ReadinessFinding("producer_ref_mismatch", contract_id))
 
     path = _safe_path(dependency.get("path"))
     digest = str(dependency.get("digest") or "")
@@ -226,7 +230,7 @@ def _validate_dependency(
                     "merge-base",
                     "--is-ancestor",
                     implementation_commit,
-                    declared_commit,
+                    source_commit,
                 )
                 is None
             ):
@@ -281,7 +285,7 @@ def _validate_dependency(
                     "merge-base",
                     "--is-ancestor",
                     implementation_commit,
-                    declared_commit,
+                    source_commit,
                 )
                 is None
             ):
@@ -342,14 +346,33 @@ def _validate_dependency(
         elif lane == "C" and manifest.get("schema_version") == dependency.get(
             "schema_identifier"
         ):
-            if manifest.get("status") != "qualified":
+            if manifest.get("status") != "qualified_integrated_a_b":
                 findings.append(S3ReadinessFinding("producer_manifest_status_blocked", contract_id))
             if manifest.get("test_node_ids") != bindings:
                 findings.append(S3ReadinessFinding("manifest_test_binding_mismatch", contract_id))
             producer_files = manifest.get("files")
+            evidence_binding = next(
+                (
+                    item for item in manifest.get("files", ())
+                    if isinstance(item, Mapping)
+                    and item.get("path")
+                    == "tests/fixtures/s3/lane_c/qualification-evidence.json"
+                ),
+                None,
+            )
+            evidence_bytes = (
+                _committed_bytes(repository_root, declared_commit, evidence_binding["path"])
+                if isinstance(evidence_binding, Mapping)
+                else None
+            )
+            try:
+                evidence = json.loads(evidence_bytes) if evidence_bytes else None
+            except json.JSONDecodeError:
+                evidence = None
+            qualified = evidence.get("qualified") if isinstance(evidence, Mapping) else None
             raw_scenarios = (
-                ["multi_agent_process_loss"]
-                if manifest.get("status") == "qualified"
+                [*qualified, "multi_agent_process_loss"]
+                if isinstance(qualified, list) and qualified
                 else []
             )
         else:

@@ -81,6 +81,7 @@ def _qualified_inventory(tmp_path: Path) -> tuple[Path, dict[str, Any]]:
             "contract_id": contract_id,
             "owner_lane": lane,
             "producer_branch": branch,
+            "source_commit": commit,
             "producer_commit": commit,
             "path": manifest_path.relative_to(repo).as_posix(),
             "digest": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
@@ -99,24 +100,24 @@ def _qualified_inventory(tmp_path: Path) -> tuple[Path, dict[str, Any]]:
     }
 
 
-def test_default_inventory_truthfully_waits_without_claims() -> None:
+def test_default_inventory_qualifies_integrated_exact_sources_without_rollout_claims() -> None:
     result = qualify_s3_readiness(
         load_readiness_inventory(DEFAULT_INVENTORY), repository_root=ROOT
     )
     payload = result.to_dict()
-    assert result.status == "waiting_on_lane_a_b_c"
-    assert result.ready is False
-    assert {item["owner_lane"] for item in payload["qualified_producers"]} <= {"A", "B"}
+    assert result.status == "s3_lane_d_qualified"
+    assert result.ready is True
+    assert {item["owner_lane"] for item in payload["qualified_producers"]} == {
+        "A", "B", "C"
+    }
     assert payload["schema_frozen"] is False
     assert payload["writer_default"] == "frozen_trace_v1_unchanged"
     assert payload["qita_reader_default"] == "frozen_trace_v1_compatibility"
     assert payload["publication_ready"] is False
     assert payload["claims"] == []
     assert payload["measurements"] == []
-    assert {finding["code"] for finding in payload["findings"]} >= {
-        "producer_not_qualified",
-        "producer_manifest_status_blocked", "process_loss_scenario_missing",
-    }
+    assert payload["findings"] == []
+    assert "multi_agent_process_loss" in payload["qualified_scenarios"]
 
 
 def test_exact_committed_manifests_and_executable_scenarios_qualify(tmp_path: Path) -> None:

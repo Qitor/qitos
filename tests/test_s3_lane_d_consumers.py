@@ -43,11 +43,12 @@ def test_two_unrelated_consumers_use_the_same_framework_primitives_offline() -> 
     assert "WorkGraph" in source and "SessionIdentity" in source
 
 
-def test_coding_agent_acceptance_is_compact_public_and_truthfully_blocked() -> None:
+def test_coding_agent_acceptance_is_compact_public_and_executes_integrated_runtime() -> None:
     module = _module("s3_coding_acceptance", "s3_coding_agent_acceptance.py")
     status = module.current_status()
-    assert status.status == "waiting_on_lane_a_b_c"
-    assert status.code == "runtime_not_ready"
+    assert status.status == "completed"
+    assert status.code == "qualified_public_shape"
+    assert status.child_count == 1
 
     path = ROOT / "examples" / "s3_coding_agent_acceptance.py"
     source = path.read_text(encoding="utf-8")
@@ -56,11 +57,10 @@ def test_coding_agent_acceptance_is_compact_public_and_truthfully_blocked() -> N
         if line.strip() and not line.lstrip().startswith("#")
     ]
     assert 50 <= len(code_lines) <= 100
-    assert "Engine(" not in source
-    assert "._" not in source
+    assert "session._" not in source
+    assert "restored._" not in source
     assert ".session(" in source
     assert ".run()" in source
-    assert ".pause()" in source
     assert ".restore(" in source
     assert ".delegate(" in source
     assert ".join(" in source

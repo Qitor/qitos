@@ -1,7 +1,7 @@
 # S3 Lane D work-graph observability
 
-Status: independent D surfaces complete; runtime qualification waiting on B/C
-Updated: 2026-08-31
+Status: integrated A/B/C producer qualification complete; release remains G4-gated
+Updated: 2026-09-01
 Baseline: `851f7902f15da670e72f4c04d7453cf37201aee7`
 Branch: `codex/v4-s3-d-graph-observability`
 Worktree: sibling Lane D worktree (the host-specific absolute path is intentionally not persisted)
@@ -119,12 +119,11 @@ absence and unsupported compatibility queries return typed blocked JSON.
 
 The machine-readable source is
 `tests/fixtures/s3/lane_d/readiness-inventory.json`. Every dependency records
-contract ID, owner lane, exact producer commit, path, digest, schema identifier,
-authority, compatibility, executable test binding, qualification state, and
-blocker/remediation. At plan creation the three local producer branches all
-point to the dispatch baseline and no remote producer refs/manifests exist, so
-all remain unqualified. Unknown commit/path/digest is a blocker, never a
-wildcard. One receipt cannot discharge multiple contract rows.
+contract ID, owner lane, immutable source-lane commit, integrated producer
+commit, path, digest, schema identifier, authority, compatibility, executable
+test binding, qualification state, and blocker/remediation. Unknown
+commit/path/digest is a blocker, never a wildcard. One receipt cannot discharge
+multiple contract rows.
 
 Finalization performs read-only ref and committed-byte checks for:
 
@@ -156,9 +155,8 @@ Both consumers use identical framework primitives and the same read model.
 
 A 50-100 line example (prompts/config excluded) exercises only public or
 reviewed module-level APIs for AgentModule/Engine/Session run, pause, fresh
-restore, delegate, join, and inspection. Until A/B/C runtime contracts are
-present it exits with the typed `runtime_not_ready`/`waiting_on_lane_a_b_c`
-result rather than pretending the durable workflow completed.
+restore, delegate, join, and inspection. The integrated example now completes
+with the typed `qualified_public_shape` result.
 
 ## Implementation and verification ledger
 
@@ -192,9 +190,24 @@ The read-only branch audit observed:
   and evidence say `waiting_on_lane_a_b`, `lane_a_consumed=false`, and
   `lane_b_consumed=false`. It cannot qualify runtime readiness.
 
-Accordingly the qualification output is `waiting_on_lane_a_b_c`, qualifies only
-Lane A, keeps `claims=[]` and `measurements=[]`, and does not run a C process-loss
-test as though its unconsumed A/B dependencies were ready.
+That independent-lane audit therefore correctly produced
+`waiting_on_lane_a_b_c`, qualified only Lane A, and kept `claims=[]` and
+`measurements=[]`; its blocked result was the input to the convergence repair,
+not a release claim.
+
+The G4 convergence replay subsequently preserved those immutable source-lane
+heads while binding the committed replay or repair bytes actually executed:
+
+- A source `9442647767bc9a7c45ed3bf07bc4f289412544ed`, replay producer
+  `1025f121d6de7fd3cff9e71558de44df3d36134a`;
+- B source `5efa1db19ae541234c562c4ba99e928d2381fc62`, repaired producer
+  `8bbfd6580e03f77f51777e696d78ee783bc09f75`; and
+- C source `12edf48aa5dd2ed7c3c830baf9031116474bcc52`, integrated producer
+  `336ede9db49d0d1ff20fe7668017bdae7712fccd`.
+
+The integrated qualifier is now `s3_lane_d_qualified` with all three producer
+rows and 27 executable scenarios qualified. This does not freeze or promote the
+candidate Trajectory plane, and it is not release qualification.
 
 Validation completed on this Lane D branch:
 
