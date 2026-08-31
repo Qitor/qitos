@@ -1,0 +1,27 @@
+{
+  "schema_version": "qitos.session.fork_qualification/v1",
+  "implementation_producer_commit": "ae62ba1ea5fef7a472609dcb11d23a5f21733410",
+  "dispatch_source": "851f7902f15da670e72f4c04d7453cf37201aee7",
+  "qualified_facts": [
+    "immutable source snapshot and unchanged source head",
+    "distinct child session run work-item attempt snapshot and checkpoint identities",
+    "atomic child generation-zero head and fork declaration",
+    "Memory SQLite and independent CheckpointStore conformance",
+    "owner supersession and stale-owner rejection",
+    "bounded clean-process child restore and continuation"
+  ],
+  "unsupported_claims": [
+    "exactly-once external side effects",
+    "distributed scheduling or remote ownership leases",
+    "automatic replay of outcome-unknown effects",
+    "hard cancellation of arbitrary workers",
+    "S3 complete or production distributed readiness"
+  ],
+  "shared_document_handoff": [
+    "README What's New",
+    "README.zh What's New",
+    "CHANGELOG Unreleased",
+    "docs/progress integration ledger",
+    "Task 12 and Task 13 completion checkboxes"
+  ]
+}
