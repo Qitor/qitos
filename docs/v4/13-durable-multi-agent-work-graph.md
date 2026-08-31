@@ -1,6 +1,6 @@
 # Task 13 — durable multi-agent work graph and ownership transfer
 
-Status: 13A contract is present in the unpromoted G2 candidate; G2-R2 pending;
+Status: 13A contract is qualified in the G2-R2 repair tree; promotion pending;
 behavior still waits for Task 12's clean-process slice
 Depends on: Task 12A–12D; consumes Tasks 02, 03, and 04 contracts
 Feeds: Task 05 lineage/observability, Task 10 convergence, and native multi-agent

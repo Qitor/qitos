@@ -1,6 +1,6 @@
 # G2 stable-contract convergence plan
 
-Status: candidate delivered; independent G2-R2 audit blocks promotion
+Status: G2-R2 repair qualified; promotion and worktree retirement pending
 Updated: 2026-08-31
 Owner: one G2 integration owner
 S1 source ancestry baseline: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
@@ -22,6 +22,15 @@ safety, honest current-versus-historical receipts, and private `__all__`
 visibility. The authoritative closure plan is
 [`g2_r2_promotion_audit.md`](g2_r2_promotion_audit.md). Do not start S2 from the
 candidate HEAD.
+
+G2-R2 replayed the candidate onto dispatch baseline `8e17b1f...` and closed all
+five independent contract repair groups through `49fa15b...`. The repair tree
+passes 291 focused tests, `2104 passed, 50 skipped` full-suite validation, the
+399-finding ratchet, stable flake8/mypy, and the three honest readiness modes
+(0/21 without receipts; 21/21 with exact receipts; normal mode still typed
+blocked). It remains a promotion candidate until the primary branch
+fast-forwards, is revalidated, and the explicit worktree-retirement receipt is
+recorded.
 
 ## Objective
 
@@ -220,15 +229,16 @@ Required before promotion:
 
 ## G2 exit criteria
 
-- [ ] A/C/B use one typed identity vocabulary.
-- [ ] One extensible snapshot envelope consumes real B/C components.
-- [ ] One ArtifactRef is shared by request, result, snapshot, and lineage facts.
-- [ ] ToolResult has one current writer and tested historical migration reader.
-- [ ] Generic capability logic contains no provider-name heuristic.
-- [ ] Provider/WorkGraph diagnostics pass adversarial privacy tests.
-- [ ] Public/extension/internal surfaces have a reviewed interface budget.
-- [ ] D binds all 17 S1 requirements to exact accepted producers.
-- [ ] S1 contracts are qualified while runtime/trajectory claims remain honest.
+- [x] A/C/B use one typed identity vocabulary.
+- [x] One extensible snapshot envelope consumes real B/C components.
+- [x] One ArtifactRef is shared by request, result, snapshot, and lineage facts.
+- [x] ToolResult has one current writer and tested historical migration reader.
+- [x] Generic capability logic contains no provider-name heuristic.
+- [x] Provider/WorkGraph/ArtifactRef diagnostics pass adversarial privacy tests.
+- [x] Public/extension/internal surfaces have a reviewed interface budget.
+- [x] D binds all 17 S1 requirements plus distinct historical/current writer
+      evidence to exact accepted producers.
+- [x] S1 contracts are qualified while runtime/trajectory claims remain honest.
 - [ ] Combined quality gates pass and one clean G2 baseline is promoted.
 - [ ] Retired S1/G2 worktrees have a clean, non-forced post-promotion removal
       receipt; their branch and commit references remain recoverable.

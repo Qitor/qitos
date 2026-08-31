@@ -1,17 +1,17 @@
 # v4 four-lane execution playbook
 
 Status: active dispatch specification
-Updated: 2026-08-30
+Updated: 2026-08-31
 Nature: orchestration document, not a fifth architecture or a new public API
 Source tasks: Tasks 02–05 and 08–13
 Baseline: Task 01 complete; exact current integration status lives in
 [`docs/progress.md`](../progress.md)
 
-Current dispatch state: G2 candidate `cab8fd246...` is repository-green but is
-not promoted. Independent review reopened historical ToolResult strictness,
-ProviderCapabilities types, diagnostic/ArtifactRef privacy, current-versus-
-historical receipts, interface visibility, and promotion/worktree closure. One
-G2-R2 integration owner must close these items; S2 behavior remains blocked.
+Current dispatch state: the G2-R2 repair tree through `49fa15b...` has closed
+the independently reproduced contract blockers and passed repair-tree gates.
+It is not yet promoted: primary-checkout revalidation, explicit worktree
+retirement, final evidence, and remote verification remain. S2 behavior stays
+blocked until that closure receipt names one exact baseline.
 
 ---
 
@@ -947,10 +947,10 @@ fifth implementation. Its responsibilities are:
 
 | Lane | Current package | Branch/PR | Lease | Tests | Handoff produced | Blocker/decision | Gate status |
 |---|---|---|---|---|---|---|---|
-| A | 12A session contracts | `5886425` | session identity/snapshot | candidate cross-line tests green | typed identities, extensible envelope, ArtifactRef foundation | G2-R2 qualification and runtime behavior absent | unpromoted G2 candidate |
-| C | recovery/effects + 13A | `bd7fca9` | outcome/work graph | candidate cross-line tests green | typed effects/work graph, current writer and historical reader | G2-R2 strict grammar and persistent scheduler absent | unpromoted G2 candidate |
-| B | 02B RequestView | `3cc29be` | conversation/context | candidate cross-line tests green | sole conversation component, RequestView, declared capabilities | G2-R2 capability/privacy repair and provider dispatch absent | unpromoted G2 candidate |
-| D | lineage intake | `fcb0784` | readiness/evidence | pre-R2 inventory reports 19/19 | candidate A/B/C producer bindings | current/historical receipt repair plus runtime/Trajectory blockers retained | unpromoted G2 candidate; Trajectory not ready |
+| A | 12A session contracts | `d90b6a9` | session identity/snapshot | G2-R2 focused/full gates green | typed identities, extensible envelope, ArtifactRef foundation | runtime behavior absent | repair qualified; promotion pending |
+| C | recovery/effects + 13A | `39ae60a` + `3f2bde6`/`0dad384` | outcome/work graph | strict grammar/privacy adversaries green | typed effects/work graph, distinct current/historical writer evidence | persistent scheduler absent | repair qualified; promotion pending |
+| B | 02B RequestView | `9241dd3` + `0efa496`/`0dad384` | conversation/context | capability/privacy adversaries green | sole conversation component, RequestView, declared capabilities | provider dispatch absent | repair qualified; promotion pending |
+| D | lineage intake | `49fa15b` | readiness/evidence | 0/21 absent; exact 21/21 | exact replay/current/historical producer bindings | runtime/Trajectory blockers retained | repair qualified; Trajectory not ready |
 
 ### 10.2 Merge rule
 
@@ -983,12 +983,12 @@ worktree as removable. Such a path blocks wave closure until reconciled.
 
 ## 11. Immediate dispatch order
 
-The G2 candidate has completed its local convergence work. Do not dispatch four
-runtime lanes and do not promote it directly. Dispatch one G2-R2 task using
-[`docs/internal/plans/g2_r2_promotion_audit.md`](../internal/plans/g2_r2_promotion_audit.md).
-It repairs the independently reproduced blockers, replays the candidate onto
-the latest integration baseline, promotes one stable-contract baseline, and
-retires the completed worktrees. Only then may the planned
+The G2-R2 task defined by
+[`docs/internal/plans/g2_r2_promotion_audit.md`](../internal/plans/g2_r2_promotion_audit.md)
+has repaired the independently reproduced blockers and replayed the candidate
+onto the latest integration baseline. Do not dispatch four runtime lanes while
+promotion, primary-tree revalidation, worktree retirement, and final evidence
+remain. Only after those steps may the planned
 [`S2 runtime wave`](../internal/plans/s2_runtime_wave.md) start.
 
 The following R4/S1 dispatch history remains for provenance.

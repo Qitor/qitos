@@ -1,13 +1,70 @@
 # G2-R2 independent repair, promotion, and worktree retirement
 
-Status: planned; blocks G2 promotion and every S2 runtime lane
+Status: repair candidate qualified; promotion and retirement pending
 Updated: 2026-08-31
 Owner: one integration owner
 Integration branch: `feat/campaign-absorption`
-Integration base before this audit record:
-`3ab69c91b8c5b7759208a3449def341658bd5fd1`
+Integration dispatch baseline:
+`8e17b1f6471a89a52aacec74a55f41386d44559a`
 Reviewed G2 candidate:
 `cab8fd246d2485784a13558e668eadb3ffa4d42f`
+
+Repair qualification through:
+`49fa15b5b0499e3f2a1bb4ea86b2af7a143f3e5c`
+
+## Repair execution record
+
+The candidate range was replayed in exact source order onto dispatch baseline
+`8e17b1f6471a89a52aacec74a55f41386d44559a`; replay HEAD is
+`a68b281c2b79cf26252801bf06c6a6f2a9fb5d3a`. Repair commits are:
+
+- R2-T `3f2bde6` — strict historical ToolResult grammar;
+- R2-P `0efa496` — strict ProviderCapabilities decoding;
+- R2-R `0dad384` — diagnostic, ProviderFailure, ArtifactRef, WorkGraph, model,
+  trace, receipt, and readiness safety;
+- R2-U `abfd89d` — semantic public-interface budget;
+- current writer evidence `00e9981` — ToolResult and nested ExchangeLog;
+- R2-D `49fa15b` — 21 independently bound producer receipts.
+
+Repair-tree gates passed: 291 focused tests; `2104 passed, 50 skipped` full
+suite; 399-finding ratchet (377 active, 22 vendored/generated); stable flake8;
+stable mypy on 84 files; readiness 0/21 without receipts and 21/21 with exact
+receipts; exact normal mode exit 2; every mode `schema_not_ready` with empty
+measurements/claims; and clean `git diff --check`.
+
+### Candidate-to-replay commit map
+
+| Source candidate commit | Replay commit |
+|---|---|
+| `99390d16662a3f7e62ca866654a518c898f0619a` | `0f60a11df92a21cd5b5dc0f4271638a99e559786` |
+| `5dfc90617aaf0ebeac286b3633882583174668a3` | `6dd9b4fceb7565c4f7ddf280e16c3e9b2fd837d6` |
+| `b58dddafd82654158afca7ec20545100bdd54636` | `36bb7c5d6f5425b229a9e0e06899857c551fda07` |
+| `7c58233253afd6fd714a4920d67bd7862403acf5` | `ef65be8c596d6bff2634a2388a249b85f786257e` |
+| `632e353b4658070e5fdbc75d95f695313bade43b` | `5d67627c030811be812cdab54dc6a9064a83b88e` |
+| `a8db8ba5c94ffca3fdd6cd1abf2c67dba304144e` | `528e7fa22ff48f1f4855ed6b033caf0aec195fcd` |
+| `b8bda14c09a7dc9f2279d0b4ee4c3e3f36c3b3fa` | `680f3b9df843145f7aab20a60dd74ae19387c65d` |
+| `551fc3bf117ec7c3d34c2ceacd188e009cf79baa` | `34896be8807826866767ab57ad67ac838355d52f` |
+| `7c769d0c23c53b867922e2b173e9ab261e3ba0b4` | `b7fd46b17a36f1e2f9fc461cc53219039596bebe` |
+| `090008c04ee84b0e53af3ee976db1592356df443` | `6c2f2810c49b7ef78f45b484e5595f3eb54935ab` |
+| `c02ddeaf45725e6a6f519ffdd217447b72858a56` | `4462aad165b6e0e2016cebbec334148f1cc27e8d` |
+| `fb46b381c0b55283121d509da493aebe739b6711` | `5e7127fa7113e12e54cae7fa337391e1f9fcdf4c` |
+| `2cb5d6b14fb5f6189f70486681b5fb9987a8eb65` | `dd1c390be8acd1594f553287b79b279e7c34b39d` |
+| `12cc08f27c5b70696c1519bfd05dd24f7f542624` | `d6257abdd745da8362db96ab29a27f03bc3f9f93` |
+| `3ab128048e85e9e05d32cd1a34e829ae28f29004` | `120150675d333116e0aec65f31ff0eb215dd1097` |
+| `7c72484e8fce64f4c4b48f762b9e8d85020c7806` | `83d63b9ca5b61c4c956dd319e524c9c5aa3b2e53` |
+| `368f879146a1ce41dddb97bd12f8d3b460f62257` | `dde334df7cadab512d0edaec215582b5c637c49b` |
+| `45fb68879086c38df58e0b5f4258168b30adfb28` | `e44622b752d18de83ea9b2416a7db8188ac3c479` |
+| `d090afe4dbc24df0fae22ffdbedfc84f04487d50` | `ee91224acc80a35be4981b4bee03fa99ddc5b739` |
+| `dcc6c758799daca96a66fe3100792d52ee5fb3ad` | `68e1ffd6597b9fbc9a5bf2b7f397a329d4f7236f` |
+| `cda9a8475736ae4746e259946d1873edf634ebdb` | `2b48b983b9b6afa7c0272e8e4f88aac5aa547584` |
+| `f764147aa18ef79b9404cb54862d0e8b4e4fa08b` | `c06438bcca1d19a61422c6cb00794289037721ba` |
+| `58864253a169d1bac5749ad2b2de5de6872c0da2` | `d90b6a99caa4b4c1d2f25807ac777085905d3ebd` |
+| `bd7fca95e9ba9acfbbd9e8d0655a14ece066bcb6` | `39ae60a5664a26dfde5c3a444135a9c7f53c8c60` |
+| `3cc29bea2bd311a2343862fd0b4f32636524bbb6` | `9241dd3ef379dafc8df299370bde3930241ffb03` |
+| `ced9d3304e988504b155505c723b3a88d03ec6e9` | `f4e7b1cbac6705168d11312b34f6ed3982d32c82` |
+| `fcb07843ce196a5d20d4bfceb6b668f9bdf70d94` | `6a005dd47afff64ea517c4f931a8c4917d631f35` |
+| `2c3e634cb2ac709a9fd5c7e6cded51a78195c91c` | `1dee3ab957f0934de6d4cc5d5600edaebac7d37e` |
+| `cab8fd246d2485784a13558e668eadb3ffa4d42f` | `a68b281c2b79cf26252801bf06c6a6f2a9fb5d3a` |
 
 ## Objective
 
@@ -23,20 +80,24 @@ runtime, provider dispatch, a child scheduler, Trajectory, or qita behavior.
 
 The G2 candidate started at
 `096e08244a0274720a58f07ed9f45ca0a7eece59`. The integration branch later
-advanced to `3ab69c91...`, so `cab8fd2...` cannot fast-forward the current
-integration branch. An isolated replay of the 29 commits in
-`096e082..cab8fd2` onto `3ab69c91...` applied the first 28 commits and stopped
-only on the final documentation commit. The expected conflicts are:
+advanced to `8e17b1f...`, so `cab8fd2...` cannot fast-forward the current
+integration branch. The authoritative replay of the 29 commits in
+`096e082..cab8fd2` onto `8e17b1f...` applied the first 28 commits and stopped
+only on the final documentation commit. The resolved conflicts were:
 
 - `CHANGELOG.md`;
 - `README.md`;
 - `README.zh.md`;
-- `docs/v4/11-four-lane-execution-playbook.md`.
+- `docs/internal/plans/g2_contract_convergence.md`;
+- `docs/internal/plans/s1_d_lineage_readiness.md`;
+- `docs/progress.md`;
+- `docs/v4/11-four-lane-execution-playbook.md`;
+- `docs/v4/12-session-runtime-and-persistence.md`;
+- `docs/v4/13-durable-multi-agent-work-graph.md`.
 
-The G2-R2 worktree must start from the exact later
-`feat/campaign-absorption` dispatch SHA supplied after this audit record is
-committed. It must contain `3ab69c91...` and this plan. Apply the candidate
-commits in source order; resolve shared documents line by line, retaining both
+The G2-R2 worktree started from exact `feat/campaign-absorption` dispatch SHA
+`8e17b1f...`, which contains this plan. The candidate commits were applied in
+source order; shared documents were resolved line by line, retaining both
 the G2 implementation evidence and the independent finding/promotion/cleanup
 truth. Do not merge or copy the candidate's premature `G2 CLOSED` wording.
 
@@ -205,11 +266,11 @@ publish the receipt in `docs/progress.md`.
 
 ## Exit criteria
 
-- [ ] All five R2 repair groups have fixing commits and regression tests.
-- [ ] Candidate commits are replayed onto the latest audit-bearing integration
+- [x] All five R2 repair groups have fixing commits and regression tests.
+- [x] Candidate commits are replayed onto the latest audit-bearing integration
       baseline with shared documents resolved honestly.
-- [ ] Current and historical producer receipts describe different facts.
-- [ ] G2 checklist and status agree with actual code and integration topology.
+- [x] Current and historical producer receipts describe different facts.
+- [x] G2 checklist and status agree with actual code and integration topology.
 - [ ] Integration branch fast-forwards to the independently qualified HEAD.
 - [ ] Promoted-tree gates pass.
 - [ ] Superseded worktrees are removed without force; branches/refs remain.

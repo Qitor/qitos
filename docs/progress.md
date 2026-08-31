@@ -6,7 +6,8 @@ Integration branch: `feat/campaign-absorption`
 Independently reviewed runtime baseline: `5ef8ab657f6452ae48c931beea79106e2cca34c6`
 S1 dispatch baseline: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
 G2 candidate: `cab8fd246d2485784a13558e668eadb3ffa4d42f`
-Current gate: **G2 candidate delivered; G2-R2 promotion audit open; S2 blocked**
+G2-R2 repair branch: `codex/v4-g2-r2-promotion` through `49fa15b5b0499e3f2a1bb4ea86b2af7a143f3e5c`
+Current gate: **G2-R2 repair qualified; promotion/retirement pending; S2 blocked**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md)
 and [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md)
@@ -61,6 +62,44 @@ the candidate onto the latest audit-bearing integration HEAD, fixes these
 boundaries, promotes one verified baseline, and retires superseded worktrees.
 The four-lane [`S2 runtime wave`](internal/plans/s2_runtime_wave.md) is planned
 but remains blocked until that exact baseline and cleanup receipt exist.
+
+### G2-R2 repair qualification (pre-promotion)
+
+The 29 candidate commits were replayed in source order onto fixed dispatch
+baseline `8e17b1f6471a89a52aacec74a55f41386d44559a`. The first 28 applied
+directly; the final documentation commit was resolved across nine shared
+documents while retaining the later audit, worktree-retirement policy, real
+candidate capabilities, and the fact that S2 has not started. Replay HEAD was
+`a68b281c2b79cf26252801bf06c6a6f2a9fb5d3a`.
+
+Independent repair commits are:
+
+- `3f2bde6` — exact historical ToolResult grammar and mixed-schema rejection;
+- `0efa496` — typed ProviderCapabilities constructor/reader/adapter validation;
+- `0dad384` — shared non-echoing diagnostics, ProviderFailure, ArtifactRef,
+  ToolResult/readiness, and WorkGraph safety;
+- `abfd89d` — semantic interface budget: 124 deliberate module exports, three
+  implementation-private helpers, and zero root/Engine growth;
+- `00e9981` — committed current ToolResult and nested ExchangeLog writer bytes
+  with independent consumers;
+- `49fa15b` — 21 distinct historical/current/bundle receipts with exact
+  source/replay lineage and independent consumer bindings.
+
+Repair-tree qualification used Python 3.12.7, flake8 7.0.0, mypy 1.19.1,
+pyflakes 3.2.0, pycodestyle 2.11.1, and mccabe 0.7.0. The 291-test focused
+contract/architecture/public/no-local-path gate passed; the 399-finding ratchet
+remained exactly 377 active plus 22 vendored/generated; stable flake8 passed;
+stable mypy passed on 84 files; and the complete suite passed `2104 passed, 50
+skipped`. Readiness without receipts exited 0 at 0/21 with 21 receipt findings;
+exact-receipt dry-run exited 0 at 21/21 with zero receipt findings; normal
+exact-receipt execution exited 2. All three remained `schema_not_ready`, and
+the exact modes retained 11 non-contract blockers with empty measurements and
+claims. `git diff --check` passed and the repair tree was clean.
+
+This qualifies a promotion candidate, not an integration baseline. The primary
+branch must still match `8e17b1f...`, fast-forward to the repair head, pass the
+same gates in the primary checkout, retire only the explicit clean worktrees,
+record the sole S2 baseline, and pass final-head gates before push.
 
 The A -> C -> B -> D convergence tree and the bounded G1-R3/R4 repairs are
 integrated at `5ef8ab657f6452ae48c931beea79106e2cca34c6`. C-P3 collision-safe key
@@ -590,34 +629,42 @@ blocked from freeze until Task 12/13 lineage is available.
       preserves validated non-negative integer counts (`C-P4`).
 - [x] Cross-lane qualification receipts bind to reviewed producer artifacts.
 
-### G2 prerequisites exposed by this review
+### G2 prerequisites and runtime boundary
 
-- [ ] C uses A's typed session/work/attempt/agent identities at in-memory and
+- [x] C uses A's typed session/work/attempt/agent identities at in-memory and
       serialized boundaries.
-- [ ] A's envelope has one owner codec per component and real B/C consumers;
+- [x] A's envelope has one owner codec per component and real B/C consumers;
       ExchangeLog, steering, and continuation do not have competing slots.
-- [ ] RequestView, ToolResult, snapshots, and lineage share one ArtifactRef.
-- [ ] ToolResult has one current writer plus an explicit historical migration
+- [x] RequestView, ToolResult, snapshots, and lineage share one ArtifactRef.
+- [x] ToolResult has one current writer plus an explicit historical migration
       reader; old and new strict readers do not share a false schema identity.
-- [ ] Generic provider capability logic contains no provider-name heuristic.
-- [ ] Provider and WorkGraph diagnostics do not echo credentials or host paths.
-- [ ] The 96 module-level exports are classified and constrained by a reviewed
+- [x] Generic provider capability logic contains no provider-name heuristic.
+- [x] Provider, WorkGraph, ArtifactRef, receipt, model, and trace diagnostics do
+      not echo credentials, common key/token forms, or host paths.
+- [x] The 124 deliberate module exports and three private helpers are
+      constrained by a reviewed
       beginner/extension/internal interface budget.
-- [ ] D binds all 17 S1 requirements to exact accepted producer commits and
+- [x] D binds all 17 S1 requirements plus distinct historical/current writer
+      evidence to exact accepted producer commits and
       keeps runtime/trajectory readiness independently blocked.
-- [ ] RequestView and CodecReport are versioned and transport/API-mode aware.
-- [ ] Provider failures cannot become assistant text.
-- [ ] Partial parallel completion survives checkpoint/recovery.
-- [ ] Timeout receipts state whether work continues and prevent late commit.
-- [ ] Durability callers distinguish accepted, persisted, failed, and dropped.
-- [ ] Hook/trace incompleteness is visible without recursive failure.
-- [ ] Session/run/work-item/checkpoint/exchange/tool-call/agent identities are
+- [x] RequestView and CodecReport are versioned and transport/API-mode aware.
+- [x] Provider failures remain typed and cannot become assistant text.
+- [x] Contract fixtures preserve partial parallel completion for future
+      checkpoint/recovery consumers.
+- [x] Contract receipts state continuing-worker timeout and late/stale result
+      semantics; persistent execution remains a runtime item below.
+- [x] Persistence contracts distinguish accepted, persisted, failed, and
+      dropped outcomes; no durable session runtime is claimed.
+- [x] Hook/trace incompleteness is represented without recursive failure.
+- [x] Session/run/work-item/checkpoint/exchange/tool-call/agent identities are
       distinct and versioned.
-- [ ] Checkpoint v2 is the only session persistence truth; `RunState` has an
+- [x] Checkpoint v2 is the only planned session persistence truth; `RunState`
+      has an
       adapter/retirement decision and no parallel SessionStore exists.
-- [ ] A fresh process restores task, concrete state, ExchangeLog, partial tool
+- [ ] Runtime: a fresh process restores task, concrete state, ExchangeLog, partial tool
       batch, steering, context/artifacts, budgets, owner, and trace cursor.
-- [ ] Stale owners and late workers cannot advance a newer session head.
+- [ ] Runtime: generation checks must prevent stale owners and late workers
+      from advancing a persisted newer session head.
 - [ ] Handoff, delegate, fan-out, spawn, fork, and steering have distinct
       ownership semantics over one durable work graph.
 - [ ] Task 05 schema freeze waits for explicit session/work/ownership lineage.
