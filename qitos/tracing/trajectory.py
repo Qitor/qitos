@@ -17,6 +17,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Tuple
 
+from qitos.core.artifact import ArtifactRef
+
 
 TRAJECTORY_SCHEMA_VERSION = "qitos.trajectory/candidate-1"
 EXPORT_SCHEMA_VERSION = "qitos.trajectory-export/candidate-1"
@@ -158,49 +160,6 @@ class LossReport:
         return cls(
             policy_id=str(value.get("policy_id", "qitos.loss/unknown")),
             entries=entries,
-        )
-
-
-@dataclass(frozen=True)
-class ArtifactRef:
-    """Portable reference to a large object; never a host filesystem path."""
-
-    digest: str
-    size_bytes: int
-    media_type: str = "application/octet-stream"
-    artifact_id: Optional[str] = None
-
-    def __post_init__(self) -> None:
-        if len(self.digest) != 64 or any(
-            char not in "0123456789abcdef" for char in self.digest.lower()
-        ):
-            raise ValueError("ArtifactRef.digest must be a sha256 hex digest")
-        if self.size_bytes < 0:
-            raise ValueError("ArtifactRef.size_bytes must be non-negative")
-
-    def to_dict(self) -> Dict[str, Any]:
-        data: Dict[str, Any] = {
-            "digest": self.digest.lower(),
-            "size_bytes": self.size_bytes,
-            "media_type": self.media_type,
-        }
-        if self.artifact_id is not None:
-            data["artifact_id"] = self.artifact_id
-        return data
-
-    @classmethod
-    def from_dict(cls, value: Mapping[str, Any]) -> "ArtifactRef":
-        return cls(
-            digest=str(value["digest"]),
-            size_bytes=int(value["size_bytes"]),
-            media_type=str(
-                value.get("media_type", "application/octet-stream")
-            ),
-            artifact_id=(
-                str(value["artifact_id"])
-                if value.get("artifact_id") is not None
-                else None
-            ),
         )
 
 
@@ -532,7 +491,6 @@ __all__ = [
     "TRAJECTORY_SCHEMA_VERSION",
     "EXPORT_SCHEMA_VERSION",
     "STORE_SCHEMA_VERSION",
-    "ArtifactRef",
     "LossEntry",
     "LossReport",
     "PrivacyView",

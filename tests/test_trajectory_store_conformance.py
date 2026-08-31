@@ -8,8 +8,8 @@ from typing import Any, Callable
 
 import pytest
 
+from qitos.core.artifact import ArtifactRef
 from qitos.tracing import (
-    ArtifactRef,
     JsonTrajectoryStore,
     MemoryTrajectoryStore,
     RecordKind,
@@ -34,8 +34,10 @@ def _third_party_store() -> Any:
 
 def _fact(index: int, *, kind: RecordKind = RecordKind.TOOL_SLOT) -> TrajectoryRecord:
     artifact = ArtifactRef(
-        digest=hashlib.sha256(f"artifact-{index}".encode()).hexdigest(),
-        size_bytes=10 + index,
+        artifact_id=f"artifact-{index}",
+        resolver_key="trajectory-artifacts",
+        sha256=hashlib.sha256(f"artifact-{index}".encode()).hexdigest(),
+        byte_length=10 + index,
         media_type="text/plain",
     )
     return TrajectoryRecord.create(

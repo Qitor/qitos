@@ -55,7 +55,6 @@ from .sinks import (
 )
 from .store import JsonTrajectoryStore, MemoryTrajectoryStore, TrajectoryStore
 from .trajectory import (
-    ArtifactRef,
     LossEntry,
     LossReport,
     PrivacyView,
@@ -154,7 +153,6 @@ __all__ = [
     "RecordKind",
     "RecordRole",
     "PrivacyView",
-    "ArtifactRef",
     "LossEntry",
     "LossReport",
     # event sink seam

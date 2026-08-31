@@ -43,7 +43,7 @@ ALLOWED_MODULE_DEPS: dict[str, frozenset[str] | None] = {
     "protocols": frozenset(),
     "prompting": frozenset(),
     "trace": frozenset({"tracing"}),
-    "tracing": frozenset(),
+    "tracing": frozenset({"core"}),
     "render": frozenset({"core", "engine", "tracing"}),
     "checkpoint": frozenset(),
     "cache": frozenset({"models"}),

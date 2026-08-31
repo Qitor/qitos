@@ -139,7 +139,7 @@ class ThirdPartyStore:
         refs = {}
         for record in self.query(query):
             for ref in record.artifact_refs:
-                refs[ref.digest] = ref
+                refs[ref.sha256] = ref
         return tuple(refs.values())
 
     def validate_integrity(self) -> StoreIntegrityReport:
