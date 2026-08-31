@@ -1,17 +1,17 @@
 {
   "counts": {
-    "active": 377,
+    "active": 372,
     "by_category": {
       "contract": 143,
       "correctness": 35,
-      "hygiene": 199,
+      "hygiene": 194,
       "vendored/generated": 22
     },
     "by_owner": {
       "Lane B / Task 02": 5,
       "Lane B / Tasks 02/04": 30,
       "Lane C / Task 03": 11,
-      "Lane C / Tasks 03/09/10": 217,
+      "Lane C / Tasks 03/09/10": 212,
       "Lane D / Task 10 admission owner": 46,
       "Lane D / Tasks 05/10": 90
     },
@@ -22,7 +22,7 @@
       "E704": 8,
       "E722": 1,
       "E741": 3,
-      "F401": 125,
+      "F401": 120,
       "F402": 1,
       "F541": 37,
       "F811": 1,
@@ -49,13 +49,13 @@
     "by_semantic_category": {
       "contract": 163,
       "correctness": 36,
-      "hygiene": 200
+      "hygiene": 195
     },
     "by_tool": {
-      "flake8": 204,
+      "flake8": 199,
       "mypy": 195
     },
-    "total": 399,
+    "total": 394,
     "vendored_generated": 22
   },
   "created_from": "fb75cd5902fedf50d5e67dd617e62cd981c3128f",
@@ -176,22 +176,6 @@
       "category": "hygiene",
       "column": 1,
       "correctness_kind": null,
-      "id": "7262d4d0527e582173f1b10e0bf12b78ede5c97c082c8700f0dff56f08260b94",
-      "line": 10,
-      "message": "'uuid.uuid4' imported but unused",
-      "occurrence": 1,
-      "owner": "Lane C / Tasks 03/09/10",
-      "path": "qitos/checkpoint/memory_store.py",
-      "rule": "F401",
-      "semantic_category": "hygiene",
-      "source_anchor": "80d21783aa451b56f53a",
-      "symbol": "<module>",
-      "tool": "flake8"
-    },
-    {
-      "category": "hygiene",
-      "column": 1,
-      "correctness_kind": null,
       "id": "b13d7fb262d0e53d6f294f4c515ce53c9708551a0db0fd66e3a1ace204c7d4ab",
       "line": 13,
       "message": "'typing.List' imported but unused",
@@ -217,70 +201,6 @@
       "rule": "F401",
       "semantic_category": "hygiene",
       "source_anchor": "692be0ec3e48cf197ade",
-      "symbol": "<module>",
-      "tool": "flake8"
-    },
-    {
-      "category": "hygiene",
-      "column": 1,
-      "correctness_kind": null,
-      "id": "b06345368e10fdb5280f24ead072766e6c73afce133583f949328a5dc9638cb2",
-      "line": 11,
-      "message": "'contextlib.contextmanager' imported but unused",
-      "occurrence": 1,
-      "owner": "Lane C / Tasks 03/09/10",
-      "path": "qitos/checkpoint/sqlite_store.py",
-      "rule": "F401",
-      "semantic_category": "hygiene",
-      "source_anchor": "016e3498fc697063e429",
-      "symbol": "<module>",
-      "tool": "flake8"
-    },
-    {
-      "category": "hygiene",
-      "column": 1,
-      "correctness_kind": null,
-      "id": "9b7451e5a535968082d66bdf379890a9fdf8366b729b8db45369448a2a7a0b96",
-      "line": 12,
-      "message": "'pathlib.Path' imported but unused",
-      "occurrence": 1,
-      "owner": "Lane C / Tasks 03/09/10",
-      "path": "qitos/checkpoint/sqlite_store.py",
-      "rule": "F401",
-      "semantic_category": "hygiene",
-      "source_anchor": "6d69f2ac09017b8a49d0",
-      "symbol": "<module>",
-      "tool": "flake8"
-    },
-    {
-      "category": "hygiene",
-      "column": 1,
-      "correctness_kind": null,
-      "id": "ffcb2175b5a1ce9a219df17a8838f5e72caf63818e7a1aae42d7069aacc1b24c",
-      "line": 13,
-      "message": "'typing.Dict' imported but unused",
-      "occurrence": 1,
-      "owner": "Lane C / Tasks 03/09/10",
-      "path": "qitos/checkpoint/sqlite_store.py",
-      "rule": "F401",
-      "semantic_category": "hygiene",
-      "source_anchor": "d56e3f2f887b1f9e242b",
-      "symbol": "<module>",
-      "tool": "flake8"
-    },
-    {
-      "category": "hygiene",
-      "column": 1,
-      "correctness_kind": null,
-      "id": "d830094b856fc7f50a9ba22d49848c98c4a61845f4740378118436352be5a82c",
-      "line": 14,
-      "message": "'uuid.uuid4' imported but unused",
-      "occurrence": 1,
-      "owner": "Lane C / Tasks 03/09/10",
-      "path": "qitos/checkpoint/sqlite_store.py",
-      "rule": "F401",
-      "semantic_category": "hygiene",
-      "source_anchor": "80d21783aa451b56f53a",
       "symbol": "<module>",
       "tool": "flake8"
     },

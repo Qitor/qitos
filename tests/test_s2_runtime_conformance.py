@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import inspect
 import json
 from pathlib import Path
@@ -491,6 +492,16 @@ def test_lane_a_fixtures_decode_through_public_protocols() -> None:
         "invalid_lifecycle_operation",
         "unsupported_capability",
     }
+
+    manifest = json.loads(
+        (FIXTURE_ROOT / "fixture-manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["producer_commit"] == (
+        "bc725e8b77576a7a0b5c165a5066c83c4d9965c8"
+    )
+    for item in manifest["files"]:
+        fixture = (FIXTURE_ROOT / item["path"]).read_bytes()
+        assert hashlib.sha256(fixture).hexdigest() == item["sha256"]
 
 
 def test_composition_binds_context_model_and_existing_tool_policy() -> None:

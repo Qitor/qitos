@@ -5,8 +5,8 @@
     "visible_internal_private_symbols": 3,
     "root_exports": 41,
     "root_export_growth": 0,
-    "engine_init_parameters": 33,
-    "engine_parameter_growth": 0,
+    "engine_init_parameters": 34,
+    "engine_parameter_growth": 1,
     "growth_authority": "architecture-review-required"
   },
   "modules": {

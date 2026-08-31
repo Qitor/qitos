@@ -22,8 +22,8 @@ REVIEWED_POLICY = {
     "visible_internal_private_symbols": 3,
     "root_exports": 41,
     "root_export_growth": 0,
-    "engine_init_parameters": 33,
-    "engine_parameter_growth": 0,
+    "engine_init_parameters": 34,
+    "engine_parameter_growth": 1,
     "growth_authority": "architecture-review-required",
 }
 REVIEWED_ROOT_EXPORTS = {
@@ -47,7 +47,7 @@ REVIEWED_ENGINE_PARAMETERS = {
     "checkpoint_store", "checkpoint_durability", "permission_pipeline",
     "read_before_write_enforcer", "permission_interaction_callback",
     "loop_detector", "tracing_provider", "interceptors", "auto_approve",
-    "action_execution_policy",
+    "action_execution_policy", "runtime",
 }
 
 

@@ -1,6 +1,6 @@
 # S2 Lane A framework runtime composition and persistence ADR
 
-Status: implementation-ready
+Status: qualified
 Baseline: `446a347d1ac73636476ca2515a01da601b567c68`
 Read-only ledger successor: `47cd4dc5e1ed1b2b0d244bfc90fac031ec55be32`
 Branch: `codex/v4-s2-a-framework-runtime`
@@ -36,7 +36,7 @@ The census was performed at the exact baseline before implementation.
 | Surface | Current source and behavior | Decision |
 | --- | --- | --- |
 | Agent policy | `qitos/core/agent_module.py`; owns state creation, decide/reduce hooks, model/tool references, and convenience `run()` construction | Keep policy ownership. Session restoration resolves an AgentModule; it does not persist the live agent. |
-| Engine kernel | `qitos/engine/engine.py`; constructor has 30 parameters, `run()` is the canonical loop, `init_session()`/`step()` are the interactive path | Keep one loop. Add one composition parameter and a Session facade; retain existing constructor parameters as compatibility adapters. |
+| Engine kernel | `qitos/engine/engine.py`; constructor has 33 parameters including `self`, `run()` is the canonical loop, `init_session()`/`step()` are the interactive path | Keep one loop. Add one composition parameter and a Session facade; retain existing constructor parameters as compatibility adapters. |
 | Engine configuration | `qitos/engine/states.py::EngineConfig`; JSON-safe descriptive export, currently not a construction recipe | Extend only the runtime-composition portion. It records logical references and policy/capability identifiers, never live values or secrets. |
 | Session contracts | `qitos/core/session.py`; already freezes typed identities, lifecycle, `SessionHead`, resolver references, component codecs, strict `SessionSnapshot`, and pause receipts | Reuse without a parallel contract. Add only missing runtime error/capability vocabulary and resolver namespaces required by more than one runtime package. |
 | Snapshot composition | `qitos/core/snapshot_composition.py`; composes required S1 codecs owned by session, conversation, effects, and work graph | Runtime defaults use the core Session-owned codecs. B/C/D add their owned codecs through explicit composition; A never fabricates their facts. |
@@ -200,16 +200,16 @@ object, or host path as identity.
 
 ## Implementation and verification ledger
 
-- [ ] Canonical checkpoint session protocol and typed failures
-- [ ] In-memory atomic CAS implementation
-- [ ] SQLite atomic CAS implementation and schema upgrade
-- [ ] Runtime composition/configuration
-- [ ] Session facade and Engine adapters
-- [ ] Cooperative pause and terminal rejection
-- [ ] Fresh-process restoration
-- [ ] Third-party conformance implementation
-- [ ] Portable fixtures, digests, evidence, and handoffs
-- [ ] Focused, architecture, static, and full-suite verification
+- [x] Canonical checkpoint session protocol and typed failures
+- [x] In-memory atomic CAS implementation
+- [x] SQLite atomic CAS implementation and schema upgrade
+- [x] Runtime composition/configuration
+- [x] Session facade and Engine adapters
+- [x] Cooperative pause and terminal rejection
+- [x] Fresh-process restoration
+- [x] Third-party conformance implementation
+- [x] Portable fixtures, digests, evidence, and handoffs
+- [x] Focused, architecture, static, and full-suite verification
 
 Shared `README`, `CHANGELOG`, `docs/progress.md`, and `docs/v4` status files are
 leased to the integration owner by the S2 dispatch and are intentionally not
