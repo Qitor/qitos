@@ -29,6 +29,9 @@ class RuntimePhase(str, Enum):
     COMPACT = "COMPACT"
     SESSION_START = "SESSION_START"
     SESSION_END = "SESSION_END"
+    SESSION_PAUSE_REQUESTED = "SESSION_PAUSE_REQUESTED"
+    SESSION_PAUSED = "SESSION_PAUSED"
+    SESSION_RESTORE = "SESSION_RESTORE"
 
 
 @dataclass
@@ -231,6 +234,7 @@ class EngineConfig:
     has_shared_memory: bool = False
     has_env: bool = False
     tool_count: int = 0
+    runtime_composition: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

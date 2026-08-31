@@ -7,6 +7,17 @@ from .async_engine import AsyncEngine
 from .events import EngineEvent, EngineEventType, EventStream
 from .hooks import EngineHook, HookContext, ToolHookContext
 from ._loop_detector import ToolCallLoopDetector
+from .runtime import (
+    ContextModelRuntime,
+    LifecyclePolicy,
+    RuntimeComposition,
+    RuntimeCompositionConfig,
+    RuntimeEventSink,
+    RuntimeSnapshotComponent,
+    RuntimeSnapshotContext,
+    SessionLifecycleEvent,
+)
+from .session_runtime import Session, SessionInspection
 from .states import (
     ContextConfig,
     ContextTelemetry,
@@ -36,6 +47,16 @@ __all__ = [
     "ToolHookContext",
     "ToolCallLoopDetector",
     "StepSummary",
+    "Session",
+    "SessionInspection",
+    "RuntimeComposition",
+    "RuntimeCompositionConfig",
+    "RuntimeSnapshotComponent",
+    "RuntimeSnapshotContext",
+    "RuntimeEventSink",
+    "LifecyclePolicy",
+    "ContextModelRuntime",
+    "SessionLifecycleEvent",
     "ContextConfig",
     "ContextTelemetry",
     "critic",

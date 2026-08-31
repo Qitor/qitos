@@ -41,6 +41,10 @@ class SessionErrorCode(str, Enum):
     UNKNOWN_COMPONENT_OWNER = "unknown_component_owner"
     COMPONENT_DIGEST_MISMATCH = "component_digest_mismatch"
     MISSING_REQUIRED_COMPONENT = "missing_required_component"
+    UNSUPPORTED_CAPABILITY = "unsupported_capability"
+    INVALID_LIFECYCLE_OPERATION = "invalid_lifecycle_operation"
+    SESSION_NOT_FOUND = "session_not_found"
+    INCOMPATIBLE_CHECKPOINT = "incompatible_checkpoint"
 
 
 class SessionContractError(ValueError):
@@ -647,6 +651,7 @@ class SessionHead:
 class ResolverNamespace(str, Enum):
     """Closed namespaces for process-local resource resolution."""
 
+    AGENT = "agent"
     MODEL = "model"
     TOOL_REGISTRY = "tool_registry"
     ENVIRONMENT = "environment"
@@ -654,6 +659,7 @@ class ResolverNamespace(str, Enum):
     SECRET = "secret"
     CHECKPOINT_STORE = "checkpoint_store"
     PROVIDER_CONTINUATION = "provider_continuation"
+    RUNTIME_EVENT_SINK = "runtime_event_sink"
 
 
 _REFERENCE_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
@@ -762,6 +768,7 @@ class ResolverRegistry:
 
     def __init__(self, resolvers: Mapping[ResolverNamespace, Resolver] | None = None):
         self._resolvers = dict(resolvers or {})
+        self._resources: Dict[tuple[ResolverNamespace, str], ResolvedResource] = {}
         if any(not callable(value) for value in self._resolvers.values()):
             raise SessionContractError(
                 SessionErrorCode.RESOLVER_TYPE_MISMATCH,
@@ -770,7 +777,60 @@ class ResolverRegistry:
                 remediation="Register a callable for each resolver namespace.",
             )
 
+    def register(self, namespace: ResolverNamespace, resolver: Resolver) -> None:
+        """Register or replace one explicit namespace resolver."""
+        if not isinstance(namespace, ResolverNamespace) or not callable(resolver):
+            raise SessionContractError(
+                SessionErrorCode.RESOLVER_TYPE_MISMATCH,
+                "Resolver registration is incompatible.",
+                recoverable=True,
+                remediation="Register a callable under a canonical namespace.",
+            )
+        self._resolvers[namespace] = resolver
+
+    def register_resource(
+        self,
+        reference: ResolverReference,
+        resource: Any,
+        *,
+        capabilities: Iterable[str] | None = None,
+    ) -> None:
+        """Bind one process-local resource to one logical reference."""
+        declared = frozenset(capabilities or {reference.expected_capability})
+        if reference.expected_capability not in declared:
+            raise SessionContractError(
+                SessionErrorCode.RESOLVER_TYPE_MISMATCH,
+                "Bound resource lacks the reference's expected capability.",
+                recoverable=True,
+                remediation="Declare the capability required by the logical reference.",
+            )
+        self._resources[(reference.namespace, reference.reference_id)] = ResolvedResource(
+            namespace=reference.namespace,
+            capabilities=declared,
+            resource=resource,
+        )
+
+    def copy(self) -> "ResolverRegistry":
+        """Return an isolated registry with the same process-local bindings."""
+        registry = ResolverRegistry(self._resolvers)
+        registry._resources = dict(self._resources)
+        return registry
+
     def resolve(self, reference: ResolverReference) -> ResolvedResource:
+        bound = self._resources.get((reference.namespace, reference.reference_id))
+        if bound is not None:
+            if reference.expected_capability not in bound.capabilities:
+                raise SessionContractError(
+                    SessionErrorCode.RESOLVER_TYPE_MISMATCH,
+                    "Bound resource lacks the expected capability.",
+                    recoverable=True,
+                    remediation="Bind a resource with the expected capability.",
+                    metadata={
+                        "namespace": reference.namespace.value,
+                        "expected_capability": reference.expected_capability,
+                    },
+                )
+            return bound
         resolver = self._resolvers.get(reference.namespace)
         if resolver is None:
             raise SessionContractError(
