@@ -966,7 +966,16 @@ fifth implementation. Its responsibilities are:
 5. run gate-level verification on the integrated branch;
 6. update task evidence/status and record stop-gate decisions.
 
-### 10.1 Dashboard template
+### 10.1 Current S3 dashboard template
+
+| Lane | Current package | Branch/PR | Lease | Producer/consumer gate | Gate status |
+|---|---|---|---|---|---|
+| A | Session fork and ownership | created only from final S3 remote dispatch SHA | Session/checkpoint | publish exact commit/path/digest and C consumer contract | not started |
+| B | context, continuation, and authority transfer | created only from final S3 remote dispatch SHA | request/context/codec | publish exact commit/path/digest and C consumer contract | not started |
+| C | durable multi-agent scheduler | created only from final S3 remote dispatch SHA | WorkGraph/work runtime/tool adapters | consume real A/B types and fixtures; publish runtime facts to D | blocked on A/B producer freeze |
+| D | work-graph observability and DX | created only from final S3 remote dispatch SHA | tracing/qita/evaluate/examples | consume real A/B/C facts; qualify two patterns and public example | blocked on A/B/C runtime facts |
+
+### 10.1.1 Historical G2 contract-stage dashboard (superseded)
 
 | Lane | Current package | Branch/PR | Lease | Tests | Handoff produced | Blocker/decision | Gate status |
 |---|---|---|---|---|---|---|---|

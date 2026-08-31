@@ -8,15 +8,36 @@ S1 dispatch baseline: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
 G2 candidate: `cab8fd246d2485784a13558e668eadb3ffa4d42f`
 G2-R2 repair branch: `codex/v4-g2-r2-promotion` through `49fa15b5b0499e3f2a1bb4ea86b2af7a143f3e5c`
 Promoted G2 contract code head: `c0f19cd8f19a223fc84844f8a6a0ae4a5d0145aa`
-S2 dispatch baseline:
+Historical S2 dispatch baseline:
 `446a347d1ac73636476ca2515a01da601b567c68`
-Current gate: **S2 single-agent runtime closed at the qualified G3 candidate;
+Promoted S2 runtime head:
+`3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`
+S3 plan freeze: `52e050d9bc1ee0d4c6dcc78c90a5497c25722648`
+Current gate: **S2 CLOSED; S3 entry gate satisfied; S3 runtime not started;
 Trajectory publication blocked**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md)
 and [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md)
 
-## 0. S2 G3 runtime vertical convergence (2026-08-31)
+## 0. S2 promotion closure and S3 entry (2026-08-31)
+
+S2 is closed. The G3 candidate was fast-forwarded into
+`feat/campaign-absorption`, its required primary-checkout gates were repeated,
+and the branch was pushed. Local HEAD, tracking ref, and `ls-remote` were all
+verified at `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7` with `0/0`
+divergence. The integration checkout was clean, every previous-wave non-primary
+worktree was retired without force, and the retained branch/commit refs remain
+reachable.
+
+The durable single-agent vertical and clean-process restore are qualified. The
+S3 entry gate is therefore satisfied, but S3 runtime implementation has not
+started: Session fork, context/authority transfer, a durable multi-agent
+scheduler, child recovery/join execution, and work-graph qita inspection remain
+open. Trajectory v2 is still unfrozen, its candidate writer remains off, and the
+candidate trajectory reader is not qita's default. The executable S3 contract
+is [`s3_durable_multi_agent_wave.md`](internal/plans/s3_durable_multi_agent_wave.md).
+
+### S2 G3 runtime vertical convergence (pre-promotion evidence)
 
 The fixed integration source was
 `47cd4dc5e1ed1b2b0d244bfc90fac031ec55be32`. G3 replayed the nine lane commits
@@ -51,8 +72,10 @@ Exact-source A/B/C receipts bound to producer commit
 `s2_runtime_ready=true`. This does not qualify the candidate Trajectory schema
 or publication (`false`), enable its writer, migrate qita, implement the S3
 persistent child scheduler, add agent-authoring sugar, or establish external-
-world exactly-once effects. Promotion, primary-checkout reruns, push, and
-worktree retirement remain conditional on the final gate matrix.
+world exactly-once effects. At the time this pre-promotion evidence was written,
+promotion, primary-checkout reruns, push, and worktree retirement were
+conditional on the final gate matrix; the promotion closure above records their
+subsequent completion.
 
 ## 1. Purpose and maintenance rule
 
@@ -74,17 +97,19 @@ Maintain it with these rules:
 
 ## 2. Current decision
 
-**G2 CLOSED; S2 RUNTIME CLOSED AT G3.** The historical fixed lane dispatch
+**G2 CLOSED; S2 CLOSED; S3 ENTRY GATE SATISFIED.** The historical fixed lane dispatch
 baseline remains `446a347d1ac73636476ca2515a01da601b567c68`. The integration
 source for G3 was `47cd4dc5e1ed1b2b0d244bfc90fac031ec55be32`; all A/C/B/D
 producer commits were replayed in the required order before convergence.
 
 The [`S2 runtime wave`](internal/plans/s2_runtime_wave.md) now has an executable
-single-agent Session vertical, exact-source runtime receipts, and a fully passed
-branch qualification matrix. The operational promotion still requires the
-primary-checkout rerun. There is no persistent child scheduler, provider-default
-flip, default Trajectory writer/store, qita migration, authoring sugar, or
-external exactly-once claim.
+single-agent Session vertical, exact-source runtime receipts, and fully passed
+branch and primary-checkout qualification matrices. Promotion, push verification,
+and worktree retirement are complete at `3af0ee3...`. There is no persistent
+child scheduler, provider-default flip, default Trajectory writer/store or
+candidate reader, qita migration, authoring sugar, or external exactly-once
+claim. S3 lanes must use the complete remote SHA from the S3 dispatch closure,
+not the historical S2 baseline or G3 source.
 
 ### G2-R2 repair qualification (pre-promotion)
 
@@ -627,9 +652,10 @@ Shared release documents remain integration-owner leases.
 
 ## 6. Historical G2-R2 dispatch decision (superseded)
 
-This section records the next-work decision made before G2-R2 promotion. The
-current authorized work is the S2 four-lane wave from fixed baseline
-`446a347d1ac73636476ca2515a01da601b567c68`.
+This section records the next-work decision made before G2-R2 promotion. At that
+historical point, the authorized work was the S2 four-lane wave from fixed
+baseline `446a347d1ac73636476ca2515a01da601b567c68`. It is superseded by the S3
+dispatch contract above.
 
 The G2 candidate is complete but not promoted. Dispatch one G2-R2 owner using
 [`g2_r2_promotion_audit.md`](internal/plans/g2_r2_promotion_audit.md). Do not

@@ -1,8 +1,8 @@
 # S2 single-agent continuity runtime wave
 
-Status: S2 single-agent runtime closed at the qualified G3 candidate;
-Trajectory publication blocked
-Baseline: `446a347d1ac73636476ca2515a01da601b567c68`
+Status: S2 single-agent runtime closed, promoted, pushed, and cleaned up;
+Trajectory publication remains blocked
+Historical dispatch baseline: `446a347d1ac73636476ca2515a01da601b567c68`
 Updated: 2026-08-31
 Owner: v4 integration owner with four capability lanes
 Source gate: [`g2_r2_promotion_audit.md`](g2_r2_promotion_audit.md)
@@ -157,7 +157,7 @@ Required proof:
 - stale processes and late workers cannot advance the restored head;
 - ordinary users need only the small Session façade.
 
-## Deferred to S3
+## Historical deferral ledger at S2 dispatch
 
 - durable handoff/delegate/spawn/fan-out/join execution;
 - persistent child scheduler and parent/child process-loss drills;
@@ -165,6 +165,12 @@ Required proof:
 - default Trajectory writer/store and qita migration;
 - compression/index selection and published performance claims;
 - broad compatibility deletion or public API deprecation.
+
+Current disposition: S3 owns durable fork/handoff/delegate/spawn/fan-out/join,
+child scheduling, recovery, and graph observability. Default Trajectory rollout,
+qita default-reader migration, broad public-surface retirement, and authoring
+facade work are S4. The current allocation is authoritative in
+[`s3_durable_multi_agent_wave.md`](s3_durable_multi_agent_wave.md).
 
 ## Entry gate — satisfied
 
@@ -186,3 +192,14 @@ This closes S2 runtime qualification only. Trajectory schema/publication,
 default writer rollout, qita migration, S3 persistent child scheduling,
 agent-authoring sugar, and external-world exactly-once effects remain explicitly
 unqualified.
+
+## Promotion closure receipt
+
+The G3 candidate was fast-forwarded into `feat/campaign-absorption`; the primary
+checkout repeated the required gates, the branch was pushed normally, and
+local/tracking/remote identities were verified at
+`3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7` with `0/0` divergence. The
+temporary S2 worktree and all previous-wave non-primary worktrees were removed
+without force after clean-state and retained-ref checks. Statements above about
+entry readiness at `446a347...` are historical S2 dispatch evidence, not the S3
+dispatch instruction.

@@ -18,8 +18,8 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 
 ## 最新进展
 
-- **S2 单智能体运行时已资格化，Trajectory 发布仍阻塞**：G3 在既有 `AgentModule + Engine` 内核中收敛了 Session 持久化、canonical conversation/model I/O、并行工具批次的部分持久化、quiescent pause、fresh-process 恢复、steering/continuation 与唯一 EventSink bridge。离线 SQLite 父/子进程证明独立运行 20 轮，committed effect 从不重放。这不代表冻结候选 Trajectory schema、默认启用 writer、迁移 qita、实现 S3 多智能体 scheduler/authoring sugar，也不保证外部 effect exactly-once。
-- **保留 G2 契约基线**：G2-R2 已将契约代码提升至 `c0f19cd...`，关闭五组独立审计发现的契约 blocker，并在保留全部 branch ref 的前提下安全回收 17 个过期 worktree。S2 lane 的固定 ancestry 仍为 `446a347d1ac73636476ca2515a01da601b567c68`；G3 随后把各 lane producer 重放到 `47cd4dc...` integration source，再完成上方所述的 runtime convergence。
+- **S2 已关闭，S3 派发合同已冻结**：持久单智能体 vertical 与 clean-process restore 已完成资格验证、提升、主工作树复验、推送和清理，收口至 `3af0ee3...`。[S3 wave](docs/internal/plans/s3_durable_multi_agent_wave.md) 现已固定 A -> B -> C -> D producer ownership 与 19 项 G4 process-loss 门禁。S3 实现尚未开始：Session fork runtime 和持久多智能体 scheduler 都不存在，Trajectory v2 仍未冻结，候选 trajectory reader 也不是 qita 默认 reader。
+- **保留历史派发 ancestry**：`c0f19cd...` 的 G2-R2 契约代码、`446a347...` 的 S2 lane source 与 `47cd4dc...` 的 G3 integration source 继续作为审计证据，而非当前派发点。后续四条 S3 产线必须使用 S3 dispatch closure 公布的同一个完整远端 SHA。
 - **持久会话与原生多智能体架构**：[Task 12](docs/v4/12-session-runtime-and-persistence.md) 规划了以当前 canonical checkpoint 为唯一持久化机制的安全暂停、跨进程恢复、fork 与 effect-aware recovery；[Task 13](docs/v4/13-durable-multi-agent-work-graph.md) 则把 handoff、delegate、fan-out、spawn、fork、steer、join 明确为一个持久 work graph 上不同的所有权语义。[四产线手册](docs/v4/11-four-lane-execution-playbook.md)也已调整：G1 后工程质量成为跨线合并门禁，四条能力线转为 Session、Conversation/Context、Tools/Multi-Agent、Trajectory/qita/DX。
 - **静态 ratchet 资格验证与可执行贡献门禁**：确定性测试覆盖所有关键 baseline 转换；tool-schema workflow 与仓库测试现在共同执行同一个已提交入口，真实检查已注册 class tools，并包含受控 malformed-spec 失败证明。required-candidate、advisory、stale 与 release-only 角色继续明确记录，同时不声称掌握外部 branch-protection 配置。
 - **证据化 v4 集成进度账本**：[`docs/progress.md`](docs/progress.md) 现在持续记录各产线的准确 HEAD、集成结论、可执行复核探针、跨线契约阻断、合并顺序以及 G1/G2 检查表；收敛波次分支“已完成”与集成分支“已合入并通过资格验证”被明确区分。
@@ -28,7 +28,7 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 - **G1 ToolResult 边界已关闭**：递归 JSON-only 参数会在 interceptor、权限与工具代码之前失败，canonical 与 legacy 的嵌套值均隔离调用方所有权；model/trace 可见 mapping key 采用无碰撞脱敏，forced-secret 标量内容与类型化 trace-safe omitted count 分离，并提供 aggregate 与 per-field loss 计数。
 - **仓库全包静态质量 ratchet**：固定版本的 Python/flake8/mypy 单一命令会用提交态分类 baseline 检查所有 active `qitos` package。新 finding 会阻断 CI，已修复 finding 会强制缩小 baseline，core/engine/models/trace 稳定层继续保持零债务；correctness finding 按语义交给对应产线，而不会被降级成普通清理。
 - **工程质量审计与证据门禁**：[证据化审计](docs/engineering-quality-audit.md)覆盖全包质量门禁、错误与持久化语义、资源生命周期、重复抽象、可选依赖和测试可信度。首轮质量保障、对话/上下文、工具/运行时、轨迹/架构收敛四线被保留为 G1 收口历史；G1 之后，同一套 ratchet 与证据规则将作为四条能力线的强制门禁。
-- **规范对话事务契约**：模块级 `qitos.core.conversation` 不再复制 outcome 字段，而是嵌入唯一 canonical `ToolResult`；persistence/model/trace view 全部委托给 C，ExchangeLog v2 严格读取并统一返回类型化错误，同时保留面向崩溃恢复的部分完成顺序与 steering，且直接用已提交的 C fixture 完成资格验证。Engine/provider 默认路径与 Task 02B 仍未启动。
+- **规范对话事务契约**：模块级 `qitos.core.conversation` 嵌入唯一 canonical `ToolResult`，把 persistence/model/trace view 委托给 C，严格读取 ExchangeLog v2，并保留面向崩溃恢复的部分完成顺序与 steering。早期 contract-only 里程碑仍待 Engine/provider 集成；S2 随后已在合格的 Session vertical 中消费该合同。
 - **迁移前先完成轨迹数据平面证据**：[Lane D D1/D1-R 计划](docs/internal/plans/lane_d_data_convergence.md)现已逐条映射 runtime/trace/tracing/render/qita/checkpoint 与分发链路，登记公共表面移除阻塞项，选择两类受隐私门禁保护的 fixture 来源，并提供严格 manifest/发布/可移植性校验与逐合同类型化 readiness receipt。本轮不修改 trace v1 或 qita、不发布敏感 fixture、不宣称压缩收益、不完成 05A，也不冻结 trajectory v2。
 - **已验证的 producer receipt**：D readiness 仅根据受审 authority、精确 producer commit、已提交 fixture/evidence 路径与字节哈希推导 B/C 资格。伪造字段会产生类型化 blocker，单个 receipt 只解除自身合同；发布仍未合格，trajectory v2 继续保持未冻结。
 - **中性的传输与容器控制**：OpenAI-compatible 模型支持由调用方管理的 `default_headers`；`DockerEnv` 支持显式 `container_env` 映射，并正确保留容器内绝对路径，不吸收实战任务专属的路由或环境策略。

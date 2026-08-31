@@ -1,6 +1,6 @@
 # S2 G3 runtime vertical convergence evidence
 
-Status: S2 runtime closed on the qualified G3 candidate; Trajectory
+Status: S2 runtime closed, promoted, pushed, and cleaned up; Trajectory
 schema/publication remains blocked
 
 Updated: 2026-08-31
@@ -122,10 +122,20 @@ The qualified branch matrix completed with:
 - package build: sdist and wheel built; twine accepted both;
 - `git diff --check`: clean.
 
-The primary-checkout rerun, remote verification, and worktree-retirement
-receipts are operational promotion facts and belong to the final integration
-report, after they actually occur. No live model, provider key, deployment, or
-server 149 access is part of this evidence.
+### Promotion receipt
+
+Historical pre-promotion note (superseded): primary-checkout rerun, remote
+verification, and worktree-retirement receipts were expected to belong to the
+final integration report after they occurred.
+
+Those operational steps are now completed: `feat/campaign-absorption` was
+fast-forwarded, the required primary-checkout gates passed, and the branch was
+pushed normally. Local HEAD, tracking ref, and remote ref were verified at
+`3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7` with `0/0` divergence. The G3
+worktree was clean and retired without force while its branch/commit refs were
+preserved; only the primary worktree remained before S3 dispatch closure began.
+No live model, provider key, deployment, or remote-runner access is part of this
+evidence.
 
 ## Explicitly unsupported
 

@@ -1,12 +1,13 @@
 # S2 G3 runtime vertical convergence plan
 
-Status: S2 runtime closed on the qualified G3 candidate; promotion operational
-steps pending
+Status: S2 runtime closed, promoted, pushed, and worktree retired
 Updated: 2026-08-31
 Owner: integration owner
 Integration source: `47cd4dc5e1ed1b2b0d244bfc90fac031ec55be32`
 Branch: `codex/v4-s2-g3-convergence`
-Worktree: `/Users/morinop/Desktop/WhitzardOS-s2-g3`
+Historical worktree: retired after promotion; branch ref retained
+
+Promotion head: `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`
 
 ## Outcome
 
@@ -126,3 +127,14 @@ and two clean Python processes per round. Twenty independent rounds prove that
 the restored owner executes only the eligible missing slot, applies steering
 once, resolves continuation, preserves artifact/budget/cursor facts, rejects
 the old owner, and leaves the committed-effect counter at one.
+
+## Promotion closure
+
+After the branch matrix passed, the integration owner fast-forwarded
+`feat/campaign-absorption`, repeated the required primary-checkout gates, pushed
+without force, and verified local HEAD, tracking ref, and remote ref at
+`3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7` with `0/0` divergence. The
+temporary worktree was clean and removed without force; its branch remains.
+This receipt closes the operational steps that were pending when the plan was
+first written. It does not qualify S3, Trajectory publication/defaults, qita
+migration, authoring sugar, or external-effect exactly-once behavior.
