@@ -8,6 +8,7 @@ Engine or core runtime type.
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 from dataclasses import dataclass
 from enum import Enum
@@ -19,12 +20,14 @@ ATOMIC_SESSION_COMMIT = "checkpoint.session.atomic_commit/v1"
 READ_SESSION_HEAD = "checkpoint.session.read_head/v1"
 READ_SESSION_SNAPSHOT = "checkpoint.session.read_snapshot/v1"
 LIST_SESSION_LINEAGE = "checkpoint.session.list_lineage/v1"
+ATOMIC_SESSION_FORK = "checkpoint.session.atomic_fork/v1"
 SESSION_PERSISTENCE_CAPABILITIES = frozenset(
     {
         ATOMIC_SESSION_COMMIT,
         READ_SESSION_HEAD,
         READ_SESSION_SNAPSHOT,
         LIST_SESSION_LINEAGE,
+        ATOMIC_SESSION_FORK,
     }
 )
 
@@ -41,6 +44,8 @@ class CheckpointSessionErrorCode(str, Enum):
     CORRUPT_SNAPSHOT = "corrupt_snapshot"
     INCOMPATIBLE_CHECKPOINT = "incompatible_checkpoint"
     PERSISTENCE_FAILED = "persistence_failed"
+    SNAPSHOT_SESSION_MISMATCH = "snapshot_session_mismatch"
+    DUPLICATE_FORK_OPERATION = "duplicate_fork_operation"
 
 
 class CheckpointSessionError(RuntimeError):
@@ -239,6 +244,189 @@ class SessionCommitReceipt:
         _require_token(self.store_kind, "store_kind")
 
 
+@dataclass(frozen=True)
+class SessionForkRequest:
+    """One atomic immutable-source fork declaration and child-head creation."""
+
+    operation_id: str
+    source_session_id: str
+    source_snapshot_id: str
+    source_checkpoint_id: str
+    source_work_item_id: str
+    child_work_item_id: str
+    child_attempt_id: str
+    child_commit: SessionSnapshotCommit
+
+    def __post_init__(self) -> None:
+        for name in (
+            "operation_id",
+            "source_session_id",
+            "source_snapshot_id",
+            "source_checkpoint_id",
+            "source_work_item_id",
+            "child_work_item_id",
+            "child_attempt_id",
+        ):
+            _require_token(getattr(self, name), name)
+        if self.child_commit.expected_generation is not None:
+            raise _corrupt("A fork must create a new child Session head.")
+        if self.child_commit.session_id == self.source_session_id:
+            raise _corrupt("A fork child must have a distinct Session identity.")
+        payload = self.child_commit.payload
+        if (
+            _identity_value(payload.get("session_id")) != self.child_commit.session_id
+            or _identity_value(payload.get("snapshot_id"))
+            != self.child_commit.snapshot_id
+            or payload.get("lifecycle") != self.child_commit.lifecycle
+        ):
+            raise _corrupt("Fork child envelope identities do not match its commit.")
+        verify_snapshot_payload_integrity(payload)
+        lineage = next(
+            (
+                item.get("payload")
+                for item in payload.get("components", ())
+                if isinstance(item, Mapping)
+                and item.get("owner") == "qitos.session"
+                and item.get("slot") == "fork_lineage"
+            ),
+            None,
+        )
+        expected_lineage = {
+            "source_session_id": self.source_session_id,
+            "source_snapshot_id": self.source_snapshot_id,
+            "source_checkpoint_id": self.source_checkpoint_id,
+            "source_work_item_id": self.source_work_item_id,
+            "work_item_id": self.child_work_item_id,
+            "attempt_id": self.child_attempt_id,
+            "fork_operation_id": self.operation_id,
+        }
+        if not isinstance(lineage, Mapping) or any(
+            (
+                lineage.get(name) != value
+                if name == "fork_operation_id"
+                else _identity_value(lineage.get(name)) != value
+            )
+            for name, value in expected_lineage.items()
+        ):
+            raise _corrupt("Fork child snapshot does not contain its declaration lineage.")
+
+
+@dataclass(frozen=True)
+class SessionForkReceipt:
+    """Durable, idempotent proof of a committed Session fork."""
+
+    operation_id: str
+    source_session_id: str
+    source_snapshot_id: str
+    source_checkpoint_id: str
+    source_work_item_id: str
+    child_session_id: str
+    child_snapshot_id: str
+    child_checkpoint_id: str
+    child_run_id: str
+    child_work_item_id: str
+    child_attempt_id: str
+    owner_generation: int
+    durable: bool
+    store_kind: str
+
+    def __post_init__(self) -> None:
+        for name in (
+            "operation_id",
+            "source_session_id",
+            "source_snapshot_id",
+            "source_checkpoint_id",
+            "source_work_item_id",
+            "child_session_id",
+            "child_snapshot_id",
+            "child_checkpoint_id",
+            "child_run_id",
+            "child_work_item_id",
+            "child_attempt_id",
+            "store_kind",
+        ):
+            _require_token(getattr(self, name), name)
+        if self.owner_generation != 0 or self.durable is not True:
+            raise _corrupt("A successful fork receipt must prove generation zero durability.")
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "operation_id": self.operation_id,
+            "source_session_id": self.source_session_id,
+            "source_snapshot_id": self.source_snapshot_id,
+            "source_checkpoint_id": self.source_checkpoint_id,
+            "source_work_item_id": self.source_work_item_id,
+            "child_session_id": self.child_session_id,
+            "child_snapshot_id": self.child_snapshot_id,
+            "child_checkpoint_id": self.child_checkpoint_id,
+            "child_run_id": self.child_run_id,
+            "child_work_item_id": self.child_work_item_id,
+            "child_attempt_id": self.child_attempt_id,
+            "owner_generation": self.owner_generation,
+            "durable": self.durable,
+            "store_kind": self.store_kind,
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "SessionForkReceipt":
+        expected = {
+            "operation_id", "source_session_id", "source_snapshot_id",
+            "source_checkpoint_id", "source_work_item_id", "child_session_id",
+            "child_snapshot_id", "child_checkpoint_id", "child_run_id",
+            "child_work_item_id", "child_attempt_id", "owner_generation",
+            "durable", "store_kind",
+        }
+        if not isinstance(payload, Mapping) or set(payload) != expected:
+            raise _corrupt("Fork receipt has unknown or missing fields.")
+        return cls(**dict(payload))
+
+
+def duplicate_fork_operation() -> CheckpointConflictError:
+    return CheckpointConflictError(
+        CheckpointSessionErrorCode.DUPLICATE_FORK_OPERATION,
+        "Fork operation identity was already used for a different declaration.",
+        recoverable=False,
+        capability=ATOMIC_SESSION_FORK,
+    )
+
+
+def snapshot_session_mismatch() -> CheckpointSessionError:
+    return CheckpointSessionError(
+        CheckpointSessionErrorCode.SNAPSHOT_SESSION_MISMATCH,
+        "Source snapshot does not belong to the declared Session.",
+        recoverable=False,
+        capability=ATOMIC_SESSION_FORK,
+    )
+
+
+def verify_snapshot_payload_integrity(payload: Mapping[str, Any]) -> None:
+    """Verify canonical Session snapshot integrity without importing core."""
+    if not isinstance(payload, Mapping):
+        raise _corrupt("Session snapshot payload must be a JSON object.")
+    integrity = payload.get("integrity")
+    if (
+        not isinstance(integrity, Mapping)
+        or integrity.get("algorithm") != "sha256"
+        or not isinstance(integrity.get("digest"), str)
+    ):
+        raise _corrupt("Session snapshot integrity declaration is invalid.")
+    unsigned = dict(payload)
+    unsigned.pop("integrity", None)
+    encoded = json.dumps(
+        unsigned,
+        ensure_ascii=False,
+        allow_nan=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    if hashlib.sha256(encoded).hexdigest() != integrity["digest"]:
+        raise _corrupt("Session snapshot integrity verification failed.")
+
+
+def _identity_value(payload: Any) -> Any:
+    return payload.get("value") if isinstance(payload, Mapping) else None
+
+
 def generation_conflict(expected: Optional[int], actual: Optional[int]) -> CheckpointConflictError:
     return CheckpointConflictError(
         CheckpointSessionErrorCode.GENERATION_CONFLICT,
@@ -312,6 +500,7 @@ def _safe_metadata(metadata: Mapping[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = [
+    "ATOMIC_SESSION_FORK",
     "ATOMIC_SESSION_COMMIT",
     "CheckpointCapabilityError",
     "CheckpointConflictError",
@@ -323,10 +512,15 @@ __all__ = [
     "READ_SESSION_SNAPSHOT",
     "SESSION_PERSISTENCE_CAPABILITIES",
     "SessionCommitReceipt",
+    "SessionForkReceipt",
+    "SessionForkRequest",
     "SessionHeadRecord",
     "SessionSnapshotCommit",
     "SessionSnapshotRecord",
     "checkpoint_conflict",
     "generation_conflict",
     "owner_conflict",
+    "duplicate_fork_operation",
+    "snapshot_session_mismatch",
+    "verify_snapshot_payload_integrity",
 ]

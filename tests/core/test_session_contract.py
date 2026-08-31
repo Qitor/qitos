@@ -539,5 +539,7 @@ def test_snapshot_output_mutation_does_not_change_digest() -> None:
     output = copy.deepcopy(snapshot.to_dict())
     output["components"].clear()
     assert snapshot.integrity.digest == before
-    assert len(snapshot.components) == len(CORE_SNAPSHOT_COMPONENT_CODECS)
+    assert len(snapshot.components) == sum(
+        codec.required for codec in CORE_SNAPSHOT_COMPONENT_CODECS
+    )
     CORE_SNAPSHOT_COMPONENT_CODECS,

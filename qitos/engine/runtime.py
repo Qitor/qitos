@@ -293,6 +293,8 @@ class RuntimeComposition:
             capabilities.add("session.pause.cooperative")
         if self.checkpoint_store is not None:
             capabilities.update(self.checkpoint_store.session_capabilities())
+            if "checkpoint.session.atomic_fork/v1" in capabilities:
+                capabilities.add("session.fork")
         if self.event_sink is not None:
             capabilities.add(EVENT_SINK_CAPABILITY)
         if self.context_model_runtime is not None:

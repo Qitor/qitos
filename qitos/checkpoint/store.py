@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Iterator, List, NamedTuple, NewType, Optional, Sequence, TypedDict
 
 from .session import (
+    ATOMIC_SESSION_FORK,
     ATOMIC_SESSION_COMMIT,
     LIST_SESSION_LINEAGE,
     READ_SESSION_HEAD,
@@ -23,6 +24,8 @@ from .session import (
     CheckpointCapabilityError,
     SessionCommitReceipt,
     SessionHeadRecord,
+    SessionForkReceipt,
+    SessionForkRequest,
     SessionSnapshotCommit,
     SessionSnapshotRecord,
 )
@@ -250,6 +253,14 @@ class CheckpointStore(ABC):
     ) -> Iterator[SessionSnapshotRecord]:
         """List immutable snapshots for a session, newest first."""
         raise CheckpointCapabilityError(LIST_SESSION_LINEAGE)
+
+    def fork_session_snapshot(self, request: SessionForkRequest) -> SessionForkReceipt:
+        """Atomically declare a fork and create its independent child head."""
+        raise CheckpointCapabilityError(ATOMIC_SESSION_FORK)
+
+    def get_session_fork(self, operation_id: str) -> Optional[SessionForkReceipt]:
+        """Read a previously committed fork declaration by idempotency key."""
+        raise CheckpointCapabilityError(ATOMIC_SESSION_FORK)
 
     # ---- async interface (default: delegate to sync) ----
 
