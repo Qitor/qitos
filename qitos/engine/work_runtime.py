@@ -399,11 +399,19 @@ class DurableWorkRuntime:
                     queue_position=receipt.queue_position or 1,
                 )
                 self._replace(graph, queued)
-                persist()
+                try:
+                    persist()
+                except Exception:
+                    self._replace(graph, receipt)
+                    raise
             else:
                 rejected = replace(receipt, state="rejected", admission_state="closed")
                 self._replace(graph, rejected)
-                persist()
+                try:
+                    persist()
+                except Exception:
+                    self._replace(graph, receipt)
+                    raise
             raise
         dispatched = replace(
             receipt,

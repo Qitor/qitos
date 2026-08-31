@@ -448,6 +448,32 @@ def test_queued_descriptor_is_persisted_and_recovered_without_new_identity() -> 
     assert len(scheduler.requests) == 1
 
 
+def test_queue_receipt_commit_failure_rolls_back_to_dispatchable() -> None:
+    graph = WorkGraph("graph:queue-commit-failure")
+    scheduler = QueueOnceScheduler()
+    runtime = DurableWorkRuntime(scheduler)
+    commits = 0
+
+    def persist() -> None:
+        nonlocal commits
+        commits += 1
+        if commits == 3:
+            raise OSError("injected queue receipt commit failure")
+
+    with pytest.raises(OSError, match="queue receipt"):
+        runtime.submit(
+            graph=graph,
+            descriptor=_descriptor("spawn:queue-commit", "spawn", {"task": "safe"}),
+            persist=persist,
+        )
+
+    assert graph.operation_receipts[0].state == "dispatchable"
+    scheduler.admit = True
+    recovered = runtime.recover(graph, persist=lambda: None)
+    assert recovered[0].state == "dispatched"
+    assert recovered[0].operation_id == "spawn:queue-commit"
+
+
 def test_handoff_commits_one_owner_and_fences_superseded_source() -> None:
     scheduler = IndependentSchedulerFake()
     session, _ = _paused_session(DurableWorkRuntime(scheduler))
