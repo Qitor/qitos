@@ -58,7 +58,7 @@ attributes or vendor types.
 The reference `InMemoryEventSink` and the independent structural fake sink in
 `tests/fixtures/s2/lane_d/third_party.py` run through the same conformance
 contract. The store-backed sink additionally exercises durable receipt and
-flush/close behavior. Result: 5/5 sink tests passed.
+flush/close behavior. Result: 6/6 sink tests passed.
 
 ## 6. Trajectory architecture
 
@@ -174,7 +174,7 @@ by `quality/toolchain.json`, unless explicitly noted.
 |---|---|
 | `pytest -q tests/tracing` | 78 passed |
 | `pytest -q tests/qita tests/test_qita_cli.py` | 23 passed |
-| `pytest -q tests/test_event_sink_conformance.py` | 5 passed |
+| `pytest -q tests/test_event_sink_conformance.py` | 6 passed |
 | `pytest -q tests/test_trajectory_store_conformance.py` | 6 passed |
 | `pytest -q tests/test_trajectory_exporter_conformance.py` | 5 passed |
 | `pytest -q tests/test_evaluator_conformance.py` | 3 passed |
@@ -185,7 +185,7 @@ by `quality/toolchain.json`, unless explicitly noted.
 | targeted mypy over the same 16 files | success, no issues |
 | `python scripts/static_quality.py check` with shell default Python 3.13.3 | environment failure: flake8 package metadata absent |
 | `/opt/anaconda3/bin/python scripts/static_quality.py check` | pass: 381 baselined findings, 359 active and 22 vendored/generated |
-| `/opt/anaconda3/bin/python -m pytest -q` | 2149 passed, 50 skipped |
+| `/opt/anaconda3/bin/python -m pytest -q` | 2150 passed, 50 skipped |
 | `git diff --check` | pass |
 
 The static baseline changed only by removing 18 resolved findings: 12 contract,
@@ -204,9 +204,10 @@ It added no exception and no new finding.
 
 ## 16. Commit intent
 
-The implementation, conformance fixtures, plan, and this evidence are delivered
-as one coherent Lane D commit. The final handoff records its exact commit ID.
-No push or integration-branch mutation is performed.
+The implementation, conformance fixtures, plan, and evidence are delivered as
+one main Lane D commit plus a narrow follow-up that aligns the store-backed
+sink receipt test with this evidence. The final handoff records both exact
+commit IDs. No push or integration-branch mutation is performed.
 
 ## 17. Final cleanliness contract
 

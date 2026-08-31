@@ -11,9 +11,11 @@ from qitos.tracing import (
     EventSinkDispatcher,
     FailurePolicy,
     InMemoryEventSink,
+    JsonTrajectoryStore,
     PrivacyView,
     RecordKind,
     TrajectoryRecord,
+    TrajectoryStoreEventSink,
 )
 from qitos.tracing.sinks import (
     BackpressurePolicy,
@@ -123,3 +125,26 @@ def test_backpressure_drop_is_a_failed_receipt_not_success() -> None:
     assert receipt.status == DurabilityStatus.DROPPED
     assert receipt.successful is False
     assert receipt.dropped_count == 1
+
+
+def test_store_backed_reference_sink_returns_durability_receipts(
+    tmp_path: Path,
+) -> None:
+    store = JsonTrajectoryStore(tmp_path / "trajectory-store.json")
+    dispatcher = EventSinkDispatcher()
+    dispatcher.add_sink(
+        TrajectoryStoreEventSink(store),
+        view=PrivacyView.RAW_PRIVATE,
+    )
+
+    received = dispatcher.receive(
+        TrajectoryRecord.create(RecordKind.RUN, run_id="run-1")
+    )
+    flushed = dispatcher.flush()
+    closed = dispatcher.close()
+
+    assert received.receipts[0].status == DurabilityStatus.PERSISTED
+    assert flushed.receipts[0].status == DurabilityStatus.PERSISTED
+    assert closed.receipts[0].status == DurabilityStatus.PERSISTED
+    assert store.validate_integrity().valid
+    store.close()
