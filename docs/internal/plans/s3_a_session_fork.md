@@ -108,12 +108,13 @@ must not infer lineage from paths or names.
 - implementation producer: `ae62ba1ea5fef7a472609dcb11d23a5f21733410`;
 - producer fixture commit: `feba1bf6d2312b82c7f03ce0b3c1f07e50712938`;
 - focused Lane/regression group: 264 passed;
-- producer bundle tests: 16 passed, including spawn-process Event fencing;
+- producer bundle tests: 17 passed, including spawn-process Event fencing and
+  incompatible resolved-state rejection;
 - architecture/public-interface/no-local-path group: 16 passed;
 - pinned static-quality ratchet: 376 findings matched (354 active, 22
   vendored/generated);
 - stable flake8: clean; stable mypy: 91 source files clean;
-- full suite: 2268 passed, 50 skipped.
+- full suite: 2269 passed, 50 skipped.
 
 No Engine constructor parameter, root export, aggregate checkpoint export,
 SessionStore, execution loop, or alternate checkpoint truth was added. The

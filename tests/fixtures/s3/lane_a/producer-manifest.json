@@ -29,7 +29,7 @@
     },
     {
       "path": "tests/fixtures/s3/lane_a/qualification-evidence.json",
-      "sha256": "e67223c4b2857f69b621b91d4facff42ef1e69901e23dfa63a46c471610c027c"
+      "sha256": "c713f11986bff77a8f9d85ffceb52c4a0109e0a74cc1ee611591fc1005914ace"
     },
     {
       "path": "tests/fixtures/s3/lane_a/README.md",
@@ -54,6 +54,7 @@
     "tests/engine/test_session_fork.py::test_historical_snapshot_fork_and_source_child_continuation_are_isolated",
     "tests/engine/test_session_fork.py::test_duplicate_operation_is_typed_and_does_not_create_second_child",
     "tests/engine/test_session_fork.py::test_store_failure_leaves_no_child_head",
+    "tests/engine/test_session_fork.py::test_incompatible_resolved_component_cannot_claim_child",
     "tests/engine/test_session_fork.py::test_restored_child_supersedes_original_fork_owner",
     "tests/engine/test_session_fork.py::test_cross_process_restore_fences_original_owner_with_events",
     "tests/engine/test_session_fork.py::test_clean_process_restores_and_continues_forked_child"
