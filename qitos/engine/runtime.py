@@ -180,6 +180,7 @@ class RuntimeComposition:
     event_sink_view: Any = None
     tool_execution_policy: Any = None
     context_model_runtime: Optional[ContextModelRuntime] = None
+    work_runtime: Any = None
     event_sink_reports: list[Any] = field(default_factory=list, init=False)
     _event_dispatcher: Any = field(default=None, init=False, repr=False)
 
@@ -240,6 +241,10 @@ class RuntimeComposition:
             or not callable(getattr(self.context_model_runtime, "bind", None))
         ):
             raise TypeError("context_model_runtime must implement bind(engine)")
+        if self.work_runtime is not None:
+            required = ("capability_id", "submit", "recover", "request_cancel")
+            if any(not hasattr(self.work_runtime, name) for name in required):
+                raise TypeError("work_runtime does not implement the runtime seam")
 
     @classmethod
     def from_resolvers(
@@ -299,6 +304,8 @@ class RuntimeComposition:
             capabilities.add(EVENT_SINK_CAPABILITY)
         if self.context_model_runtime is not None:
             capabilities.add(str(self.context_model_runtime.capability_id))
+        if self.work_runtime is not None:
+            capabilities.add(str(self.work_runtime.capability_id))
         return frozenset(capabilities)
 
     def publish_event(self, event: Any, *, engine: Any = None) -> Any:

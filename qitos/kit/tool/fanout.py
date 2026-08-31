@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from ...core.agent_spec import AgentSpec, AgentRegistry, ContextStrategy
 from ...core.tool import BaseTool, ToolSpec
+from .agent.durable_adapter import submit_durable_work
 
 if TYPE_CHECKING:
     from ...engine.engine import Engine
@@ -79,6 +80,14 @@ class FanOutTool(BaseTool):
                 "status": "error",
                 "message": f"Maximum delegate depth ({MAX_DELEGATE_DEPTH}) exceeded",
             }
+
+        durable = submit_durable_work(
+            "fan_out",
+            {"tasks": tasks},
+            runtime_context,
+        )
+        if durable is not None:
+            return durable
 
         trace_writer = runtime_context.get("trace_writer")
 

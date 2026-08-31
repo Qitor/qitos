@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 import hashlib
+import json
 import time
 from dataclasses import asdict, dataclass, is_dataclass, replace
 from datetime import datetime, timezone
@@ -232,6 +233,118 @@ class Session:
                 state=state,
                 task=task,
                 step_id=step_id,
+            )
+
+    def submit_work(
+        self,
+        operation: str,
+        payload: Mapping[str, Any],
+        *,
+        operation_id: str | None = None,
+    ) -> Any:
+        """Submit one durable logical operation through the composed scheduler."""
+        runtime = getattr(self._runtime, "work_runtime", None)
+        if runtime is None:
+            raise _session_error(
+                SessionErrorCode.UNSUPPORTED_CAPABILITY,
+                "The composed runtime has no durable work scheduler.",
+                recoverable=True,
+                metadata={"capability": "work.scheduler.durable"},
+            )
+        graph = getattr(self._engine, "_qitos_work_graph", None)
+        if graph is None:
+            from ..core.work_graph import WorkGraph
+
+            graph = WorkGraph(f"work_graph:{self._session_id.value}")
+            setattr(self._engine, "_qitos_work_graph", graph)
+        canonical = json.loads(json.dumps(dict(payload), sort_keys=True, allow_nan=False))
+        if operation_id is None:
+            digest = hashlib.sha256(
+                json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()[:24]
+            operation_id = f"{operation}:{digest}"
+        return runtime.submit(
+            graph=graph,
+            operation_id=operation_id,
+            operation=operation,
+            payload=canonical,
+            worker=lambda: runtime.run_child(operation, canonical),
+            persist=self._commit_work_graph,
+            generation=self.current_head.generation.value,
+        )
+
+    def delegate(
+        self, agent: str, *, task: str, operation_id: str | None = None
+    ) -> Any:
+        return self.submit_work(
+            "delegate", {"agent": str(agent), "task": str(task)}, operation_id=operation_id
+        )
+
+    def spawn(
+        self, agent: str, *, task: str, operation_id: str | None = None
+    ) -> Any:
+        return self.submit_work(
+            "spawn", {"agent": str(agent), "task": str(task)}, operation_id=operation_id
+        )
+
+    def fan_out(
+        self, specs: Iterable[Mapping[str, Any]], *, operation_id: str | None = None
+    ) -> Any:
+        tasks = [dict(item) for item in specs]
+        runtime_policy = getattr(
+            getattr(self._runtime, "work_runtime", None), "policy", None
+        )
+        maximum = int(getattr(runtime_policy, "maximum_children_per_operation", 64))
+        if not tasks or len(tasks) > maximum:
+            raise ValueError("fan_out child count exceeds the runtime admission bound")
+        return self.submit_work("fan_out", {"tasks": tasks}, operation_id=operation_id)
+
+    def handoff(
+        self, agent: str, *, rationale: str = "handoff", operation_id: str | None = None
+    ) -> Any:
+        return self.submit_work(
+            "handoff",
+            {"target": str(agent), "rationale": str(rationale)},
+            operation_id=operation_id,
+        )
+
+    def join(
+        self,
+        children: Iterable[str],
+        *,
+        policy: str = "all",
+        quorum: int | None = None,
+        reducer_ref: str | None = None,
+        reducer_digest: str | None = None,
+        operation_id: str | None = None,
+    ) -> Any:
+        return self.submit_work(
+            "join",
+            {
+                "children": list(children),
+                "policy": policy,
+                "quorum": quorum,
+                "reducer_ref": reducer_ref,
+                "reducer_digest": reducer_digest,
+            },
+            operation_id=operation_id,
+        )
+
+    def _commit_work_graph(self) -> None:
+        with self._lock:
+            head = self._require_head()
+            state = self._engine.current_state
+            task: str | Task = self._engine._active_task_obj or self._engine._active_task
+            if state is None:
+                state, task, step_id = self._restore_core_state(self._load_snapshot(head))
+            else:
+                step_id = int(getattr(state, "current_step", 0))
+            self._commit_snapshot(
+                state=state,
+                task=task,
+                lifecycle=SessionLifecycle(head.lifecycle),
+                step_id=step_id,
+                expected_head=head,
             )
 
     def _submit_steering(
