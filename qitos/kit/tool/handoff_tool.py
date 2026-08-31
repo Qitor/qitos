@@ -7,9 +7,10 @@ to hand off control to another agent.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List
 
 from ...core.tool import BaseTool, ToolSpec
+from .agent.durable_adapter import submit_durable_work
 
 
 class HandoffTool(BaseTool):
@@ -51,10 +52,18 @@ class HandoffTool(BaseTool):
         Note: In practice, the Engine intercepts this tool call before
         execution reaches this method. This is a fallback.
         """
+        rationale = args.get("rationale", "") if isinstance(args, dict) else ""
+        durable = submit_durable_work(
+            "handoff",
+            {"target": self.target_name, "rationale": rationale},
+            runtime_context,
+        )
+        if durable is not None:
+            return durable
         return {
             "handoff_target": self.target_name,
             "status": "pending",
-            "rationale": args.get("rationale", "") if isinstance(args, dict) else "",
+            "rationale": rationale,
         }
 
     @property

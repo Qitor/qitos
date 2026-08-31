@@ -23,8 +23,8 @@ from __future__ import annotations
 
 import uuid
 from concurrent.futures import Future, ThreadPoolExecutor
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Type
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, Optional, Type
 
 from ....core.tool import BaseTool, ToolPermission, ToolSpec
 from ....core.agent_module import AgentModule

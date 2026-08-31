@@ -1512,6 +1512,11 @@ class ActionExecutor:
             "parent_run_id": "",
             "trace_writer": self.trace_writer,
             "shared_memory": self.shared_memory,
+            "work_runtime": getattr(
+                getattr(self._engine, "runtime", None), "work_runtime", None
+            ),
+            "session": getattr(self._engine, "_session_handle", None),
+            "work_graph": getattr(self._engine, "_qitos_work_graph", None),
         }
         context.update(runtime_facts or {})
         return context

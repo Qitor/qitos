@@ -14,6 +14,11 @@ from ..core.tool_runtime import (
     TOOL_BATCH_SNAPSHOT_COMPONENT_CODEC,
     ToolBatchSnapshot,
 )
+from ..core.work_graph import (
+    WORK_GRAPH_SNAPSHOT_COMPONENT_CODEC,
+    WorkGraph,
+    WorkGraphSnapshotComponent,
+)
 from .runtime import RuntimeSnapshotContext
 
 
@@ -148,9 +153,39 @@ class ToolBatchRuntimeSnapshotComponent:
         context.engine._qitos_tool_batch_snapshot = value
 
 
+class WorkGraphRuntimeSnapshotComponent:
+    """Persist the complete logical work graph, never live scheduler objects."""
+
+    codec = WORK_GRAPH_SNAPSHOT_COMPONENT_CODEC
+
+    def capture(self, context: RuntimeSnapshotContext) -> WorkGraphSnapshotComponent:
+        graph = getattr(context.engine, "_qitos_work_graph", None)
+        if graph is None:
+            identity = str(
+                getattr(context.engine, "_session_run_id", "")
+                or getattr(context.engine, "_active_run_id", "")
+                or "pending"
+            )
+            graph = WorkGraph(f"work_graph:{identity}")
+            context.engine._qitos_work_graph = graph
+        if not isinstance(graph, WorkGraph):
+            raise TypeError("Engine work-graph runtime state is invalid")
+        return graph.snapshot_component()
+
+    def restore(self, value: Any, context: RuntimeSnapshotContext) -> None:
+        if not isinstance(value, WorkGraphSnapshotComponent):
+            raise TypeError("work-graph restore requires WorkGraphSnapshotComponent")
+        context.engine._qitos_work_graph = (
+            WorkGraph.from_canonical_dict(value.graph)
+            if value.graph is not None
+            else WorkGraph(value.graph_ref)
+        )
+
+
 DEFAULT_RUNTIME_SNAPSHOT_COMPONENTS = (
     ConversationRuntimeSnapshotComponent(),
     ToolBatchRuntimeSnapshotComponent(),
+    WorkGraphRuntimeSnapshotComponent(),
 )
 
 
