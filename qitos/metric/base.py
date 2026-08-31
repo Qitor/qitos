@@ -18,6 +18,15 @@ class MetricInput:
     stop_reason: Optional[str] = None
     cost: Optional[float] = None
     payload: Dict[str, Any] = field(default_factory=dict)
+    schema_version: str = "qitos.metric-input/1"
+    provenance: Dict[str, Any] = field(default_factory=dict)
+    loss: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "policy_id": "qitos.loss/none",
+            "is_lossless": True,
+            "entries": [],
+        }
+    )
 
 
 @dataclass
@@ -25,6 +34,15 @@ class MetricReport:
     name: str
     value: Any
     details: Dict[str, Any] = field(default_factory=dict)
+    schema_version: str = "qitos.metric-report/1"
+    provenance: Dict[str, Any] = field(default_factory=dict)
+    loss: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "policy_id": "qitos.loss/none",
+            "is_lossless": True,
+            "entries": [],
+        }
+    )
 
 
 class Metric(ABC):

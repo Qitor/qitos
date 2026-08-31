@@ -51,6 +51,3 @@ the gate; the named semantic lane owns the reproducer and fix.
 ## Lane D / Tasks 05/10
 
 - `qitos/benchmark/tau_bench/port/envs/airline/tools/send_certificate.py:9:5` — `mypy:return` / `explicit-runtime-error`; vendored: Missing return statement
-- `qitos/qita/_cli_app.py:364:49` — `flake8:F821` / `undefined-name`: undefined name 'logdir_root'
-- `qitos/qita/_cli_app.py:364:49` — `mypy:name-defined` / `undefined-name`: Name "logdir_root" is not defined
-- `qitos/qita/_cli_app.py:800:87` — `mypy:union-attr` / `unbound-resource`: Item "None" of "Any | dict[Any, Any] | None" has no attribute "get"

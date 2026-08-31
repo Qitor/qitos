@@ -43,8 +43,8 @@ _DESIGN_FONT_MONO = "var(--font-mono)"
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    args = list(sys.argv[1:] if argv is None else argv)
-    if args and args[0] == "--version":
+    raw_args = list(sys.argv[1:] if argv is None else argv)
+    if raw_args and raw_args[0] == "--version":
         from qitos import __version__
         print(f"qita {__version__}")
         return 0
@@ -65,7 +65,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     p_export.add_argument("--run", required=True, help="Run directory path")
     p_export.add_argument("--html", required=True, help="Output html file path")
 
-    args = parser.parse_args(args)
+    args = parser.parse_args(raw_args)
     if args.command == "board":
         return _cmd_board(
             logdir=args.logdir,
@@ -173,7 +173,7 @@ def _build_handler(root: Path):
                 self._send_html(_render_compare_prompt(), status=400)
                 return
             if route == "/api/runs":
-                self._send_json(_discover_runs(root))
+                self._send_json(_discover_public_runs(root))
                 return
             if route == "/api/diff":
                 left_id = _slug_run_id((qs.get("left") or [""])[0])
@@ -228,16 +228,24 @@ def _build_handler(root: Path):
                 self._send_live_sse(run_dir)
                 return
             if route == "/asset":
-                path = str((qs.get("path") or [""])[0]).strip()
-                if not path:
-                    self._send_json({"error": "missing asset path"}, status=400)
-                    return
-                asset_path = Path(path).expanduser().resolve()
-                if not asset_path.exists() or not asset_path.is_file():
+                run_id = _slug_run_id((qs.get("run") or [""])[0])
+                relative = str((qs.get("path") or [""])[0]).strip()
+                run_dir = _resolve_run(root, run_id)
+                if run_dir is None or not relative:
                     self._send_json(
-                        {"error": "asset not found", "path": str(asset_path)},
-                        status=404,
+                        {"error": "invalid asset reference"}, status=400
                     )
+                    return
+                asset_path = (run_dir / relative).resolve()
+                try:
+                    asset_path.relative_to(run_dir)
+                except ValueError:
+                    self._send_json(
+                        {"error": "asset reference rejected"}, status=400
+                    )
+                    return
+                if not asset_path.is_file():
+                    self._send_json({"error": "asset not found"}, status=404)
                     return
                 body = asset_path.read_bytes()
                 guessed = mimetypes.guess_type(str(asset_path))[0] or "application/octet-stream"
@@ -342,69 +350,23 @@ def _build_handler(root: Path):
             parsed = urlparse(self.path)
             route = parsed.path
 
-            # POST /api/fork/{run_id}/{step_id}
+            # qita is a runtime client. It must not copy trace files and
+            # pretend that an execution fork happened.
             import re as _re
             fork_match = _re.match(r"^/api/fork/([^/]+)/(\d+)$", route)
             if fork_match:
                 run_id = _slug_run_id(fork_match.group(1))
                 step_id = int(fork_match.group(2))
-                # Read body
-                content_length = int(self.headers.get("Content-Length", 0))
-                body_bytes = self.rfile.read(content_length) if content_length > 0 else b""
-                try:
-                    body = json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
-                except (json.JSONDecodeError, UnicodeDecodeError):
-                    body = {}
-
-                override_decision = body.get("override_decision")
-                override_observation = body.get("override_observation")
-
-                # Resolve run directory
-                run_dir = None
-                for candidate in _discover_runs(logdir_root):
-                    if candidate.get("run_id") == run_id or Path(candidate.get("path", "")).name == run_id:
-                        run_dir = Path(candidate["path"])
-                        break
-
-                if run_dir is None or not run_dir.is_dir():
-                    self._send_json({"error": f"Run not found: {run_id}"}, status=404)
-                    return
-
-                # Use ReplaySession to fork
-                from qitos.debug.replay import ReplaySession
-                try:
-                    session = ReplaySession(str(run_dir))
-                    override = {}
-                    if override_decision:
-                        override["decision"] = override_decision
-                    if override_observation:
-                        override["observation"] = override_observation
-                    forked = session.fork_with_step_override(step_id, override)
-                except Exception as exc:
-                    self._send_json({"error": str(exc)}, status=500)
-                    return
-
-                # Write forked run as a new run directory
-                fork_run_id = f"{run_id}_fork_s{step_id}"
-                fork_dir = run_dir.parent / fork_run_id
-                fork_dir.mkdir(parents=True, exist_ok=True)
-                if "manifest" in forked:
-                    (fork_dir / "manifest.json").write_text(
-                        json.dumps(forked["manifest"], ensure_ascii=False, indent=2),
-                        encoding="utf-8",
-                    )
-                if "events" in forked:
-                    lines = [json.dumps(e, ensure_ascii=False) for e in forked["events"]]
-                    (fork_dir / "events.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
-                if "steps" in forked:
-                    lines = [json.dumps(s, ensure_ascii=False) for s in forked["steps"]]
-                    (fork_dir / "steps.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
-
                 self._send_json({
-                    "fork_run_id": fork_run_id,
-                    "fork_dir": str(fork_dir),
+                    "error": "runtime-owned fork is not qualified",
+                    "code": "runtime_not_ready",
+                    "run_id": run_id,
                     "step_id": step_id,
-                })
+                    "remediation": (
+                        "fork through the durable Session runtime after "
+                        "qualification"
+                    ),
+                }, status=409)
                 return
 
             self._send_json({"error": "not found", "route": route}, status=404)
@@ -446,8 +408,6 @@ def _build_handler(root: Path):
 
         def _send_sse_events(self, run_dir: Path) -> None:
             """Stream run events as Server-Sent Events for real-time UI updates."""
-            import time as _time
-
             payload = _load_run_payload(run_dir)
             steps = payload.get("steps", [])
             events = payload.get("events", [])
@@ -515,8 +475,7 @@ def _build_handler(root: Path):
                 pass
 
         def _send_live_sse(self, run_dir: Path) -> None:
-            """Tail events.jsonl for a running run and push new lines as SSE events."""
-            import struct
+            """Poll the configured reader for a running run and stream new events."""
             import time as _time
 
             self.send_response(200)
@@ -526,50 +485,18 @@ def _build_handler(root: Path):
             self.send_header("X-Accel-Buffering", "no")
             self.end_headers()
 
-            events_path = run_dir / "events.jsonl"
             sent = 0
             max_poll = 300  # 5 minutes at 1s intervals
-
-            # First, emit any existing events
-            if events_path.exists():
-                for line in events_path.read_text(encoding="utf-8").splitlines():
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        event = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    phase = str(event.get("phase", "unknown")).upper()
-                    event_type = "phase"
-                    if "HANDOFF" in phase:
-                        event_type = "handoff"
-                    elif "DELEGATE" in phase:
-                        event_type = "delegate"
-                    elif "FANOUT" in phase:
-                        event_type = "fanout"
-                    self._sse_write(event_type, event)
-                    sent += 1
-
-            # Now tail for new events
-            for _ in range(max_poll):
-                _time.sleep(1.0)
-                if not events_path.exists():
-                    continue
+            for poll in range(max_poll + 1):
                 try:
-                    lines = events_path.read_text(encoding="utf-8").splitlines()
-                except OSError:
+                    payload = _load_run_payload(run_dir)
+                except (OSError, ValueError, json.JSONDecodeError):
+                    if poll < max_poll:
+                        _time.sleep(1.0)
                     continue
-                new_lines = lines[sent:]
-                for line in new_lines:
-                    line = line.strip()
-                    if not line:
-                        sent += 1
-                        continue
-                    try:
-                        event = json.loads(line)
-                    except json.JSONDecodeError:
-                        sent += 1
+                events = payload.get("events") or []
+                for event in events[sent:]:
+                    if not isinstance(event, dict):
                         continue
                     phase = str(event.get("phase", "unknown")).upper()
                     event_type = "phase"
@@ -580,24 +507,19 @@ def _build_handler(root: Path):
                     elif "FANOUT" in phase:
                         event_type = "fanout"
                     self._sse_write(event_type, event)
-                    sent += 1
+                sent = len(events)
 
-                # Check if run is completed
-                manifest_path = run_dir / "manifest.json"
-                if manifest_path.exists():
-                    try:
-                        manifest = json.loads(
-                            manifest_path.read_text(encoding="utf-8")
-                        )
-                        status = str(manifest.get("status", "")).lower()
-                        if status in ("completed", "success", "failed", "error", "stopped"):
-                            self._sse_write("run_end", {
-                                "status": status,
-                                "stop_reason": (manifest.get("summary") or {}).get("stop_reason", ""),
-                            })
-                            return
-                    except (json.JSONDecodeError, OSError):
-                        pass
+                manifest = payload.get("manifest") or {}
+                status = str(manifest.get("status", "")).lower()
+                if status in ("completed", "success", "failed", "error", "stopped"):
+                    summary = manifest.get("summary") or {}
+                    self._sse_write("run_end", {
+                        "status": status,
+                        "stop_reason": summary.get("stop_reason", ""),
+                    })
+                    return
+                if poll < max_poll:
+                    _time.sleep(1.0)
 
             # Timeout
             self._sse_write("run_end", {"status": "timeout", "stop_reason": "live_stream_timeout"})
@@ -617,85 +539,42 @@ def _slug_run_id(run_id: str) -> str:
 
 
 def _discover_runs(logdir: Path) -> List[Dict[str, Any]]:
-    runs: List[Dict[str, Any]] = []
-    if not logdir.exists():
-        return runs
-    for p in sorted(logdir.iterdir()):
-        if not p.is_dir():
+    """Return compatibility summaries for in-process callers.
+
+    The historical helper includes a private storage path. Public qita
+    responses use ``_discover_public_runs`` and never expose this field.
+    """
+    runs = _discover_public_runs(logdir)
+    root = logdir.resolve()
+    for run in runs:
+        run_id = str(run["id"])
+        if _slug_run_id(run_id) != run_id:
             continue
-        manifest_path = p / "manifest.json"
-        if not manifest_path.exists():
-            continue
-        manifest = _load_json(manifest_path)
-        summary = manifest.get("summary") or {}
-        agent_topology = manifest.get("agent_topology")
-        agent_names = []
-        if isinstance(agent_topology, dict):
-            agent_names = agent_topology.get("agents", [])
-        elif manifest.get("agent_name"):
-            agent_names = [manifest["agent_name"]]
-        runs.append(
-            {
-                "id": p.name,
-                "path": str(p),
-                "status": manifest.get("status"),
-                "updated_at": manifest.get("updated_at"),
-                "step_count": manifest.get("step_count", 0),
-                "event_count": manifest.get("event_count", 0),
-                "stop_reason": summary.get("stop_reason"),
-                "final_result": summary.get("final_result"),
-                "agent_name": manifest.get("agent_name"),
-                "agent_topology": agent_topology,
-                "handoff_count": manifest.get("handoff_count"),
-                "agent_count": len(agent_names) if agent_names else 0,
-                "manifest_meta": {
-                    "schema_version": manifest.get("schema_version"),
-                    "model_id": manifest.get("model_id"),
-                    "model_family": manifest.get("model_family"),
-                    "family_preset": (((summary.get("run_meta") or {}).get("harness") or {}).get("family_preset")),
-                    "prompt_hash": manifest.get("prompt_hash"),
-                    "benchmark_name": manifest.get("benchmark_name"),
-                    "benchmark_split": manifest.get("benchmark_split"),
-                    "prompt_builder": ((summary.get("run_meta") or {}).get("prompt") or {}).get("prompt_builder"),
-                    "protocol": (summary.get("run_meta") or {}).get("protocol"),
-                    "protocol_resolution_source": (summary.get("run_meta") or {}).get("protocol_resolution_source"),
-                    "prompt_protocol": manifest.get("prompt_protocol"),
-                    "parser_name": manifest.get("parser_name"),
-                    "run_config_hash": manifest.get("run_config_hash"),
-                    "seed": manifest.get("seed"),
-                    "git_sha": manifest.get("git_sha"),
-                    "package_version": manifest.get("package_version"),
-                    "official_run": manifest.get("official_run"),
-                    "replay_mode": manifest.get("replay_mode"),
-                    "replay_note": manifest.get("replay_note"),
-                    "summary_steps": summary.get("steps"),
-                    "token_usage": summary.get("token_usage"),
-                    "latency_seconds": manifest.get("latency_seconds"),
-                    "cost": manifest.get("cost"),
-                    "context": summary.get("context"),
-                    "parser": summary.get("parser"),
-                    "run_spec": manifest.get("run_spec"),
-                    "experiment_spec": manifest.get("experiment_spec"),
-                },
-            }
-        )
+        run_dir = _resolve_run(root, run_id)
+        if run_dir is not None:
+            run["path"] = str(run_dir)
     return runs
 
 
+def _discover_public_runs(logdir: Path) -> List[Dict[str, Any]]:
+    """Return reader-projected summaries safe for HTTP/UI consumers."""
+    from .reader import default_reader, discover_run_payloads
+
+    return discover_run_payloads(default_reader(logdir))
+
+
 def _load_run_payload(run_dir: Path) -> Dict[str, Any]:
-    manifest = _load_json(run_dir / "manifest.json")
-    events = _load_jsonl(run_dir / "events.jsonl")
-    steps = _load_jsonl(run_dir / "steps.jsonl")
-    grouped_events = _group_events_by_step(events)
-    return {
-        "run": str(run_dir),
-        "run_id": run_dir.name,
-        "manifest": manifest,
-        "events": events,
-        "steps": steps,
-        "events_by_step": grouped_events,
-        "visual_timeline": _build_visual_timeline(steps),
-    }
+    from .reader import default_reader, load_run_payload
+
+    payload = load_run_payload(
+        default_reader(run_dir.parent),
+        run_dir.name,
+        run_dir=run_dir,
+    )
+    payload["visual_timeline"] = _build_visual_timeline(
+        payload.get("steps") or []
+    )
+    return payload
 
 
 def _group_events_by_step(
@@ -787,17 +666,29 @@ def _flatten_dict(value: Dict[str, Any], prefix: str = "") -> Dict[str, Any]:
 
 def _config_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
     manifest = payload.get("manifest") or {}
-    run_spec = manifest.get("run_spec") if isinstance(manifest.get("run_spec"), dict) else {}
+    raw_run_spec = manifest.get("run_spec")
+    run_spec: Dict[str, Any] = (
+        raw_run_spec if isinstance(raw_run_spec, dict) else {}
+    )
     experiment_spec = (
         manifest.get("experiment_spec")
         if isinstance(manifest.get("experiment_spec"), dict)
         else {}
     )
     run_meta = ((manifest.get("summary") or {}).get("run_meta") or {})
+    harness = run_meta.get("harness")
+    if not isinstance(harness, dict):
+        harness = {}
+    run_metadata = run_spec.get("metadata")
+    if not isinstance(run_metadata, dict):
+        run_metadata = {}
     snapshot = {
         "model_id": manifest.get("model_id"),
         "model_family": manifest.get("model_family"),
-        "family_preset": (((run_meta.get("harness") or {}).get("family_preset")) or ((run_spec.get("metadata") or {}).get("family_preset"))),
+        "family_preset": (
+            harness.get("family_preset")
+            or run_metadata.get("family_preset")
+        ),
         "prompt_protocol": manifest.get("prompt_protocol"),
         "parser_name": manifest.get("parser_name"),
         "benchmark_name": manifest.get("benchmark_name"),
@@ -1865,7 +1756,7 @@ function renderDirectObservation(actionResults){{
 function assetHref(path){{
   if(!path) return '';
   if(embedded) return '';
-  return '/asset?path=' + encodeURIComponent(String(path));
+  return '/asset?run=' + encodeURIComponent(String(payload.run_id || '')) + '&path=' + encodeURIComponent(String(path));
 }}
 function renderVisualOverlay(item){{
   if(!item || typeof item !== 'object') return '';
@@ -3358,7 +3249,7 @@ function buildPreview(r){{
       overlay = '<div class="replay-overlay"><div class="replay-dot" style="left:' + x + 'px;top:' + y + 'px"></div></div>';
     }}
   }}
-  preview.innerHTML = '<div class="replay-preview"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">step ' + esc(String(r.step_id)) + ' · ' + esc(String(r.phase || '')) + '</div><div class="replay-shot"><img src="/asset?path=' + encodeURIComponent(String(shot.path)) + '" alt="replay screenshot"/>' + overlay + '</div></div>';
+  preview.innerHTML = '<div class="replay-preview"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">step ' + esc(String(r.step_id)) + ' · ' + esc(String(r.phase || '')) + '</div><div class="replay-shot"><img src="/asset?run=' + encodeURIComponent(String(payload.run_id || '')) + '&path=' + encodeURIComponent(String(shot.path)) + '" alt="replay screenshot"/>' + overlay + '</div></div>';
 }}
 function shouldShow(r){{
   if(onlyErr.checked && !r.error) return false;

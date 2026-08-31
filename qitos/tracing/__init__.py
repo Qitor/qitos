@@ -21,6 +21,50 @@ from .models import NoOpTrace, Span, SpanData, SpanType, Trace
 from .processor import TraceProcessor
 from .provider import TracingProvider
 from .legacy_processor import LegacyTraceWriterProcessor
+from .adapters import (
+    classify_event,
+    engine_event_to_record,
+    render_event_to_record,
+    runtime_event_to_record,
+    span_to_record,
+    step_record_to_record,
+    trace_event_to_record,
+    trace_step_to_record,
+)
+from .exporter import (
+    CanonicalTrajectoryExporter,
+    EventSummaryExporter,
+    ExportArtifact,
+    TrajectoryExporter,
+)
+from .readers import (
+    StoreTrajectoryReader,
+    TraceCompatibilityReader,
+    TrajectoryReader,
+)
+from .sinks import (
+    BackpressurePolicy,
+    DurabilityReceipt,
+    DurabilityStatus,
+    EventSink,
+    EventSinkDispatcher,
+    FailurePolicy,
+    InMemoryEventSink,
+    SinkCapabilities,
+    TrajectoryStoreEventSink,
+)
+from .store import JsonTrajectoryStore, MemoryTrajectoryStore, TrajectoryStore
+from .trajectory import (
+    ArtifactRef,
+    LossEntry,
+    LossReport,
+    PrivacyView,
+    RecordKind,
+    RecordRole,
+    Trajectory,
+    TrajectoryQuery,
+    TrajectoryRecord,
+)
 
 # Optional W&B processor — only available when wandb is installed
 try:
@@ -100,6 +144,46 @@ __all__ = [
     "set_tracing_mode",
     "get_tracing_provider",
     "create_trace",
+    # candidate one-Trajectory architecture (not root-exported; schema unfrozen)
+    "Trajectory",
+    "TrajectoryRecord",
+    "TrajectoryQuery",
+    "TrajectoryStore",
+    "TrajectoryReader",
+    "TrajectoryExporter",
+    "RecordKind",
+    "RecordRole",
+    "PrivacyView",
+    "ArtifactRef",
+    "LossEntry",
+    "LossReport",
+    # event sink seam
+    "EventSink",
+    "EventSinkDispatcher",
+    "InMemoryEventSink",
+    "TrajectoryStoreEventSink",
+    "SinkCapabilities",
+    "FailurePolicy",
+    "BackpressurePolicy",
+    "DurabilityReceipt",
+    "DurabilityStatus",
+    # reference stores/readers/exporters
+    "MemoryTrajectoryStore",
+    "JsonTrajectoryStore",
+    "TraceCompatibilityReader",
+    "StoreTrajectoryReader",
+    "CanonicalTrajectoryExporter",
+    "EventSummaryExporter",
+    "ExportArtifact",
+    # structural adapters from current event/view planes
+    "classify_event",
+    "engine_event_to_record",
+    "runtime_event_to_record",
+    "step_record_to_record",
+    "trace_event_to_record",
+    "trace_step_to_record",
+    "span_to_record",
+    "render_event_to_record",
     # optional integrations
     "WandbTraceProcessor",
     "MlflowTraceProcessor",

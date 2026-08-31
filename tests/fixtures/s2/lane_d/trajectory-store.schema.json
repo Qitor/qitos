@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qitos.dev/schema/trajectory-store-candidate-1.json",
+  "title": "QitOS candidate trajectory store document",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["storage_schema", "records", "store_digest"],
+  "properties": {
+    "storage_schema": {
+      "const": "qitos.trajectory-store/candidate-1"
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "record_id",
+          "sequence",
+          "kind",
+          "role",
+          "payload",
+          "privacy_view",
+          "loss",
+          "digest"
+        ]
+      }
+    },
+    "store_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

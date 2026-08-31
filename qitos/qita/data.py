@@ -10,6 +10,12 @@ from ._cli_app import (
     _resolve_run,
     _slug_run_id,
 )
+from .reader import (
+    default_reader,
+    discover_run_payloads,
+    load_run_payload,
+    load_session_payload,
+)
 
 __all__ = [
     "_discover_runs",
@@ -18,4 +24,8 @@ __all__ = [
     "_load_run_payload",
     "_resolve_run",
     "_slug_run_id",
+    "default_reader",
+    "discover_run_payloads",
+    "load_run_payload",
+    "load_session_payload",
 ]

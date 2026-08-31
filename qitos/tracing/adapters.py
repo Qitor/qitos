@@ -1,0 +1,357 @@
+"""Structural adapters into the one candidate trajectory record vocabulary."""
+
+from __future__ import annotations
+
+import dataclasses
+from enum import Enum
+from typing import Any, Mapping, Optional
+
+from .trajectory import (
+    LossEntry,
+    LossReport,
+    RecordKind,
+    RecordRole,
+    TrajectoryRecord,
+)
+
+
+def _json_value(value: Any) -> Any:
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        return _json_value(dataclasses.asdict(value))
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, Mapping):
+        return {str(key): _json_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_value(item) for item in value]
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return {"type": type(value).__name__}
+
+
+def classify_event(
+    phase: str,
+    payload: Optional[Mapping[str, Any]] = None,
+    *,
+    ok: bool = True,
+    error: Any = None,
+) -> RecordKind:
+    """Classify all current event planes with one low-cardinality vocabulary."""
+    upper = phase.upper()
+    stage = str((payload or {}).get("stage", "")).lower()
+    if not ok or error:
+        return RecordKind.ERROR
+    if "ERROR" in upper:
+        return RecordKind.ERROR
+    if stage == "model_input" or any(
+        token in upper for token in ("MODEL_REQUEST", "MODEL_INPUT")
+    ):
+        return RecordKind.MODEL_REQUEST
+    if stage == "model_output" or any(
+        token in upper for token in ("MODEL_RESPONSE", "MODEL_OUTPUT")
+    ):
+        return RecordKind.MODEL_RESPONSE
+    if "REASON" in upper:
+        return RecordKind.REASONING
+    if "CONTINU" in upper:
+        return RecordKind.CONTINUATION
+    if "COMPACT" in upper or stage.startswith("compact"):
+        return RecordKind.COMPACTION
+    if "CONTEXT" in upper or stage == "context_history":
+        return RecordKind.CONTEXT
+    if "STEER" in upper:
+        return RecordKind.STEERING
+    if "SNAPSHOT" in upper or "CHECKPOINT" in upper:
+        return RecordKind.SNAPSHOT
+    if "RESTORE" in upper or "RESUME" in upper:
+        return RecordKind.RESTORE
+    if "PAUSE" in upper or "INTERRUPT" in upper:
+        return RecordKind.PAUSE
+    if "EFFECT" in upper:
+        return RecordKind.EFFECT
+    if "BUDGET" in upper:
+        return RecordKind.BUDGET
+    if (
+        ("STOP" in upper and upper != "CHECK_STOP")
+        or upper in {"END", "SESSION_END", "RUN_END", "DONE"}
+    ):
+        return RecordKind.STOP
+    if any(
+        token in upper
+        for token in ("HANDOFF", "DELEGATE", "FANOUT", "JOIN", "SPAWN", "WORK")
+    ):
+        return RecordKind.WORK_GRAPH
+    if "TOOL_BATCH" in upper:
+        return RecordKind.TOOL_BATCH
+    if "TOOL" in upper or upper in {"ACT", "ACT_ERROR", "ACTION"}:
+        return RecordKind.TOOL_SLOT
+    if "ARTIFACT" in upper:
+        return RecordKind.ARTIFACT
+    if upper in {"SESSION", "SESSION_START"}:
+        return RecordKind.SESSION
+    if upper in {"INIT", "RUN_START", "RUN"}:
+        return RecordKind.RUN
+    if "LOSS" in upper:
+        return RecordKind.LOSS
+    return RecordKind.LIFECYCLE
+
+
+def _event_name(event: Any, *, prefer_event_type: bool = False) -> str:
+    values = (
+        (getattr(event, "event_type", None), getattr(event, "phase", None))
+        if prefer_event_type
+        else (getattr(event, "phase", None), getattr(event, "event_type", None))
+    )
+    for value in values:
+        if value is None:
+            continue
+        if hasattr(value, "value"):
+            value = value.value
+        text = str(value).strip()
+        if text:
+            return text
+    return ""
+
+
+def runtime_event_to_record(
+    event: Any,
+    *,
+    run_id: str,
+    session_id: Optional[str] = None,
+    work_item_id: Optional[str] = None,
+    agent_id: Optional[str] = None,
+) -> TrajectoryRecord:
+    """Adapt a RuntimeEvent-like object without importing Engine types."""
+    phase = _event_name(event)
+    payload = _json_value(getattr(event, "payload", {}) or {})
+    if not isinstance(payload, dict):
+        payload = {"value": payload}
+    error = getattr(event, "error", None)
+    ok = bool(getattr(event, "ok", True))
+    losses = []
+    if (
+        classify_event(phase, payload, ok=ok, error=error)
+        == RecordKind.MODEL_RESPONSE
+        and any(
+            key in payload
+            for key in ("reasoning_content", "reasoning_fields", "continuation")
+        )
+    ):
+        losses.append(
+            LossEntry(
+                "embedded_reasoning_or_continuation",
+                consequence="producer_fact_not_separately_identified",
+            )
+        )
+    return TrajectoryRecord.create(
+        classify_event(phase, payload, ok=ok, error=error),
+        role=RecordRole.CANONICAL_RUNTIME_FACT,
+        run_id=run_id,
+        session_id=session_id,
+        work_item_id=work_item_id,
+        step_id=int(getattr(event, "step_id", 0)),
+        phase=phase or None,
+        agent_id=agent_id,
+        occurred_at=str(getattr(event, "ts", "unknown")),
+        payload={"ok": ok, "payload": payload, "error": _json_value(error)},
+        loss=LossReport(
+            policy_id="qitos.adapter/runtime-event",
+            entries=tuple(losses),
+        ),
+    )
+
+
+def engine_event_to_record(
+    event: Any,
+    *,
+    run_id: str,
+    session_id: Optional[str] = None,
+    work_item_id: Optional[str] = None,
+) -> TrajectoryRecord:
+    """Adapt an EngineEvent-like streaming view without importing Engine."""
+    event_name = _event_name(event, prefer_event_type=True)
+    payload = _json_value(getattr(event, "payload", {}) or {})
+    if not isinstance(payload, dict):
+        payload = {"value": payload}
+    error = _json_value(getattr(event, "error", None))
+    ok = bool(getattr(event, "ok", True))
+    return TrajectoryRecord.create(
+        classify_event(event_name, payload, ok=ok, error=error),
+        role=RecordRole.DERIVED_VIEW,
+        run_id=run_id,
+        session_id=session_id,
+        work_item_id=work_item_id,
+        step_id=int(getattr(event, "step_id", 0)),
+        phase=event_name or None,
+        agent_id=getattr(event, "agent_id", None),
+        occurred_at=str(getattr(event, "ts", "unknown")),
+        payload={"ok": ok, "payload": payload, "error": error},
+        loss=LossReport(
+            policy_id="qitos.adapter/engine-event",
+            entries=(
+                LossEntry(
+                    "derived_engine_stream",
+                    consequence="not_runtime_storage_authority",
+                ),
+            ),
+        ),
+    )
+
+
+def trace_event_to_record(event: Any) -> TrajectoryRecord:
+    """Adapt a frozen TraceEvent-like compatibility artifact structurally."""
+    phase = _event_name(event)
+    payload = _json_value(getattr(event, "payload", {}) or {})
+    if not isinstance(payload, dict):
+        payload = {"value": payload}
+    error = _json_value(getattr(event, "error", None))
+    ok = bool(getattr(event, "ok", True))
+    return TrajectoryRecord.create(
+        classify_event(phase, payload, ok=ok, error=error),
+        role=RecordRole.COMPATIBILITY_ARTIFACT,
+        run_id=str(getattr(event, "run_id", "")) or None,
+        step_id=int(getattr(event, "step_id", 0)),
+        phase=phase or None,
+        occurred_at=str(getattr(event, "ts", "unknown")),
+        payload={"ok": ok, "payload": payload, "error": error},
+        loss=LossReport(
+            policy_id="qitos.adapter/frozen-trace-event",
+            entries=(
+                LossEntry(
+                    "compatibility_trace_input",
+                    consequence="session_and_work_lineage_unavailable",
+                ),
+            ),
+        ),
+    )
+
+
+def step_record_to_record(
+    step: Any,
+    *,
+    run_id: str,
+    session_id: Optional[str] = None,
+    work_item_id: Optional[str] = None,
+) -> TrajectoryRecord:
+    """Adapt a StepRecord-like aggregate as a declared derived view."""
+    payload = _json_value(step)
+    if not isinstance(payload, dict):
+        payload = {"value": payload}
+    return TrajectoryRecord.create(
+        RecordKind.STEP,
+        role=RecordRole.DERIVED_VIEW,
+        run_id=run_id,
+        session_id=session_id,
+        work_item_id=work_item_id,
+        step_id=int(getattr(step, "step_id", 0)),
+        agent_id=getattr(step, "agent_id", None),
+        payload=payload,
+        loss=LossReport(
+            policy_id="qitos.adapter/step-record",
+            entries=(
+                LossEntry(
+                    "step_is_aggregate_view",
+                    consequence="event_order_requires_runtime_records",
+                ),
+            ),
+        ),
+    )
+
+
+def trace_step_to_record(step: Any, *, run_id: str) -> TrajectoryRecord:
+    """Adapt a frozen TraceStep-like aggregate as a compatibility artifact."""
+    payload = _json_value(step)
+    if not isinstance(payload, dict):
+        payload = {"value": payload}
+    return TrajectoryRecord.create(
+        RecordKind.STEP,
+        role=RecordRole.COMPATIBILITY_ARTIFACT,
+        run_id=run_id,
+        step_id=int(getattr(step, "step_id", 0)),
+        agent_id=getattr(step, "agent_id", None),
+        payload=payload,
+        loss=LossReport(
+            policy_id="qitos.adapter/frozen-trace-step",
+            entries=(
+                LossEntry(
+                    "compatibility_step_aggregate",
+                    consequence="event_order_and_lineage_unavailable",
+                ),
+            ),
+        ),
+    )
+
+
+def span_to_record(span: Any, *, run_id: Optional[str] = None) -> TrajectoryRecord:
+    """Adapt a tracing Span-like object as a derived diagnostic view."""
+    data = getattr(span, "data", None)
+    span_type = str(getattr(data, "type", "custom"))
+    export = getattr(data, "export", None)
+    exported = export() if callable(export) else {}
+    return TrajectoryRecord.create(
+        classify_event(span_type, exported),
+        role=RecordRole.DERIVED_VIEW,
+        record_id=str(getattr(span, "span_id", "")) or None,
+        run_id=run_id or str(getattr(span, "trace_id", "")) or None,
+        causation_id=getattr(span, "parent_span_id", None),
+        occurred_at=str(getattr(span, "started_at", "unknown")),
+        payload={
+            "span_data": _json_value(exported),
+            "ended_at": getattr(span, "ended_at", None),
+            "error": getattr(span, "error", None),
+            "output": _json_value(getattr(span, "output", None)),
+        },
+        loss=LossReport(
+            policy_id="qitos.adapter/span",
+            entries=(
+                LossEntry(
+                    "derived_span_view",
+                    consequence="not_runtime_storage_authority",
+                ),
+            ),
+        ),
+    )
+
+
+def render_event_to_record(
+    event: Any, *, run_id: str
+) -> TrajectoryRecord:
+    """Adapt a RenderEvent-like object as a lossy presentation view."""
+    node = str(getattr(event, "node", ""))
+    payload = _json_value(getattr(event, "payload", {}) or {})
+    if not isinstance(payload, dict):
+        payload = {"value": payload}
+    return TrajectoryRecord.create(
+        classify_event(node, payload),
+        role=RecordRole.DERIVED_VIEW,
+        run_id=run_id,
+        step_id=int(getattr(event, "step_id", 0)),
+        phase=node or None,
+        occurred_at=str(getattr(event, "ts", "unknown")),
+        payload={
+            "channel": str(getattr(event, "channel", "")),
+            "node": node,
+            "payload": payload,
+        },
+        loss=LossReport(
+            policy_id="qitos.adapter/render-event",
+            entries=(
+                LossEntry(
+                    "presentation_projection",
+                    consequence="exact_replay_unavailable",
+                ),
+            ),
+        ),
+    )
+
+
+__all__ = [
+    "classify_event",
+    "engine_event_to_record",
+    "render_event_to_record",
+    "runtime_event_to_record",
+    "span_to_record",
+    "step_record_to_record",
+    "trace_event_to_record",
+    "trace_step_to_record",
+]
