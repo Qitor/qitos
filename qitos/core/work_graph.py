@@ -24,7 +24,8 @@ from .session import (
 from .tool_result import ToolResult
 
 
-WORK_GRAPH_SCHEMA_VERSION = "qitos.work_graph/v3"
+WORK_GRAPH_SCHEMA_VERSION = "qitos.work_graph/v4"
+WORK_DESCRIPTOR_SCHEMA_VERSION = "qitos.work_descriptor/v1"
 WORK_GRAPH_SNAPSHOT_COMPONENT_VERSION = "qitos.work_graph.snapshot_component/v3"
 
 WorkLifecycle = Literal[
@@ -561,6 +562,76 @@ class CapabilityAllocation:
 
 
 @dataclass(frozen=True)
+class WorkDescriptor:
+    """Reconstructable work declaration; contains references, never live objects."""
+
+    operation_id: str
+    operation: str
+    parent_session_id: str
+    parent_work_item_id: str
+    child_session_ids: list[str]
+    child_work_item_ids: list[str]
+    agent_refs: list[Dict[str, Any]]
+    task_input: Dict[str, Any]
+    fork_receipts: list[Dict[str, Any]]
+    transfer_receipts: list[Dict[str, Any]]
+    budget_allocations: list[Dict[str, Any]]
+    capability_allocations: list[Dict[str, Any]]
+    artifact_refs: list[Dict[str, Any]]
+    resolver_requirements: list[Dict[str, Any]]
+    graph_depth: int
+    fan_out_width: int
+    schema_version: str = WORK_DESCRIPTOR_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        if self.schema_version != WORK_DESCRIPTOR_SCHEMA_VERSION:
+            raise _fail("unknown_schema_version", "unsupported work descriptor version")
+        for name in (
+            "operation_id", "operation", "parent_session_id", "parent_work_item_id"
+        ):
+            object.__setattr__(self, name, _identifier(getattr(self, name), name))
+        if self.operation not in _DURABLE_OPERATIONS:
+            raise _fail("invalid_operation", "unsupported descriptor operation")
+        for name in ("child_session_ids", "child_work_item_ids"):
+            values = [_identifier(item, name) for item in getattr(self, name)]
+            if len(values) != len(set(values)):
+                raise _fail("duplicate_identity", f"{name} must be unique")
+            object.__setattr__(self, name, values)
+        if len(self.child_session_ids) != len(self.child_work_item_ids):
+            raise _fail("invalid_descriptor", "child Session/work identities must align")
+        for name in (
+            "agent_refs", "fork_receipts", "transfer_receipts",
+            "budget_allocations", "capability_allocations", "artifact_refs",
+            "resolver_requirements",
+        ):
+            value = _clone_json(getattr(self, name), name)
+            _reject_unsafe_descriptor_value(value, name)
+            object.__setattr__(self, name, value)
+        task_input = _clone_json(self.task_input, "task_input")
+        _reject_unsafe_descriptor_value(task_input, "task_input")
+        object.__setattr__(self, "task_input", task_input)
+        object.__setattr__(self, "graph_depth", _generation(self.graph_depth, "graph_depth"))
+        width = _generation(self.fan_out_width, "fan_out_width")
+        if width < 1 or width > _MAX_FAN_OUT_WIDTH:
+            raise _fail("fan_out_width_exceeded", "descriptor fan-out width is invalid")
+        object.__setattr__(self, "fan_out_width", width)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return _record_dict(self)
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "WorkDescriptor":
+        fields = {
+            "schema_version", "operation_id", "operation", "parent_session_id",
+            "parent_work_item_id", "child_session_ids", "child_work_item_ids",
+            "agent_refs", "task_input", "fork_receipts", "transfer_receipts",
+            "budget_allocations", "capability_allocations", "artifact_refs",
+            "resolver_requirements", "graph_depth", "fan_out_width",
+        }
+        return cls(**_strict(payload, fields, "WorkDescriptor"))
+
+
+@dataclass(frozen=True)
 class WorkOperationReceipt:
     """Durable idempotency and dispatch fact for one logical operation."""
 
@@ -573,6 +644,9 @@ class WorkOperationReceipt:
     worker_ref: str | None = None
     outcome_unknown: bool = False
     terminal_receipt_ref: str | None = None
+    descriptor: Dict[str, Any] | None = None
+    admission_state: str = "eligible"
+    queue_position: int | None = None
 
     def __post_init__(self) -> None:
         for name in ("operation_id", "operation", "payload_digest", "state"):
@@ -591,6 +665,33 @@ class WorkOperationReceipt:
         )
         if not isinstance(self.outcome_unknown, bool):
             raise _fail("invalid_record", "outcome_unknown must be boolean")
+        if self.descriptor is not None:
+            descriptor = WorkDescriptor.from_dict(self.descriptor).to_dict()
+            if descriptor["operation_id"] != self.operation_id:
+                raise _fail("identity_mismatch", "descriptor operation identity mismatched")
+            object.__setattr__(self, "descriptor", descriptor)
+        if self.admission_state not in {"eligible", "admitted", "queued", "closed"}:
+            raise _fail("invalid_admission", "unsupported admission state")
+        if self.queue_position is not None:
+            object.__setattr__(
+                self, "queue_position", _generation(self.queue_position, "queue_position")
+            )
+
+
+def _reject_unsafe_descriptor_value(value: Any, path: str) -> None:
+    if isinstance(value, str):
+        if diagnostic_string_is_sensitive(value):
+            raise _fail("unsafe_descriptor_value", f"{path} contains non-portable data")
+        return
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            _reject_unsafe_descriptor_value(item, f"{path}[{index}]")
+        return
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if any(token in key.lower() for token in ("secret", "password", "credential", "token")):
+                raise _fail("unsafe_descriptor_value", f"{path} contains a forbidden field")
+            _reject_unsafe_descriptor_value(item, f"{path}.{key}")
 
 
 @dataclass(frozen=True)
@@ -1160,7 +1261,7 @@ class WorkGraph:
             "operation_receipts",
         }
         data = _strict(payload, fields, "WorkGraph")
-        if data["schema_version"] != WORK_GRAPH_SCHEMA_VERSION:
+        if data["schema_version"] not in {"qitos.work_graph/v3", WORK_GRAPH_SCHEMA_VERSION}:
             raise _fail("unknown_schema_version", "unsupported WorkGraph version")
         for name in fields - {"schema_version", "graph_id"}:
             if not isinstance(data[name], list):
@@ -1186,10 +1287,10 @@ class WorkGraph:
                 for item in data["capability_allocations"]
             ],
             operation_receipts=[
-                _parse_simple(WorkOperationReceipt, item)
+                _parse_operation_receipt(item)
                 for item in data["operation_receipts"]
             ],
-            schema_version=data["schema_version"],
+            schema_version=WORK_GRAPH_SCHEMA_VERSION,
         )
         graph._validate_references()
         return graph
@@ -1563,6 +1664,22 @@ def _parse_budget(payload: Mapping[str, Any]) -> BudgetAllocation:
         data["child_work_item_id"]
     )
     return BudgetAllocation(**data)
+
+
+def _parse_operation_receipt(payload: Mapping[str, Any]) -> WorkOperationReceipt:
+    legacy = {
+        "operation_id", "operation", "payload_digest", "state", "generation",
+        "attempt", "worker_ref", "outcome_unknown", "terminal_receipt_ref",
+    }
+    current = legacy | {"descriptor", "admission_state", "queue_position"}
+    if not isinstance(payload, Mapping):
+        raise _fail("invalid_record", "WorkOperationReceipt must be an object")
+    if set(payload) == legacy:
+        data = dict(payload)
+        data.update(descriptor=None, admission_state="eligible", queue_position=None)
+    else:
+        data = _strict(payload, current, "WorkOperationReceipt")
+    return WorkOperationReceipt(**data)
 
 
 __all__ = [

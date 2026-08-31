@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 from typing import Any, Mapping
+from uuid import uuid4
 
 from ....core.tool import BaseTool, ToolSpec
 
@@ -26,10 +26,7 @@ def submit_durable_work(
     if supplied:
         operation_id = f"{operation}:{supplied}"
     else:
-        digest = hashlib.sha256(
-            json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        ).hexdigest()[:24]
-        operation_id = f"{operation}:{digest}"
+        operation_id = f"{operation}:{uuid4().hex}"
     del runtime, graph
     receipt = session.submit_work(
         operation,

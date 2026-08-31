@@ -11,10 +11,14 @@ from qitos.core.agent_module import AgentModule
 from qitos.core.decision import Decision
 from qitos.core.state import StateSchema
 from qitos.core.session import SessionLifecycle
+from qitos.core.session import PauseSafety, SafeBoundaryKind
 from qitos.core.tool_registry import ToolRegistry
+from qitos.core.tool import tool
 from qitos.engine.engine import Engine
 from qitos.engine.runtime import RuntimeComposition
-from qitos.core.work_graph import WorkGraph
+from qitos.core.work_graph import WorkDescriptor, WorkGraph
+from qitos.checkpoint.session import SessionForkReceipt
+from qitos.core.context_transfer import ContextTransferReceipt
 from qitos.engine.work_runtime import (
     DurableWorkRuntime,
     SchedulerHandle,
@@ -31,17 +35,37 @@ class _State(StateSchema):
 
 class _Agent(AgentModule[_State, dict[str, Any], Action]):
     def __init__(self) -> None:
-        super().__init__(tool_registry=ToolRegistry())
+        registry = ToolRegistry()
+
+        @tool(name="noop")
+        def noop() -> str:
+            return "ok"
+
+        registry.register(noop)
+        super().__init__(tool_registry=registry)
         self.name = "parent"
 
     def init_state(self, task: str, **kwargs: Any) -> _State:
         return _State(task=task)
 
     def decide(self, state: _State, observation: dict[str, Any]) -> Decision[Action]:
+        if state.current_step == 0:
+            return Decision.act([Action(name="noop", args={})])
         return Decision.final(answer="done")
 
     def reduce(self, state: _State, observation: dict[str, Any], decision: Decision[Action]) -> _State:
         return state
+
+
+class _PauseAtFirstBoundary:
+    policy_id = "tests.work_runtime.pause_first"
+    supports_pause = True
+
+    def should_pause(self, context: Any) -> bool:
+        return context.step_id == 0
+
+    def pause_safety(self, context: Any) -> PauseSafety:
+        return PauseSafety(boundary=SafeBoundaryKind.AFTER_MODEL_RESULT)
 
 
 class _FakeHandle:
@@ -74,8 +98,7 @@ class IndependentSchedulerFake:
         self.handles: dict[str, _FakeHandle] = {}
         self.closed = False
 
-    def dispatch(self, request: WorkDispatch, worker: Callable[[], Any]) -> SchedulerHandle:
-        del worker
+    def dispatch(self, request: WorkDispatch) -> SchedulerHandle:
         self.requests.append(request)
         handle = _FakeHandle(f"third-party:{request.operation_id}")
         self.handles[handle.worker_ref] = handle
@@ -89,6 +112,57 @@ class IndependentSchedulerFake:
         self.closed = True
 
 
+class QueueOnceScheduler(IndependentSchedulerFake):
+    def __init__(self) -> None:
+        super().__init__()
+        self.admit = False
+
+    def dispatch(self, request: WorkDispatch) -> SchedulerHandle:
+        if not self.admit:
+            raise WorkRuntimeError(
+                "queue_capacity_exceeded",
+                "injected durable admission backpressure",
+                operation_id=request.operation_id,
+            )
+        return super().dispatch(request)
+
+
+def _descriptor(
+    operation_id: str,
+    operation: str,
+    payload: dict[str, Any],
+) -> WorkDescriptor:
+    return WorkDescriptor(
+        operation_id=operation_id,
+        operation=operation,
+        parent_session_id="session:parent",
+        parent_work_item_id="work:parent",
+        child_session_ids=[],
+        child_work_item_ids=[],
+        agent_refs=[],
+        task_input=payload,
+        fork_receipts=[],
+        transfer_receipts=[],
+        budget_allocations=[],
+        capability_allocations=[],
+        artifact_refs=[],
+        resolver_requirements=[],
+        graph_depth=0,
+        fan_out_width=1,
+    )
+
+
+def _paused_session(work_runtime: DurableWorkRuntime):
+    runtime = RuntimeComposition(
+        lifecycle_policy=_PauseAtFirstBoundary(),  # type: ignore[arg-type]
+        work_runtime=work_runtime,
+    )
+    session = Engine(_Agent(), runtime=runtime).session("parent task")
+    session.run()
+    assert session.lifecycle is SessionLifecycle.PAUSED
+    return session, runtime
+
+
 def test_scheduler_conformance_persists_declaration_before_dispatch() -> None:
     graph = WorkGraph("graph:runtime")
     scheduler = IndependentSchedulerFake()
@@ -100,10 +174,9 @@ def test_scheduler_conformance_persists_declaration_before_dispatch() -> None:
 
     receipt = runtime.submit(
         graph=graph,
-        operation_id="delegate:stable",
-        operation="delegate",
-        payload={"task": "inspect", "agent": "worker"},
-        worker=lambda: "done",
+        descriptor=_descriptor(
+            "delegate:stable", "delegate", {"task": "inspect", "agent": "worker"}
+        ),
         persist=persist,
     )
 
@@ -118,21 +191,18 @@ def test_same_identity_is_idempotent_and_different_payload_conflicts() -> None:
     graph = WorkGraph("graph:idempotency")
     scheduler = IndependentSchedulerFake()
     runtime = DurableWorkRuntime(scheduler)
-    persist = lambda: None
+
+    def persist() -> None:
+        return None
+
     first = runtime.submit(
         graph=graph,
-        operation_id="spawn:stable",
-        operation="spawn",
-        payload={"task": "one"},
-        worker=lambda: None,
+        descriptor=_descriptor("spawn:stable", "spawn", {"task": "one"}),
         persist=persist,
     )
     duplicate = runtime.submit(
         graph=graph,
-        operation_id="spawn:stable",
-        operation="spawn",
-        payload={"task": "one"},
-        worker=lambda: None,
+        descriptor=_descriptor("spawn:stable", "spawn", {"task": "one"}),
         persist=persist,
     )
 
@@ -141,10 +211,7 @@ def test_same_identity_is_idempotent_and_different_payload_conflicts() -> None:
     with pytest.raises(WorkRuntimeError) as caught:
         runtime.submit(
             graph=graph,
-            operation_id="spawn:stable",
-            operation="spawn",
-            payload={"task": "different"},
-            worker=lambda: None,
+            descriptor=_descriptor("spawn:stable", "spawn", {"task": "different"}),
             persist=persist,
         )
     assert caught.value.code == "operation_identity_conflict"
@@ -155,10 +222,7 @@ def test_clean_runtime_recovery_never_replays_unattachable_work() -> None:
     first_scheduler = IndependentSchedulerFake()
     DurableWorkRuntime(first_scheduler).submit(
         graph=graph,
-        operation_id="fanout:child:0",
-        operation="fan_out",
-        payload={"index": 0},
-        worker=lambda: None,
+        descriptor=_descriptor("fanout:child:0", "fan_out", {"index": 0}),
         persist=lambda: None,
     )
     restored = WorkGraph.from_canonical_dict(graph.to_persistence_dict())
@@ -181,10 +245,7 @@ def test_cancellation_does_not_claim_running_fake_stopped() -> None:
     runtime = DurableWorkRuntime(scheduler)
     runtime.submit(
         graph=graph,
-        operation_id="delegate:cancel",
-        operation="delegate",
-        payload={"task": "wait"},
-        worker=lambda: None,
+        descriptor=_descriptor("delegate:cancel", "delegate", {"task": "wait"}),
         persist=lambda: None,
     )
 
@@ -200,22 +261,17 @@ def test_cancellation_does_not_claim_running_fake_stopped() -> None:
 
 def test_session_direct_and_tool_adapter_share_operation_receipt() -> None:
     scheduler = IndependentSchedulerFake()
-    work_runtime = DurableWorkRuntime(
-        scheduler,
-        child_runner=lambda operation, payload: {"operation": operation, **payload},
-    )
-    session = Engine(
-        _Agent(), runtime=RuntimeComposition(work_runtime=work_runtime)
-    ).session("parent task")
+    work_runtime = DurableWorkRuntime(scheduler)
+    session, _ = _paused_session(work_runtime)
     direct = session.submit_work(
         "delegate",
-        {"agent": "worker", "task": "inspect"},
+        {"agent": "parent", "task": "inspect"},
         operation_id="delegate:slot-1",
     )
 
     adapted = submit_durable_work(
         "delegate",
-        {"agent": "worker", "task": "inspect"},
+        {"agent": "parent", "task": "inspect"},
         {
             "work_runtime": work_runtime,
             "session": session,
@@ -232,23 +288,8 @@ def test_session_direct_and_tool_adapter_share_operation_receipt() -> None:
 
 def test_session_snapshot_restores_logical_graph_without_live_handle() -> None:
     scheduler = IndependentSchedulerFake()
-    runtime = RuntimeComposition(
-        work_runtime=DurableWorkRuntime(
-            scheduler,
-            child_runner=lambda operation, payload: None,
-        )
-    )
-    session = Engine(_Agent(), runtime=runtime).session("restore graph")
-    session.spawn("worker", task="background", operation_id="spawn:restore")
-    head = session._require_head()
-    state, task, step_id = session._restore_core_state(session._load_snapshot(head))
-    session._commit_snapshot(
-        state=state,
-        task=task,
-        lifecycle=SessionLifecycle.PAUSED,
-        step_id=step_id,
-        expected_head=head,
-    )
+    session, runtime = _paused_session(DurableWorkRuntime(scheduler))
+    session.spawn("parent", task="background", operation_id="spawn:restore")
 
     clean_runtime = RuntimeComposition(
         checkpoint_store=runtime.checkpoint_store,
@@ -281,10 +322,9 @@ def test_store_failure_after_dispatch_is_typed_unknown_not_replayed() -> None:
     with pytest.raises(WorkRuntimeError) as caught:
         runtime.submit(
             graph=graph,
-            operation_id="delegate:store-failure",
-            operation="delegate",
-            payload={"task": "effect"},
-            worker=lambda: None,
+            descriptor=_descriptor(
+                "delegate:store-failure", "delegate", {"task": "effect"}
+            ),
             persist=persist,
         )
 
@@ -296,12 +336,8 @@ def test_store_failure_after_dispatch_is_typed_unknown_not_replayed() -> None:
 
 def test_spawn_and_join_model_adapters_use_session_runtime() -> None:
     scheduler = IndependentSchedulerFake()
-    work_runtime = DurableWorkRuntime(
-        scheduler, child_runner=lambda operation, payload: None
-    )
-    session = Engine(
-        _Agent(), runtime=RuntimeComposition(work_runtime=work_runtime)
-    ).session("adapter parity")
+    work_runtime = DurableWorkRuntime(scheduler)
+    session, _ = _paused_session(work_runtime)
     context = {
         "work_runtime": work_runtime,
         "session": session,
@@ -310,7 +346,7 @@ def test_spawn_and_join_model_adapters_use_session_runtime() -> None:
     }
 
     spawn = SpawnTool().execute(
-        {"agent": "worker", "task": "background"}, context
+        {"agent": "parent", "task": "background"}, context
     )
     context["slot_id"] = "join-slot"
     join = JoinTool().execute(
@@ -323,3 +359,84 @@ def test_spawn_and_join_model_adapters_use_session_runtime() -> None:
         "spawn:adapter-slot",
         "join:join-slot",
     ]
+
+
+def test_default_operation_identity_is_unique_and_retry_is_explicit() -> None:
+    scheduler = IndependentSchedulerFake()
+    session, _ = _paused_session(DurableWorkRuntime(scheduler))
+
+    first = session.spawn("parent", task="same payload")
+    second = session.spawn("parent", task="same payload")
+    retry = session.spawn(
+        "parent", task="same payload", operation_id=first.operation_id
+    )
+
+    assert first.operation_id != second.operation_id
+    assert retry == first
+    assert len(scheduler.requests) == 2
+
+
+def test_descriptor_consumes_real_fork_and_context_transfer_receipts() -> None:
+    scheduler = IndependentSchedulerFake()
+    session, _ = _paused_session(DurableWorkRuntime(scheduler))
+
+    submitted = session.delegate(
+        "parent", task="inspect", operation_id="delegate:real-a-b"
+    )
+    descriptor = WorkDescriptor.from_dict(submitted.descriptor)
+    fork = SessionForkReceipt.from_dict(descriptor.fork_receipts[0])
+    transfer = ContextTransferReceipt.from_dict(descriptor.transfer_receipts[0])
+
+    assert fork.child_session_id == descriptor.child_session_ids[0]
+    assert fork.child_work_item_id == descriptor.child_work_item_ids[0]
+    assert transfer.plan.operation_kind == "delegate"
+    assert transfer.terminal_disposition == "accepted"
+    assert transfer.plan.source_session_id == session.session_id
+    assert transfer.plan.source_work_item_id == session.work_item_id
+    assert transfer.plan.budget_request.child_work_item_id.value == fork.child_work_item_id
+
+
+def test_queued_descriptor_is_persisted_and_recovered_without_new_identity() -> None:
+    graph = WorkGraph("graph:queued-recovery")
+    scheduler = QueueOnceScheduler()
+    runtime = DurableWorkRuntime(scheduler)
+    commits: list[str] = []
+
+    with pytest.raises(WorkRuntimeError, match="queue_capacity_exceeded"):
+        runtime.submit(
+            graph=graph,
+            descriptor=_descriptor("spawn:queued", "spawn", {"task": "eligible"}),
+            persist=lambda: commits.append(graph.operation_receipts[0].state),
+        )
+    queued = graph.operation_receipts[0]
+    assert queued.state == "queued"
+    assert queued.admission_state == "queued"
+    assert queued.queue_position == 1
+    scheduler.admit = True
+
+    recovered = runtime.recover(
+        graph,
+        persist=lambda: commits.append(graph.operation_receipts[0].state),
+    )
+
+    assert recovered[0].operation_id == "spawn:queued"
+    assert recovered[0].state == "dispatched"
+    assert recovered[0].attempt == 1
+    assert len(scheduler.requests) == 1
+
+
+def test_handoff_commits_one_owner_and_fences_superseded_source() -> None:
+    scheduler = IndependentSchedulerFake()
+    session, _ = _paused_session(DurableWorkRuntime(scheduler))
+
+    handoff = session.handoff("parent", operation_id="handoff:owner")
+    retry = session.handoff("parent", operation_id="handoff:owner")
+    graph = session._engine._qitos_work_graph
+
+    assert retry == handoff
+    assert len(graph.transfers) == 1
+    assert graph.work_items[session.work_item_id].owner.agent_id != session._agent_id
+    with pytest.raises(WorkRuntimeError) as fenced:
+        session.spawn("parent", task="late source")
+    assert fenced.value.code == "superseded_owner"
+    assert len(scheduler.requests) == 1

@@ -10,7 +10,7 @@ from dataclasses import asdict, dataclass, is_dataclass, replace
 from datetime import datetime, timezone
 from enum import Enum
 import re
-from typing import Any, Iterable, Mapping, Optional, TYPE_CHECKING
+from typing import Any, cast, Iterable, Mapping, Optional, TYPE_CHECKING
 from uuid import uuid4
 
 from ..checkpoint.session import (
@@ -35,6 +35,7 @@ from ..core.session import (
     HeadGeneration,
     ForkLineageSnapshotComponent,
     PauseReceipt,
+    PauseSafety,
     PersistenceReceiptStatus,
     ResolverNamespace,
     ResolverReference,
@@ -46,6 +47,7 @@ from ..core.session import (
     SessionLifecycle,
     SessionOperation,
     SessionSnapshot,
+    SafeBoundaryKind,
     SnapshotComponent,
     SnapshotIdentity,
     SnapshotTiming,
@@ -63,14 +65,27 @@ from ..core.conversation import (
 )
 from ..core.decision import Decision
 from ..core.request_view import (
+    ConversationSnapshotComponent,
     SteeringReceipt,
     reconcile_steering_receipts,
     submit_steering,
+)
+from ..core.context_transfer import ContextTransferPlan, execute_context_transfer
+from ..core.work_graph import (
+    BudgetAllocation,
+    CapabilityAllocation,
+    JoinPolicy,
+    WorkDescriptor,
+    WorkGraph,
+    WorkItem,
+    WorkLifecycle,
+    WorkOwner,
 )
 from ..core.tool_runtime import ToolBatchSnapshot, ToolTerminalReceipt
 from ..core.state import StateSchema
 from ..core.task import Task
 from .runtime import (
+    AGENT_CAPABILITY,
     RuntimeComposition,
     RuntimeSnapshotContext,
     SessionLifecycleEvent,
@@ -253,25 +268,389 @@ class Session:
             )
         graph = getattr(self._engine, "_qitos_work_graph", None)
         if graph is None:
-            from ..core.work_graph import WorkGraph
-
             graph = WorkGraph(f"work_graph:{self._session_id.value}")
             setattr(self._engine, "_qitos_work_graph", graph)
         canonical = json.loads(json.dumps(dict(payload), sort_keys=True, allow_nan=False))
         if operation_id is None:
-            digest = hashlib.sha256(
-                json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
-            ).hexdigest()[:24]
-            operation_id = f"{operation}:{digest}"
-        return runtime.submit(
-            graph=graph,
+            operation_id = f"{operation}:{uuid4().hex}"
+        before = graph.to_persistence_dict()
+        try:
+            descriptor = self._prepare_work_descriptor(
+                graph=graph,
+                operation=operation,
+                operation_id=operation_id,
+                payload=canonical,
+            )
+            return runtime.submit(
+                graph=graph,
+                descriptor=descriptor,
+                persist=self._commit_work_graph,
+                generation=self.current_head.generation.value,
+            )
+        except Exception:
+            durable_declaration = any(
+                item.operation_id == operation_id for item in graph.operation_receipts
+            )
+            if not durable_declaration:
+                restored = WorkGraph.from_canonical_dict(before)
+                setattr(self._engine, "_qitos_work_graph", restored)
+            raise
+
+    def _prepare_work_descriptor(
+        self,
+        *,
+        graph: WorkGraph,
+        operation: str,
+        operation_id: str,
+        payload: Mapping[str, Any],
+    ) -> WorkDescriptor:
+        existing = next(
+            (item for item in graph.operation_receipts if item.operation_id == operation_id),
+            None,
+        )
+        if existing is not None and existing.descriptor is not None:
+            return WorkDescriptor.from_dict(existing.descriptor)
+        if operation not in {"handoff", "delegate", "spawn", "fan_out", "join"}:
+            raise ValueError(f"unsupported durable operation {operation!r}")
+        head = self._require_head()
+        if self._work_item_id not in graph.work_items:
+            lifecycle = _work_lifecycle(SessionLifecycle(head.lifecycle))
+            graph.add_work_item(
+                WorkItem(
+                    work_item_id=self._work_item_id,
+                    session_ref=self._session_id,
+                    task_ref=f"task:{_stable_digest(str(self._engine._active_task))[:24]}",
+                    lifecycle=lifecycle,
+                    owner=WorkOwner(self._agent_id, 0),
+                )
+            )
+        elif graph.work_items[self._work_item_id].owner.agent_id != self._agent_id:
+            from .work_runtime import WorkRuntimeError
+
+            raise WorkRuntimeError(
+                "superseded_owner",
+                "the Session is no longer the authoritative work owner",
+                operation_id=operation_id,
+            )
+
+        child_sessions: list[Session] = []
+        specs: list[Mapping[str, Any]] = []
+        if operation in {"delegate", "spawn"}:
+            specs = [payload]
+        elif operation == "fan_out":
+            raw_specs = payload.get("tasks", [])
+            if not isinstance(raw_specs, list):
+                raise ValueError("fan_out tasks must be an array")
+            specs = [dict(item) for item in raw_specs]
+        for index, spec in enumerate(specs):
+            child_sessions.append(
+                self.fork(
+                    operation_id=f"fork_{_stable_digest(f'{operation_id}:{index}')[:32]}"
+                )
+            )
+
+        agent_refs: list[dict[str, Any]] = []
+        fork_receipts: list[dict[str, Any]] = []
+        transfer_receipts: list[dict[str, Any]] = []
+        budget_allocations: list[dict[str, Any]] = []
+        capability_allocations: list[dict[str, Any]] = []
+        child_work_ids: list[WorkItemIdentity] = []
+        referenced_child_session_ids: list[str] = []
+        prepared_children: list[WorkItem] = []
+        for index, child in enumerate(child_sessions):
+            spec = specs[index]
+            agent_name = str(spec.get("agent") or getattr(self._engine.agent, "name", "agent"))
+            agent_ref = _agent_reference(agent_name)
+            destination_resolved = _resolver_available(self._runtime, agent_ref)
+            target_agent_id = self._agent_id if destination_resolved else AgentIdentity.generate()
+            budget = BudgetAllocation(
+                allocation_id=f"budget:{operation_id}:{index}",
+                parent_work_item_id=self._work_item_id,
+                child_work_item_id=child.work_item_id,
+                limits=dict(spec.get("budget") or {}),
+            )
+            capabilities = CapabilityAllocation(
+                allocation_id=f"capability:{operation_id}:{index}",
+                parent_work_item_id=self._work_item_id,
+                child_work_item_id=child.work_item_id,
+                capabilities=list(spec.get("capabilities") or []),
+            )
+            receipt = self._execute_child_transfer(
+                operation_id=f"{operation_id}:transfer:{index}",
+                operation=operation,
+                child=child,
+                agent_ref=agent_ref,
+                target_agent_id=target_agent_id,
+                budget=budget,
+                capabilities=capabilities,
+                destination_resolved=destination_resolved,
+            )
+            if receipt.terminal_disposition != "accepted":
+                from .work_runtime import WorkRuntimeError
+
+                raise WorkRuntimeError(
+                    "context_transfer_rejected",
+                    receipt.failure_code or "context transfer was rejected",
+                    operation_id=operation_id,
+                )
+            child_item = WorkItem(
+                work_item_id=child.work_item_id,
+                session_ref=child.session_id,
+                task_ref=f"task:{_stable_digest(str(spec.get('task', '')))[:24]}",
+                lifecycle="paused",
+                owner=WorkOwner(target_agent_id, child.current_head.generation.value),
+                parent_work_item_id=self._work_item_id,
+                detached=operation == "spawn",
+                budget_allocation_ref=budget.allocation_id,
+                capability_allocation_ref=capabilities.allocation_id,
+                context_transfer_ref=receipt.receipt_id,
+            )
+            if operation == "delegate":
+                graph.add_delegation(
+                    delegation_id=f"delegate:{operation_id}:{index}",
+                    edge_id=f"edge:{operation_id}:{index}",
+                    parent_work_item_id=self._work_item_id,
+                    child=child_item,
+                )
+            elif operation == "spawn":
+                graph.add_spawn(
+                    spawn_id=f"spawn:{operation_id}:{index}",
+                    edge_id=f"edge:{operation_id}:{index}",
+                    parent_work_item_id=self._work_item_id,
+                    child=child_item,
+                    supervision_policy=getattr(
+                        self._runtime.work_runtime.policy,
+                        "supervisor_policy",
+                        "parent_until_detached",
+                    ),
+                )
+            child_work_ids.append(child.work_item_id)
+            prepared_children.append(child_item)
+            if operation != "fan_out":
+                graph.add_budget_allocation(budget)
+                graph.add_capability_allocation(capabilities)
+            agent_refs.append(agent_ref.to_dict())
+            if child.fork_receipt is None:
+                raise RuntimeError("forked child is missing its durable receipt")
+            fork_receipts.append(child.fork_receipt.to_dict())
+            transfer_receipts.append(receipt.to_dict())
+            budget_allocations.append(_allocation_payload(budget))
+            capability_allocations.append(_allocation_payload(capabilities))
+
+        if operation == "fan_out":
+            graph.add_fan_out(
+                group_id=f"fan_out:{operation_id}",
+                parent_work_item_id=self._work_item_id,
+                children=prepared_children,
+            )
+            for item in budget_allocations:
+                graph.add_budget_allocation(_budget_allocation(item))
+            for item in capability_allocations:
+                graph.add_capability_allocation(_capability_allocation(item))
+
+        if operation == "handoff":
+            target = str(payload.get("target") or "")
+            agent_ref = _agent_reference(target)
+            if not _resolver_available(self._runtime, agent_ref):
+                from .work_runtime import WorkRuntimeError
+
+                raise WorkRuntimeError(
+                    "missing_destination_resolver",
+                    "handoff destination agent is unavailable",
+                    operation_id=operation_id,
+                )
+            target_agent_id = AgentIdentity.generate()
+            budget = BudgetAllocation(
+                f"budget:{operation_id}:handoff",
+                self._work_item_id,
+                self._work_item_id,
+                {},
+            )
+            capabilities = CapabilityAllocation(
+                f"capability:{operation_id}:handoff",
+                self._work_item_id,
+                self._work_item_id,
+                [],
+            )
+            receipt = self._execute_child_transfer(
+                operation_id=f"{operation_id}:transfer",
+                operation=operation,
+                child=None,
+                agent_ref=agent_ref,
+                target_agent_id=target_agent_id,
+                budget=budget,
+                capabilities=capabilities,
+                destination_resolved=True,
+            )
+            if receipt.terminal_disposition != "accepted":
+                from .work_runtime import WorkRuntimeError
+
+                raise WorkRuntimeError(
+                    "context_transfer_rejected",
+                    receipt.failure_code or "context transfer was rejected",
+                    operation_id=operation_id,
+                )
+            graph.transfer_owner(
+                self._work_item_id,
+                expected_generation=graph.work_items[self._work_item_id].owner.generation,
+                to_agent_id=target_agent_id,
+                transfer_id=f"ownership:{operation_id}",
+                context_transfer_ref=receipt.receipt_id,
+            )
+            agent_refs.append(agent_ref.to_dict())
+            transfer_receipts.append(receipt.to_dict())
+
+        if operation == "join":
+            for child_operation in payload.get("children", []):
+                child_receipt = next(
+                    (
+                        item for item in graph.operation_receipts
+                        if item.operation_id == str(child_operation)
+                    ),
+                    None,
+                )
+                if child_receipt is None or child_receipt.descriptor is None:
+                    raise ValueError("join child operation is not durable")
+                child_work_ids.extend(
+                    WorkItemIdentity(item)
+                    for item in WorkDescriptor.from_dict(
+                        child_receipt.descriptor
+                    ).child_work_item_ids
+                )
+                referenced_child_session_ids.extend(
+                    WorkDescriptor.from_dict(
+                        child_receipt.descriptor
+                    ).child_session_ids
+                )
+            graph.declare_join(
+                join_id=f"join:{operation_id}",
+                parent_work_item_id=self._work_item_id,
+                child_work_item_ids=child_work_ids,
+                policy=cast(JoinPolicy, str(payload.get("policy", "all"))),
+                quorum=payload.get("quorum"),
+                reducer_ref=payload.get("reducer_ref"),
+                reducer_digest=payload.get("reducer_digest"),
+            )
+
+        requirements = list(agent_refs)
+        requirements.append(
+            ResolverReference(
+                ResolverNamespace.CHECKPOINT_STORE,
+                "default:session",
+                "checkpoint.session",
+            ).to_dict()
+        )
+        return WorkDescriptor(
             operation_id=operation_id,
             operation=operation,
-            payload=canonical,
-            worker=lambda: runtime.run_child(operation, canonical),
-            persist=self._commit_work_graph,
-            generation=self.current_head.generation.value,
+            parent_session_id=self._session_id.value,
+            parent_work_item_id=self._work_item_id.value,
+            child_session_ids=(
+                [item.session_id.value for item in child_sessions]
+                + referenced_child_session_ids
+            ),
+            child_work_item_ids=[item.value for item in child_work_ids],
+            agent_refs=agent_refs,
+            task_input=dict(payload),
+            fork_receipts=fork_receipts,
+            transfer_receipts=transfer_receipts,
+            budget_allocations=budget_allocations,
+            capability_allocations=capability_allocations,
+            artifact_refs=[],
+            resolver_requirements=requirements,
+            graph_depth=_graph_depth(graph, self._work_item_id),
+            fan_out_width=max(1, len(child_sessions)),
         )
+
+    def _execute_child_transfer(
+        self,
+        *,
+        operation_id: str,
+        operation: str,
+        child: Optional["Session"],
+        agent_ref: ResolverReference,
+        target_agent_id: AgentIdentity,
+        budget: BudgetAllocation,
+        capabilities: CapabilityAllocation,
+        destination_resolved: bool,
+    ) -> Any:
+        head = self._require_head()
+        snapshot = self._load_snapshot(head)
+        state, _, _ = self._restore_core_state(snapshot)
+        log = getattr(self._engine, "_qitos_exchange_log", None)
+        if not isinstance(log, ExchangeLog):
+            log = ExchangeLog(log_id=f"transfer_log:{self._session_id.value}")
+        conversation = ConversationSnapshotComponent.from_exchange_log(log)
+        policy_digest = _stable_digest("context.none")
+        projector_digest = _stable_digest("projector.none")
+        plan = ContextTransferPlan.create(
+            operation_id=operation_id,
+            operation_kind=operation,
+            source_session_id=self._session_id,
+            source_run_id=self._run_id,
+            source_work_item_id=self._work_item_id,
+            source_snapshot_id=snapshot.snapshot_id,
+            source_head_generation=head.generation,
+            source_head_digest=snapshot.integrity.digest,
+            destination_agent_id=target_agent_id,
+            destination_agent_ref=agent_ref,
+            destination_provider="qitos.local",
+            destination_model="qitos.agent",
+            destination_api_mode="offline",
+            context_policy="none",
+            context_policy_ref="context.none",
+            context_policy_digest=policy_digest,
+            budget_request=budget,
+            capability_request=capabilities,
+            source_schema_id="state.qitos",
+            destination_schema_id="state.qitos",
+            state_projector_ref="projector.none",
+            state_projector_digest=projector_digest,
+            state_projector_capability="state.project.none",
+            required_components=("authority",),
+        )
+        requested_capabilities = set(capabilities.capabilities)
+        runtime_ceiling = set(self._runtime.work_runtime.policy.capability_ceiling)
+        caller_capabilities = (
+            requested_capabilities & runtime_ceiling
+            if runtime_ceiling
+            else requested_capabilities
+        )
+        capability_authorities = {
+            "parent_grant": requested_capabilities,
+            "destination_policy": requested_capabilities,
+            "tool_environment": requested_capabilities,
+            "artifact_access": requested_capabilities,
+            "caller_transfer_policy": caller_capabilities,
+        }
+        requested_budget = dict(budget.limits)
+        runtime_budget = dict(
+            self._runtime.work_runtime.policy.budget_ceiling or requested_budget
+        )
+        budget_authorities = {
+            "parent_grant": requested_budget,
+            "destination_policy": requested_budget,
+            "tool_environment": requested_budget,
+            "artifact_access": requested_budget,
+            "caller_transfer_policy": runtime_budget,
+        }
+        receipt = execute_context_transfer(
+            plan,
+            conversation=conversation,
+            observed_source_head_digest=snapshot.integrity.digest,
+            source_state=state.to_dict(),
+            projector=None,
+            capability_authorities=capability_authorities,
+            budget_authorities=budget_authorities,
+            destination_codec_capabilities=(),
+            available_artifact_ids=(),
+            authorized_artifact_ids=(),
+            destination_agent_resolved=destination_resolved,
+            evaluated_at=_utc_now(),
+        )
+        if child is not None and receipt.plan.budget_request.child_work_item_id != child.work_item_id:
+            raise RuntimeError("transfer receipt child identity mismatched its fork")
+        return receipt
 
     def delegate(
         self, agent: str, *, task: str, operation_id: str | None = None
@@ -333,18 +712,40 @@ class Session:
     def _commit_work_graph(self) -> None:
         with self._lock:
             head = self._require_head()
+            snapshot = self._load_snapshot(head)
             state = self._engine.current_state
             task: str | Task = self._engine._active_task_obj or self._engine._active_task
             if state is None:
-                state, task, step_id = self._restore_core_state(self._load_snapshot(head))
+                state, task, step_id = self._restore_core_state(snapshot)
             else:
                 step_id = int(getattr(state, "current_step", 0))
+            lifecycle = SessionLifecycle(head.lifecycle)
+            pause_safety = None
+            if lifecycle is SessionLifecycle.PAUSED:
+                raw_safety = _component_payload(
+                    snapshot, ComponentSlot.ENGINE_PROGRESS.value
+                ).get("pause_safety")
+                if isinstance(raw_safety, Mapping):
+                    pause_safety = PauseSafety(
+                        boundary=SafeBoundaryKind(raw_safety["boundary"]),
+                        completed_slots_recorded=raw_safety[
+                            "completed_slots_recorded"
+                        ],
+                        open_slots_recorded=raw_safety["open_slots_recorded"],
+                        framework_workers_quiesced=raw_safety[
+                            "framework_workers_quiesced"
+                        ],
+                        unresolved_effect_count=raw_safety[
+                            "unresolved_effect_count"
+                        ],
+                    )
             self._commit_snapshot(
                 state=state,
                 task=task,
-                lifecycle=SessionLifecycle(head.lifecycle),
+                lifecycle=lifecycle,
                 step_id=step_id,
                 expected_head=head,
+                pause_safety=pause_safety,
             )
 
     def _submit_steering(
@@ -1666,6 +2067,92 @@ def _json_value(value: Any) -> Any:
     if isinstance(value, (list, tuple)):
         return [_json_value(item) for item in value]
     raise TypeError(f"Runtime value is not JSON-safe: {type(value).__name__}")
+
+
+def _stable_digest(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _agent_reference(name: str) -> ResolverReference:
+    logical = re.sub(r"[^a-zA-Z0-9_.:-]+", "-", name.strip()).strip("-:") or "agent"
+    return ResolverReference(
+        ResolverNamespace.AGENT,
+        f"agent:{logical[:112]}",
+        AGENT_CAPABILITY,
+    )
+
+
+def _resolver_available(runtime: RuntimeComposition, reference: ResolverReference) -> bool:
+    try:
+        runtime.resolvers.resolve(reference)
+    except SessionContractError:
+        return False
+    return True
+
+
+def _allocation_payload(value: BudgetAllocation | CapabilityAllocation) -> dict[str, Any]:
+    if isinstance(value, BudgetAllocation):
+        return {
+            "allocation_id": value.allocation_id,
+            "parent_work_item_id": value.parent_work_item_id.to_dict(),
+            "child_work_item_id": value.child_work_item_id.to_dict(),
+            "limits": dict(value.limits),
+            "reclaim_policy": value.reclaim_policy,
+        }
+    return {
+        "allocation_id": value.allocation_id,
+        "parent_work_item_id": value.parent_work_item_id.to_dict(),
+        "child_work_item_id": value.child_work_item_id.to_dict(),
+        "capabilities": list(value.capabilities),
+    }
+
+
+def _budget_allocation(payload: Mapping[str, Any]) -> BudgetAllocation:
+    return BudgetAllocation(
+        allocation_id=str(payload["allocation_id"]),
+        parent_work_item_id=WorkItemIdentity.from_dict(payload["parent_work_item_id"]),
+        child_work_item_id=WorkItemIdentity.from_dict(payload["child_work_item_id"]),
+        limits=dict(payload["limits"]),
+        reclaim_policy=payload.get("reclaim_policy", "return_unused"),
+    )
+
+
+def _capability_allocation(payload: Mapping[str, Any]) -> CapabilityAllocation:
+    return CapabilityAllocation(
+        allocation_id=str(payload["allocation_id"]),
+        parent_work_item_id=WorkItemIdentity.from_dict(payload["parent_work_item_id"]),
+        child_work_item_id=WorkItemIdentity.from_dict(payload["child_work_item_id"]),
+        capabilities=list(payload["capabilities"]),
+    )
+
+
+def _work_lifecycle(lifecycle: SessionLifecycle) -> WorkLifecycle:
+    if lifecycle in {SessionLifecycle.CREATED, SessionLifecycle.RESTORING}:
+        return "created"
+    if lifecycle in {
+        SessionLifecycle.RUNNING,
+        SessionLifecycle.PAUSE_REQUESTED,
+        SessionLifecycle.PAUSING,
+    }:
+        return "running"
+    if lifecycle is SessionLifecycle.WAITING_INPUT:
+        return "waiting_input"
+    if lifecycle is SessionLifecycle.PAUSED:
+        return "paused"
+    if lifecycle is SessionLifecycle.COMPLETED:
+        return "completed"
+    if lifecycle is SessionLifecycle.CANCELLED:
+        return "cancelled"
+    return "failed"
+
+
+def _graph_depth(graph: WorkGraph, work_item_id: WorkItemIdentity) -> int:
+    depth = 0
+    current = graph.work_items.get(work_item_id)
+    while current is not None and current.parent_work_item_id is not None:
+        depth += 1
+        current = graph.work_items.get(current.parent_work_item_id)
+    return depth
 
 
 def _utc_now() -> str:

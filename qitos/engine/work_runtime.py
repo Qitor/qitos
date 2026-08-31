@@ -13,7 +13,12 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from typing import Any, Callable, Mapping, Protocol, runtime_checkable
 
-from ..core.work_graph import WorkGraph, WorkGraphContractError, WorkOperationReceipt
+from ..core.work_graph import (
+    WorkDescriptor,
+    WorkGraph,
+    WorkGraphContractError,
+    WorkOperationReceipt,
+)
 
 
 class WorkRuntimeError(RuntimeError):
@@ -61,6 +66,17 @@ class WorkDispatch:
     payload_digest: str
     attempt: int
     generation: int
+    descriptor: WorkDescriptor
+
+
+@runtime_checkable
+class WorkResolver(Protocol):
+    """Composition-root resolver for one persisted descriptor."""
+
+    resolver_id: str
+
+    def resolve(self, descriptor: WorkDescriptor) -> Callable[[], Any]:
+        ...
 
 
 @runtime_checkable
@@ -80,9 +96,7 @@ class SchedulerHandle(Protocol):
 class WorkScheduler(Protocol):
     scheduler_id: str
 
-    def dispatch(
-        self, request: WorkDispatch, worker: Callable[[], Any]
-    ) -> SchedulerHandle:
+    def dispatch(self, request: WorkDispatch) -> SchedulerHandle:
         ...
 
     def reattach(
@@ -120,21 +134,42 @@ class LocalWorkScheduler:
 
     scheduler_id = "qitos.scheduler.local"
 
-    def __init__(self, *, max_workers: int = 4, queue_capacity: int = 64) -> None:
+    def __init__(
+        self,
+        resolver: WorkResolver,
+        *,
+        max_workers: int = 4,
+        queue_capacity: int = 64,
+    ) -> None:
         if max_workers < 1 or queue_capacity < 1:
             raise ValueError("scheduler bounds must be positive")
+        if not isinstance(resolver, WorkResolver):
+            raise TypeError("resolver must implement WorkResolver")
+        self._resolver = resolver
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self._capacity = threading.BoundedSemaphore(max_workers + queue_capacity)
         self._lock = threading.Lock()
         self._handles: dict[str, _LocalHandle] = {}
         self._closed = False
 
-    def dispatch(self, request: WorkDispatch, worker: Callable[[], Any]) -> SchedulerHandle:
+    def dispatch(self, request: WorkDispatch) -> SchedulerHandle:
         with self._lock:
             if self._closed:
                 raise WorkRuntimeError("scheduler_unavailable", "scheduler is closed", operation_id=request.operation_id)
         if not self._capacity.acquire(blocking=False):
             raise WorkRuntimeError("queue_capacity_exceeded", "scheduler admission capacity is full", operation_id=request.operation_id)
+        try:
+            worker = self._resolver.resolve(request.descriptor)
+        except WorkRuntimeError:
+            self._capacity.release()
+            raise
+        except Exception as exc:
+            self._capacity.release()
+            raise WorkRuntimeError(
+                "descriptor_resolution_failed",
+                "composition root could not reconstruct the declared work",
+                operation_id=request.operation_id,
+            ) from exc
 
         def run() -> Any:
             try:
@@ -172,36 +207,25 @@ class DurableWorkRuntime:
         scheduler: WorkScheduler,
         *,
         policy: WorkRuntimePolicy | None = None,
-        child_runner: Callable[[str, Mapping[str, Any]], Any] | None = None,
     ) -> None:
         if not isinstance(scheduler, WorkScheduler):
             raise TypeError("scheduler must implement WorkScheduler")
         self.scheduler = scheduler
         self.policy = policy or WorkRuntimePolicy()
-        self.child_runner = child_runner
         self._lock = threading.RLock()
         self._handles: dict[str, SchedulerHandle] = {}
-
-    def run_child(self, operation: str, payload: Mapping[str, Any]) -> Any:
-        if self.child_runner is None:
-            raise WorkRuntimeError(
-                "child_runner_unavailable",
-                "the composed runtime has no logical child runner",
-            )
-        return self.child_runner(operation, payload)
 
     def submit(
         self,
         *,
         graph: WorkGraph,
-        operation_id: str,
-        operation: str,
-        payload: Mapping[str, Any],
-        worker: Callable[[], Any],
+        descriptor: WorkDescriptor,
         persist: Callable[[], None],
         generation: int = 0,
     ) -> WorkOperationReceipt:
-        digest = _payload_digest(payload)
+        operation_id = descriptor.operation_id
+        operation = descriptor.operation
+        digest = _payload_digest(descriptor.task_input)
         with self._lock:
             existing = _operation(graph, operation_id)
             if existing is not None:
@@ -218,6 +242,8 @@ class DurableWorkRuntime:
                 payload_digest=digest,
                 state="declared",
                 generation=generation,
+                descriptor=descriptor.to_dict(),
+                admission_state="eligible",
             )
             graph.operation_receipts.append(receipt)
             try:
@@ -226,42 +252,7 @@ class DurableWorkRuntime:
                 graph.operation_receipts.pop()
                 raise
 
-            request = WorkDispatch(operation_id, digest, 1, generation)
-            try:
-                handle = self.scheduler.dispatch(request, worker)
-            except WorkRuntimeError:
-                # The durable declaration remains eligible for later dispatch.
-                self._replace(graph, replace(receipt, state="queued"))
-                persist()
-                raise
-            dispatched = replace(
-                receipt,
-                state="dispatched",
-                attempt=1,
-                worker_ref=handle.worker_ref,
-            )
-            self._replace(graph, dispatched)
-            try:
-                persist()
-            except Exception as exc:
-                unknown = replace(dispatched, state="outcome_unknown", outcome_unknown=True)
-                self._replace(graph, unknown)
-                try:
-                    persist()
-                except Exception:
-                    pass
-                raise WorkRuntimeError(
-                    "store_commit_failed_after_dispatch",
-                    "dispatch began but its receipt could not be committed",
-                    operation_id=operation_id,
-                ) from exc
-            self._handles[operation_id] = handle
-            handle.add_terminal_callback(
-                lambda result, error: self._terminal(
-                    graph, dispatched, result, error, persist
-                )
-            )
-            return dispatched
+            return self._dispatch(graph, receipt, descriptor, persist)
 
     def recover(
         self,
@@ -272,14 +263,43 @@ class DurableWorkRuntime:
         recovered: list[WorkOperationReceipt] = []
         with self._lock:
             original = list(graph.operation_receipts)
+            dirty = False
             for receipt in tuple(graph.operation_receipts):
+                if receipt.state in {"declared", "queued"}:
+                    if receipt.descriptor is None:
+                        rejected = replace(
+                            receipt, state="rejected", admission_state="closed"
+                        )
+                        self._replace(graph, rejected)
+                        recovered.append(rejected)
+                        dirty = True
+                        continue
+                    descriptor = WorkDescriptor.from_dict(receipt.descriptor)
+                    try:
+                        recovered.append(
+                            self._dispatch(graph, receipt, descriptor, persist)
+                        )
+                    except WorkRuntimeError as exc:
+                        if exc.code not in {
+                            "queue_capacity_exceeded", "scheduler_unavailable"
+                        }:
+                            raise
+                    continue
                 if receipt.state not in {"dispatched", "running"}:
                     continue
+                if receipt.descriptor is None:
+                    unknown = replace(receipt, state="outcome_unknown", outcome_unknown=True)
+                    self._replace(graph, unknown)
+                    recovered.append(unknown)
+                    dirty = True
+                    continue
+                descriptor = WorkDescriptor.from_dict(receipt.descriptor)
                 request = WorkDispatch(
                     receipt.operation_id,
                     receipt.payload_digest,
                     receipt.attempt,
                     receipt.generation,
+                    descriptor,
                 )
                 handle = (
                     self.scheduler.reattach(request, receipt.worker_ref)
@@ -290,13 +310,77 @@ class DurableWorkRuntime:
                     unknown = replace(receipt, state="outcome_unknown", outcome_unknown=True)
                     self._replace(graph, unknown)
                     recovered.append(unknown)
-            if recovered:
+                    dirty = True
+            if dirty:
                 try:
                     persist()
                 except Exception:
                     graph.operation_receipts[:] = original
                     raise
         return tuple(recovered)
+
+    def _dispatch(
+        self,
+        graph: WorkGraph,
+        receipt: WorkOperationReceipt,
+        descriptor: WorkDescriptor,
+        persist: Callable[[], None],
+    ) -> WorkOperationReceipt:
+        attempt = receipt.attempt + 1
+        request = WorkDispatch(
+            receipt.operation_id,
+            receipt.payload_digest,
+            attempt,
+            receipt.generation,
+            descriptor,
+        )
+        try:
+            handle = self.scheduler.dispatch(request)
+        except WorkRuntimeError as exc:
+            if exc.code in {"queue_capacity_exceeded", "scheduler_unavailable"}:
+                queued = replace(
+                    receipt,
+                    state="queued",
+                    admission_state="queued",
+                    queue_position=receipt.queue_position or 1,
+                )
+                self._replace(graph, queued)
+                persist()
+            else:
+                rejected = replace(receipt, state="rejected", admission_state="closed")
+                self._replace(graph, rejected)
+                persist()
+            raise
+        dispatched = replace(
+            receipt,
+            state="dispatched",
+            attempt=attempt,
+            worker_ref=handle.worker_ref,
+            admission_state="admitted",
+            queue_position=None,
+        )
+        self._replace(graph, dispatched)
+        try:
+            persist()
+        except Exception as exc:
+            unknown = replace(dispatched, state="outcome_unknown", outcome_unknown=True)
+            self._replace(graph, unknown)
+            try:
+                persist()
+            except Exception:
+                pass
+            raise WorkRuntimeError(
+                "store_commit_failed_after_dispatch",
+                "dispatch began but its receipt could not be committed",
+                operation_id=receipt.operation_id,
+            ) from exc
+        self._handles[receipt.operation_id] = handle
+        handle.add_terminal_callback(
+            lambda result, error: self._terminal(
+                graph, dispatched, result, error, persist
+            )
+        )
+        return dispatched
 
     def request_cancel(
         self,
@@ -341,6 +425,7 @@ class DurableWorkRuntime:
                 current,
                 state="failed" if error is not None else "completed",
                 terminal_receipt_ref=f"terminal:{current.operation_id}:{current.attempt}",
+                admission_state="closed",
             )
             self._replace(graph, terminal)
             try:
@@ -378,6 +463,7 @@ __all__ = [
     "LocalWorkScheduler",
     "SchedulerHandle",
     "WorkDispatch",
+    "WorkResolver",
     "WorkRuntimeError",
     "WorkRuntimePolicy",
     "WorkScheduler",
