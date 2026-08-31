@@ -1,6 +1,6 @@
 # S3 Lane B — context, continuation, and authority transfer
 
-Status: in progress
+Status: producer package published
 Updated: 2026-08-31
 Owner: S3 Lane B
 Dispatch source: `851f7902f15da670e72f4c04d7453cf37201aee7`
@@ -68,8 +68,16 @@ WorkGraph scheduler behavior, and provider transports are outside this lease.
 2. [completed] Add exchange-safe selection, continuation validation, typed state
    projection, artifact authorization, and five-way least-privilege authority.
 3. [completed] Add exhaustive offline contract and independent-implementation tests.
-4. [in progress] Publish versioned fixture/evidence and an exact-source consumer
+4. [completed] Publish versioned fixture/evidence and an exact-source consumer
    handoff, then run focused/full/static/public-surface gates.
+
+Producer commit: `b229e0b80a55a1add64fdb88fbe5b632f8d15ad8`.
+The versioned evidence and consumer handoff are in
+`tests/fixtures/context_transfer/v1/`. Focused, compatibility, architecture,
+public-surface, flake8, mypy, and full pytest gates passed; the repository
+static-quality wrapper was blocked by missing local `flake8` package metadata,
+which the qualification evidence records separately from the passing standalone
+flake8 result.
 
 ## Risks and controls
 
