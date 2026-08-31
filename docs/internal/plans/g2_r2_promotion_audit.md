@@ -205,7 +205,7 @@ publish the receipt in `docs/progress.md`.
 
 ## Exit criteria
 
-- [ ] All five R1 repair groups have fixing commits and regression tests.
+- [ ] All five R2 repair groups have fixing commits and regression tests.
 - [ ] Candidate commits are replayed onto the latest audit-bearing integration
       baseline with shared documents resolved honestly.
 - [ ] Current and historical producer receipts describe different facts.

@@ -128,8 +128,4 @@ def safe_diagnostic_text(value: Any, *, fallback: str) -> str:
     return text[:256]
 
 
-__all__ = [
-    "diagnostic_string_is_sensitive",
-    "redact_diagnostic_value",
-    "safe_diagnostic_text",
-]
+__all__: list[str] = []

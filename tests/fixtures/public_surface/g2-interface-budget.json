@@ -1,5 +1,14 @@
 {
-  "schema_version": "qitos.g2_interface_budget/v1",
+  "schema_version": "qitos.g2_interface_budget/v2",
+  "reviewed_policy": {
+    "deliberate_module_exports": 124,
+    "visible_internal_private_symbols": 3,
+    "root_exports": 41,
+    "root_export_growth": 0,
+    "engine_init_parameters": 33,
+    "engine_parameter_growth": 0,
+    "growth_authority": "architecture-review-required"
+  },
   "modules": {
     "qitos.core.artifact": {
       "beginner-facing": ["ArtifactRef"],
