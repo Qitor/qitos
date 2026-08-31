@@ -1,6 +1,6 @@
 # Tool outcome and runtime ownership (ADR C1)
 
-Status: accepted direction; G2 current-writer and historical-reader strictness requires G2-R2 repair
+Status: G2-R2 promotion candidate; strict current writer and frozen historical reader implemented
 Schema versions: current `qitos.tool_result/v2`, historical `qitos.tool_result/v1`, `qitos.tool_result.model_view/v1`,
 `qitos.tool_result.trace_safe/v1`, `qitos.runtime_lifecycle/v1`,
 `qitos.durability_receipt/v1`
@@ -55,6 +55,15 @@ bytes are accepted only by the bounded compatibility reader and migrated into
 the current in-memory class. The strict current parser rejects unknown
 versions and fields, malformed list/dict slots, non-JSON values, invalid scalar
 types/ranges, and contradictory terminal state. In particular:
+
+G2-R2 freezes the historical `qitos.tool_result/v1` grammar from the committed
+G1 producer bytes. Its reader accepts only the v1 field set and rejects every
+v2-only attempt, owner-generation, effect, uncertainty, retry, stale/late, and
+batch-closure field as a mixed-schema payload. Conversely, the v2 strict reader
+accepts only the complete shape emitted by the sole current writer; putting a
+historical partial shape under the v2 identifier is a typed failure. Migration
+continues to occur only inside `ToolResultCompatibilityReader`, and rejected
+field values are never reflected into error text.
 
 - success carries no error fields and cannot report a running worker;
 - error requires a semantic, execution, or policy `error_kind` plus a stable

@@ -64,7 +64,17 @@ _RETRY_DISPOSITIONS = frozenset(
         "requires_reconciliation",
     }
 )
-_FIELDS = frozenset(
+_HISTORICAL_FIELDS = frozenset(
+    {
+        "schema_version", "status", "success", "tool_name", "action_id",
+        "output", "model_output", "error", "error_kind", "error_code",
+        "recoverable", "recovery_hint", "next_action", "complete", "truncated",
+        "omitted", "attempts", "latency_ms", "declared_effects",
+        "filesystem_changes", "artifact_refs", "normalized_request", "provenance",
+        "worker_still_running", "metadata",
+    }
+)
+_CURRENT_FIELDS = frozenset(
     {
         "schema_version", "status", "success", "tool_name", "action_id",
         "output", "model_output", "error", "error_kind", "error_code",
@@ -744,7 +754,7 @@ class ToolResult:
         return _projection_text(visible, _new_facts())
 
     def to_persistence_dict(self) -> Dict[str, Any]:
-        """Serialize declared canonical v1 fields without legacy flattening."""
+        """Serialize the complete current grammar without legacy flattening."""
         self.__post_init__()
         payload: Dict[str, Any] = {
             "schema_version": TOOL_RESULT_SCHEMA_VERSION, "status": self.status,
@@ -1071,11 +1081,15 @@ class ToolResult:
         version = data.get("schema_version")
         if version != TOOL_RESULT_SCHEMA_VERSION:
             raise _fail("unknown_schema_version", f"unsupported schema version: {version!r}")
-        unknown = sorted(set(data) - _FIELDS)
+        unknown = sorted(set(data) - _CURRENT_FIELDS)
         if unknown:
-            raise _fail("unknown_canonical_field", f"unknown canonical field {unknown[0]!r}")
-        if "status" not in data:
-            raise _fail("invalid_canonical_field", "canonical status is required")
+            raise _fail("unknown_canonical_field", "current payload has an unknown field")
+        missing = sorted(_CURRENT_FIELDS - set(data))
+        if missing:
+            raise _fail(
+                "missing_canonical_field",
+                "current payload does not match the complete writer grammar",
+            )
         success_present = "success" in data
         success = data.pop("success", None)
         raw_artifacts = data.get("artifact_refs", [])
@@ -1187,9 +1201,16 @@ class ToolResultCompatibilityReader:
         data = dict(payload)
         if data.get("schema_version") != HISTORICAL_TOOL_RESULT_SCHEMA_VERSION:
             raise _fail("unknown_schema_version", "historical tool-result schema is unsupported")
-        unknown = sorted(set(data) - _FIELDS)
+        unknown = sorted(set(data) - _HISTORICAL_FIELDS)
         if unknown:
-            raise _fail("unknown_canonical_field", "historical tool-result has an unknown field")
+            code = (
+                "mixed_schema_field"
+                if any(name in _CURRENT_FIELDS for name in unknown)
+                else "unknown_canonical_field"
+            )
+            raise _fail(code, "historical payload does not match its frozen grammar")
+        if "status" not in data:
+            raise _fail("missing_canonical_field", "historical status is required")
         success_present = "success" in data
         success = data.pop("success", None)
         data["schema_version"] = TOOL_RESULT_SCHEMA_VERSION

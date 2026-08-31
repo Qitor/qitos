@@ -13,6 +13,7 @@ from qitos.core.tool_result import (
     TOOL_RESULT_SCHEMA_VERSION,
     TOOL_RESULT_TRACE_SAFE_VERSION,
     ToolResult,
+    ToolResultCompatibilityReader,
     ToolResultContractError,
 )
 
@@ -153,6 +154,65 @@ def test_from_value_discriminates_canonical_before_legacy_adaptation() -> None:
         )
 
     assert caught.value.code == "unknown_schema_version"
+
+
+@pytest.mark.parametrize(
+    "current_only_field",
+    [
+        "attempt_id",
+        "owner_generation",
+        "effect_ref",
+        "effect_state",
+        "idempotency_ref",
+        "reconciliation_required",
+        "outcome_unknown",
+        "late_result",
+        "stale_owner",
+        "retry_disposition",
+        "batch_closure",
+    ],
+)
+def test_historical_reader_rejects_every_current_only_field(
+    current_only_field: str,
+) -> None:
+    payload: dict[str, object] = {
+        "schema_version": HISTORICAL_TOOL_RESULT_SCHEMA_VERSION,
+        "status": "success",
+        current_only_field: None,
+    }
+
+    with pytest.raises(ToolResultContractError) as caught:
+        ToolResultCompatibilityReader.read(payload)
+
+    assert caught.value.code == "mixed_schema_field"
+
+
+def test_current_identifier_rejects_historical_only_shape() -> None:
+    payload = {
+        "schema_version": TOOL_RESULT_SCHEMA_VERSION,
+        "status": "success",
+        "output": "historical shape under a current identifier",
+    }
+
+    with pytest.raises(ToolResultContractError) as caught:
+        ToolResult.from_canonical_dict(payload)
+
+    assert caught.value.code == "missing_canonical_field"
+
+
+def test_rejected_tool_result_data_never_appears_in_typed_error() -> None:
+    rejected = "sk-proj-synthetic-value-that-must-not-appear"
+    payload = {
+        "schema_version": HISTORICAL_TOOL_RESULT_SCHEMA_VERSION,
+        "status": "success",
+        rejected: {"nested": rejected},
+    }
+
+    with pytest.raises(ToolResultContractError) as caught:
+        ToolResultCompatibilityReader.read(payload)
+
+    assert caught.value.code == "unknown_canonical_field"
+    assert rejected not in str(caught.value)
 
 
 @pytest.mark.parametrize(
@@ -788,17 +848,15 @@ def test_contract_hardening_fixture_is_consumable_by_lanes_b_and_d() -> None:
     assert fixture["model_view_version"] == TOOL_RESULT_MODEL_VIEW_VERSION
     assert fixture["trace_safe_version"] == TOOL_RESULT_TRACE_SAFE_VERSION
     for case in fixture["invalid_canonical_cases"]:
+        expected_error_code = case["expected_error_code"]
         if (
-            case["expected_error_code"] == "unknown_schema_version"
+            expected_error_code == "unknown_schema_version"
             and case["result"].get("schema_version") == TOOL_RESULT_SCHEMA_VERSION
         ):
-            assert ToolResult.from_canonical_dict(case["result"]).schema_version == (
-                TOOL_RESULT_SCHEMA_VERSION
-            )
-            continue
+            expected_error_code = "missing_canonical_field"
         with pytest.raises(ToolResultContractError) as caught:
             ToolResult.from_value(case["result"])
-        assert caught.value.code == case["expected_error_code"]
+        assert caught.value.code == expected_error_code
 
     canonical = ToolResult.from_value(fixture["model_safe_source"])
     model_view = canonical.to_model_dict(max_chars=4000)

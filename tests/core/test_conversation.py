@@ -36,6 +36,7 @@ from qitos.core.history import HistoryMessage
 from qitos.core.multimodal import ContentBlock
 from qitos.core.tool_result import ToolResult
 from qitos.core.tool_result import (
+    HISTORICAL_TOOL_RESULT_SCHEMA_VERSION,
     TOOL_RESULT_MODEL_VIEW_VERSION,
     TOOL_RESULT_SCHEMA_VERSION,
     TOOL_RESULT_TRACE_SAFE_VERSION,
@@ -549,6 +550,51 @@ def test_exchange_log_consumes_exact_c_fixture_without_outcome_duplication() -> 
     assert "content" not in persisted["items"][1]
     assert "provenance" not in persisted["items"][1]
     assert ExchangeLog.from_dict(persisted).to_persistence_dict() == persisted
+
+
+def test_exchange_log_restores_nested_historical_tool_result() -> None:
+    call = _call("historical_nested", batch_id="historical_nested_batch")
+    log = ExchangeLog(log_id="historical_nested_log")
+    builder = log.append(
+        _assistant_with_calls(
+            call,
+            item_id="historical_nested_assistant",
+            exchange_id="historical_nested_exchange",
+        )
+    )
+    assert builder is not None
+    builder.record_result(
+        _result(
+            call,
+            item_id="historical_nested_result",
+            exchange_id="historical_nested_exchange",
+        )
+    )
+    payload = log.to_persistence_dict()
+    current_result = payload["items"][1]["result"]
+    current_only = {
+        "attempt_id",
+        "effect_ref",
+        "effect_state",
+        "idempotency_ref",
+        "retry_disposition",
+        "reconciliation_required",
+        "outcome_unknown",
+        "late_result",
+        "owner_generation",
+        "stale_owner",
+        "batch_closure",
+    }
+    historical_result = {
+        key: value for key, value in current_result.items() if key not in current_only
+    }
+    historical_result["schema_version"] = HISTORICAL_TOOL_RESULT_SCHEMA_VERSION
+    payload["items"][1]["result"] = historical_result
+
+    restored = ExchangeLog.from_dict(payload)
+
+    assert restored.items[1].result.schema_version == TOOL_RESULT_SCHEMA_VERSION
+    assert restored.items[1].result.output == "result for tool_historical_nested"
 
 
 def test_exchange_log_delegates_result_persistence_model_and_trace_views() -> None:
