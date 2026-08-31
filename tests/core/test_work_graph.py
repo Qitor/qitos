@@ -381,3 +381,119 @@ def test_g2_contract_manifest_binds_executable_c_lane_fixtures() -> None:
     assert len(set(evidence["identity_bindings"].values())) == len(
         evidence["identity_bindings"]
     )
+
+
+def test_multi_record_mutations_are_all_or_nothing() -> None:
+    graph = WorkGraph("graph:atomic")
+    graph.add_work_item(_item("root", "parent"))
+    graph.add_work_item(_item("existing", "worker", parent="root"))
+    before = graph.to_persistence_dict()
+
+    with pytest.raises(WorkGraphContractError) as caught:
+        graph.add_fan_out(
+            group_id="fan:atomic",
+            parent_work_item_id=_work("root"),
+            children=[
+                _item("new", "worker", parent="root"),
+                _item("existing", "worker", parent="root"),
+            ],
+        )
+
+    assert caught.value.code == "duplicate_identity"
+    assert graph.to_persistence_dict() == before
+
+
+def test_strict_reader_rejects_dangling_parent_and_parent_edge_mismatch() -> None:
+    graph = WorkGraph("graph:strict-refs")
+    graph.add_work_item(_item("root", "parent"))
+    graph.add_delegation(
+        delegation_id="delegate:strict",
+        edge_id="edge:strict",
+        parent_work_item_id=_work("root"),
+        child=_item("child", "worker", parent="root"),
+    )
+
+    dangling = graph.to_persistence_dict()
+    dangling["work_items"][1]["parent_work_item_id"] = _work("missing").to_dict()
+    with pytest.raises(WorkGraphContractError) as caught:
+        WorkGraph.from_canonical_dict(dangling)
+    assert caught.value.code == "missing_work_item"
+
+    mismatch = graph.to_persistence_dict()
+    mismatch["edges"][0]["source_work_item_id"] = _work("child").to_dict()
+    with pytest.raises(WorkGraphContractError) as caught:
+        WorkGraph.from_canonical_dict(mismatch)
+    assert caught.value.code in {"self_edge", "parent_edge_mismatch"}
+
+
+@pytest.mark.parametrize(
+    ("policy", "quorum", "close_after"),
+    [("all", None, 2), ("all_successful", None, 2), ("first_success", None, 1), ("quorum", 1, 1)],
+)
+def test_join_policies_close_deterministically(policy, quorum, close_after) -> None:
+    graph = WorkGraph(f"graph:join:{policy}")
+    graph.add_work_item(_item("root", "parent"))
+    graph.add_fan_out(
+        group_id=f"fan:{policy}",
+        parent_work_item_id=_work("root"),
+        children=[
+            _item("child:0", "worker", parent="root"),
+            _item("child:1", "worker", parent="root"),
+        ],
+    )
+    graph.declare_join(
+        join_id=f"join:{policy}",
+        parent_work_item_id=_work("root"),
+        child_work_item_ids=[_work("child:0"), _work("child:1")],
+        policy=policy,
+        quorum=quorum,
+        reducer_ref="reducers:ordered",
+        reducer_digest="sha256:ordered",
+    )
+    for index in range(close_after):
+        graph.record_completion(
+            completion_id=f"completion:{policy}:{index}",
+            work_item_id=_work(f"child:{index}"),
+            owner_generation=0,
+            outcome=ToolResult(output=f"result:{index}"),
+        )
+        graph.accept_join_result(f"join:{policy}", _work(f"child:{index}"))
+
+    join = graph.joins[0]
+    assert join.state == "closed"
+    assert join.terminal_receipt_ref == f"join_terminal:join:{policy}:{close_after}"
+    assert join.completion_order == [_work(f"child:{index}") for index in range(close_after)]
+    restored = WorkGraph.from_canonical_dict(graph.to_persistence_dict())
+    assert restored.joins[0] == join
+
+
+def test_closed_join_records_late_child_without_reducing_twice() -> None:
+    graph = WorkGraph("graph:join:late")
+    graph.add_work_item(_item("root", "parent"))
+    graph.add_fan_out(
+        group_id="fan:late",
+        parent_work_item_id=_work("root"),
+        children=[
+            _item("child:fast", "worker", parent="root"),
+            _item("child:late", "worker", parent="root"),
+        ],
+    )
+    graph.declare_join(
+        join_id="join:first",
+        parent_work_item_id=_work("root"),
+        child_work_item_ids=[_work("child:fast"), _work("child:late")],
+        policy="first_success",
+    )
+    for child in ("child:fast", "child:late"):
+        graph.record_completion(
+            completion_id=f"completion:{child}",
+            work_item_id=_work(child),
+            owner_generation=0,
+            outcome=ToolResult(output=child),
+        )
+        graph.accept_join_result("join:first", _work(child))
+
+    join = graph.joins[0]
+    assert join.accepted_child_ids == [_work("child:fast")]
+    assert join.discarded_child_ids == [_work("child:late")]
+    assert join.generation == 1

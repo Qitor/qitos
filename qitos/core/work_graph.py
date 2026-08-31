@@ -24,8 +24,8 @@ from .session import (
 from .tool_result import ToolResult
 
 
-WORK_GRAPH_SCHEMA_VERSION = "qitos.work_graph/v2"
-WORK_GRAPH_SNAPSHOT_COMPONENT_VERSION = "qitos.work_graph.snapshot_component/v2"
+WORK_GRAPH_SCHEMA_VERSION = "qitos.work_graph/v3"
+WORK_GRAPH_SNAPSHOT_COMPONENT_VERSION = "qitos.work_graph.snapshot_component/v3"
 
 WorkLifecycle = Literal[
     "created",
@@ -63,6 +63,18 @@ _ATTEMPT_STATES = frozenset(
 )
 _JOIN_POLICIES = frozenset({"all", "all_successful", "first_success", "quorum"})
 _TERMINAL = frozenset({"completed", "failed", "cancelled"})
+_DURABLE_OPERATIONS = frozenset(
+    {"handoff", "delegate", "spawn", "fan_out", "join", "cancellation", "detach", "terminal_completion"}
+)
+_OPERATION_STATES = frozenset(
+    {
+        "declared", "queued", "dispatched", "running", "completed", "failed",
+        "cancelled", "cancellation_requested_worker_still_running", "outcome_unknown",
+        "rejected",
+    }
+)
+_MAX_GRAPH_DEPTH = 32
+_MAX_FAN_OUT_WIDTH = 64
 
 
 class WorkGraphContractError(ValueError):
@@ -342,6 +354,14 @@ class JoinDependency:
     policy: JoinPolicy
     quorum: int | None = None
     accepted_child_ids: list[WorkItemIdentity] = field(default_factory=list)
+    generation: int = 0
+    reducer_ref: str | None = None
+    reducer_digest: str | None = None
+    state: Literal["open", "closing", "closed"] = "open"
+    outstanding_child_ids: list[WorkItemIdentity] = field(default_factory=list)
+    completion_order: list[WorkItemIdentity] = field(default_factory=list)
+    discarded_child_ids: list[WorkItemIdentity] = field(default_factory=list)
+    terminal_receipt_ref: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "join_id", _identifier(self.join_id, "join_id"))
@@ -355,6 +375,26 @@ class JoinDependency:
         ]
         accepted = [
             _identity(item, WorkItemIdentity, "accepted_child_id") for item in self.accepted_child_ids
+        ]
+        raw_outstanding = self.outstanding_child_ids
+        if (
+            not raw_outstanding
+            and self.state == "open"
+            and not accepted
+            and not self.completion_order
+        ):
+            raw_outstanding = children
+        outstanding = [
+            _identity(item, WorkItemIdentity, "outstanding_child_id")
+            for item in raw_outstanding
+        ]
+        completion_order = [
+            _identity(item, WorkItemIdentity, "completion_child_id")
+            for item in self.completion_order
+        ]
+        discarded = [
+            _identity(item, WorkItemIdentity, "discarded_child_id")
+            for item in self.discarded_child_ids
         ]
         if not children or len(children) != len(set(children)):
             raise _fail("invalid_join", "join children must be non-empty and unique")
@@ -371,8 +411,34 @@ class JoinDependency:
                 raise _fail("invalid_join", "quorum must fit the declared child count")
         elif self.quorum is not None:
             raise _fail("invalid_join", "quorum is legal only for quorum policy")
+        for label, values in (
+            ("outstanding", outstanding),
+            ("completion", completion_order),
+            ("discarded", discarded),
+        ):
+            if len(values) != len(set(values)) or not set(values).issubset(children):
+                raise _fail("invalid_join", f"{label} children must be unique and declared")
+        if set(outstanding) & set(accepted):
+            raise _fail("invalid_join", "accepted children cannot remain outstanding")
+        object.__setattr__(self, "generation", _generation(self.generation, "join.generation"))
+        object.__setattr__(self, "reducer_ref", _optional_identifier(self.reducer_ref, "reducer_ref"))
+        object.__setattr__(self, "reducer_digest", _optional_identifier(self.reducer_digest, "reducer_digest"))
+        if (self.reducer_ref is None) != (self.reducer_digest is None):
+            raise _fail("invalid_join", "reducer reference and digest must be declared together")
+        if self.state not in {"open", "closing", "closed"}:
+            raise _fail("invalid_join", "unsupported join state")
+        if self.state == "closed" and self.terminal_receipt_ref is None:
+            raise _fail("invalid_join", "closed join requires a terminal receipt")
+        object.__setattr__(
+            self,
+            "terminal_receipt_ref",
+            _optional_identifier(self.terminal_receipt_ref, "terminal_receipt_ref"),
+        )
         object.__setattr__(self, "child_work_item_ids", children)
         object.__setattr__(self, "accepted_child_ids", accepted)
+        object.__setattr__(self, "outstanding_child_ids", outstanding)
+        object.__setattr__(self, "completion_order", completion_order)
+        object.__setattr__(self, "discarded_child_ids", discarded)
 
 
 @dataclass(frozen=True)
@@ -495,9 +561,43 @@ class CapabilityAllocation:
 
 
 @dataclass(frozen=True)
+class WorkOperationReceipt:
+    """Durable idempotency and dispatch fact for one logical operation."""
+
+    operation_id: str
+    operation: str
+    payload_digest: str
+    state: str
+    generation: int = 0
+    attempt: int = 0
+    worker_ref: str | None = None
+    outcome_unknown: bool = False
+    terminal_receipt_ref: str | None = None
+
+    def __post_init__(self) -> None:
+        for name in ("operation_id", "operation", "payload_digest", "state"):
+            object.__setattr__(self, name, _identifier(getattr(self, name), name))
+        if self.operation not in _DURABLE_OPERATIONS:
+            raise _fail("invalid_operation", "unsupported durable operation")
+        if self.state not in _OPERATION_STATES:
+            raise _fail("invalid_operation_state", "unsupported durable operation state")
+        object.__setattr__(self, "generation", _generation(self.generation, "generation"))
+        object.__setattr__(self, "attempt", _generation(self.attempt, "attempt"))
+        object.__setattr__(self, "worker_ref", _optional_identifier(self.worker_ref, "worker_ref"))
+        object.__setattr__(
+            self,
+            "terminal_receipt_ref",
+            _optional_identifier(self.terminal_receipt_ref, "terminal_receipt_ref"),
+        )
+        if not isinstance(self.outcome_unknown, bool):
+            raise _fail("invalid_record", "outcome_unknown must be boolean")
+
+
+@dataclass(frozen=True)
 class WorkGraphSnapshotComponent:
     graph_ref: str
     unresolved_work_item_ids: list[WorkItemIdentity]
+    graph: Dict[str, Any] | None = None
     schema_version: str = WORK_GRAPH_SNAPSHOT_COMPONENT_VERSION
 
     def to_dict(self) -> Dict[str, Any]:
@@ -508,13 +608,18 @@ class WorkGraphSnapshotComponent:
             _identity(item, WorkItemIdentity, f"unresolved_work_item_ids[{index}]")
         if len(set(self.unresolved_work_item_ids)) != len(self.unresolved_work_item_ids):
             raise _fail("duplicate_identity", "unresolved work identities must be unique")
+        if self.graph is not None:
+            canonical = WorkGraph.from_canonical_dict(self.graph).to_persistence_dict()
+            if canonical["graph_id"] != self.graph_ref:
+                raise _fail("identity_mismatch", "snapshot graph_ref must match graph identity")
+            object.__setattr__(self, "graph", canonical)
         return _record_dict(self)
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> "WorkGraphSnapshotComponent":
         data = _strict(
             payload,
-            {"schema_version", "graph_ref", "unresolved_work_item_ids"},
+            {"schema_version", "graph_ref", "unresolved_work_item_ids", "graph"},
             "snapshot_component",
         )
         unresolved = data["unresolved_work_item_ids"]
@@ -523,6 +628,7 @@ class WorkGraphSnapshotComponent:
         return cls(
             graph_ref=data["graph_ref"],
             unresolved_work_item_ids=[WorkItemIdentity.from_dict(item) for item in unresolved],
+            graph=data["graph"],
             schema_version=data["schema_version"],
         )
 
@@ -562,6 +668,7 @@ class WorkGraph:
     late_results: list[LateResult] = field(default_factory=list)
     budget_allocations: list[BudgetAllocation] = field(default_factory=list)
     capability_allocations: list[CapabilityAllocation] = field(default_factory=list)
+    operation_receipts: list[WorkOperationReceipt] = field(default_factory=list)
     schema_version: str = WORK_GRAPH_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -574,6 +681,7 @@ class WorkGraph:
             "fan_out_groups", "joins", "cancellations", "detachments",
             "completions", "late_results", "budget_allocations",
             "capability_allocations",
+            "operation_receipts",
         ):
             setattr(self, name, list(getattr(self, name)))
         self._validate_identity_sets()
@@ -596,6 +704,7 @@ class WorkGraph:
             ("late_result", (item.late_result_id for item in self.late_results)),
             ("budget", (item.allocation_id for item in self.budget_allocations)),
             ("capability", (item.allocation_id for item in self.capability_allocations)),
+            ("operation", (item.operation_id for item in self.operation_receipts)),
         )
         for label, identities in groups:
             values = list(identities)
@@ -676,13 +785,19 @@ class WorkGraph:
         child: WorkItem,
         await_child: bool = True,
     ) -> DelegationRecord:
-        self._item(parent_work_item_id)
+        parent = self._item(parent_work_item_id)
+        if parent.lifecycle in _TERMINAL:
+            raise _fail("terminal_work_item", "terminal parent cannot delegate")
         if child.parent_work_item_id != parent_work_item_id or child.detached:
             raise _fail("invalid_delegation", "delegate child must be attached to parent")
+        delegation_key = _identifier(delegation_id, "delegation_id")
+        edge_key = _identifier(edge_id, "edge_id")
+        self._ensure_unique(delegation_key, (x.delegation_id for x in self.delegations))
+        self._prevalidate_child(child, edge_key)
         self.add_work_item(child)
-        self._add_edge(edge_id, "delegate", parent_work_item_id, child.work_item_id)
+        self._add_edge(edge_key, "delegate", parent_work_item_id, child.work_item_id)
         record = DelegationRecord(
-            _identifier(delegation_id, "delegation_id"),
+            delegation_key,
             parent_work_item_id,
             child.work_item_id,
             bool(await_child),
@@ -699,16 +814,23 @@ class WorkGraph:
         child: WorkItem,
         supervision_policy: str,
     ) -> SpawnRecord:
-        self._item(parent_work_item_id)
+        parent = self._item(parent_work_item_id)
+        if parent.lifecycle in _TERMINAL:
+            raise _fail("terminal_work_item", "terminal parent cannot spawn")
         if child.parent_work_item_id != parent_work_item_id:
             raise _fail("invalid_spawn", "spawn child must name its parent")
+        spawn_key = _identifier(spawn_id, "spawn_id")
+        edge_key = _identifier(edge_id, "edge_id")
+        policy = _identifier(supervision_policy, "supervision_policy")
+        self._ensure_unique(spawn_key, (x.spawn_id for x in self.spawns))
+        self._prevalidate_child(child, edge_key)
         self.add_work_item(child)
-        self._add_edge(edge_id, "spawn", parent_work_item_id, child.work_item_id)
+        self._add_edge(edge_key, "spawn", parent_work_item_id, child.work_item_id)
         record = SpawnRecord(
-            _identifier(spawn_id, "spawn_id"),
+            spawn_key,
             parent_work_item_id,
             child.work_item_id,
-            _identifier(supervision_policy, "supervision_policy"),
+            policy,
         )
         self.spawns.append(record)
         return record
@@ -720,25 +842,36 @@ class WorkGraph:
         parent_work_item_id: WorkItemIdentity,
         children: list[WorkItem],
     ) -> FanOutGroup:
-        self._item(parent_work_item_id)
+        parent = self._item(parent_work_item_id)
+        if parent.lifecycle in _TERMINAL:
+            raise _fail("terminal_work_item", "terminal parent cannot fan out")
         if not children:
             raise _fail("invalid_fan_out", "fan_out requires at least one child")
+        if len(children) > _MAX_FAN_OUT_WIDTH:
+            raise _fail("fan_out_width_exceeded", "fan_out exceeds configured graph bound")
+        group_key = _identifier(group_id, "group_id")
+        self._ensure_unique(group_key, (x.group_id for x in self.fan_out_groups))
+        child_ids = [child.work_item_id for child in children]
+        if len(child_ids) != len(set(child_ids)):
+            raise _fail("duplicate_identity", "fan_out child identity is duplicated")
         for index, child in enumerate(children):
             if child.parent_work_item_id != parent_work_item_id or child.detached:
                 raise _fail("invalid_fan_out", "fan_out children must be attached")
+            self._prevalidate_child(child, f"{group_key}:edge:{index}")
+        # All validation completes before the first graph mutation.
+        for index, child in enumerate(children):
             self.add_work_item(child)
             self._add_edge(
-                f"{group_id}:edge:{index}",
+                f"{group_key}:edge:{index}",
                 "fan_out",
                 parent_work_item_id,
                 child.work_item_id,
             )
         group = FanOutGroup(
-            _identifier(group_id, "group_id"),
+            group_key,
             parent_work_item_id,
             [item.work_item_id for item in children],
         )
-        self._ensure_unique(group.group_id, (x.group_id for x in self.fan_out_groups))
         self.fan_out_groups.append(group)
         return group
 
@@ -750,6 +883,8 @@ class WorkGraph:
         child_work_item_ids: list[WorkItemIdentity],
         policy: JoinPolicy = "all",
         quorum: int | None = None,
+        reducer_ref: str | None = None,
+        reducer_digest: str | None = None,
     ) -> JoinDependency:
         self._item(parent_work_item_id)
         if policy not in _JOIN_POLICIES:
@@ -773,6 +908,14 @@ class WorkGraph:
             policy,
             quorum,
             [],
+            0,
+            reducer_ref,
+            reducer_digest,
+            "open",
+            list(children),
+            [],
+            [],
+            None,
         )
         self._ensure_unique(join.join_id, (x.join_id for x in self.joins))
         self.joins.append(join)
@@ -783,18 +926,46 @@ class WorkGraph:
         child_id = _identity(child_work_item_id, WorkItemIdentity, "child_work_item_id")
         if child_id not in join.child_work_item_ids:
             raise _fail("undeclared_join_child", "join may consume only declared children")
-        if not any(item.work_item_id == child_id for item in self.completions):
+        completion = next(
+            (item for item in self.completions if item.work_item_id == child_id),
+            None,
+        )
+        if completion is None:
             raise _fail("child_not_terminal", "join child has no committed completion")
+        if join.state == "closed":
+            if child_id not in join.discarded_child_ids and child_id not in join.accepted_child_ids:
+                self.joins[join_index] = replace_join(
+                    join,
+                    discarded_child_ids=list(join.discarded_child_ids) + [child_id],
+                )
+            return
         if child_id in join.accepted_child_ids:
             return
         accepted = list(join.accepted_child_ids) + [child_id]
-        self.joins[join_index] = JoinDependency(
-            join.join_id,
-            join.parent_work_item_id,
-            list(join.child_work_item_ids),
-            join.policy,
-            join.quorum,
-            accepted,
+        outstanding = [item for item in join.outstanding_child_ids if item != child_id]
+        order = list(join.completion_order) + [child_id]
+        successful = [
+            item for item in accepted
+            if ToolResult.from_canonical_dict(
+                next(entry for entry in self.completions if entry.work_item_id == item).outcome
+            ).is_success
+        ]
+        closed = (
+            (join.policy == "all" and not outstanding)
+            or (join.policy == "all_successful" and not outstanding)
+            or (join.policy == "first_success" and bool(successful))
+            or (join.policy == "quorum" and len(successful) >= int(join.quorum or 0))
+        )
+        self.joins[join_index] = replace_join(
+            join,
+            accepted_child_ids=accepted,
+            outstanding_child_ids=outstanding,
+            completion_order=order,
+            generation=join.generation + 1,
+            state="closed" if closed else "open",
+            terminal_receipt_ref=(
+                f"join_terminal:{join.join_id}:{join.generation + 1}" if closed else None
+            ),
         )
 
     def request_cancel(
@@ -839,6 +1010,7 @@ class WorkGraph:
             child_work_item_id,
             _identifier(supervisor_ref, "supervisor_ref"),
         )
+        self._ensure_unique(record.detachment_id, (x.detachment_id for x in self.detachments))
         self.detachments.append(record)
         self.work_items[child_work_item_id] = _replace_work_item(
             child, detached=True
@@ -905,6 +1077,9 @@ class WorkGraph:
         )
         if allocation.reclaim_policy not in {"return_unused", "no_reclaim"}:
             raise _fail("invalid_budget", "unsupported reclaim policy")
+        self._ensure_unique(allocation.allocation_id, (x.allocation_id for x in self.budget_allocations))
+        if any(item.child_work_item_id == allocation.child_work_item_id for item in self.budget_allocations):
+            raise _fail("duplicate_allocation", "child already has a budget allocation")
         self.budget_allocations.append(allocation)
 
     def add_capability_allocation(self, allocation: CapabilityAllocation) -> None:
@@ -914,9 +1089,13 @@ class WorkGraph:
         capabilities = [_identifier(item, "capability") for item in allocation.capabilities]
         if len(capabilities) != len(set(capabilities)):
             raise _fail("invalid_capability", "capabilities must be unique")
+        allocation_id = _identifier(allocation.allocation_id, "allocation_id")
+        self._ensure_unique(allocation_id, (x.allocation_id for x in self.capability_allocations))
+        if any(item.child_work_item_id == allocation.child_work_item_id for item in self.capability_allocations):
+            raise _fail("duplicate_allocation", "child already has a capability allocation")
         self.capability_allocations.append(
             CapabilityAllocation(
-                _identifier(allocation.allocation_id, "allocation_id"),
+                allocation_id,
                 allocation.parent_work_item_id,
                 allocation.child_work_item_id,
                 capabilities,
@@ -932,10 +1111,15 @@ class WorkGraph:
             ),
             key=lambda identity: identity.value,
         )
-        return WorkGraphSnapshotComponent(self.graph_id, unresolved)
+        return WorkGraphSnapshotComponent(
+            self.graph_id,
+            unresolved,
+            self.to_persistence_dict(),
+        )
 
     def to_persistence_dict(self) -> Dict[str, Any]:
         self.__post_init__()
+        self._validate_references()
         payload = {
             "schema_version": WORK_GRAPH_SCHEMA_VERSION,
             "graph_id": self.graph_id,
@@ -960,6 +1144,9 @@ class WorkGraph:
             "capability_allocations": [
                 _record_dict(item) for item in self.capability_allocations
             ],
+            "operation_receipts": [
+                _record_dict(item) for item in self.operation_receipts
+            ],
         }
         return _clone_json(payload, "WorkGraph")
 
@@ -970,6 +1157,7 @@ class WorkGraph:
             "transfers", "delegations", "spawns", "fan_out_groups", "joins",
             "cancellations", "detachments", "completions", "late_results",
             "budget_allocations", "capability_allocations",
+            "operation_receipts",
         }
         data = _strict(payload, fields, "WorkGraph")
         if data["schema_version"] != WORK_GRAPH_SCHEMA_VERSION:
@@ -997,23 +1185,127 @@ class WorkGraph:
                 _parse_simple(CapabilityAllocation, item)
                 for item in data["capability_allocations"]
             ],
+            operation_receipts=[
+                _parse_simple(WorkOperationReceipt, item)
+                for item in data["operation_receipts"]
+            ],
             schema_version=data["schema_version"],
         )
         graph._validate_references()
         return graph
 
     def _validate_references(self) -> None:
+        self._validate_identity_sets()
+        for item in self.work_items.values():
+            if item.parent_work_item_id is not None:
+                self._item(item.parent_work_item_id)
+                if item.parent_work_item_id == item.work_item_id:
+                    raise _fail("self_edge", "work item cannot be its own parent")
         for attempt in self.attempts:
-            self._item(attempt.work_item_id)
+            item = self._item(attempt.work_item_id)
+            if attempt.owner_generation > item.owner.generation:
+                raise _fail("invalid_generation", "attempt generation exceeds owner generation")
         for edge in self.edges:
-            self._item(edge.source_work_item_id)
-            self._item(edge.target_work_item_id)
+            source = self._item(edge.source_work_item_id)
+            target = self._item(edge.target_work_item_id)
+            if source.work_item_id == target.work_item_id:
+                raise _fail("self_edge", "work edge cannot target its source")
+            if target.parent_work_item_id != source.work_item_id:
+                raise _fail("parent_edge_mismatch", "edge target does not belong to source parent")
+        self._validate_acyclic_and_bounded()
+        for delegation in self.delegations:
+            self._validate_operation_edge(
+                delegation.parent_work_item_id,
+                delegation.child_work_item_id,
+                "delegate",
+            )
+        for spawn in self.spawns:
+            self._validate_operation_edge(
+                spawn.parent_work_item_id, spawn.child_work_item_id, "spawn"
+            )
+        for group in self.fan_out_groups:
+            if len(group.child_work_item_ids) > _MAX_FAN_OUT_WIDTH:
+                raise _fail("fan_out_width_exceeded", "fan_out exceeds configured graph bound")
+            for child_id in group.child_work_item_ids:
+                self._validate_operation_edge(group.parent_work_item_id, child_id, "fan_out")
+        for join in self.joins:
+            parent = self._item(join.parent_work_item_id)
+            for child_id in join.child_work_item_ids:
+                child = self._item(child_id)
+                if child.parent_work_item_id != parent.work_item_id:
+                    raise _fail("undeclared_join_child", "join child does not belong to parent")
+        for budget_allocation in self.budget_allocations:
+            self._validate_child_allocation(
+                budget_allocation.parent_work_item_id,
+                budget_allocation.child_work_item_id,
+            )
+        for capability_allocation in self.capability_allocations:
+            self._validate_child_allocation(
+                capability_allocation.parent_work_item_id,
+                capability_allocation.child_work_item_id,
+            )
+        for cancellation in self.cancellations:
+            self._item(cancellation.work_item_id)
+        for detachment in self.detachments:
+            self._validate_child_allocation(
+                detachment.parent_work_item_id, detachment.child_work_item_id
+            )
+        for transfer in self.transfers:
+            item = self._item(transfer.work_item_id)
+            if transfer.committed_generation > item.owner.generation:
+                raise _fail("invalid_generation", "transfer exceeds current owner generation")
         for completion in self.completions:
             self._item(completion.work_item_id)
             ToolResult.from_canonical_dict(completion.outcome)
         for late in self.late_results:
             self._item(late.work_item_id)
             ToolResult.from_canonical_dict(late.outcome)
+
+    def _prevalidate_child(self, child: WorkItem, edge_id: str) -> None:
+        if child.work_item_id in self.work_items:
+            raise _fail("duplicate_identity", "duplicate work item identity")
+        self._ensure_unique(edge_id, (item.edge_id for item in self.edges))
+        depth = 1
+        parent_id = child.parent_work_item_id
+        seen = {child.work_item_id}
+        while parent_id is not None:
+            if parent_id in seen:
+                raise _fail("graph_cycle", "child would create an ancestor cycle")
+            seen.add(parent_id)
+            parent = self._item(parent_id)
+            parent_id = parent.parent_work_item_id
+            depth += 1
+            if depth > _MAX_GRAPH_DEPTH:
+                raise _fail("graph_depth_exceeded", "work graph exceeds configured depth")
+
+    def _validate_acyclic_and_bounded(self) -> None:
+        for item in self.work_items.values():
+            depth = 1
+            current = item
+            seen: set[WorkItemIdentity] = set()
+            while current.parent_work_item_id is not None:
+                if current.work_item_id in seen:
+                    raise _fail("graph_cycle", "work graph contains an ancestor cycle")
+                seen.add(current.work_item_id)
+                current = self._item(current.parent_work_item_id)
+                depth += 1
+                if depth > _MAX_GRAPH_DEPTH:
+                    raise _fail("graph_depth_exceeded", "work graph exceeds configured depth")
+
+    def _validate_operation_edge(
+        self,
+        parent_id: WorkItemIdentity,
+        child_id: WorkItemIdentity,
+        operation: WorkOperation,
+    ) -> None:
+        matches = [
+            edge for edge in self.edges
+            if edge.source_work_item_id == parent_id
+            and edge.target_work_item_id == child_id
+            and edge.operation == operation
+        ]
+        if len(matches) != 1:
+            raise _fail("operation_edge_mismatch", "operation must have exactly one matching edge")
 
     def _add_edge(
         self,
@@ -1086,6 +1378,12 @@ def _replace_work_item(item: WorkItem, **changes: Any) -> WorkItem:
     if isinstance(payload.get("owner"), WorkOwner):
         payload["owner"] = _record_dict(payload["owner"])
     return _parse_work_item(payload)
+
+
+def replace_join(join: JoinDependency, **changes: Any) -> JoinDependency:
+    values = {item.name: getattr(join, item.name) for item in fields(join)}
+    values.update(changes)
+    return JoinDependency(**values)
 
 
 def _parse_work_item(payload: Mapping[str, Any]) -> WorkItem:
@@ -1180,12 +1478,20 @@ def _parse_simple(record_type: Any, payload: Mapping[str, Any]) -> Any:
 def _parse_join(payload: Mapping[str, Any]) -> JoinDependency:
     data = _strict(
         payload,
-        {"join_id", "parent_work_item_id", "child_work_item_ids", "policy", "quorum", "accepted_child_ids"},
+        {
+            "join_id", "parent_work_item_id", "child_work_item_ids", "policy",
+            "quorum", "accepted_child_ids", "generation", "reducer_ref",
+            "reducer_digest", "state", "outstanding_child_ids",
+            "completion_order", "discarded_child_ids", "terminal_receipt_ref",
+        },
         "JoinDependency",
     )
     if data["policy"] not in _JOIN_POLICIES:
         raise _fail("invalid_join_policy", "unsupported join policy")
-    for name in ("child_work_item_ids", "accepted_child_ids"):
+    for name in (
+        "child_work_item_ids", "accepted_child_ids", "outstanding_child_ids",
+        "completion_order", "discarded_child_ids",
+    ):
         if not isinstance(data[name], list):
             raise _fail("invalid_join", f"{name} must be an array")
     data["parent_work_item_id"] = WorkItemIdentity.from_dict(
@@ -1194,9 +1500,11 @@ def _parse_join(payload: Mapping[str, Any]) -> JoinDependency:
     data["child_work_item_ids"] = [
         WorkItemIdentity.from_dict(item) for item in data["child_work_item_ids"]
     ]
-    data["accepted_child_ids"] = [
-        WorkItemIdentity.from_dict(item) for item in data["accepted_child_ids"]
-    ]
+    for name in (
+        "accepted_child_ids", "outstanding_child_ids", "completion_order",
+        "discarded_child_ids",
+    ):
+        data[name] = [WorkItemIdentity.from_dict(item) for item in data[name]]
     if not set(data["accepted_child_ids"]).issubset(set(data["child_work_item_ids"])):
         raise _fail("undeclared_join_child", "accepted child was not declared")
     return JoinDependency(**data)
