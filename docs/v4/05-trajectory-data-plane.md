@@ -1,7 +1,7 @@
 # Task 05 — trajectory store v2 and observability migration
 
 Status: S3 deterministic lineage qualified; schema/publication remains blocked
-on live configuration and the S4 rollout review
+on live execution evidence and the S4 rollout review
 Depends on: Task 02 exchanges; Task 04 artifacts; Tasks 12–13 lineage
 Milestone: final v4 data-plane migration
 Risk: high — frozen v1 compatibility, replay, and research data fidelity
@@ -36,9 +36,10 @@ The deterministic G4 candidate now proves clean-process work/session/ownership/
 join lineage and read-only qita graph/timeline inspection across twenty
 independent SQLite rounds. That evidence qualifies the runtime input to this
 task, but it does not freeze the candidate schema, enable its writer, change the
-qita default from frozen trace-v1, or authorize publication. Live-model
-qualification is `blocked_configuration` because no explicit matrix was
-provided.
+qita default from frozen trace-v1, or authorize publication. Three live-model
+profiles are registered through external credential references, but no bounded
+trajectory or agent execution receipt exists yet. Qualification is therefore
+`profiles_configured_execution_pending`.
 
 ## 1. Goal
 

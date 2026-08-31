@@ -978,9 +978,11 @@ fifth implementation. Its responsibilities are:
 | C | durable multi-agent scheduler | `codex/v4-s3-c-durable-work-runtime` | WorkGraph/work runtime/tool adapters | real A/B receipts and reconstructable descriptors published to D | qualified candidate |
 | D | work-graph observability and DX | `codex/v4-s3-d-graph-observability` | tracing/qita/evaluate/examples | exact A/B/C facts, two patterns, public-shape example | qualified candidate |
 
-G4 deterministic convergence passed twenty rounds. The independent live gate is
-`blocked_configuration`, so the dashboard does not authorize promotion, push,
-cleanup, or default-branch readiness.
+G4 deterministic convergence passed twenty rounds. Three provider/model profiles
+are registered with external credential references, but bounded execution and
+sanitized receipts are pending. The independent live gate is
+`profiles_configured_execution_pending`, so the dashboard does not authorize
+promotion, push, cleanup, or default-branch readiness.
 
 ### 10.1.1 Historical G2 contract-stage dashboard (superseded)
 

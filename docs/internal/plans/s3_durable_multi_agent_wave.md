@@ -1,6 +1,7 @@
 # S3 durable multi-agent wave
 
-Status: deterministic G4 candidate qualified; live configuration and promotion blocked
+Status: deterministic G4 candidate qualified; live profiles configured;
+execution evidence and promotion blocked
 Updated: 2026-09-01
 Owner: G4 integration owner
 Source baseline before this documentation closure:
@@ -377,9 +378,12 @@ consumer, example, and qita facts remain coherent.
 
 The frozen public-surface counts remain 41/27/24/28/22/101/34. Candidate
 Trajectory remains unfrozen and off; qita's default remains frozen trace-v1.
-The user supplied no explicit live provider/model/credential/budget/network/tool
-matrix, so `live_model_qualification=blocked_configuration`. Consequently the
-candidate is not promoted or pushed, source worktrees are retained, and no S3
-release/default-branch readiness claim is authorized. The exact replay ledger
-and validation receipts live in
+Three OpenAI-compatible live profiles are now registered through external,
+endpoint-specific credential references; no credential value is stored in the
+repository. Budget acceptance, capability preflight, trajectory collection, and
+disposable-agent execution receipts are still pending, so
+`live_model_qualification=profiles_configured_execution_pending`. Consequently
+the candidate is not promoted or pushed, source worktrees are retained, and no
+S3 release/default-branch readiness claim is authorized. The exact replay ledger
+and deterministic validation receipts live in
 [`s3_g4_convergence_evidence.md`](s3_g4_convergence_evidence.md).

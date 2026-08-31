@@ -14,8 +14,8 @@ Promoted S2 runtime head:
 `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`
 S3 plan freeze: `52e050d9bc1ee0d4c6dcc78c90a5497c25722648`
 S3 convergence source: `851f7902f15da670e72f4c04d7453cf37201aee7`
-Current gate: **S3 DETERMINISTIC CANDIDATE QUALIFIED; LIVE CONFIGURATION,
-PROMOTION, AND TRAJECTORY PUBLICATION BLOCKED**
+Current gate: **S3 DETERMINISTIC CANDIDATE QUALIFIED; LIVE PROFILES CONFIGURED;
+EXECUTION EVIDENCE, PROMOTION, AND TRAJECTORY PUBLICATION BLOCKED**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md)
 and [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md)
@@ -39,14 +39,19 @@ and late outcomes, preserves one handoff owner, and exposes graph/timeline facts
 through read-only qita inspection. Two unrelated consumers and the compact
 coding-agent public-shape example also pass.
 
-This is a candidate, not a promoted baseline. No explicit provider, model,
-credential source, budget, network permission, or tool policy was supplied, so
-`live_model_qualification=blocked_configuration`. No main-branch update, push,
-release claim, or worktree cleanup is authorized. Candidate Trajectory remains
-unfrozen and off by default; qita remains on frozen trace-v1 compatibility;
-distributed scheduling, hard cancellation, and exactly-once external effects
+This is a candidate, not a promoted baseline. Three provider/model profiles are
+registered with endpoint-specific external credential references, but no secret
+is repository state and no live request has run. Budget acceptance and
+executable preflight, trajectory, and disposable-agent receipts remain pending,
+so `live_model_qualification=profiles_configured_execution_pending`. No
+main-branch update, push, release claim, or worktree cleanup is authorized.
+Candidate Trajectory remains unfrozen and off by default; qita remains on frozen
+trace-v1 compatibility; distributed scheduling, hard cancellation, and
+exactly-once external effects
 remain unsupported. Exact replay and gate evidence is recorded in
-[`s3_g4_convergence_evidence.md`](internal/plans/s3_g4_convergence_evidence.md).
+[`s3_g4_convergence_evidence.md`](internal/plans/s3_g4_convergence_evidence.md),
+and the credential-free live profiles and execution gate are recorded in
+[`s3_g4_live_model_matrix.md`](internal/plans/s3_g4_live_model_matrix.md).
 
 ## 0.1 S2 promotion closure and S3 entry (2026-08-31)
 

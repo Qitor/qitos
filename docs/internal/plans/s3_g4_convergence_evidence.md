@@ -1,7 +1,7 @@
 # S3-R and G4 convergence evidence
 
-Status: deterministic and repository candidate qualified; live-model
-qualification blocked by configuration; not promoted
+Status: deterministic and repository candidate qualified; live-model profiles
+configured; execution evidence pending; not promoted
 Updated: 2026-09-01
 Fixed baseline: `851f7902f15da670e72f4c04d7453cf37201aee7`
 Candidate branch: `codex/v4-s3-g4-convergence`
@@ -9,10 +9,13 @@ Candidate branch: `codex/v4-s3-g4-convergence`
 ## Disposition
 
 The A -> B -> C -> D replay and deterministic G4 process-loss gate qualify a
-local candidate. The user supplied no explicit provider, model, credential
-source, budget, network permission, or tool policy. Therefore
-`live_model_qualification=blocked_configuration`, and promotion, push,
-default-branch readiness, release claims, and worktree cleanup are prohibited.
+local candidate. Three OpenAI-compatible provider/model routes are now
+registered by profile ID with endpoint-specific external credential references.
+No credential value is repository state, no live request has been made, and the
+bounded request/token/time budget still requires maintainer acceptance.
+Therefore `live_model_qualification=profiles_configured_execution_pending`, and
+promotion, push, default-branch readiness, release claims, and worktree cleanup
+remain prohibited.
 
 Candidate Trajectory remains unfrozen and off by default. Frozen trace-v1
 remains qita's default reader. The candidate does not claim distributed
@@ -145,15 +148,23 @@ run from scratch—not failure-only reruns—under the repository's fixed Python
 3.12.7 quality environment, where the dependencies are installed, with the
 passing results above.
 
-Promotion remains blocked independently by the missing live configuration even
+Promotion remains blocked independently by pending live execution evidence even
 though every deterministic, repository, and package gate passes.
 
 ## Live-model gate
 
-Status: `blocked_configuration`.
+Status: `profiles_configured_execution_pending`.
 
-Required but absent inputs are an explicit provider and model, credential
-source, cost/token/time budget, network permission, and tool policy. The
-integration owner did not inspect or infer credentials from the environment and
-did not spend external budget. This typed block is not a test failure, but it is
-a mandatory promotion blocker under the requested gate policy.
+The registered profiles are `sii-dsv4-flash` (`dsv4-flash-0731`),
+`sii-glm-5-2` (`GLM-5.2-w4a8c8`), and `sii-qwen3-8-27b` (`Qwen3.8-27B`). The
+full endpoint, external credential reference, request override, capability
+preflight, trajectory/agent selection policy, and proposed budget are recorded
+in `s3_g4_live_model_matrix.md`. Tool calling, parallel calls, continuation, and
+reasoning preservation must be measured rather than inferred from model names;
+there is no silent cross-profile fallback.
+
+No network request or external-budget spend occurred in this documentation
+update. Live closure still requires explicit budget acceptance and sanitized
+executable receipts for preflight, trajectory collection, and disposable-agent
+scenarios. This pending state is not a deterministic test failure, but it is a
+mandatory promotion blocker under the requested gate policy.

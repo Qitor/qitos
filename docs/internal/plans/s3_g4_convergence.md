@@ -1,6 +1,7 @@
 # S3 G4 convergence plan
 
-Status: deterministic and repository candidate qualified; live blocked; not promoted
+Status: deterministic and repository candidate qualified; live profiles
+configured; budget approval and execution pending; not promoted
 Updated: 2026-09-01
 Owner: G4 integration owner
 Fixed source: `851f7902f15da670e72f4c04d7453cf37201aee7`
@@ -43,8 +44,11 @@ clean before this convergence worktree was created.
 - [x] Run consumers, coding-agent acceptance, qita/privacy/readiness, interface
   budgets, static/lint/type, full pytest, package, diff, and secret gates.
 - [x] Update shared documentation and publish exact qualification evidence.
-- [x] Record live-model qualification as blocked configuration unless an
-  explicit provider/model/credential/budget/network/tool matrix is supplied.
+- [x] Register the three supplied provider/model routes using endpoint-specific
+  credential references; never persist credential values.
+- [ ] Accept a bounded request/token/time budget, run the common capability
+  preflight plus trajectory and disposable-agent scenarios, and publish only
+  sanitized executable receipts.
 
 ## Replay ledger
 
@@ -81,5 +85,7 @@ Each row is completed immediately after replay and focused validation.
 
 Promotion and push are prohibited unless deterministic G4, the required live
 matrix, the complete quality/package gates, worktree cleanliness, baseline
-stability, and remote stability all pass. With no explicit live matrix this
-branch remains a clean candidate; no source worktree is removed.
+stability, and remote stability all pass. Three routes are now registered in
+`s3_g4_live_model_matrix.md`, but their credentials remain external and the
+bounded execution budget has not been accepted. This branch therefore remains
+a clean candidate; no source worktree is removed.
