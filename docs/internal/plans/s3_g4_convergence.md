@@ -57,6 +57,9 @@ Each row is completed immediately after replay and focused validation.
 | A | `a94d4598bfdc9cafb2df30048e534533dca27e47` | `1e2de5d` | none | 15 passed: fork producer bundle |
 | A | `ea8076c9d78742b25e2516fa610afac1ba9cfc2a` | `9ab7799` | none | 16 passed: cross-process owner fencing |
 | A | `9442647767bc9a7c45ed3bf07bc4f289412544ed` | `1025f12` | none | 28 passed: fork + checkpoint + clean-process restore |
+| B | `b229e0b80a55a1add64fdb88fbe5b632f8d15ad8` | `a31284f` | none | 38 passed: ContextTransfer contract |
+| B | `5efa1db19ae541234c562c4ba99e928d2381fc62` | `04caa1f` | none | 38 passed: ContextTransfer producer bundle |
+| B repair | confirmed bad manifest digest | `8bbfd6580e03f77f51777e696d78ee783bc09f75` | corrected plan digest and refreshed all changed producer bytes; added commit/path/digest/test-node verifier | 216 passed; Python 3.12.7 static ratchet passed |
 
 ## Gate policy
 
