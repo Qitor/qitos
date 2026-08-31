@@ -1,0 +1,78 @@
+{
+  "schema_version": "qitos.s2.lane_b.provider_matrix/v1",
+  "qualification": "offline_contract_only",
+  "rows": [
+    {
+      "adapter": "OpenAIModel",
+      "api_mode": "chat_completions",
+      "codec": "qitos.openai.chat_completions",
+      "features": ["text", "multimodal", "tool_calls", "tool_results", "tool_schemas", "parallel_tool_calls", "artifact_references", "streaming", "ordered_interleaving", "provider_metadata"],
+      "reasoning_modes": ["drop"],
+      "continuation": false
+    },
+    {
+      "adapter": "OpenAIModel",
+      "api_mode": "responses",
+      "codec": "qitos.openai.responses",
+      "features": ["text", "multimodal", "tool_calls", "tool_results", "tool_schemas", "parallel_tool_calls", "artifact_references", "reasoning", "continuation", "streaming", "ordered_interleaving", "provider_metadata"],
+      "reasoning_modes": ["preserve_if_supported", "native_item_continuation", "drop"],
+      "continuation": true
+    },
+    {
+      "adapter": "AnthropicModel",
+      "api_mode": "messages",
+      "codec": "qitos.anthropic.messages",
+      "features": ["text", "multimodal", "tool_calls", "tool_results", "tool_schemas", "parallel_tool_calls", "reasoning", "continuation", "ordered_interleaving", "provider_metadata"],
+      "reasoning_modes": ["preserve_if_supported", "signed_block_replay", "drop"],
+      "continuation": true
+    },
+    {
+      "adapter": "GeminiModel",
+      "api_mode": "generate_content",
+      "codec": "qitos.google.generate_content",
+      "features": ["text", "multimodal", "tool_calls", "tool_results", "tool_schemas", "parallel_tool_calls", "reasoning", "continuation", "ordered_interleaving", "provider_metadata"],
+      "reasoning_modes": ["preserve_if_supported", "native_item_continuation", "drop"],
+      "continuation": true
+    },
+    {
+      "adapter": "LiteLLMModel",
+      "api_mode": "chat_completions",
+      "codec": "qitos.litellm.chat_completions",
+      "features": ["text"],
+      "reasoning_modes": ["drop"],
+      "continuation": false
+    },
+    {
+      "adapter": "OllamaModel",
+      "api_mode": "chat",
+      "codec": "qitos.ollama.chat",
+      "features": ["text"],
+      "reasoning_modes": ["drop"],
+      "continuation": false
+    },
+    {
+      "adapter": "OllamaGenerateModel",
+      "api_mode": "generate",
+      "codec": "qitos.ollama.generate",
+      "features": ["text"],
+      "reasoning_modes": ["drop"],
+      "continuation": false
+    },
+    {
+      "adapter": "LMStudioModel",
+      "api_mode": "chat_completions",
+      "codec": "qitos.openai.chat_completions",
+      "features": ["text"],
+      "reasoning_modes": ["drop"],
+      "continuation": false
+    },
+    {
+      "adapter": "VLLMModel",
+      "api_mode": "chat_completions",
+      "codec": "qitos.openai.chat_completions",
+      "features": ["text"],
+      "reasoning_modes": ["drop"],
+      "continuation": false
+    }
+  ]
+}

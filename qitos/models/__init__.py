@@ -49,6 +49,17 @@ from .openai import (
     AsyncOpenAICompatibleModel,
 )
 from .local import OllamaModel, OllamaGenerateModel, LMStudioModel, VLLMModel
+from .codec import CodecReport, ProviderCapabilities, ProviderFailure, ProviderCodec
+from .provider import (
+    ContinuationResolution,
+    ContinuationResolver,
+    InMemoryContinuationResolver,
+    RequestTransform,
+    ProviderDecodedResponse,
+    ProviderAdapter,
+    ProviderTransaction,
+    execute_provider_request,
+)
 
 __all__ = [
     # 基类
@@ -78,4 +89,16 @@ __all__ = [
     "OllamaGenerateModel",
     "LMStudioModel",
     "VLLMModel",
+    "CodecReport",
+    "ProviderCapabilities",
+    "ProviderFailure",
+    "ProviderCodec",
+    "ContinuationResolution",
+    "ContinuationResolver",
+    "InMemoryContinuationResolver",
+    "RequestTransform",
+    "ProviderDecodedResponse",
+    "ProviderAdapter",
+    "ProviderTransaction",
+    "execute_provider_request",
 ]

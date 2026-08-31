@@ -260,6 +260,31 @@ class ReasoningReference:
 
 
 @dataclass(frozen=True)
+class ReasoningBlock:
+    """Ordered provider reasoning fact without treating it as assistant text.
+
+    `summary` is optional provider-authored visible reasoning. Signed,
+    encrypted, or otherwise opaque bytes stay in the correlated continuation
+    attachment and never enter this field.
+    """
+
+    provider_scope: str
+    reference_id: str
+    block_type: str
+    summary: Optional[str] = None
+    attachment_id: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    kind: str = field(default="reasoning_block", init=False)
+
+    def validate(self) -> None:
+        _require_id(self.provider_scope, "provider_scope")
+        _require_id(self.reference_id, "reference_id")
+        _require_id(self.block_type, "block_type")
+        if self.summary is not None and not isinstance(self.summary, str):
+            raise InvalidExchangeItemError("reasoning block summary must be a string")
+
+
+@dataclass(frozen=True)
 class ToolCall:
     identity: CallIdentity
     batch_id: str
@@ -302,7 +327,12 @@ class ToolCall:
             )
 
 
-AssistantPart = Union[AssistantContent, ReasoningReference, ToolCall]
+AssistantPart = Union[
+    AssistantContent,
+    ReasoningReference,
+    ReasoningBlock,
+    ToolCall,
+]
 
 
 @dataclass(frozen=True)
@@ -368,7 +398,7 @@ class AssistantItem:
                 )
             attachment_ids.add(attachment.attachment_id)
         for part in self.parts:
-            if isinstance(part, ReasoningReference) and part.attachment_id:
+            if isinstance(part, (ReasoningReference, ReasoningBlock)) and part.attachment_id:
                 if part.attachment_id not in attachment_ids:
                     raise InvalidExchangeItemError(
                         "reasoning reference points to an unknown attachment",
@@ -1008,6 +1038,16 @@ def _part_to_dict(part: AssistantPart) -> Dict[str, Any]:
             "attachment_id": part.attachment_id,
             "metadata": copy.deepcopy(part.metadata),
         }
+    if isinstance(part, ReasoningBlock):
+        return {
+            "kind": part.kind,
+            "provider_scope": part.provider_scope,
+            "reference_id": part.reference_id,
+            "block_type": part.block_type,
+            "summary": part.summary,
+            "attachment_id": part.attachment_id,
+            "metadata": copy.deepcopy(part.metadata),
+        }
     return {
         "kind": part.kind,
         "provider_scope": part.identity.provider_scope,
@@ -1032,6 +1072,23 @@ def _part_from_dict(payload: Any) -> AssistantPart:
         return ReasoningReference(
             provider_scope=str(payload.get("provider_scope") or ""),
             reference_id=str(payload.get("reference_id") or ""),
+            attachment_id=(
+                str(payload["attachment_id"])
+                if payload.get("attachment_id") is not None
+                else None
+            ),
+            metadata=dict(payload.get("metadata") or {}),
+        )
+    if kind == "reasoning_block":
+        return ReasoningBlock(
+            provider_scope=str(payload.get("provider_scope") or ""),
+            reference_id=str(payload.get("reference_id") or ""),
+            block_type=str(payload.get("block_type") or ""),
+            summary=(
+                str(payload["summary"])
+                if payload.get("summary") is not None
+                else None
+            ),
             attachment_id=(
                 str(payload["attachment_id"])
                 if payload.get("attachment_id") is not None
@@ -1151,6 +1208,17 @@ _PART_FIELDS = {
     "reasoning_reference": frozenset(
         {"kind", "provider_scope", "reference_id", "attachment_id", "metadata"}
     ),
+    "reasoning_block": frozenset(
+        {
+            "kind",
+            "provider_scope",
+            "reference_id",
+            "block_type",
+            "summary",
+            "attachment_id",
+            "metadata",
+        }
+    ),
     "tool_call": frozenset(
         {
             "kind",
@@ -1262,6 +1330,16 @@ def _validate_part_payload(value: Any, path: str) -> None:
         "reasoning_reference": frozenset(
             {"kind", "provider_scope", "reference_id", "metadata"}
         ),
+        "reasoning_block": frozenset(
+            {
+                "kind",
+                "provider_scope",
+                "reference_id",
+                "block_type",
+                "summary",
+                "metadata",
+            }
+        ),
         "tool_call": frozenset(
             {
                 "kind",
@@ -1286,11 +1364,13 @@ def _validate_part_payload(value: Any, path: str) -> None:
     if kind == "content":
         _validate_content_payload([data["block"]], f"{path}.block_array")
         return
-    for field_name in ("provider_scope", "reference_id"):
+    for field_name in ("provider_scope", "reference_id", "block_type"):
         if field_name in data:
             _strict_string(data[field_name], f"{path}.{field_name}")
     if "attachment_id" in data:
         _strict_string(data["attachment_id"], f"{path}.attachment_id", optional=True)
+    if "summary" in data:
+        _strict_string(data["summary"], f"{path}.summary", optional=True)
     if kind == "tool_call":
         for field_name in ("call_id", "batch_id", "name", "raw_arguments", "parse_status"):
             _strict_string(data[field_name], f"{path}.{field_name}")
@@ -1748,9 +1828,9 @@ def exchange_log_to_history_messages(log: ExchangeLog) -> List[HistoryMessage]:
             blocks: List[ContentBlock] = []
             calls: List[Dict[str, Any]] = []
             for part in item.parts:
-                if isinstance(part, ReasoningReference):
+                if isinstance(part, (ReasoningReference, ReasoningBlock)):
                     raise UnsupportedReasoningReplayError(
-                        "HistoryMessage cannot safely represent reasoning references",
+                        "HistoryMessage cannot safely represent reasoning parts",
                         item_id=item.item_id,
                     )
                 if isinstance(part, AssistantContent):
@@ -1843,6 +1923,7 @@ __all__ = [
     "OpaqueContinuationAttachment",
     "AssistantContent",
     "ReasoningReference",
+    "ReasoningBlock",
     "ToolCall",
     "UserItem",
     "SteeringItem",

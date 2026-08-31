@@ -1,0 +1,46 @@
+{
+  "schema_version": "qitos.s2.lane_b.unsupported_loss_matrix/v1",
+  "default_loss_policy": "reject",
+  "rows": [
+    {
+      "semantic": "reasoning_block_to_chat_completions",
+      "outcome": "codec_loss_rejected",
+      "explicit_loss_field": "assistant.reasoning"
+    },
+    {
+      "semantic": "continuation_without_declared_capability",
+      "outcome": "codec_capability_mismatch",
+      "explicit_loss_field": null
+    },
+    {
+      "semantic": "continuation_without_resolver",
+      "outcome": "unsupported_request",
+      "explicit_loss_field": null
+    },
+    {
+      "semantic": "missing_continuation_with_allow_loss",
+      "outcome": "stateless_replay",
+      "explicit_loss_field": "continuation.state"
+    },
+    {
+      "semantic": "cross_provider_or_model_or_api_continuation",
+      "outcome": "incompatible_continuation",
+      "explicit_loss_field": null
+    },
+    {
+      "semantic": "required_context_over_budget",
+      "outcome": "required_context_missing",
+      "explicit_loss_field": null
+    },
+    {
+      "semantic": "compaction",
+      "outcome": "receipt_required",
+      "explicit_loss_field": "policy_declared"
+    },
+    {
+      "semantic": "malformed_provider_envelope",
+      "outcome": "malformed_response",
+      "explicit_loss_field": null
+    }
+  ]
+}

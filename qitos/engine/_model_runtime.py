@@ -12,6 +12,11 @@ from typing import Any, Dict, Generic, List, Optional, TypeVar, cast
 
 from ..core._json_repair import escape_json_string_control_chars
 from ..core.action import Action
+from ..core.conversation import (
+    ExchangeLog,
+    ToolResultItem,
+    history_messages_to_exchange_log,
+)
 
 _logger = logging.getLogger("qitos.engine._model_runtime")
 from ..core.decision import Decision
@@ -22,6 +27,7 @@ from ..core.errors import (
     RuntimeErrorInfo,
 )
 from ..core.model_response import ModelResponse
+from ..core.history import HistoryMessage
 from ..core.multimodal import (
     content_to_text,
     image_base64_block,
@@ -34,6 +40,17 @@ from ..core.multimodal import (
     text_block,
 )
 from ..core.observation import Observation
+from ..core.request_view import (
+    ConversationSnapshotComponent,
+    RequestView,
+)
+from ..models.provider import (
+    ProviderTransaction,
+    adapter_for_model,
+    execute_provider_request,
+    request_target_for_model,
+)
+from ..models.codec import ProviderFailure
 from ..protocols import get_protocol, resolve_protocol_chain
 from ..core.state import StateSchema
 from ._context_runtime import ContextOverflowError
@@ -263,9 +280,6 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             system = effective_system_prompt.strip()
             messages.append({"role": "system", "content": system})
             if system != engine._last_system_prompt:
-                engine._history_append(
-                    "system", system, record.step_id, metadata={"source": "engine"}
-                )
                 engine._last_system_prompt = system
         history: List[Dict[str, Any]] = []
         query = engine.history_policy.build_query(
@@ -435,8 +449,14 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             protocol=protocol,
         )
         llm_messages = self._strip_internal_message_keys(messages)
-        raw_decision = self._call_llm(engine.agent.llm, llm_messages, request_options)
-        response = self._normalize_model_response(raw_decision)
+        transaction = self._execute_request_view(
+            llm=engine.agent.llm,
+            messages=llm_messages,
+            prompt_bundle=prompt_bundle,
+            request_options=request_options,
+            record=record,
+        )
+        response = self._normalize_model_response(transaction.model_response)
         post_context = context_runtime.finalize_output(
             llm=engine.agent.llm,
             telemetry=pre_context,
@@ -457,6 +477,8 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                 "model_response": dict(record.model_response),
                 "context": dict(record.context),
                 "prompt": prompt_metadata,
+                "request_view": transaction.request.to_dict(),
+                "codec_report": transaction.codec_report.to_dict(),
             },
         )
         assistant_tool_calls = []
@@ -485,6 +507,282 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
         )
 
         return response
+
+    def _execute_request_view(
+        self,
+        *,
+        llm: Any,
+        messages: List[Dict[str, Any]],
+        prompt_bundle: Any,
+        request_options: Dict[str, Any],
+        record: StepRecord,
+    ) -> ProviderTransaction:
+        """Run the only Engine model-I/O path from ExchangeLog to provider."""
+
+        adapter = adapter_for_model(llm)
+        target = request_target_for_model(llm)
+        log, instructions = self._exchange_log_from_messages(
+            messages,
+            provider_scope=f"{target.provider}:{target.api_mode}",
+            step_id=record.step_id,
+        )
+        artifact_refs = tuple(
+            reference
+            for item in log.items
+            if isinstance(item, ToolResultItem)
+            for reference in item.result.artifact_refs
+        )
+        agent_config = dict(getattr(self.engine.agent, "config", {}) or {})
+        runtime_instructions = agent_config.get("runtime_instructions") or ()
+        if isinstance(runtime_instructions, str):
+            runtime_instructions = (runtime_instructions,)
+        context_services = self.engine._context_runtime.build_request_context(
+            llm=llm,
+            request_key=f"step:{record.step_id}",
+            target=target,
+            runtime_instructions=runtime_instructions,
+            artifact_refs=artifact_refs,
+        )
+        continuation = getattr(self.engine, "_qitos_continuation_ref", None)
+        request_kwargs: Dict[str, Any] = {
+            "target": target,
+            "instructions": instructions,
+            "tool_schemas": list(
+                getattr(prompt_bundle, "tool_schema_payload", None) or []
+            ),
+            "continuation": continuation,
+            "context_budget": context_services["budget"],
+            "context_contributions": context_services["contributions"],
+            "context_selection_policy": context_services["selection_policy"],
+            "context_unit_counter": context_services["unit_counter"],
+            "artifact_refs": artifact_refs,
+            "available_artifact_ids": [
+                reference.artifact_id for reference in artifact_refs
+            ],
+        }
+        request = RequestView.from_exchange_log(log, **request_kwargs)
+        compaction_policy = context_services.get("compaction_policy")
+        if (
+            compaction_policy is not None
+            and request.selection.omitted_exchange_ids
+        ):
+            receipt = compaction_policy.compact(
+                exchange_ids=request.selection.omitted_exchange_ids,
+                selected_digest=request.source_log_digest,
+                required_units=request.selection.total_units,
+                available_units=request.context_budget.available_input_units,
+            )
+            if receipt is not None:
+                request_kwargs["compaction_receipts"] = (receipt,)
+                request = RequestView.from_exchange_log(log, **request_kwargs)
+        self.engine._emit(
+            record.step_id,
+            RuntimePhase.DECIDE,
+            payload={
+                "stage": "request_view",
+                "request_view": request.to_dict(),
+            },
+        )
+        stream_handler = to_stream_handler(self.stream_callback)
+        stream_started = False
+
+        def on_stream_delta(text: str) -> None:
+            nonlocal stream_started
+            if stream_handler is None:
+                return
+            if not stream_started:
+                stream_handler.on_start()
+                stream_started = True
+            stream_handler.on_delta(text)
+
+        try:
+            transaction = execute_provider_request(
+                adapter,
+                request,
+                allow_loss=bool(context_services.get("allow_codec_loss", False)),
+                continuation_resolver=context_services.get(
+                    "continuation_resolver"
+                ),
+                stream_callback=(
+                    on_stream_delta if self.stream_callback is not None else None
+                ),
+                transport_options=request_options,
+                request_transform=agent_config.get("request_transform"),
+            )
+        except ProviderFailure as failure:
+            self.engine._emit(
+                record.step_id,
+                RuntimePhase.DECIDE,
+                ok=False,
+                payload={
+                    "stage": "provider_failure",
+                    "provider_failure": failure.to_dict(),
+                },
+                error=failure.category,
+            )
+            raise
+        finally:
+            if stream_handler is not None and stream_started:
+                stream_handler.on_end()
+        log.append(transaction.assistant_item)
+        existing_refs = tuple(
+            getattr(self.engine, "_qitos_continuation_refs", ()) or ()
+        )
+        refs_by_identity = {
+            item.reference_id.value: item
+            for item in (*existing_refs, *transaction.continuation_refs)
+        }
+        continuation_refs = tuple(refs_by_identity.values())
+        if transaction.continuation_refs:
+            setattr(
+                self.engine,
+                "_qitos_continuation_ref",
+                transaction.continuation_refs[-1],
+            )
+        setattr(self.engine, "_qitos_continuation_refs", continuation_refs)
+        setattr(self.engine, "_qitos_exchange_log", log)
+        component = ConversationSnapshotComponent.from_exchange_log(
+            log,
+            continuation_refs=continuation_refs,
+            context_selection=request.selection,
+            compaction_receipts=request.compaction_receipts,
+            artifact_refs=artifact_refs,
+        )
+        setattr(self.engine, "_qitos_conversation_component", component)
+        setattr(self.engine, "_qitos_last_request_view", request)
+        setattr(self.engine, "_qitos_last_codec_report", transaction.codec_report)
+        self.engine._emit(
+            record.step_id,
+            RuntimePhase.DECIDE,
+            payload={
+                "stage": "provider_transaction",
+                "request_id": request.request_id,
+                "assistant_item_id": transaction.assistant_item.item_id,
+                "codec_report": transaction.codec_report.to_dict(),
+                "conversation_component_digest": component.to_dict()["digest"],
+            },
+        )
+        return transaction
+
+    def _exchange_log_from_messages(
+        self,
+        messages: List[Dict[str, Any]],
+        *,
+        provider_scope: str,
+        step_id: int,
+    ) -> tuple[ExchangeLog, List[Dict[str, Any]]]:
+        """Read the isolated HistoryMessage compatibility boundary once."""
+
+        history: list[HistoryMessage] = []
+        instructions: list[Dict[str, Any]] = []
+        for index, message in enumerate(messages):
+            if not isinstance(message, dict):
+                continue
+            role = str(message.get("role") or "").strip()
+            if not role:
+                continue
+            if role in {"system", "developer"}:
+                instructions.append(
+                    {"role": role, "content": message.get("content", "")}
+                )
+                continue
+            raw_step = message.get("_step_id", step_id)
+            try:
+                message_step = int(raw_step)
+            except (TypeError, ValueError):
+                message_step = step_id + index
+            history.append(
+                HistoryMessage(
+                    role=role,
+                    step_id=message_step,
+                    content=message.get("content"),
+                    tool_calls=[
+                        dict(item)
+                        for item in list(message.get("tool_calls") or [])
+                        if isinstance(item, dict)
+                    ],
+                    tool_call_id=(
+                        str(message["tool_call_id"])
+                        if message.get("tool_call_id") is not None
+                        else None
+                    ),
+                    name=(
+                        str(message["name"])
+                        if message.get("name") is not None
+                        else None
+                    ),
+                    metadata={"source": "HistoryMessage.compatibility"},
+                    native_items=[
+                        dict(item)
+                        for item in list(message.get("native_items") or [])
+                        if isinstance(item, dict)
+                    ],
+                )
+            )
+        log = history_messages_to_exchange_log(
+            history,
+            provider_scope=provider_scope,
+            log_id=f"runtime_log_{self.engine._active_run_id}",
+        )
+        previous = getattr(self.engine, "_qitos_exchange_log", None)
+        if isinstance(previous, ExchangeLog):
+            log = self._restore_provider_parts(log, previous)
+        return log, instructions
+
+    def _restore_provider_parts(
+        self, compatibility_log: ExchangeLog, previous: ExchangeLog
+    ) -> ExchangeLog:
+        """Graft provider-owned reasoning/continuation onto compat rereads."""
+
+        current = compatibility_log.to_persistence_dict()
+        prior = previous.to_persistence_dict()
+
+        def calls(item: Dict[str, Any]) -> tuple[str, ...]:
+            if item.get("kind") != "assistant":
+                return ()
+            return tuple(
+                str(part.get("call_id"))
+                for part in item.get("parts") or []
+                if isinstance(part, dict)
+                and part.get("kind") == "tool_call"
+                and part.get("call_id")
+            )
+
+        prior_by_calls = {
+            calls(item): item
+            for item in prior["items"]
+            if calls(item)
+        }
+        for item in current["items"]:
+            call_ids = calls(item)
+            source = prior_by_calls.get(call_ids)
+            if source is None:
+                continue
+            current_calls = {
+                str(part.get("call_id")): part
+                for part in item.get("parts") or []
+                if isinstance(part, dict) and part.get("kind") == "tool_call"
+            }
+            restored_parts: list[Dict[str, Any]] = []
+            for part in source["parts"]:
+                if not isinstance(part, dict):
+                    continue
+                if part.get("kind") != "tool_call":
+                    restored_parts.append(part)
+                    continue
+                current_call = current_calls.get(str(part.get("call_id")))
+                if current_call is None:
+                    restored_parts.append(part)
+                    continue
+                restored_call = dict(current_call)
+                restored_call["metadata"] = part.get("metadata") or {}
+                restored_parts.append(restored_call)
+            item["parts"] = restored_parts
+            item["continuation_attachments"] = source[
+                "continuation_attachments"
+            ]
+            item["metadata"] = source["metadata"]
+        return ExchangeLog.from_dict(current)
 
     def _write_assembled_messages_sidecar(
         self,
