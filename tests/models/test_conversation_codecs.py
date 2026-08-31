@@ -81,6 +81,158 @@ def _capabilities(*, continuation: bool = True) -> ProviderCapabilities:
     )
 
 
+def _capability_constructor_fields() -> dict[str, Any]:
+    return {
+        "target": RequestTarget("fixture", "model", "transport", "api"),
+        "supported_features": ("text",),
+        "reasoning_modes": ("drop",),
+        "multimodal_types": ("text",),
+        "supports_parallel_tool_calls": False,
+        "supports_tool_schemas": False,
+        "supports_continuation": False,
+        "max_input_units": 4096,
+    }
+
+
+@pytest.mark.parametrize(
+    ("field_name", "invalid_value"),
+    [
+        ("supported_features", "text"),
+        ("supported_features", {"text": True}),
+        ("supported_features", {"text"}),
+        ("supported_features", ("text", 1)),
+        ("supported_features", ()),
+        ("supported_features", ("text", "text")),
+        ("supported_features", ("text", "unknown_feature")),
+        ("reasoning_modes", ("unknown_mode",)),
+        ("multimodal_types", ("unknown_media",)),
+        ("supports_parallel_tool_calls", "true"),
+        ("supports_tool_schemas", 1),
+        ("supports_continuation", []),
+        ("max_input_units", 0),
+        ("max_input_units", -1),
+        ("max_input_units", 1.5),
+        ("max_input_units", "4096"),
+        ("max_input_units", True),
+    ],
+)
+def test_provider_capabilities_constructor_fails_closed(
+    field_name: str,
+    invalid_value: Any,
+) -> None:
+    fields = _capability_constructor_fields()
+    fields[field_name] = invalid_value
+
+    with pytest.raises(CodecError):
+        ProviderCapabilities(**fields)
+
+
+def test_provider_capabilities_constructor_shape_errors_are_typed() -> None:
+    with pytest.raises(CodecError):
+        ProviderCapabilities()
+
+    fields = _capability_constructor_fields()
+    with pytest.raises(CodecError):
+        ProviderCapabilities(**fields, unsupported_toggle=True)
+
+
+@pytest.mark.parametrize(
+    ("field_name", "invalid_value"),
+    [
+        ("supported_features", "text"),
+        ("reasoning_modes", {"drop": True}),
+        ("multimodal_types", ["text", 1]),
+        ("supports_parallel_tool_calls", 1),
+        ("supports_tool_schemas", "false"),
+        ("supports_continuation", 0),
+        ("max_input_units", -10),
+    ],
+)
+def test_provider_capabilities_persisted_reader_normalizes_malformed_inputs(
+    field_name: str,
+    invalid_value: Any,
+) -> None:
+    payload = _capabilities().to_dict()
+    payload[field_name] = invalid_value
+
+    with pytest.raises(CodecError):
+        ProviderCapabilities.from_dict(payload)
+
+
+class _MalformedCapabilityAdapter:
+    model = "fixture-model"
+
+    def __init__(self, declaration: Any) -> None:
+        self.declaration = declaration
+
+    def qitos_request_target(self) -> RequestTarget:
+        return RequestTarget("fixture", self.model, "fixture", "api")
+
+    def qitos_provider_capabilities(self) -> Any:
+        if isinstance(self.declaration, Exception):
+            raise self.declaration
+        return self.declaration
+
+
+def test_adapter_capability_failures_are_typed_and_hide_raw_exception() -> None:
+    rejected = "sk-proj-synthetic-provider-exception"
+    adapter = _MalformedCapabilityAdapter(RuntimeError(rejected))
+
+    with pytest.raises(CodecCapabilityError) as caught:
+        ProviderCapabilities.from_model(adapter)
+
+    assert rejected not in str(caught.value)
+
+
+def test_adapter_declaration_uses_the_same_strict_capability_boundary() -> None:
+    declaration = _capability_constructor_fields()
+    declaration.pop("target")
+    declaration["supports_continuation"] = "true"
+
+    with pytest.raises(CodecCapabilityError):
+        ProviderCapabilities.from_model(_MalformedCapabilityAdapter(declaration))
+
+
+@pytest.mark.parametrize(
+    ("model_type", "api_mode"),
+    [
+        pytest.param("openai", "chat_completions", id="openai-chat"),
+        pytest.param("openai", "responses", id="openai-responses"),
+        pytest.param("anthropic", "messages", id="anthropic"),
+        pytest.param("gemini", "generate_content", id="gemini"),
+        pytest.param("litellm", "chat_completions", id="litellm"),
+        pytest.param("ollama", "chat", id="ollama"),
+    ],
+)
+def test_declared_provider_matrix_passes_the_same_capability_contract(
+    model_type: str,
+    api_mode: str,
+) -> None:
+    from qitos.models.anthropic import AnthropicModel
+    from qitos.models.gemini import GeminiModel
+    from qitos.models.litellm import LiteLLMModel
+    from qitos.models.local import OllamaModel
+    from qitos.models.openai import OpenAIModel
+
+    classes = {
+        "openai": OpenAIModel,
+        "anthropic": AnthropicModel,
+        "gemini": GeminiModel,
+        "litellm": LiteLLMModel,
+        "ollama": OllamaModel,
+    }
+    model_class = classes[model_type]
+    model = object.__new__(model_class)
+    model.model = "fixture-model"
+    model.api_mode = api_mode
+    model.context_window = 4096
+
+    capabilities = ProviderCapabilities.from_model(model)
+
+    assert capabilities.target.api_mode == api_mode
+    assert ProviderCapabilities.from_dict(capabilities.to_dict()) == capabilities
+
+
 class FixtureCodec:
     codec_id = "fixture.responses"
     codec_version = "v1"

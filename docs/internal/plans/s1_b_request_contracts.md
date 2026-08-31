@@ -132,6 +132,15 @@ identity, and returns `(payload, CodecReport)`. Provider-native codecs live
 beside their transports; there is no cross-provider compiler module or provider-
 specific canonical request type.
 
+G2-R2 makes this declaration boundary fail closed. The constructor, adapter
+declaration, and persisted reader accept only explicit list/tuple string
+sequences from the documented closed vocabularies. Empty, duplicate, mixed, and
+unknown values are rejected. Capability flags are real booleans, and
+`max_input_units` is either null or a positive non-boolean integer. Provider SDK
+or adapter exceptions are normalized to typed codec failures without reflecting
+their text. Capability knowledge remains in each provider adapter; generic code
+does not infer it from provider, transport, class, or API-mode names.
+
 ### Public surface budget
 
 - zero root `qitos` exports;
@@ -157,8 +166,8 @@ specific canonical request type.
 
 1. Add immutable, strict, JSON-safe request/context/continuation/report records
    and deterministic ExchangeLog-derived selection.
-2. Add the single codec/failure protocol and conservative model capability
-   inference without changing provider dispatch.
+2. Add the single codec/failure protocol and strict adapter-owned capability
+   declarations without changing provider dispatch.
 3. Add steering and conversation snapshot component records with integrity
    digest, strict readers, compatibility-only legacy intake, and redaction.
 4. Publish direct-path fixtures covering the required matrix and exact digests.

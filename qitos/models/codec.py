@@ -19,6 +19,33 @@ CODEC_REPORT_SCHEMA_VERSION = "qitos.codec_report/v1"
 PROVIDER_CAPABILITIES_SCHEMA_VERSION = "qitos.provider_capabilities/v1"
 PROVIDER_FAILURE_SCHEMA_VERSION = "qitos.provider_failure/v1"
 
+_SUPPORTED_FEATURE_VALUES = frozenset(
+    {
+        "text",
+        "multimodal",
+        "tool_calls",
+        "tool_results",
+        "tool_schemas",
+        "parallel_tool_calls",
+        "artifact_references",
+        "reasoning",
+        "continuation",
+    }
+)
+_REASONING_MODE_VALUES = frozenset(
+    {
+        "preserve_if_supported",
+        "drop",
+        "inline_replay",
+        "signed_block_replay",
+        "native_item_continuation",
+    }
+)
+_MULTIMODAL_TYPE_VALUES = frozenset(
+    {"text", "image_url", "image_base64", "image_file"}
+)
+_MISSING_CAPABILITY_FIELD = object()
+
 
 class CodecError(RuntimeError):
     code = "codec_error"
@@ -81,7 +108,41 @@ def _object(
     return data
 
 
-@dataclass(frozen=True)
+def _capability_sequence(
+    value: Any,
+    *,
+    field_name: str,
+    allowed: frozenset[str],
+) -> tuple[str, ...]:
+    if not isinstance(value, (list, tuple)):
+        raise CodecError(f"{field_name} must be an explicit string sequence")
+    if not value:
+        raise CodecError(f"{field_name} must not be empty")
+    if any(not isinstance(item, str) or not item for item in value):
+        raise CodecError(f"{field_name} must contain non-empty strings")
+    normalized = tuple(value)
+    if len(normalized) != len(set(normalized)):
+        raise CodecError(f"{field_name} must not contain duplicates")
+    if any(item not in allowed for item in normalized):
+        raise CodecError(f"{field_name} contains an unsupported capability value")
+    return normalized
+
+
+def _capability_bool(value: Any, *, field_name: str) -> bool:
+    if not isinstance(value, bool):
+        raise CodecError(f"{field_name} must be boolean")
+    return value
+
+
+def _max_input_units(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+        raise CodecError("max_input_units must be a positive integer or null")
+    return value
+
+
+@dataclass(frozen=True, init=False)
 class ProviderCapabilities:
     target: RequestTarget
     supported_features: tuple[str, ...]
@@ -93,23 +154,116 @@ class ProviderCapabilities:
     max_input_units: Optional[int] = None
     schema_version: str = PROVIDER_CAPABILITIES_SCHEMA_VERSION
 
+    def __init__(
+        self,
+        target: Any = _MISSING_CAPABILITY_FIELD,
+        supported_features: Any = _MISSING_CAPABILITY_FIELD,
+        reasoning_modes: Any = _MISSING_CAPABILITY_FIELD,
+        multimodal_types: Any = _MISSING_CAPABILITY_FIELD,
+        supports_parallel_tool_calls: Any = _MISSING_CAPABILITY_FIELD,
+        supports_tool_schemas: Any = _MISSING_CAPABILITY_FIELD,
+        supports_continuation: Any = _MISSING_CAPABILITY_FIELD,
+        max_input_units: Any = None,
+        schema_version: Any = PROVIDER_CAPABILITIES_SCHEMA_VERSION,
+        **unexpected: Any,
+    ) -> None:
+        required = (
+            target,
+            supported_features,
+            reasoning_modes,
+            multimodal_types,
+            supports_parallel_tool_calls,
+            supports_tool_schemas,
+            supports_continuation,
+        )
+        if unexpected:
+            raise CodecError("provider capabilities constructor has unexpected fields")
+        if any(value is _MISSING_CAPABILITY_FIELD for value in required):
+            raise CodecError("provider capabilities constructor is missing required fields")
+        for field_name, value in (
+            ("target", target),
+            ("supported_features", supported_features),
+            ("reasoning_modes", reasoning_modes),
+            ("multimodal_types", multimodal_types),
+            ("supports_parallel_tool_calls", supports_parallel_tool_calls),
+            ("supports_tool_schemas", supports_tool_schemas),
+            ("supports_continuation", supports_continuation),
+            ("max_input_units", max_input_units),
+            ("schema_version", schema_version),
+        ):
+            object.__setattr__(self, field_name, value)
+        self.__post_init__()
+
     def __post_init__(self) -> None:
         if self.schema_version != PROVIDER_CAPABILITIES_SCHEMA_VERSION:
-            raise CodecError(
-                f"unsupported provider capabilities schema: {self.schema_version!r}"
+            raise CodecError("unsupported provider capabilities schema")
+        if not isinstance(self.target, RequestTarget):
+            raise CodecError("provider capabilities target must be RequestTarget")
+        object.__setattr__(
+            self,
+            "supported_features",
+            _capability_sequence(
+                self.supported_features,
+                field_name="supported_features",
+                allowed=_SUPPORTED_FEATURE_VALUES,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "reasoning_modes",
+            _capability_sequence(
+                self.reasoning_modes,
+                field_name="reasoning_modes",
+                allowed=_REASONING_MODE_VALUES,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "multimodal_types",
+            _capability_sequence(
+                self.multimodal_types,
+                field_name="multimodal_types",
+                allowed=_MULTIMODAL_TYPE_VALUES,
+            ),
+        )
+        for field_name in (
+            "supports_parallel_tool_calls",
+            "supports_tool_schemas",
+            "supports_continuation",
+        ):
+            object.__setattr__(
+                self,
+                field_name,
+                _capability_bool(getattr(self, field_name), field_name=field_name),
             )
+        object.__setattr__(self, "max_input_units", _max_input_units(self.max_input_units))
 
     @classmethod
     def from_model(cls, model: Any) -> "ProviderCapabilities":
         """Read the explicit capability declaration owned by a model adapter."""
 
-        target = RequestTarget.from_model(model)
-        declaration = getattr(model, "qitos_provider_capabilities", None)
+        try:
+            target = RequestTarget.from_model(model)
+        except Exception as exc:
+            raise CodecCapabilityError(
+                "model adapter request target declaration is invalid"
+            ) from exc
+        try:
+            declaration = getattr(model, "qitos_provider_capabilities", None)
+        except Exception as exc:
+            raise CodecCapabilityError(
+                "model adapter capability declaration is unavailable"
+            ) from exc
         if not callable(declaration):
             raise CodecCapabilityError(
                 "model adapter must declare qitos_provider_capabilities()"
             )
-        declared = declaration()
+        try:
+            declared = declaration()
+        except Exception as exc:
+            raise CodecCapabilityError(
+                "model adapter capability declaration failed"
+            ) from exc
         if isinstance(declared, cls):
             if declared.target != target:
                 raise CodecCapabilityError(
@@ -127,19 +281,21 @@ class ProviderCapabilities:
             "supports_continuation",
             "max_input_units",
         }
-        data = _object(
-            declared,
-            path="provider_capability_declaration",
-            fields=frozenset(fields),
-        )
-        for name in ("supported_features", "reasoning_modes", "multimodal_types"):
-            raw = data[name]
-            if not isinstance(raw, (list, tuple)) or not all(
-                isinstance(item, str) for item in raw
-            ):
-                raise CodecCapabilityError(f"{name} must be a string sequence")
-            data[name] = tuple(raw)
-        return cls(target=target, **data)
+        try:
+            data = _object(
+                declared,
+                path="provider_capability_declaration",
+                fields=frozenset(fields),
+            )
+            return cls(target=target, **data)
+        except CodecError as exc:
+            raise CodecCapabilityError(
+                "model adapter capability declaration is invalid"
+            ) from exc
+        except Exception as exc:
+            raise CodecCapabilityError(
+                "model adapter capability declaration is invalid"
+            ) from exc
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -169,11 +325,14 @@ class ProviderCapabilities:
                 "max_input_units",
             }
         )
-        data = _object(value, path="provider_capabilities", fields=fields)
-        data["target"] = RequestTarget.from_dict(data["target"])
-        for name in ("supported_features", "reasoning_modes", "multimodal_types"):
-            data[name] = tuple(data[name])
-        return cls(**data)
+        try:
+            data = _object(value, path="provider_capabilities", fields=fields)
+            data["target"] = RequestTarget.from_dict(data["target"])
+            return cls(**data)
+        except CodecError:
+            raise
+        except Exception as exc:
+            raise CodecError("provider capabilities record is invalid") from exc
 
 
 @dataclass(frozen=True)
