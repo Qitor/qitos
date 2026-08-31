@@ -1,6 +1,6 @@
 # Task 12 — durable session runtime and process-independent resume
 
-Status: 12A contract is qualified in the G2-R2 repair tree; promotion pending; runtime not implemented
+Status: 12A contract is promoted at G2 baseline `c0f19cd...`; runtime not implemented
 Depends on: Task 01; coordinates with Tasks 02, 03, 04, and 09
 Unblocks: Task 05 schema freeze, Task 13 durable multi-agent work, and the v4
 long-horizon reference flow

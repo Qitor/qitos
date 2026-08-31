@@ -48,6 +48,7 @@ How to update:
 
 ### Changed
 
+- Promoted the independently repaired G2 contract code baseline at `c0f19cd...` by fast-forward after matching the fixed dispatch SHA, repeated the complete gate matrix in the primary checkout, and retired 17 clean superseded worktrees without force while preserving all branch refs. No S2 runtime behavior is included.
 - Requalified Lane D readiness as 21 independent receipts: 17 G2 contract-bundle requirements, two explicitly historical G1 compatibility records, and two current ToolResult/ExchangeLog writer records. Each binds exact commit, current/committed bytes, paths, digests, authority, evidence role, source/replay lineage, and an independent consumer; runtime, writer/store, qita, publication, and measurement blockers remain separate.
 - Made the G2 interface budget semantic rather than nominal: 124 deliberate module exports are distinct from three visible implementation-private diagnostic helpers, while the exact 41-name root export set and 33-parameter `Engine.__init__` remain unchanged. Fixture edits alone no longer authorize surface growth.
 - Replayed the G2 candidate's real contract convergence direction onto the audit-bearing integration baseline: one current `ToolResult` writer plus a bounded historical reader, A-owned typed identities consumed by WorkGraph, one conversation snapshot owner, one `ArtifactRef`, and provider-declared capabilities without provider-name inference. G2-R2 repaired the receipt semantics; runtime and Trajectory readiness stay typed blocked pending promotion and retirement closure.

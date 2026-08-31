@@ -1,6 +1,6 @@
 # G2 stable-contract convergence plan
 
-Status: G2-R2 repair qualified; promotion and worktree retirement pending
+Status: G2-R2 promotion and worktree retirement complete; closure push pending
 Updated: 2026-08-31
 Owner: one G2 integration owner
 S1 source ancestry baseline: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
@@ -239,8 +239,8 @@ Required before promotion:
 - [x] D binds all 17 S1 requirements plus distinct historical/current writer
       evidence to exact accepted producers.
 - [x] S1 contracts are qualified while runtime/trajectory claims remain honest.
-- [ ] Combined quality gates pass and one clean G2 baseline is promoted.
-- [ ] Retired S1/G2 worktrees have a clean, non-forced post-promotion removal
+- [x] Combined quality gates pass and one clean G2 baseline is promoted.
+- [x] Retired S1/G2 worktrees have a clean, non-forced post-promotion removal
       receipt; their branch and commit references remain recoverable.
 
 ## Post-promotion worktree retirement

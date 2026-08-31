@@ -1,6 +1,6 @@
 # G2-R2 independent repair, promotion, and worktree retirement
 
-Status: repair candidate qualified; promotion and retirement pending
+Status: promotion and retirement complete; final evidence/push verification pending
 Updated: 2026-08-31
 Owner: one integration owner
 Integration branch: `feat/campaign-absorption`
@@ -31,6 +31,17 @@ suite; 399-finding ratchet (377 active, 22 vendored/generated); stable flake8;
 stable mypy on 84 files; readiness 0/21 without receipts and 21/21 with exact
 receipts; exact normal mode exit 2; every mode `schema_not_ready` with empty
 measurements/claims; and clean `git diff --check`.
+
+Promotion was a guarded fast-forward from exact integration dispatch
+`8e17b1f...` to `c0f19cd8f19a223fc84844f8a6a0ae4a5d0145aa`.
+The primary checkout repeated the focused, ratchet, flake8, mypy, full-suite,
+readiness, and diff gates successfully. Worktree retirement reduced 18
+registered worktrees to one and reclaimed `11,287,672 KiB` (10.765 GiB) using
+only non-forced `git worktree remove` calls plus prune; all 17 branch refs remain
+reachable. `c0f19cd...` is the promoted contract code head; the
+documentation-only closure commit at the resulting `feat/campaign-absorption`
+HEAD is the sole S2 dispatch baseline once its final gates and remote ref are
+verified.
 
 ### Candidate-to-replay commit map
 
@@ -228,7 +239,7 @@ After repairs:
 4. fast-forward `feat/campaign-absorption` only if its expected old HEAD still
    matches the G2-R2 dispatch baseline;
 5. rerun the critical gates on the promoted integration checkout;
-6. record the final promoted SHA as the sole S2 baseline;
+6. record the final closure-commit SHA as the sole S2 dispatch baseline;
 7. only then execute worktree retirement.
 
 Do not call a lane-local branch the integration branch and do not mark G2
@@ -271,10 +282,10 @@ publish the receipt in `docs/progress.md`.
       baseline with shared documents resolved honestly.
 - [x] Current and historical producer receipts describe different facts.
 - [x] G2 checklist and status agree with actual code and integration topology.
-- [ ] Integration branch fast-forwards to the independently qualified HEAD.
-- [ ] Promoted-tree gates pass.
-- [ ] Superseded worktrees are removed without force; branches/refs remain.
-- [ ] One exact S2 baseline is recorded and S2 remains otherwise untouched.
+- [x] Integration branch fast-forwards to the independently qualified HEAD.
+- [x] Promoted-tree gates pass.
+- [x] Superseded worktrees are removed without force; branches/refs remain.
+- [x] One exact S2 baseline is recorded and S2 remains otherwise untouched.
 
 ## Explicit non-goals
 

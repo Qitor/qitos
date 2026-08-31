@@ -7,7 +7,10 @@ Independently reviewed runtime baseline: `5ef8ab657f6452ae48c931beea79106e2cca34
 S1 dispatch baseline: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
 G2 candidate: `cab8fd246d2485784a13558e668eadb3ffa4d42f`
 G2-R2 repair branch: `codex/v4-g2-r2-promotion` through `49fa15b5b0499e3f2a1bb4ea86b2af7a143f3e5c`
-Current gate: **G2-R2 repair qualified; promotion/retirement pending; S2 blocked**
+Promoted G2 contract code head: `c0f19cd8f19a223fc84844f8a6a0ae4a5d0145aa`
+S2 dispatch baseline: final closure commit at `feat/campaign-absorption` HEAD,
+after final-head gates and remote SHA verification
+Current gate: **G2 promoted and retired; final evidence/push verification in progress**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md)
 and [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md)
@@ -32,36 +35,20 @@ Maintain it with these rules:
 
 ## 2. Current decision
 
-The G2 candidate contains substantial, validated convergence work but is not a
-promoted baseline. The primary integration branch remains at the fixed G2-R2
-dispatch baseline `8e17b1f6471a89a52aacec74a55f41386d44559a`; the original
-candidate started from parent `096e082...`, does not contain the later audit and
-worktree-retirement policy, and cannot fast-forward the current integration branch. Its own progress document
-calls the lane-local branch the integration branch and marks G2 complete before
-promotion or cleanup. Those are evidence/status defects, not runtime facts.
+The G2 promotion and retirement work is closed locally. The original candidate
+remains historical evidence; the authoritative contract code head is the
+repaired replay `c0f19cd8f19a223fc84844f8a6a0ae4a5d0145aa`, fast-forwarded
+from the exact dispatch SHA without a merge commit. The primary checkout passed
+the full gate matrix, and all explicitly retired worktrees were removed without
+force while their branch refs remained available.
 
-Independent reruns on the clean candidate passed 226 focused tests, full suite
-`2010 passed, 50 skipped`, the 399-finding ratchet, stable flake8, stable mypy
-on 84 files, and all three readiness modes. Typed identity consumption,
-snapshot composition, one ArtifactRef, provider-owned capability declaration,
-and the broad WorkGraph/receipt structure are real improvements worth
-preserving.
-
-Four uncovered contract defects block promotion: the historical ToolResult
-reader accepts current-only fields under the historical schema identity;
-ProviderCapabilities accepts malformed types and may emit raw `TypeError`;
-diagnostic/ArtifactRef safety misses arbitrary host paths and common key/token
-forms while leaving ProviderFailure category unsanitized; and two receipts
-called current foundations still bind historical ExchangeLog/ToolResult bytes.
-The interface budget also publishes names classified as internal-private via
-`__all__`, so its classification and Python visibility disagree.
-
-The next authorized task is one bounded
-[`G2-R2 repair/promotion`](internal/plans/g2_r2_promotion_audit.md). It replays
-the candidate onto the latest audit-bearing integration HEAD, fixes these
-boundaries, promotes one verified baseline, and retires superseded worktrees.
-The four-lane [`S2 runtime wave`](internal/plans/s2_runtime_wave.md) is planned
-but remains blocked until that exact baseline and cleanup receipt exist.
+This baseline contains contracts and migrations only. It does not contain a
+Session façade/runtime, SessionStore, persistent child scheduler, provider
+default switch, Trajectory writer/store, or qita migration. The four-lane
+[`S2 runtime wave`](internal/plans/s2_runtime_wave.md) may branch only from the
+final closure commit at `feat/campaign-absorption` HEAD after its full gate
+matrix and remote ref are verified; no S2 implementation has started in this
+task.
 
 ### G2-R2 repair qualification (pre-promotion)
 
@@ -96,10 +83,46 @@ exact-receipt execution exited 2. All three remained `schema_not_ready`, and
 the exact modes retained 11 non-contract blockers with empty measurements and
 claims. `git diff --check` passed and the repair tree was clean.
 
-This qualifies a promotion candidate, not an integration baseline. The primary
-branch must still match `8e17b1f...`, fast-forward to the repair head, pass the
-same gates in the primary checkout, retire only the explicit clean worktrees,
-record the sole S2 baseline, and pass final-head gates before push.
+### Promotion and worktree-retirement receipt
+
+The primary branch was still clean at exact dispatch SHA `8e17b1f...` before a
+`--ff-only` promotion to `c0f19cd...`. The primary checkout then repeated the
+291 focused tests, 399-finding ratchet, stable flake8/mypy, `2104 passed, 50
+skipped` full suite, all three readiness modes, and `git diff --check` with the
+same results as the repair tree.
+
+Before retirement, Git registered 18 worktrees: the primary checkout plus 17
+explicit retirement targets. Every target was clean, unlocked, idle, and on a
+retained local branch ref. Their measured total was `11,287,672 KiB` (10.765
+GiB). Removal used only `git worktree remove <exact-target>` without
+`--force`, followed by `git worktree prune`.
+
+| Retired worktree | Retained branch | Recorded HEAD |
+|---|---|---|
+| G1 convergence | `codex/v4-g1-convergence` | `c1efb0f4adde3e673bf181af5b1760c19a451ae2` |
+| G1 final | `codex/v4-g1-final-baseline` | `c1efb0f4adde3e673bf181af5b1760c19a451ae2` |
+| G1-R4 | `codex/v4-g1-r4-secret-scalars` | `c1efb0f4adde3e673bf181af5b1760c19a451ae2` |
+| G2 candidate | `codex/v4-g2-contract-convergence` | `cab8fd246d2485784a13558e668eadb3ffa4d42f` |
+| Lane A | `codex/v4-lane-a-quality-ratchet` | `ab25edf9c6457ee40054aaaab4596d7bed30cbe5` |
+| Lane A2 | `codex/v4-lane-a-ci-trust` | `ec43f09c1d6926a146b2c3f80a4b351861c5ea87` |
+| Lane B | `codex/v4-lane-b-exchange-contract` | `69a961f6f50656dff308db7a2f3e400439ef20d0` |
+| Lane B2 | `codex/v4-lane-b-exchange-integrity` | `5b0e8d54ab9dc95746b9e30fb2ce97a6165f0390` |
+| Lane C | `codex/v4-lane-c-outcome-lifecycle` | `1a36349b425e8c39d87b89e71ad4dcabd23d9e30` |
+| Lane C2 | `codex/v4-lane-c-contract-hardening` | `86ad165cef56262d0d5b58e095a1452f8201bc79` |
+| Lane D | `codex/v4-lane-d-data-census` | `ad03cb0b63c62e2067a222d654f3879ba7c01bb5` |
+| Lane D2 | `codex/v4-lane-d-evidence-gates` | `d80f4cc7e7c1532c33ea0cf057435447bf9261e7` |
+| S1-A | `codex/v4-s1-a-session-contracts` | `cb79532d45b114826ee4313a60bf42ebc5abca06` |
+| S1-B | `codex/v4-s1-b-request-view` | `939edd0164a7f1929818f3e79bea02f2635a9d7d` |
+| S1-C | `codex/v4-s1-c-work-graph-contracts` | `61c85ab774705610a2edf039417a8480afbeee16` |
+| S1-D | `codex/v4-s1-d-lineage-intake` | `44a09e3cbfaa29978584a05fbafbdd5c37cd7f2f` |
+| G2-R2 | `codex/v4-g2-r2-promotion` | `c0f19cd8f19a223fc84844f8a6a0ae4a5d0145aa` |
+
+After prune, Git registers only the primary worktree, all 17 recorded branch
+refs resolve, and the retired worktree disk total is zero. The remaining
+primary checkout measured `701,380 KiB`. The promoted contract code head is
+`c0f19cd...`; the following documentation-only closure commit at
+`feat/campaign-absorption` HEAD is the sole S2 dispatch baseline after its final
+gates and remote SHA verification.
 
 The A -> C -> B -> D convergence tree and the bounded G1-R3/R4 repairs are
 integrated at `5ef8ab657f6452ae48c931beea79106e2cca34c6`. C-P3 collision-safe key

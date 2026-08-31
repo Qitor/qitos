@@ -1,6 +1,7 @@
 # S2 single-agent continuity runtime wave
 
-Status: planned but blocked on G2-R2 promoted baseline
+Status: planned; blocked until the G2-R2 closure HEAD passes final gates and
+remote verification
 Updated: 2026-08-31
 Owner: v4 integration owner with four capability lanes
 Source gate: [`g2_r2_promotion_audit.md`](g2_r2_promotion_audit.md)
@@ -116,9 +117,11 @@ writer rollout.
 
 ## Concurrency and freeze points
 
-All lanes branch from one exact G2-R2 baseline. They may concurrently perform
-census, local implementation, fixtures, and failing consumer tests, subject to
-these freeze points:
+All lanes branch from one exact G2-R2 baseline: the final promotion/cleanup
+evidence commit at `feat/campaign-absorption` HEAD after final-head gates and
+remote SHA verification, not the pre-evidence contract code head
+`c0f19cd...`. They may concurrently perform census, local implementation,
+fixtures, and failing consumer tests, subject to these freeze points:
 
 1. A freezes session-head/store operations before C persists pause state.
 2. C freezes partial-batch/effect/quiescence records before A's clean-process
@@ -171,3 +174,7 @@ S2 cannot be dispatched until `docs/progress.md` records:
 - clean primary worktree;
 - completed worktree-retirement receipt;
 - no unresolved G2 contract/privacy/receipt/interface blocker.
+
+The exact full baseline SHA is the verified local/remote
+`feat/campaign-absorption` HEAD reported by the G2-R2 closure task. S2 runtime
+implementation has not started before that handoff.

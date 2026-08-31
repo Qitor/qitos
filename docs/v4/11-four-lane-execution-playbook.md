@@ -7,11 +7,12 @@ Source tasks: Tasks 02–05 and 08–13
 Baseline: Task 01 complete; exact current integration status lives in
 [`docs/progress.md`](../progress.md)
 
-Current dispatch state: the G2-R2 repair tree through `49fa15b...` has closed
-the independently reproduced contract blockers and passed repair-tree gates.
-It is not yet promoted: primary-checkout revalidation, explicit worktree
-retirement, final evidence, and remote verification remain. S2 behavior stays
-blocked until that closure receipt names one exact baseline.
+Current dispatch state: G2-R2 contract code is promoted through `c0f19cd...`;
+primary-checkout gates passed and 17 superseded worktrees were retired without
+force while their branch refs remained. The closure evidence commit at the
+resulting `feat/campaign-absorption` HEAD becomes the sole S2 dispatch baseline
+after final-head gates and remote ref verification. No S2 runtime behavior has
+started.
 
 ---
 
@@ -947,10 +948,10 @@ fifth implementation. Its responsibilities are:
 
 | Lane | Current package | Branch/PR | Lease | Tests | Handoff produced | Blocker/decision | Gate status |
 |---|---|---|---|---|---|---|---|
-| A | 12A session contracts | `d90b6a9` | session identity/snapshot | G2-R2 focused/full gates green | typed identities, extensible envelope, ArtifactRef foundation | runtime behavior absent | repair qualified; promotion pending |
-| C | recovery/effects + 13A | `39ae60a` + `3f2bde6`/`0dad384` | outcome/work graph | strict grammar/privacy adversaries green | typed effects/work graph, distinct current/historical writer evidence | persistent scheduler absent | repair qualified; promotion pending |
-| B | 02B RequestView | `9241dd3` + `0efa496`/`0dad384` | conversation/context | capability/privacy adversaries green | sole conversation component, RequestView, declared capabilities | provider dispatch absent | repair qualified; promotion pending |
-| D | lineage intake | `49fa15b` | readiness/evidence | 0/21 absent; exact 21/21 | exact replay/current/historical producer bindings | runtime/Trajectory blockers retained | repair qualified; Trajectory not ready |
+| A | 12A session contracts | `d90b6a9` | session identity/snapshot | G2-R2 focused/full gates green | typed identities, extensible envelope, ArtifactRef foundation | runtime behavior absent | contract promoted; runtime not started |
+| C | recovery/effects + 13A | `39ae60a` + `3f2bde6`/`0dad384` | outcome/work graph | strict grammar/privacy adversaries green | typed effects/work graph, distinct current/historical writer evidence | persistent scheduler absent | contracts promoted; runtime not started |
+| B | 02B RequestView | `9241dd3` + `0efa496`/`0dad384` | conversation/context | capability/privacy adversaries green | sole conversation component, RequestView, declared capabilities | provider dispatch absent | contracts promoted; runtime not started |
+| D | lineage intake | `49fa15b` | readiness/evidence | 0/21 absent; exact 21/21 | exact replay/current/historical producer bindings | runtime/Trajectory blockers retained | receipts promoted; Trajectory not ready |
 
 ### 10.2 Merge rule
 
@@ -985,11 +986,12 @@ worktree as removable. Such a path blocks wave closure until reconciled.
 
 The G2-R2 task defined by
 [`docs/internal/plans/g2_r2_promotion_audit.md`](../internal/plans/g2_r2_promotion_audit.md)
-has repaired the independently reproduced blockers and replayed the candidate
-onto the latest integration baseline. Do not dispatch four runtime lanes while
-promotion, primary-tree revalidation, worktree retirement, and final evidence
-remain. Only after those steps may the planned
-[`S2 runtime wave`](../internal/plans/s2_runtime_wave.md) start.
+has repaired the independently reproduced blockers, replayed the candidate,
+promoted contract code through `c0f19cd...`, revalidated the primary tree, and
+retired the explicit worktrees. After the closure evidence commit passes its
+final gates and its local/remote branch SHA is verified, the planned
+[`S2 runtime wave`](../internal/plans/s2_runtime_wave.md) may start from that
+exact final `feat/campaign-absorption` HEAD.
 
 The following R4/S1 dispatch history remains for provenance.
 
