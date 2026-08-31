@@ -272,6 +272,9 @@ the durable session identity.
 
 - Restore through a fresh Engine and resolver composition root; do not depend on
   `_active_state` or another live object from the original process.
+- Resolve environment or sandbox identity through logical Task 14 references;
+  validate policy/image/workspace/owner/generation receipts instead of
+  serializing a container name, SDK client, socket, or credential.
 - Exercise start -> model -> parallel tools -> pause -> process exit -> restore
   -> steering -> completion.
 - Verify committed-effect, trace, budget, state, exchange, and artifact parity.

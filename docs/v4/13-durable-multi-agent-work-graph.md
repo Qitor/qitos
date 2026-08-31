@@ -169,6 +169,10 @@ Multi-agent composition must not become an authority escalation path.
   policy, tool permissions, environment capabilities, and artifact access;
 - a child cannot inherit secrets, writable environments, or external connectors
   merely because the parent has them;
+- command-running children receive a Task 14 sandbox whose workspace, network,
+  credential, artifact, and resource authority is the explicit parent grant
+  intersected with destination policy; sharing a writable parent sandbox is not
+  an implicit default;
 - injected agents/resolvers remain caller-owned; framework defaults are minimal;
 - ownership transfer and permission decisions emit redacted audit receipts;
 - remote or untrusted workers require authenticated transport supplied by an

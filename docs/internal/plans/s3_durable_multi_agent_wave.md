@@ -335,6 +335,10 @@ S4, not S3, owns:
 
 - the stable Agent authoring facade;
 - Engine constructor contraction;
+- Task 14's canonical sandbox contract, hardened task-exclusive local backend,
+  stronger/remote adapter conformance, and Session/WorkGraph sandbox binding;
+- fail-closed research/coding defaults, pre-model attestation, redacted sandbox
+  receipts, and removal of silent host-execution fallback;
 - final Trajectory schema freeze;
 - canonical writer/store rollout;
 - qita default-reader migration;
@@ -343,7 +347,9 @@ S4, not S3, owns:
 - beginner tutorials and the formal coding-agent reference.
 
 S3 first proves the runtime mechanisms. S4 then concentrates on making the
-proven mechanisms smaller, easier, and stable for general agent authors.
+proven mechanisms smaller, easier, stable, and safe by default for general agent
+authors. Existing `DockerEnv` is an execution mechanism, not an untrusted-code
+sandbox qualification.
 
 ## 14. Known gaps at dispatch (historical)
 

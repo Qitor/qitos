@@ -17,8 +17,9 @@ S3 convergence source: `851f7902f15da670e72f4c04d7453cf37201aee7`
 Current gate: **S3 DETERMINISTIC CANDIDATE QUALIFIED; LIVE PROFILES CONFIGURED;
 EXECUTION EVIDENCE, PROMOTION, AND TRAJECTORY PUBLICATION BLOCKED**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
-Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md)
-and [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md)
+Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md),
+[`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md),
+and [`Task 14 sandboxed agent execution`](v4/14-sandboxed-agent-execution.md)
 
 ## 0. S3 deterministic convergence candidate (2026-09-01)
 
@@ -52,6 +53,23 @@ remain unsupported. Exact replay and gate evidence is recorded in
 [`s3_g4_convergence_evidence.md`](internal/plans/s3_g4_convergence_evidence.md),
 and the credential-free live profiles and execution gate are recorded in
 [`s3_g4_live_model_matrix.md`](internal/plans/s3_g4_live_model_matrix.md).
+
+The live runner's per-response output ceiling is planned at 10,240 tokens, with
+separate request-count, total-usage, timeout, and stop-policy bounds. Live agent
+work must not run in the primary checkout. Until Task 14 is implemented, it must
+use an equivalent task-exclusive, network-denied, non-root, narrowly mounted,
+pre-attested Docker harness with no host fallback.
+
+The current `DockerEnv` is a useful native Docker execution backend, but it is
+not a qualified untrusted-code sandbox. A reference-harness audit showed that
+research/coding agents need task-exclusive provisioning, exact mount/user/
+network/tmpfs/tool/socket attestation before the first model request, all tools
+routed through Env, controller-held secrets/private authority, input/contamination
+digests, and task-owned cleanup. Task 14 now makes this the framework's safe
+default design and adds typed resource policy, private workspace staging,
+Session/WorkGraph ownership, stronger local runtimes, independent adapters, and
+executable escape/egress/resource/cleanup gates. The supporting comparison is
+recorded in [`sandbox_runtime_research.md`](internal/plans/sandbox_runtime_research.md).
 
 ## 0.1 S2 promotion closure and S3 entry (2026-08-31)
 

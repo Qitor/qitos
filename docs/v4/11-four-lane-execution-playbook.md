@@ -81,10 +81,10 @@ After the integration owner records G1 reclosure, new branches use this mapping:
 
 | Lane | Mission | Canonical tasks | Primary code ownership |
 |---|---|---|---|
-| A — Session Runtime & Persistence | Make execution pauseable, process-independent, recoverable, and forkable | Task 12; Task 09A/C/D/F integration | Engine session lifecycle, checkpoint v2 session head/snapshot, restore/resolver integration |
-| B — Conversation, Context & Continuation | Complete model transactions, steering, provider continuation, context, memory, and artifacts | Tasks 02 and 04; Task 09B | ExchangeLog/RequestView/codecs, context/history/memory/artifact contracts |
-| C — Tools & Durable Multi-Agent | Harden ACI/tool outcomes and build handoff/delegate/fan-out/spawn on one work graph | Tasks 03 and 13; Task 09C integration | tool/action runtime, effects, work graph, local worker/join adapters |
-| D — Trajectory, qita & Developer Experience | Make session/work lineage inspectable, replayable, compact, and easy to use | Task 05; Task 09E; owned Task 10 cleanup | trace/tracing/qita/render, exporters, examples and migration evidence |
+| A — Session Runtime & Persistence | Make execution pauseable, process-independent, recoverable, forkable, and bound to restorable sandbox identity | Task 12; Task 09A/C/D/F integration; Task 14 Session binding | Engine session lifecycle, checkpoint v2 session head/snapshot, restore/resolver integration |
+| B — Conversation, Context & Continuation | Complete model transactions, steering, provider continuation, context, memory, artifacts, and sandbox-safe credential transfer | Tasks 02 and 04; Task 09B; Task 14 credential/context boundary | ExchangeLog/RequestView/codecs, context/history/memory/artifact contracts |
+| C — Tools, Sandboxes & Durable Multi-Agent | Harden ACI/tool outcomes, provide safe execution backends, and build handoff/delegate/fan-out/spawn on one work graph | Tasks 03, 13, and 14; Task 09C integration | tool/action runtime, effects, work graph, sandbox backends, local worker/join adapters |
+| D — Trajectory, qita & Developer Experience | Make session/work/sandbox lineage inspectable, replayable, compact, and easy to use | Task 05; Task 09E; Task 14 receipts/DX; owned Task 10 cleanup | trace/tracing/qita/render, exporters, examples and migration evidence |
 
 Quality/release trust is a cross-lane gate after G1. The integration owner runs
 the pinned ratchet, stable lint/type checks, architecture/public-surface tests,
@@ -103,7 +103,7 @@ in small packages through one closure wave and four capability waves.
 | S1 — contracts | 12A identity/lifecycle/snapshot ADR | 02B RequestView + 04A/04B contract handoffs | 03 recovery fields + 13A graph ADR | session/work lineage schema proposal only | G2: identities, ownership, snapshots, effects, and resolver contracts reviewed |
 | S2 — single-agent vertical slice | 12B/C/D session head, safe pause, clean-process restore | 02C/D + context/artifact snapshot components | 03B/C effects and partial-batch recovery | observe the slice; no v2 freeze | G3: start -> parallel tools -> pause -> process exit -> restore -> finish, no duplicate committed effect |
 | S3 — durable multi-agent | Session fork and ownership producer | context/continuation/authority transfer producer | one durable WorkGraph scheduler for handoff, delegate, spawn, fan-out/join | exact work-graph facts, read-only graph/timeline/DX | G4: partial child graph and ownership transfer survive process restart |
-| S4 — DX and convergence | 12E compatibility/CLI | 02E/04C/D rollout | 03D/E + 13E adapters | 05 schema freeze/store/export/qita rollout | G5: public example, two independent consumers, release and migration gates green |
+| S4 — safe DX and convergence | 12E compatibility/CLI + sandbox restore/identity binding | 02E/04C/D rollout + sandbox credential/context boundary | 03D/E + 13E adapters + Task 14 contracts/hardened local and independent adapters | Task 05 schema/store/export/qita rollout + sandbox receipts/inspection/tutorials | G5: default-safe coding-agent example, real local sandbox qualification, independent backend conformance, two independent consumers, release and migration gates green |
 
 S1 branches start only from the exact final G1 accepted head reported by the
 integration owner. G1 is now reclosed, but each lane still receives only its S1
@@ -918,7 +918,7 @@ Acceptance focus: provider-neutral persistent facts; loss-explicit native
 continuation; steering once at a safe boundary; fresh-process restoration;
 non-destructive handoff/delegate context selection.
 
-### 9.3 Lane C — Tools & Durable Multi-Agent
+### 9.3 Lane C — Tools, Sandboxes & Durable Multi-Agent
 
 Mission: finish Task 03 and then implement Task 13 over Task 12 sessions.
 
@@ -933,9 +933,19 @@ delegate/spawn, fan-out/join recovery, capability/budget allocation, and adapter
 for existing model-callable tools. The local executor is the reference; no
 distributed service or role strategy enters the base framework.
 
+In S4, Lane C also owns Task 14's one canonical sandbox contract, the hardened
+Docker reference backend, stronger local/runtime adapters, and the backend
+conformance suite. It must preserve Env as the tool-facing boundary, make
+research/coding execution task-exclusive and fail-closed, and prohibit silent
+`HostEnv` fallback. Lane A consumes sandbox identity/generation during Session
+restore/fork, Lane B owns credential/context authority transfer, and Lane D owns
+redacted receipts, inspection, and public DX.
+
 Acceptance focus: one active owner; completed child/slot never recreated;
 explicit parent cancellation/detachment/late-result behavior; direct API and
-tools share semantics; no authority escalation.
+tools share semantics; no authority escalation; one local backend passes real
+escape/egress/resource/cleanup checks and an independent backend passes the
+same public protocol without Engine/store internals.
 
 ### 9.4 Lane D — Trajectory, qita & Developer Experience
 

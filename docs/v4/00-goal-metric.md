@@ -128,6 +128,7 @@ Task 01 baseline ──→ Task 02 model I/O ──→ Task 04 context/artifacts
 
 Tasks 02–04 + 09 ──→ Task 12 durable sessions ──→ Task 13 multi-agent work graph
              Tasks 12–13 lineage ───────────────→ Task 05 schema freeze/qita
+Tasks 03 + 09 + 12–13 ──→ Task 14 safe sandbox execution ──→ S4/G5 public DX
 ```
 
 Task 02 and Task 03 may proceed independently after Task 01. Task 04 depends on
@@ -138,18 +139,23 @@ collects usage evidence early but removes or consolidates surfaces only after
 their canonical replacements are proven. Task 12 starts with identity/snapshot
 contracts after G1 and then proves a single-agent clean-process vertical slice.
 Task 13 starts only after that vertical slice can durably recover one work item.
+Task 14 reuses the Env/tool lifecycle plus Session and WorkGraph identities to
+make command-running research/coding agents safe by default; it must not create
+a vendor-specific Engine or tool API.
 Task 05 may continue its census, fixture qualification, and benchmark scaffold,
 but it does not freeze trajectory v2 until session/run/work-item/ownership
 lineage from Tasks 12–13 is available.
 
-Current gate truth: S2 is closed. Its durable single-agent and clean-process
-restore vertical has been promoted, revalidated in the primary checkout,
-pushed, and cleaned up. S3 is the runtime construction wave for Gate G; its
-entry gate is satisfied, but Session fork, authority transfer, the durable
-multi-agent scheduler, and graph-aware qita consumption are not implemented.
-Trajectory v2 therefore remains unfrozen and the candidate reader is not the
-qita default. The executable S3 ownership and G4 matrix live in
+Current gate truth: S2 is closed and promoted. The S3 convergence candidate now
+contains Session fork, authority transfer, a durable multi-agent scheduler, and
+graph-aware read-only qita consumption, and its deterministic G4 tests pass. It
+is not yet promoted: registered live-model profiles still lack executable
+capability/trajectory/agent receipts. Trajectory remains unfrozen and the
+candidate reader is not the qita default. The executable S3 ownership and G4
+matrix live in
 [`s3_durable_multi_agent_wave.md`](../internal/plans/s3_durable_multi_agent_wave.md).
+Task 14 is now a required S4/G5 architecture because current `DockerEnv` provides
+Docker execution but not a qualified untrusted-code sandbox.
 
 The authoritative multi-agent dispatch and merge sequence is
 [`11-four-lane-execution-playbook.md`](11-four-lane-execution-playbook.md). It
@@ -188,10 +194,14 @@ When more than one coding agent is active, assign work through the four-lane
 playbook. The G1 repair wave keeps its historical A/B/C/D ownership. After G1,
 the four capability lanes are:
 
-- Lane A — session runtime and persistence (Task 12 plus owned Task 09 work);
-- Lane B — conversation, providers, context, memory, and artifacts (Tasks 02/04);
-- Lane C — tools and the durable multi-agent work graph (Tasks 03/13);
-- Lane D — trajectory, qita, replay, and developer experience (Task 05).
+- Lane A — session runtime, persistence, and sandbox identity/restore binding
+  (Task 12 plus owned Task 09/14 work);
+- Lane B — conversation, providers, context, memory, artifacts, and sandbox-safe
+  credential/context transfer (Tasks 02/04/14);
+- Lane C — tools, sandbox backends, and the durable multi-agent work graph
+  (Tasks 03/13/14);
+- Lane D — trajectory, qita, replay, sandbox receipts, and developer experience
+  (Tasks 05/14).
 
 Quality/release trust becomes a cross-lane merge gate run by the integration
 owner, not a place to park all framework behavior. Task 10 cleanup returns to

@@ -108,7 +108,10 @@ The `harness ↔ models` module-level cycle is resolved; concrete model construc
 now lives in `qitos.models.harness_adapter`. The next architecture and quality
 steps are planned in `docs/v4/`: canonical model/action/context/trajectory
 contracts in Tasks 02–05 and quality gates, lifecycle semantics, and
-consolidation in Tasks 08–10. Multi-agent delivery follows the
+consolidation in Tasks 08–10, durable Session/work ownership in Tasks 12–13,
+and safe-by-default sandboxed agent execution in Task 14. The existing Docker
+Env is an execution backend, not yet an untrusted-code security qualification.
+Multi-agent delivery follows the
 [four-lane execution playbook](docs/v4/11-four-lane-execution-playbook.md), which
 assigns one semantic owner per contract and shared-file leases for integration.
 

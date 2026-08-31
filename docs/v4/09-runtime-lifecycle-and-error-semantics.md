@@ -2,7 +2,7 @@
 
 Status: 09A/C1-R integrated; additional contracts are in the unpromoted G2 candidate; G2-R2 and runtime packages pending
 Depends on: Task 01 and Task 08A
-Coordinates with: Tasks 02, 03, 05, 12, and 13
+Coordinates with: Tasks 02, 03, 05, 12, 13, and 14
 Risk: high — failure, timeout, durability, and shutdown behavior
 
 ---
@@ -19,7 +19,8 @@ Task 09 is a semantic contract, not a second execution kernel. Changes to model
 transactions land in Task 02-owned modules; tool execution changes land in Task
 03-owned modules; trace event changes land in Task 05-owned schemas. Task 12 owns
 the durable session lifecycle and safe pause/restore protocol; Task 13 owns
-multi-agent ownership and child-work semantics. Task 09 supplies the shared
+multi-agent ownership and child-work semantics; Task 14 owns sandbox policy,
+backend, attestation, lease, and cleanup semantics. Task 09 supplies the shared
 resource, timeout, failure, and durability receipts they consume.
 
 ## 2. Lifecycle vocabulary
@@ -173,6 +174,7 @@ Coordinate with Task 05.
 | Hooks | best effort, strict, trace sink failure |
 | Session consumer | pause boundary, clean-process restore, stale owner, missing resolver |
 | Multi-agent consumer | handoff, child timeout, parent cancellation, late join result |
+| Sandbox consumer | provision/attest, resource limit, process loss, stale lease, destroy/reconcile |
 
 Tests must use bounded deadlines and deterministic fakes; no test may rely on a
 real network or an unbounded sleep.
@@ -194,6 +196,8 @@ real network or an unbounded sleep.
   without an owner in the lifecycle inventory.
 - [ ] Task 12/13 can state whether a worker/resource is quiesced, still running,
   failed to close, or unsafe to restore without inventing duplicate receipts.
+- [ ] Task 14 can distinguish configured policy from attested runtime facts and
+  report failed/unknown cleanup without treating either as a closed sandbox.
 - [ ] Full tests, architecture boundaries, and Task 08 ratchet stay green.
 
 ## 6. Verification

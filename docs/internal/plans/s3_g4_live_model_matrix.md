@@ -69,7 +69,10 @@ Agent work runs only in a new disposable Git repository. Allowed tools are
 repository-scoped read, grep, edit, and bounded shell/test commands. Production
 repositories, deployment, remote-server mutation, account mutation, and
 unrestricted network tools are out of scope. Model network access is restricted
-to the selected endpoint.
+to the selected endpoint. The disposable repository must be exposed through the
+Task 14 `research_coding` sandbox contract, or through the equivalent current
+CyberGym-derived task-exclusive Docker harness until that contract lands. It
+must fail closed rather than fall back to the primary checkout or `HostEnv`.
 
 ## Budget and execution gate
 
@@ -77,10 +80,16 @@ Suggested safe defaults, requiring explicit maintainer acceptance before any
 network request:
 
 - `QITOS_LIVE_MAX_REQUESTS_PER_PROFILE=12`
-- `QITOS_LIVE_MAX_TOKENS_PER_REQUEST=4096`
+- `QITOS_LIVE_MAX_OUTPUT_TOKENS_PER_REQUEST=10240`
 - `QITOS_LIVE_TIMEOUT_SECONDS=180`
 - one disposable agent task per qualified profile
 - no automatic retry after a billed or ambiguous request
+
+The 10,240 value is a per-response output ceiling suitable for multi-step agent
+work, not the total Session context or token budget. The runner also enforces a
+separate bounded per-profile request count, total reported input/output usage,
+wall-clock deadline, and explicit stop policy; it records actual provider usage
+rather than assuming every response consumes the ceiling.
 
 Record actual request count, reported input/output tokens, latency, failure
 class, and provider retries. Unknown pricing must not become a fabricated cost
