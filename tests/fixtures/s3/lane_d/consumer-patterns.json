@@ -1,0 +1,21 @@
+{
+  "fixture_version": "qitos.s3.lane_d.consumer_patterns/1",
+  "patterns": [
+    {
+      "id": "bounded_research_fan_out",
+      "operation": "fan_out",
+      "join": "all_successful",
+      "offline": true,
+      "framework_primitives": ["Session", "WorkGraph", "WorkItem", "WorkAttempt", "JoinDependency"],
+      "strategy_owner": "user_code"
+    },
+    {
+      "id": "proposal_critique_transfer",
+      "operation": "handoff",
+      "join": "all",
+      "offline": true,
+      "framework_primitives": ["Session", "WorkGraph", "WorkItem", "WorkAttempt", "OwnershipTransfer"],
+      "strategy_owner": "user_code"
+    }
+  ]
+}
