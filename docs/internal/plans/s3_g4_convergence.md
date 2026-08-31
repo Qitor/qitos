@@ -52,6 +52,11 @@ Each row is completed immediately after replay and focused validation.
 
 | Lane | Source SHA | Replay SHA | Conflict / resolution | Focused validation |
 |---|---|---|---|---|
+| A | `ae62ba1ea5fef7a472609dcb11d23a5f21733410` | `bc91a6e` | none | 48 passed: fork + Session contract |
+| A | `feba1bf6d2312b82c7f03ce0b3c1f07e50712938` | `6635a0a` | none | 15 passed: fork producer bundle |
+| A | `a94d4598bfdc9cafb2df30048e534533dca27e47` | `1e2de5d` | none | 15 passed: fork producer bundle |
+| A | `ea8076c9d78742b25e2516fa610afac1ba9cfc2a` | `9ab7799` | none | 16 passed: cross-process owner fencing |
+| A | `9442647767bc9a7c45ed3bf07bc4f289412544ed` | `1025f12` | none | 28 passed: fork + checkpoint + clean-process restore |
 
 ## Gate policy
 
