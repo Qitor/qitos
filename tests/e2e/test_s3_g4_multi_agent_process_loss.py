@@ -30,7 +30,7 @@ def _run(phase: str, *, database: Path, control: Path, candidate: Path) -> dict:
         text=True,
         timeout=20,
     )
-    if phase == "create":
+    if phase in {"create", "prepare_create"}:
         assert control.is_file()
         return json.loads(control.read_text(encoding="utf-8"))
     return json.loads(completed.stdout.strip().splitlines()[-1])
@@ -75,3 +75,36 @@ def test_g4_twenty_clean_process_rounds(tmp_path: Path) -> None:
 
     assert len({session_id for session_id, _ in receipts}) == 20
     assert {generation for _, generation in receipts} == {2}
+
+
+def test_g4_twenty_preparation_crash_rounds(tmp_path: Path) -> None:
+    sessions = []
+    for round_index in range(20):
+        root = tmp_path / f"prepare-{round_index:02d}"
+        root.mkdir()
+        database = root / "preparation.sqlite"
+        control = root / "control.json"
+        candidate = root / "unused.json"
+        created = _run(
+            "prepare_create",
+            database=database,
+            control=control,
+            candidate=candidate,
+        )
+        restored = _run(
+            "prepare_restore",
+            database=database,
+            control=control,
+            candidate=candidate,
+        )
+
+        assert restored == {
+            "after": "dispatched",
+            "before": "declared",
+            "dispatches": ["delegate:declared"],
+            "fork_reused": True,
+            "operation_id": "delegate:declared",
+        }
+        sessions.append(created["session_id"])
+
+    assert len(set(sessions)) == 20

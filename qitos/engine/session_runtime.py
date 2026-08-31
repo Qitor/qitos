@@ -275,18 +275,57 @@ class Session:
             operation_id = f"{operation}:{uuid4().hex}"
         before = graph.to_persistence_dict()
         try:
+            existing_operation = next(
+                (
+                    item for item in graph.operation_receipts
+                    if item.operation_id == operation_id
+                ),
+                None,
+            )
+            if existing_operation is None:
+                self._ensure_work_root(graph, operation_id)
+            declaration = runtime.declare(
+                graph=graph,
+                descriptor=self._declaration_descriptor(
+                    graph=graph,
+                    operation=operation,
+                    operation_id=operation_id,
+                    payload=canonical,
+                ),
+                persist=self._commit_work_graph,
+                generation=self.current_head.generation.value,
+            )
+            if declaration.state not in {"declared", "dispatchable"}:
+                return declaration
+            declared = graph.to_persistence_dict()
             descriptor = self._prepare_work_descriptor(
                 graph=graph,
                 operation=operation,
                 operation_id=operation_id,
                 payload=canonical,
             )
-            return runtime.submit(
-                graph=graph,
-                descriptor=descriptor,
-                persist=self._commit_work_graph,
-                generation=self.current_head.generation.value,
-            )
+            try:
+                return runtime.submit(
+                    graph=graph,
+                    descriptor=descriptor,
+                    persist=self._commit_work_graph,
+                    generation=self.current_head.generation.value,
+                )
+            except Exception:
+                current = next(
+                    (
+                        item for item in graph.operation_receipts
+                        if item.operation_id == operation_id
+                    ),
+                    None,
+                )
+                if current is not None and current.state == "declared":
+                    setattr(
+                        self._engine,
+                        "_qitos_work_graph",
+                        WorkGraph.from_canonical_dict(declared),
+                    )
+                raise
         except Exception:
             durable_declaration = any(
                 item.operation_id == operation_id for item in graph.operation_receipts
@@ -295,6 +334,91 @@ class Session:
                 restored = WorkGraph.from_canonical_dict(before)
                 setattr(self._engine, "_qitos_work_graph", restored)
             raise
+
+    def recover_work(self) -> tuple[Any, ...]:
+        """Resume declared/queued work through this restored Session composition."""
+        runtime = getattr(self._runtime, "work_runtime", None)
+        graph = getattr(self._engine, "_qitos_work_graph", None)
+        if runtime is None or graph is None:
+            return ()
+
+        def prepare(declaration: WorkDescriptor) -> WorkDescriptor:
+            before = graph.to_persistence_dict()
+            try:
+                return self._prepare_work_descriptor(
+                    graph=graph,
+                    operation=declaration.operation,
+                    operation_id=declaration.operation_id,
+                    payload=declaration.task_input,
+                )
+            except Exception:
+                restored = WorkGraph.from_canonical_dict(before)
+                graph.__dict__.clear()
+                graph.__dict__.update(restored.__dict__)
+                raise
+
+        return runtime.recover(
+            graph,
+            persist=self._commit_work_graph,
+            prepare=prepare,
+        )
+
+    def _ensure_work_root(self, graph: WorkGraph, operation_id: str) -> None:
+        if self._work_item_id not in graph.work_items:
+            head = self._require_head()
+            graph.add_work_item(
+                WorkItem(
+                    work_item_id=self._work_item_id,
+                    session_ref=self._session_id,
+                    task_ref=f"task:{_stable_digest(str(self._engine._active_task))[:24]}",
+                    lifecycle=_work_lifecycle(SessionLifecycle(head.lifecycle)),
+                    owner=WorkOwner(self._agent_id, 0),
+                )
+            )
+        elif graph.work_items[self._work_item_id].owner.agent_id != self._agent_id:
+            from .work_runtime import WorkRuntimeError
+
+            raise WorkRuntimeError(
+                "superseded_owner",
+                "the Session is no longer the authoritative work owner",
+                operation_id=operation_id,
+            )
+
+    def _declaration_descriptor(
+        self,
+        *,
+        graph: WorkGraph,
+        operation: str,
+        operation_id: str,
+        payload: Mapping[str, Any],
+    ) -> WorkDescriptor:
+        if operation not in {"handoff", "delegate", "spawn", "fan_out", "join"}:
+            raise ValueError(f"unsupported durable operation {operation!r}")
+        tasks = payload.get("tasks", []) if operation == "fan_out" else []
+        width = len(tasks) if isinstance(tasks, list) else 1
+        checkpoint = ResolverReference(
+            ResolverNamespace.CHECKPOINT_STORE,
+            "default:session",
+            "checkpoint.session",
+        )
+        return WorkDescriptor(
+            operation_id=operation_id,
+            operation=operation,
+            parent_session_id=self._session_id.value,
+            parent_work_item_id=self._work_item_id.value,
+            child_session_ids=[],
+            child_work_item_ids=[],
+            agent_refs=[],
+            task_input=dict(payload),
+            fork_receipts=[],
+            transfer_receipts=[],
+            budget_allocations=[],
+            capability_allocations=[],
+            artifact_refs=[],
+            resolver_requirements=[checkpoint.to_dict()],
+            graph_depth=_graph_depth(graph, self._work_item_id),
+            fan_out_width=max(1, width),
+        )
 
     def _prepare_work_descriptor(
         self,
@@ -308,30 +432,15 @@ class Session:
             (item for item in graph.operation_receipts if item.operation_id == operation_id),
             None,
         )
-        if existing is not None and existing.descriptor is not None:
+        if (
+            existing is not None
+            and existing.state != "declared"
+            and existing.descriptor is not None
+        ):
             return WorkDescriptor.from_dict(existing.descriptor)
         if operation not in {"handoff", "delegate", "spawn", "fan_out", "join"}:
             raise ValueError(f"unsupported durable operation {operation!r}")
-        head = self._require_head()
-        if self._work_item_id not in graph.work_items:
-            lifecycle = _work_lifecycle(SessionLifecycle(head.lifecycle))
-            graph.add_work_item(
-                WorkItem(
-                    work_item_id=self._work_item_id,
-                    session_ref=self._session_id,
-                    task_ref=f"task:{_stable_digest(str(self._engine._active_task))[:24]}",
-                    lifecycle=lifecycle,
-                    owner=WorkOwner(self._agent_id, 0),
-                )
-            )
-        elif graph.work_items[self._work_item_id].owner.agent_id != self._agent_id:
-            from .work_runtime import WorkRuntimeError
-
-            raise WorkRuntimeError(
-                "superseded_owner",
-                "the Session is no longer the authoritative work owner",
-                operation_id=operation_id,
-            )
+        self._ensure_work_root(graph, operation_id)
 
         child_sessions: list[Session] = []
         specs: list[Mapping[str, Any]] = []
@@ -344,8 +453,8 @@ class Session:
             specs = [dict(item) for item in raw_specs]
         for index, spec in enumerate(specs):
             child_sessions.append(
-                self.fork(
-                    operation_id=f"fork_{_stable_digest(f'{operation_id}:{index}')[:32]}"
+                self._fork_or_recover(
+                    f"fork_{_stable_digest(f'{operation_id}:{index}')[:32]}"
                 )
             )
 
@@ -870,6 +979,55 @@ class Session:
                 expected_head=current,
             )
             return result
+
+    def _fork_or_recover(self, operation_id: str) -> "Session":
+        receipt = self._store.get_session_fork(operation_id)
+        if receipt is None:
+            return self.fork(operation_id=operation_id)
+        if receipt.source_session_id != self._session_id.value:
+            raise _session_error(
+                SessionErrorCode.DUPLICATE_FORK_OPERATION,
+                "Fork operation belongs to a different source Session.",
+                recoverable=False,
+            )
+        source_record = self._store.get_session_snapshot(receipt.source_snapshot_id)
+        child_record = self._store.get_session_snapshot(receipt.child_snapshot_id)
+        child_head = self._store.get_session_head(receipt.child_session_id)
+        if source_record is None or child_record is None or child_head is None:
+            raise _session_error(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Committed fork receipt points to missing durable state.",
+                recoverable=False,
+            )
+        if child_head.generation != receipt.owner_generation:
+            raise _session_error(
+                SessionErrorCode.SUPERSEDED_OWNER,
+                "Prepared fork child was already advanced by another owner.",
+                recoverable=False,
+            )
+        source = SessionSnapshot.from_dict(
+            source_record.payload,
+            component_registry=self._runtime.component_registry,
+        )
+        child_snapshot = SessionSnapshot.from_dict(
+            child_record.payload,
+            component_registry=self._runtime.component_registry,
+        )
+        child = Session(
+            engine=self._engine,
+            session_id=SessionIdentity(receipt.child_session_id),
+            run_id=RunIdentity(receipt.child_run_id),
+            agent_id=_agent_state(source).agent_id,
+            references=child_snapshot.resolver_references,
+            created_at=child_snapshot.created_at,
+            state_type=self._state_type,
+            work_item_id=WorkItemIdentity(receipt.child_work_item_id),
+            attempt_id=AttemptIdentity(receipt.child_attempt_id),
+            fork_receipt=receipt,
+        )
+        child._parent_run_id = _trace_lineage(source).run_id
+        child._lifecycle = SessionLifecycle.RESTORING
+        return child
 
     def fork(
         self,

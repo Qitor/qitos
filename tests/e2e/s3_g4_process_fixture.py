@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from contextlib import redirect_stdout
 from dataclasses import dataclass
+import hashlib
 import io
 import json
 import os
@@ -459,5 +460,65 @@ def restore() -> None:
     store.close()
 
 
+def prepare_create() -> None:
+    store = SqliteCheckpointStore(os.environ["QITOS_G4_DB"])
+    runtime = _runtime(store, Scheduler(admit_queued=True))
+    session = Engine(G4Agent(), runtime=runtime).session("g4 preparation parent")
+    session.run()
+
+    def lose_process_after_fork(**kwargs: Any) -> Any:
+        del kwargs
+        raise RuntimeError("deterministic loss after fork preparation")
+
+    session._execute_child_transfer = lose_process_after_fork
+    try:
+        session.delegate(
+            "g4-agent",
+            task="declared child",
+            operation_id="delegate:declared",
+        )
+    except RuntimeError as exc:
+        assert str(exc) == "deterministic loss after fork preparation"
+    fork_id = "fork_" + hashlib.sha256(b"delegate:declared:0").hexdigest()[:32]
+    assert store.get_session_fork(fork_id) is not None
+    graph = session._engine._qitos_work_graph
+    assert graph.operation_receipts[0].state == "declared"
+    Path(os.environ["QITOS_G4_CONTROL"]).write_text(
+        json.dumps({"session_id": session.session_id.value, "fork_id": fork_id}),
+        encoding="utf-8",
+    )
+    os._exit(0)
+
+
+def prepare_restore() -> None:
+    control = json.loads(Path(os.environ["QITOS_G4_CONTROL"]).read_text())
+    store = SqliteCheckpointStore(os.environ["QITOS_G4_DB"])
+    scheduler = Scheduler(admit_queued=True)
+    runtime = _runtime(store, scheduler)
+    runtime.resolvers = _restore_registry(store, control["session_id"])
+    session = Engine.restore(control["session_id"], runtime=runtime)
+    before = session._engine._qitos_work_graph.operation_receipts[0]
+    recovered = session.recover_work()[0]
+    descriptor = WorkDescriptor.from_dict(recovered.descriptor)
+    fork = descriptor.fork_receipts[0]
+    result = {
+        "before": before.state,
+        "after": recovered.state,
+        "operation_id": recovered.operation_id,
+        "dispatches": [item.operation_id for item in scheduler.requests],
+        "fork_reused": (
+            fork["operation_id"] == control["fork_id"]
+            and store.get_session_fork(control["fork_id"]) is not None
+        ),
+    }
+    print(json.dumps(result, sort_keys=True))
+    store.close()
+
+
 if __name__ == "__main__":
-    {"create": create, "restore": restore}[os.environ["QITOS_G4_PHASE"]]()
+    {
+        "create": create,
+        "restore": restore,
+        "prepare_create": prepare_create,
+        "prepare_restore": prepare_restore,
+    }[os.environ["QITOS_G4_PHASE"]]()

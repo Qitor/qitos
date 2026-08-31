@@ -69,7 +69,7 @@ _DURABLE_OPERATIONS = frozenset(
 )
 _OPERATION_STATES = frozenset(
     {
-        "declared", "queued", "dispatched", "running", "completed", "failed",
+        "declared", "dispatchable", "queued", "dispatched", "running", "completed", "failed",
         "cancelled", "cancellation_requested_worker_still_running", "outcome_unknown",
         "rejected",
     }

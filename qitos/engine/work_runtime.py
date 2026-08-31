@@ -223,6 +223,47 @@ class DurableWorkRuntime:
         persist: Callable[[], None],
         generation: int = 0,
     ) -> WorkOperationReceipt:
+        receipt = self.declare(
+            graph=graph,
+            descriptor=descriptor,
+            persist=persist,
+            generation=generation,
+        )
+        with self._lock:
+            current = _operation(graph, receipt.operation_id)
+            if current is None:
+                raise WorkRuntimeError(
+                    "operation_not_found",
+                    "declared operation disappeared before preparation",
+                    operation_id=receipt.operation_id,
+                )
+            if current.state == "declared":
+                prepared = replace(
+                    current,
+                    state="dispatchable",
+                    descriptor=descriptor.to_dict(),
+                )
+                self._replace(graph, prepared)
+                try:
+                    persist()
+                except Exception:
+                    self._replace(graph, current)
+                    raise
+                current = prepared
+            if current.state == "dispatchable":
+                persisted = WorkDescriptor.from_dict(current.descriptor or {})
+                return self._dispatch(graph, current, persisted, persist)
+            return current
+
+    def declare(
+        self,
+        *,
+        graph: WorkGraph,
+        descriptor: WorkDescriptor,
+        persist: Callable[[], None],
+        generation: int = 0,
+    ) -> WorkOperationReceipt:
+        """Persist an operation identity before child or transfer preparation."""
         operation_id = descriptor.operation_id
         operation = descriptor.operation
         digest = _payload_digest(descriptor.task_input)
@@ -251,21 +292,34 @@ class DurableWorkRuntime:
             except Exception:
                 graph.operation_receipts.pop()
                 raise
-
-            return self._dispatch(graph, receipt, descriptor, persist)
+            return receipt
 
     def recover(
         self,
         graph: WorkGraph,
         *,
         persist: Callable[[], None],
+        prepare: Callable[[WorkDescriptor], WorkDescriptor] | None = None,
     ) -> tuple[WorkOperationReceipt, ...]:
         recovered: list[WorkOperationReceipt] = []
         with self._lock:
             original = list(graph.operation_receipts)
             dirty = False
             for receipt in tuple(graph.operation_receipts):
-                if receipt.state in {"declared", "queued"}:
+                if receipt.state == "declared":
+                    if receipt.descriptor is None or prepare is None:
+                        continue
+                    descriptor = prepare(WorkDescriptor.from_dict(receipt.descriptor))
+                    recovered.append(
+                        self.submit(
+                            graph=graph,
+                            descriptor=descriptor,
+                            persist=persist,
+                            generation=receipt.generation,
+                        )
+                    )
+                    continue
+                if receipt.state in {"dispatchable", "queued"}:
                     if receipt.descriptor is None:
                         rejected = replace(
                             receipt, state="rejected", admission_state="closed"

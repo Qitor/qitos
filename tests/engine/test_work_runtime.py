@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import threading
 from typing import Any, Callable
 
@@ -10,7 +11,7 @@ from qitos.core.action import Action
 from qitos.core.agent_module import AgentModule
 from qitos.core.decision import Decision
 from qitos.core.state import StateSchema
-from qitos.core.session import SessionLifecycle
+from qitos.core.session import SessionLifecycle, SessionSnapshot
 from qitos.core.session import PauseSafety, SafeBoundaryKind
 from qitos.core.tool_registry import ToolRegistry
 from qitos.core.tool import tool
@@ -187,6 +188,28 @@ def test_scheduler_conformance_persists_declaration_before_dispatch() -> None:
     assert graph.operation_receipts[0].terminal_receipt_ref
 
 
+def test_declared_preparation_requires_composition_and_never_dispatches_raw() -> None:
+    graph = WorkGraph("graph:declared")
+    runtime = DurableWorkRuntime(IndependentSchedulerFake())
+    receipt = runtime.declare(
+        graph=graph,
+        descriptor=_descriptor("delegate:declared", "delegate", {"task": "safe"}),
+        persist=lambda: None,
+    )
+    restored = WorkGraph.from_canonical_dict(graph.to_persistence_dict())
+    scheduler = IndependentSchedulerFake()
+
+    recovered = DurableWorkRuntime(scheduler).recover(
+        restored,
+        persist=lambda: None,
+    )
+
+    assert receipt.state == "declared"
+    assert recovered == ()
+    assert restored.operation_receipts[0].state == "declared"
+    assert scheduler.requests == []
+
+
 def test_same_identity_is_idempotent_and_different_payload_conflicts() -> None:
     graph = WorkGraph("graph:idempotency")
     scheduler = IndependentSchedulerFake()
@@ -316,7 +339,7 @@ def test_store_failure_after_dispatch_is_typed_unknown_not_replayed() -> None:
     def persist() -> None:
         nonlocal commits
         commits += 1
-        if commits > 1:
+        if commits > 2:
             raise OSError("store unavailable")
 
     with pytest.raises(WorkRuntimeError) as caught:
@@ -440,3 +463,103 @@ def test_handoff_commits_one_owner_and_fences_superseded_source() -> None:
         session.spawn("parent", task="late source")
     assert fenced.value.code == "superseded_owner"
     assert len(scheduler.requests) == 1
+
+
+def test_preparation_crash_reuses_fork_and_original_operation_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler = IndependentSchedulerFake()
+    session, runtime = _paused_session(DurableWorkRuntime(scheduler))
+
+    def crash_after_fork(**kwargs: Any) -> Any:
+        del kwargs
+        raise RuntimeError("injected preparation process loss")
+
+    monkeypatch.setattr(session, "_execute_child_transfer", crash_after_fork)
+    with pytest.raises(RuntimeError, match="preparation process loss"):
+        session.delegate("parent", task="resume prepared child", operation_id="delegate:prepare")
+
+    graph = session._engine._qitos_work_graph
+    assert graph.operation_receipts[0].state == "declared"
+    assert len(graph.work_items) == 1
+    fork_id = "fork_" + hashlib.sha256(b"delegate:prepare:0").hexdigest()[:32]
+    first_fork = runtime.checkpoint_store.get_session_fork(fork_id)
+    assert first_fork is not None
+
+    clean_scheduler = IndependentSchedulerFake()
+    clean_runtime = RuntimeComposition(
+        checkpoint_store=runtime.checkpoint_store,
+        resolvers=runtime.resolvers.copy(),
+        lifecycle_policy=_PauseAtFirstBoundary(),  # type: ignore[arg-type]
+        work_runtime=DurableWorkRuntime(clean_scheduler),
+    )
+    restored = Engine.restore(session.session_id, runtime=clean_runtime)
+    recovered = restored.recover_work()
+    descriptor = WorkDescriptor.from_dict(recovered[0].descriptor)
+
+    assert recovered[0].operation_id == "delegate:prepare"
+    assert recovered[0].state == "dispatched"
+    assert clean_scheduler.requests[0].operation_id == "delegate:prepare"
+    assert SessionForkReceipt.from_dict(descriptor.fork_receipts[0]) == first_fork
+    assert clean_runtime.checkpoint_store.get_session_fork(fork_id) == first_fork
+
+
+def test_handoff_process_loss_before_and_after_owner_commit_has_one_owner(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler = IndependentSchedulerFake()
+    session, runtime = _paused_session(DurableWorkRuntime(scheduler))
+    original_commit = session._commit_work_graph
+    commits = 0
+
+    def fail_before_owner_commit() -> None:
+        nonlocal commits
+        commits += 1
+        if commits == 2:
+            raise OSError("injected pre-ownership commit loss")
+        original_commit()
+
+    monkeypatch.setattr(session, "_commit_work_graph", fail_before_owner_commit)
+    with pytest.raises(OSError, match="pre-ownership"):
+        session.handoff("parent", operation_id="handoff:crash-window")
+    before = session._engine._qitos_work_graph
+    assert before.operation_receipts[0].state == "declared"
+    assert before.transfers == []
+    assert before.work_items[session.work_item_id].owner.agent_id == session._agent_id
+
+    clean_scheduler = IndependentSchedulerFake()
+    clean_runtime = RuntimeComposition(
+        checkpoint_store=runtime.checkpoint_store,
+        resolvers=runtime.resolvers.copy(),
+        lifecycle_policy=_PauseAtFirstBoundary(),  # type: ignore[arg-type]
+        work_runtime=DurableWorkRuntime(clean_scheduler),
+    )
+    restored = Engine.restore(session.session_id, runtime=clean_runtime)
+    restored.recover_work()
+    committed = restored._engine._qitos_work_graph
+    assert len(committed.transfers) == 1
+    assert committed.work_items[restored.work_item_id].owner.agent_id != restored._agent_id
+
+    durable_head = clean_runtime.checkpoint_store.get_session_head(
+        restored.session_id.value
+    )
+    assert durable_head is not None
+    durable_record = clean_runtime.checkpoint_store.get_session_snapshot(
+        durable_head.snapshot_id
+    )
+    assert durable_record is not None
+    durable_snapshot = SessionSnapshot.from_dict(
+        durable_record.payload,
+        component_registry=clean_runtime.component_registry,
+    )
+    work_component = next(
+        item for item in durable_snapshot.components if item.slot == "work_graph"
+    )
+    after_graph = WorkGraph.from_canonical_dict(
+        work_component.to_dict()["payload"]["graph"]
+    )
+    assert len(after_graph.transfers) == 1
+    assert (
+        after_graph.work_items[restored.work_item_id].owner.agent_id
+        != restored._agent_id
+    )
