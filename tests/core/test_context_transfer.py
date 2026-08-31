@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import ast
+import hashlib
 import json
+import re
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -60,6 +64,15 @@ AUTHORITY_NAMES = {
     "caller_transfer_policy",
 }
 FIXTURE = Path(__file__).parents[1] / "fixtures" / "context_transfer" / "v1" / "semantic_fixtures.json"
+REPOSITORY_ROOT = Path(__file__).parents[2]
+PRODUCER_MANIFEST = (
+    REPOSITORY_ROOT
+    / "tests"
+    / "fixtures"
+    / "context_transfer"
+    / "v1"
+    / "producer-manifest.json"
+)
 
 
 def _ids() -> dict[str, Any]:
@@ -583,3 +596,46 @@ def test_producer_semantic_fixture_is_exact_and_complete():
         "artifact_private", "capability_escalation", "budget_escalation",
         "portable_boundary", "strict_round_trip", "third_party_protocols",
     } == case_ids
+
+
+def test_producer_manifest_binds_committed_source_paths_digests_and_test_nodes():
+    manifest = json.loads(PRODUCER_MANIFEST.read_text(encoding="utf-8"))
+    producer_commit = manifest["producer_commit"]
+    assert re.fullmatch(r"[0-9a-f]{40}", producer_commit)
+    subprocess.run(
+        ["git", "cat-file", "-e", f"{producer_commit}^{{commit}}"],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    subprocess.run(
+        ["git", "cat-file", "-e", f"{producer_commit}:qitos/core/context_transfer.py"],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    paths = [item["path"] for item in manifest["producer_files"]]
+    assert len(paths) == len(set(paths))
+    for item in manifest["producer_files"]:
+        relative = Path(item["path"])
+        assert not relative.is_absolute()
+        assert ".." not in relative.parts
+        producer_file = REPOSITORY_ROOT / relative
+        assert producer_file.is_file(), item["path"]
+        assert hashlib.sha256(producer_file.read_bytes()).hexdigest() == item["sha256"]
+
+    for node_id in manifest["producer_test_node_ids"]:
+        path_text, separator, function_name = node_id.partition("::")
+        assert separator and function_name.startswith("test_")
+        test_path = REPOSITORY_ROOT / path_text
+        assert test_path.is_file(), path_text
+        tree = ast.parse(test_path.read_text(encoding="utf-8"))
+        functions = {
+            node.name
+            for node in tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        }
+        assert function_name in functions, node_id

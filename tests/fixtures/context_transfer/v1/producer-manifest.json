@@ -16,7 +16,7 @@
     },
     {
       "path": "tests/core/test_context_transfer.py",
-      "sha256": "5bd11281472a7d3d699dc1f59314e3e46ee580bc6681d1f912c6b364eed2f7e1"
+      "sha256": "821324b5589cef948add705ba47edd0a66545f84552e9690624b8412c4359361"
     },
     {
       "path": "tests/fixtures/context_transfer/v1/semantic_fixtures.json",
@@ -24,7 +24,7 @@
     },
     {
       "path": "tests/fixtures/context_transfer/v1/qualification-evidence.json",
-      "sha256": "7129819f1daf9bed9676b0f0a55e6c8572606773141c39dfda7470d047d406ef"
+      "sha256": "4d07ee6add419bc5021797549a64b527dddd50fb8be15564ad992195b460126b"
     },
     {
       "path": "tests/fixtures/context_transfer/README.md",
@@ -32,7 +32,7 @@
     },
     {
       "path": "docs/internal/plans/s3_b_transfer_authority.md",
-      "sha256": "92896c71660f13f2c832ab733bb1553b42a7072ae3d22e204894aa97d856a9d9"
+      "sha256": "2a295e291e66303742d06370c38b699b983231bc1001ae8dab618584d3f77be8"
     }
   ],
   "module_contract": {
@@ -106,7 +106,8 @@
     "tests/core/test_context_transfer.py::test_independent_policy_and_projector_protocol_conformance",
     "tests/core/test_context_transfer.py::test_fail_closed_destination_resolver_and_incomplete_authority",
     "tests/core/test_context_transfer.py::test_destination_bound_and_non_json_live_objects_fail_closed",
-    "tests/core/test_context_transfer.py::test_producer_semantic_fixture_is_exact_and_complete"
+    "tests/core/test_context_transfer.py::test_producer_semantic_fixture_is_exact_and_complete",
+    "tests/core/test_context_transfer.py::test_producer_manifest_binds_committed_source_paths_digests_and_test_nodes"
   ],
   "lane_c_consumer_contract": [
     "Import the real module-level plan and receipt types from qitos.core.context_transfer.",

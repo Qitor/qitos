@@ -31,9 +31,14 @@
       "result": "2290 passed, 50 skipped"
     },
     {
-      "command": "python scripts/static_quality.py check",
-      "status": "blocked_environment",
-      "result": "quality toolchain package metadata missing for flake8; standalone flake8 gate passed"
+      "command": "/opt/anaconda3/bin/python scripts/static_quality.py check",
+      "status": "passed",
+      "result": "Python 3.12.7; 376 findings baselined (354 active, 22 vendored/generated)"
+    },
+    {
+      "command": "pytest -q tests/core/test_context_transfer.py::test_producer_manifest_binds_committed_source_paths_digests_and_test_nodes",
+      "status": "passed",
+      "result": "exact source commit, producer paths, SHA-256 digests, and pytest node IDs verified"
     }
   ],
   "claims": [
