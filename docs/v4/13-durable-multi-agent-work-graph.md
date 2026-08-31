@@ -1,7 +1,8 @@
 # Task 13 — durable multi-agent work graph and ownership transfer
 
-Status: 13A contract is promoted at G2 baseline `c0f19cd...`;
-behavior still waits for Task 12's clean-process slice
+Status: 13A contract code is promoted through `c0f19cd...`; the S2 supporting
+slice is authorized from `446a347d1ac73636476ca2515a01da601b567c68`;
+persistent child scheduling remains deferred to S3
 Depends on: Task 12A–12D; consumes Tasks 02, 03, and 04 contracts
 Feeds: Task 05 lineage/observability, Task 10 convergence, and native multi-agent
 research methods
@@ -43,6 +44,13 @@ These are valuable in-process mechanisms, but not a durable multi-agent runtime:
 
 Task 13 evolves these mechanisms in place. It does not create a second agent
 loop or encode manager/reviewer/coder strategies into the framework.
+
+Dispatch note: G2 is closed and S2 is ready. The S2 tool/effect/work-graph
+supporting work must branch from fixed baseline
+`446a347d1ac73636476ca2515a01da601b567c68`; later documentation-only ledger
+commits do not redefine it. Task 13's persistent child scheduler and
+cross-process multi-agent execution remain S3 work, and no such runtime is
+implemented here.
 
 ## 3. Exact operation semantics
 

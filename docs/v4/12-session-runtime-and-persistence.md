@@ -1,6 +1,7 @@
 # Task 12 — durable session runtime and process-independent resume
 
-Status: 12A contract is promoted at G2 baseline `c0f19cd...`; runtime not implemented
+Status: 12A contract code is promoted through `c0f19cd...`; S2 Lane A is
+authorized from `446a347d1ac73636476ca2515a01da601b567c68`; runtime not implemented
 Depends on: Task 01; coordinates with Tasks 02, 03, 04, and 09
 Unblocks: Task 05 schema freeze, Task 13 durable multi-agent work, and the v4
 long-horizon reference flow
@@ -52,6 +53,11 @@ They are not yet one durable session protocol:
 
 Task 12 converges these pieces in place. It must not add a second Engine, a
 parallel checkpoint store, or a durable Python-stack serializer.
+
+Dispatch note: G2 is closed and S2 is ready. Lane A must branch from the fixed
+S2 dispatch baseline `446a347d1ac73636476ca2515a01da601b567c68`. Later
+documentation-only ledger commits do not redefine that ancestry. This status
+authorizes implementation work; it does not claim the runtime exists.
 
 ## 3. Identity and lineage contract
 

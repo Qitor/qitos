@@ -1,7 +1,7 @@
 # S2 single-agent continuity runtime wave
 
-Status: planned; blocked until the G2-R2 closure HEAD passes final gates and
-remote verification
+Status: ready for four-lane dispatch
+Baseline: `446a347d1ac73636476ca2515a01da601b567c68`
 Updated: 2026-08-31
 Owner: v4 integration owner with four capability lanes
 Source gate: [`g2_r2_promotion_audit.md`](g2_r2_promotion_audit.md)
@@ -24,7 +24,7 @@ start session
 ```
 
 S2 proves single-agent continuity first. Persistent child scheduling and
-cross-process multi-agent execution remain blocked until this slice passes.
+cross-process multi-agent execution remain deferred to S3.
 
 ## Public developer experience
 
@@ -117,11 +117,11 @@ writer rollout.
 
 ## Concurrency and freeze points
 
-All lanes branch from one exact G2-R2 baseline: the final promotion/cleanup
-evidence commit at `feat/campaign-absorption` HEAD after final-head gates and
-remote SHA verification, not the pre-evidence contract code head
-`c0f19cd...`. They may concurrently perform census, local implementation,
-fixtures, and failing consumer tests, subject to these freeze points:
+All four lanes branch from one exact G2-R2 baseline:
+`446a347d1ac73636476ca2515a01da601b567c68`, not the promoted contract code
+head `c0f19cd...` and not a later documentation-only successor. They may
+concurrently perform census, local implementation, fixtures, and failing
+consumer tests, subject to these freeze points:
 
 1. A freezes session-head/store operations before C persists pause state.
 2. C freezes partial-batch/effect/quiescence records before A's clean-process
@@ -165,16 +165,17 @@ Required proof:
 - compression/index selection and published performance claims;
 - broad compatibility deletion or public API deprecation.
 
-## Entry gate
+## Entry gate — satisfied
 
-S2 cannot be dispatched until `docs/progress.md` records:
+- [x] `docs/progress.md` records the G2-R2 fixing commits and independent validation.
+- [x] Local, tracking, and remote refs were verified at
+      `446a347d1ac73636476ca2515a01da601b567c68` with `0/0` divergence.
+- [x] The primary worktree was clean and the retirement receipt was complete.
+- [x] All 17 retired-worktree branch refs remain available.
+- [x] No G2 contract/privacy/receipt/interface blocker remains.
 
-- G2-R2 fixing commits and independent validation;
-- one promoted `feat/campaign-absorption` baseline;
-- clean primary worktree;
-- completed worktree-retirement receipt;
-- no unresolved G2 contract/privacy/receipt/interface blocker.
-
-The exact full baseline SHA is the verified local/remote
-`feat/campaign-absorption` HEAD reported by the G2-R2 closure task. S2 runtime
-implementation has not started before that handoff.
+S2 implementation has not started. Lane A, C, B, and D must each be created
+from `446a347d1ac73636476ca2515a01da601b567c68`. Later ledger-only commits do
+not change the fixed dispatch ancestry. Persistent child scheduling,
+cross-process multi-agent execution, and parent/child process-loss drills remain
+S3 work.

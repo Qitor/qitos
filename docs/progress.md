@@ -8,9 +8,9 @@ S1 dispatch baseline: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
 G2 candidate: `cab8fd246d2485784a13558e668eadb3ffa4d42f`
 G2-R2 repair branch: `codex/v4-g2-r2-promotion` through `49fa15b5b0499e3f2a1bb4ea86b2af7a143f3e5c`
 Promoted G2 contract code head: `c0f19cd8f19a223fc84844f8a6a0ae4a5d0145aa`
-S2 dispatch baseline: final closure commit at `feat/campaign-absorption` HEAD,
-after final-head gates and remote SHA verification
-Current gate: **G2 promoted and retired; final evidence/push verification in progress**
+S2 dispatch baseline:
+`446a347d1ac73636476ca2515a01da601b567c68`
+Current gate: **G2 CLOSED; S2 authorized for four-lane dispatch**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md)
 and [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md)
@@ -35,20 +35,20 @@ Maintain it with these rules:
 
 ## 2. Current decision
 
-The G2 promotion and retirement work is closed locally. The original candidate
-remains historical evidence; the authoritative contract code head is the
-repaired replay `c0f19cd8f19a223fc84844f8a6a0ae4a5d0145aa`, fast-forwarded
-from the exact dispatch SHA without a merge commit. The primary checkout passed
-the full gate matrix, and all explicitly retired worktrees were removed without
-force while their branch refs remained available.
+**G2 CLOSED.** The A/C/B/D contracts are integrated, all five independently
+audited R2 blocker groups are closed, and the original candidate remains only
+historical evidence. The promoted contract code head is
+`c0f19cd8f19a223fc84844f8a6a0ae4a5d0145aa`; the final qualified S2 dispatch
+baseline is `446a347d1ac73636476ca2515a01da601b567c68`. Local, tracking, and
+remote refs were verified at that SHA with `0/0` divergence.
 
-This baseline contains contracts and migrations only. It does not contain a
-Session façade/runtime, SessionStore, persistent child scheduler, provider
-default switch, Trajectory writer/store, or qita migration. The four-lane
-[`S2 runtime wave`](internal/plans/s2_runtime_wave.md) may branch only from the
-final closure commit at `feat/campaign-absorption` HEAD after its full gate
-matrix and remote ref are verified; no S2 implementation has started in this
-task.
+**S2 READY.** The four-lane
+[`S2 runtime wave`](internal/plans/s2_runtime_wave.md) is authorized to create
+Lane A, C, B, and D from the fixed `446a347...` baseline. S2 implementation has
+not started: there is still no Session façade/runtime, SessionStore, persistent
+child scheduler, provider-default switch, Trajectory writer/store, or qita
+migration. This documentation-truth commit is a ledger-only successor and does
+not redefine the S2 dispatch baseline.
 
 ### G2-R2 repair qualification (pre-promotion)
 
@@ -120,9 +120,25 @@ GiB). Removal used only `git worktree remove <exact-target>` without
 After prune, Git registers only the primary worktree, all 17 recorded branch
 refs resolve, and the retired worktree disk total is zero. The remaining
 primary checkout measured `701,380 KiB`. The promoted contract code head is
-`c0f19cd...`; the following documentation-only closure commit at
-`feat/campaign-absorption` HEAD is the sole S2 dispatch baseline after its final
-gates and remote SHA verification.
+`c0f19cd...`; the independently qualified and remotely verified S2 dispatch
+baseline is `446a347d1ac73636476ca2515a01da601b567c68`.
+
+### Documentation truth closure verification
+
+The fixed dispatch baseline and its documentation-only successor were
+independently checked with `2104 passed, 50 skipped`, the 399-finding ratchet
+(377 active and 22 vendored/generated), clean stable flake8, and clean stable
+mypy over 84 files. Readiness remained honest: 0/21 without receipts, 21/21
+with exact receipts, and exact normal mode exited 2 with 11 S2/runtime/
+Trajectory blockers and no measurements or claims. Before the ledger-only
+successor worktree was created, local and remote divergence was `0/0`, Git
+registered one primary worktree, and all 17 retired-worktree branch refs
+resolved.
+
+### Historical pre-G2/S1 audit context
+
+The following paragraphs and lane table preserve the pre-G2 audit decision.
+They are historical evidence, not the current integration or dispatch state.
 
 The A -> C -> B -> D convergence tree and the bounded G1-R3/R4 repairs are
 integrated at `5ef8ab657f6452ae48c931beea79106e2cca34c6`. C-P3 collision-safe key
@@ -573,7 +589,11 @@ complete. The promoted runtime baseline and all four mirrored worktrees were
 independently verified at `5ef8ab657f6452ae48c931beea79106e2cca34c6`.
 Shared release documents remain integration-owner leases.
 
-## 6. Next work
+## 6. Historical G2-R2 dispatch decision (superseded)
+
+This section records the next-work decision made before G2-R2 promotion. The
+current authorized work is the S2 four-lane wave from fixed baseline
+`446a347d1ac73636476ca2515a01da601b567c68`.
 
 The G2 candidate is complete but not promoted. Dispatch one G2-R2 owner using
 [`g2_r2_promotion_audit.md`](internal/plans/g2_r2_promotion_audit.md). Do not

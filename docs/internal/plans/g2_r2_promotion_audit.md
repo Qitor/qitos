@@ -1,6 +1,6 @@
 # G2-R2 independent repair, promotion, and worktree retirement
 
-Status: promotion and retirement complete; final evidence/push verification pending
+Status: complete — G2 CLOSED; S2 dispatch authorized
 Updated: 2026-08-31
 Owner: one integration owner
 Integration branch: `feat/campaign-absorption`
@@ -38,10 +38,23 @@ The primary checkout repeated the focused, ratchet, flake8, mypy, full-suite,
 readiness, and diff gates successfully. Worktree retirement reduced 18
 registered worktrees to one and reclaimed `11,287,672 KiB` (10.765 GiB) using
 only non-forced `git worktree remove` calls plus prune; all 17 branch refs remain
-reachable. `c0f19cd...` is the promoted contract code head; the
-documentation-only closure commit at the resulting `feat/campaign-absorption`
-HEAD is the sole S2 dispatch baseline once its final gates and remote ref are
-verified.
+reachable. `c0f19cd...` is the promoted contract code head. The independently
+qualified, pushed, and remotely verified S2 dispatch baseline is
+`446a347d1ac73636476ca2515a01da601b567c68`.
+
+## Final closure receipt
+
+Local `feat/campaign-absorption`, its tracking ref, and the read-only remote ref
+were all verified at `446a347d1ac73636476ca2515a01da601b567c68` with divergence
+`0/0`. The final-head focused, full-suite, static, lint/type, readiness, and
+clean-tree gates passed. Git registered one primary worktree after retirement;
+17 superseded worktrees were removed without force and all 17 branch refs were
+retained. These facts close G2.
+
+The sole S2 dispatch baseline remains
+`446a347d1ac73636476ca2515a01da601b567c68`. Documentation-only ledger
+successors record the completed remote state but do not redefine that baseline
+or its ancestry. S2 implementation was not started by G2-R2.
 
 ### Candidate-to-replay commit map
 
@@ -285,6 +298,7 @@ publish the receipt in `docs/progress.md`.
 - [x] Integration branch fast-forwards to the independently qualified HEAD.
 - [x] Promoted-tree gates pass.
 - [x] Superseded worktrees are removed without force; branches/refs remain.
+- [x] Exact local/tracking/remote SHA equality and `0/0` divergence are recorded.
 - [x] One exact S2 baseline is recorded and S2 remains otherwise untouched.
 
 ## Explicit non-goals

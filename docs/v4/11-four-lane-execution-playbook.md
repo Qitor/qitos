@@ -7,12 +7,12 @@ Source tasks: Tasks 02–05 and 08–13
 Baseline: Task 01 complete; exact current integration status lives in
 [`docs/progress.md`](../progress.md)
 
-Current dispatch state: G2-R2 contract code is promoted through `c0f19cd...`;
-primary-checkout gates passed and 17 superseded worktrees were retired without
-force while their branch refs remained. The closure evidence commit at the
-resulting `feat/campaign-absorption` HEAD becomes the sole S2 dispatch baseline
-after final-head gates and remote ref verification. No S2 runtime behavior has
-started.
+Current dispatch state: **G2 CLOSED; S2 READY.** G2-R2 contract code is promoted
+through `c0f19cd...`; primary-checkout gates passed and 17 superseded worktrees
+were retired without force while their branch refs remained. The fixed S2
+dispatch baseline is `446a347d1ac73636476ca2515a01da601b567c68`. No S2 runtime
+behavior has started, and later ledger-only commits do not change that dispatch
+ancestry.
 
 ---
 
@@ -988,10 +988,10 @@ The G2-R2 task defined by
 [`docs/internal/plans/g2_r2_promotion_audit.md`](../internal/plans/g2_r2_promotion_audit.md)
 has repaired the independently reproduced blockers, replayed the candidate,
 promoted contract code through `c0f19cd...`, revalidated the primary tree, and
-retired the explicit worktrees. After the closure evidence commit passes its
-final gates and its local/remote branch SHA is verified, the planned
-[`S2 runtime wave`](../internal/plans/s2_runtime_wave.md) may start from that
-exact final `feat/campaign-absorption` HEAD.
+retired the explicit worktrees. Local, tracking, and remote refs were verified
+at `446a347d1ac73636476ca2515a01da601b567c68` with `0/0` divergence. The
+[`S2 runtime wave`](../internal/plans/s2_runtime_wave.md) is authorized to
+create all four lanes from that exact fixed SHA.
 
 The following R4/S1 dispatch history remains for provenance.
 
@@ -1005,8 +1005,9 @@ passed a fresh scalar-role probe, and reran targeted, readiness, ratchet,
 lint/type, tool-qualification, architecture/public-surface, and full-suite
 gates. G1 is closed.
 
-The maintainer may now dispatch these four S1 packages in parallel from the one
-final post-audit integration HEAD reported with the dispatch:
+At that historical point, the maintainer could dispatch these four S1 packages
+in parallel from the one final post-audit integration HEAD reported with the
+dispatch:
 
 1. **Lane A / 12A:** session identity, lifecycle, safe-boundary, snapshot, and
    resolver ADR plus versioned fixtures; no runtime behavior yet.
@@ -1017,14 +1018,15 @@ final post-audit integration HEAD reported with the dispatch:
 4. **Lane D / lineage intake:** extend readiness/census for Task 12/13 identities
    and receipts; no v2 freeze or performance claim.
 
-These packages are deliberately contract-first and low-conflict. S2 behavior
-begins only after their versioned handoffs are reviewed.
+These packages were deliberately contract-first and low-conflict. Their
+versioned handoffs were later integrated and repaired by G2-R2. The current S2
+dispatch is now authorized from `446a347d1ac73636476ca2515a01da601b567c68`.
 
-Concurrency does not transfer semantic ownership. All four lanes may begin
-census, ADR, fixture, and failing consumer-test work immediately. Lane A owns
-the identity vocabulary; B/C/D may draft provisional adapters but cannot freeze
-or qualify a cross-lane fixture until they consume A's reviewed producer commit.
-The preferred acceptance order remains A -> C -> B -> D.
+At that historical gate, concurrency did not transfer semantic ownership. Lane
+A owned the identity vocabulary, and B/C/D could not qualify cross-lane
+fixtures before consuming A's reviewed producer. That ownership rule remains;
+the S2 acceptance order is A -> C -> B -> D as specified by the current S2
+plan.
 
 The detailed conditional S1 plan is
 [`docs/internal/plans/s1_contract_wave.md`](../internal/plans/s1_contract_wave.md).

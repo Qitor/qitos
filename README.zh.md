@@ -18,7 +18,7 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 
 ## 最新进展
 
-- **G2-R2 契约基线已完成 promotion**：候选提交已重放到包含独立审计的集成基线，并修复 historical ToolResult 严格解析、capability 类型、诊断与 ArtifactRef 安全、接口预算语义及 current/historical receipts。基线 `c0f19cd...` 通过 291 项定向检查与 `2104 passed, 50 skipped` 全量测试；readiness 在无收据时为 0/21、精确收据时为 21/21，同时继续保留 runtime/Trajectory blocker。主工作区复验通过，17 个过期 worktree 已在保留 branch ref 的前提下完成无强制回收。
+- **G2 CLOSED；S2 READY**：G2-R2 已将契约代码提升至 `c0f19cd...`，关闭五组独立审计发现的契约 blocker，并在保留全部 branch ref 的前提下安全回收 17 个过期 worktree。最终合格的 S2 dispatch baseline 固定为 `446a347d1ac73636476ca2515a01da601b567c68`；S2 四条线都必须从该 SHA 创建，后续 ledger-only 提交不会改变它。readiness 在无 receipts 时仍诚实保持 0/21、使用精确 receipts 时为 21/21；剩余 11 个 blocker 属于 S2 runtime/Trajectory，而不是 G2 契约缺陷。S2 implementation 尚未开始。
 - **持久会话与原生多智能体架构**：[Task 12](docs/v4/12-session-runtime-and-persistence.md) 规划了以当前 canonical checkpoint 为唯一持久化机制的安全暂停、跨进程恢复、fork 与 effect-aware recovery；[Task 13](docs/v4/13-durable-multi-agent-work-graph.md) 则把 handoff、delegate、fan-out、spawn、fork、steer、join 明确为一个持久 work graph 上不同的所有权语义。[四产线手册](docs/v4/11-four-lane-execution-playbook.md)也已调整：G1 后工程质量成为跨线合并门禁，四条能力线转为 Session、Conversation/Context、Tools/Multi-Agent、Trajectory/qita/DX。
 - **静态 ratchet 资格验证与可执行贡献门禁**：确定性测试覆盖所有关键 baseline 转换；tool-schema workflow 与仓库测试现在共同执行同一个已提交入口，真实检查已注册 class tools，并包含受控 malformed-spec 失败证明。required-candidate、advisory、stale 与 release-only 角色继续明确记录，同时不声称掌握外部 branch-protection 配置。
 - **证据化 v4 集成进度账本**：[`docs/progress.md`](docs/progress.md) 现在持续记录各产线的准确 HEAD、集成结论、可执行复核探针、跨线契约阻断、合并顺序以及 G1/G2 检查表；收敛波次分支“已完成”与集成分支“已合入并通过资格验证”被明确区分。

@@ -1,6 +1,6 @@
 # G2 stable-contract convergence plan
 
-Status: G2-R2 promotion and worktree retirement complete; closure push pending
+Status: complete — G2 CLOSED at fixed S2 dispatch baseline `446a347d1ac73636476ca2515a01da601b567c68`
 Updated: 2026-08-31
 Owner: one G2 integration owner
 S1 source ancestry baseline: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
@@ -10,11 +10,12 @@ Target worktree: `/Users/morinop/Desktop/WhitzardOS-g2`
 
 ## Post-candidate disposition
 
-Candidate `cab8fd246d2485784a13558e668eadb3ffa4d42f` preserves the intended
+Candidate `cab8fd246d2485784a13558e668eadb3ffa4d42f` preserved the intended
 identity, snapshot, ArtifactRef, WorkGraph, capability-owner, and receipt
-directions and passes its complete repository suite. It is not the integration
-baseline: it branched before `3ab69c91...`, has not been promoted, and its S1/G2
-worktrees remain registered.
+directions and passed its complete repository suite. It was not the integration
+baseline: it branched before `3ab69c91...` and was superseded by the audited
+G2-R2 replay. Its worktree has since been safely retired while its branch ref
+remains available.
 
 Independent probes reopened strict historical ToolResult grammar, strict
 ProviderCapabilities types, complete diagnostic/ArtifactRef secret and path
@@ -28,9 +29,10 @@ five independent contract repair groups through `49fa15b...`. The repair tree
 passes 291 focused tests, `2104 passed, 50 skipped` full-suite validation, the
 399-finding ratchet, stable flake8/mypy, and the three honest readiness modes
 (0/21 without receipts; 21/21 with exact receipts; normal mode still typed
-blocked). It remains a promotion candidate until the primary branch
-fast-forwards, is revalidated, and the explicit worktree-retirement receipt is
-recorded.
+blocked). The primary branch later fast-forwarded, passed revalidation, retired
+the explicit worktrees, and published the closure record at
+`446a347d1ac73636476ca2515a01da601b567c68`. The promotion conditions are
+satisfied and G2 is closed.
 
 ## Objective
 
@@ -270,7 +272,9 @@ typed cleanup blocker rather than forced deletion.
 
 ## Explicit non-goals
 
-This plan does not implement Engine pause/resume/fork, session-head store CAS,
+This plan did not implement Engine pause/resume/fork, session-head store CAS,
 fresh-process restore, child scheduling, cross-process multi-agent execution,
 hard thread cancellation, provider dispatch migration, a trajectory writer or
-store, qita runtime changes, or public root exports. Those start only after G2.
+store, qita runtime changes, or public root exports. S2 implementation may now
+start only from `446a347d1ac73636476ca2515a01da601b567c68`; persistent
+multi-agent scheduling remains deferred to S3.
