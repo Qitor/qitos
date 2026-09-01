@@ -6,6 +6,7 @@ import importlib.util
 import json
 import subprocess
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -26,7 +27,7 @@ def _module():
 
 def _config(path: Path, *, profile: str, credential: str, workspace: Path) -> Path:
     path.write_text(
-        f"""schema: qitos.agent/v1
+        f"""schema: qitos.agent
 agent:
   name: {profile}
   protocol: react_text_v1
@@ -151,7 +152,7 @@ def test_offline_gate_ledger_has_all_required_reachable_gates(tmp_path: Path) ->
     assert report["count"] == 16
     assert report["gates"][-1] == {
         "index": 16,
-        "name": "reachable_g4_live_passed",
+        "name": "privacy_path_and_cleanup_failures",
         "status": "passed",
     }
 
@@ -184,19 +185,12 @@ def test_private_evidence_must_be_outside_repository(tmp_path: Path) -> None:
     assert outside.stat().st_mode & 0o777 == 0o700
 
 
-def test_native_calls_never_parse_assistant_text() -> None:
-    module = _module()
-    response = {
-        "choices": [
-            {
-                "message": {
-                    "content": '{"tool_calls":[{"function":{"name":"fake"}}]}',
-                    "tool_calls": None,
-                }
-            }
-        ]
-    }
-    assert module._native_calls(response) == []
+def test_live_runner_has_no_private_provider_payload_preflight() -> None:
+    source = SCRIPT.read_text(encoding="utf-8")
+
+    assert "def _native_calls" not in source
+    assert 'tool_choice="required"' not in source
+    assert "_call(model" not in source
 
 
 def test_privacy_scan_rejects_values_paths_endpoints_and_auth_markers() -> None:
@@ -320,6 +314,7 @@ def test_live_workflow_builds_two_child_fan_out_transfers_and_join(
     )
     profile = module.load_profiles([path])[0]
     from qitos.config.builder import build_agent_composition as real_build
+    from qitos.config import EnvironmentConfig
     from qitos.kit.env import HostEnv
 
     def fake_build(config: object, **kwargs: object) -> object:
@@ -348,8 +343,28 @@ def test_live_workflow_builds_two_child_fan_out_transfers_and_join(
                     ]
                 }
 
-        return real_build(
+        unsafe_config = replace(
             config,
+            runtime=replace(
+                config.runtime,
+                environment=EnvironmentConfig(
+                    type="unsafe_host",
+                    image="",
+                    workspace=str(workspace),
+                    container_workspace="",
+                    network="host",
+                    read_only_root=False,
+                    cap_drop=False,
+                    no_new_privileges=False,
+                    pids_limit=None,
+                    memory_mb=None,
+                    cpus=None,
+                    cleanup_required=False,
+                ),
+            ),
+        )
+        return real_build(
+            unsafe_config,
             model_override=FakeModel(),
             env_override=HostEnv(workspace_root=str(workspace)),
         )
@@ -368,9 +383,26 @@ def test_live_workflow_builds_two_child_fan_out_transfers_and_join(
             "requests": 1,
             "tool_calls": {"read_file": 1},
             "credential": {"resolver": "local_file"},
+            "sandbox": {"cleanup": "passed"},
         }
 
     monkeypatch.setattr(module, "_run_restore_subprocess", fake_restore)
+    monkeypatch.setattr(
+        module,
+        "_verify_live_artifacts",
+        lambda *args, **kwargs: {"status": "passed"},
+    )
+    monkeypatch.setattr(
+        module,
+        "_close_live_parent_join",
+        lambda *args, **kwargs: {
+            "status": "passed",
+            "state": "closed",
+            "generation": 2,
+            "duplicate_disposition": "duplicate_ignored",
+            "sandbox_cleanup": True,
+        },
+    )
     receipt = module._live_restore_workflows(
         profile, credentials_path=tmp_path / "not-read.yaml"
     )
@@ -379,6 +411,8 @@ def test_live_workflow_builds_two_child_fan_out_transfers_and_join(
     assert receipt["multi_agent"]["child_count"] == 2
     assert receipt["multi_agent"]["context_transfer_receipts"] == 2
     assert receipt["multi_agent"]["fan_out_lineage_distinct"] is True
+    assert receipt["multi_agent"]["join"]["state"] == "closed"
+    assert receipt["multi_agent"]["join"]["generation"] == 2
     assert len(seen) == 3
     assert remaining_limits == sorted(remaining_limits, reverse=True)
     assert len(set(remaining_limits)) == 3
@@ -421,6 +455,7 @@ def test_restore_subprocess_preserves_typed_failure_receipt(
         "status": "failed",
         "error_code": "protocol_error",
         "requests": 2,
+        "request_count_exact": True,
     }
     assert "private provider detail" not in json.dumps(receipt)
     assert calls[0][-2:] == ["--max-requests", "2"]
@@ -442,3 +477,77 @@ def test_model_request_counter_fails_before_exceeding_limit() -> None:
 
     assert exc_info.value.code == "request_budget_exhausted"
     assert counter == {"attempts": 1}
+
+
+def test_primary_failure_stops_parity_and_capability_profiles(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _module()
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "fixture.py").write_text("VALUE = 1\n", encoding="utf-8")
+    profile_ids = ("sii-glm-5-2", "sii-dsv4", "sii-qwen3-8-27b")
+    profiles = module.load_profiles(
+        [
+            _config(
+                tmp_path / f"{index}.yaml",
+                profile=profile_id,
+                credential=f"credential-{index}",
+                workspace=workspace,
+            )
+            for index, profile_id in enumerate(profile_ids)
+        ]
+    )
+    private = tmp_path / "private"
+    private.mkdir(mode=0o700)
+    credentials = private / "credentials.yaml"
+    credentials.write_text(
+        "credentials:\n"
+        "  credential-0: private-zero\n"
+        "  credential-1: private-one\n"
+        "  credential-2: private-two\n",
+        encoding="utf-8",
+    )
+    credentials.chmod(0o600)
+
+    class PassedSandbox:
+        status = "passed"
+
+        def to_dict(self) -> dict[str, object]:
+            return {"status": "passed"}
+
+    monkeypatch.setattr(
+        "qitos.kit.env.docker_qualification.qualify_docker_environment",
+        lambda *args, **kwargs: PassedSandbox(),
+    )
+    monkeypatch.setattr(
+        module,
+        "_prepare_coding_fixture",
+        lambda profile: {"status": "prepared"},
+    )
+    called: list[str] = []
+
+    def failed_primary(profile: object, **kwargs: object) -> dict[str, object]:
+        _ = kwargs
+        called.append(profile.profile_id)
+        return {
+            "status": "failed",
+            "requests": 1,
+            "error_code": "provider_timeout",
+        }
+
+    monkeypatch.setattr(module, "_live_restore_workflows", failed_primary)
+    result = module.qualify(
+        profiles,
+        live=True,
+        source_commit="1" * 40,
+        credentials_path=credentials,
+        execute_offline_gates=False,
+        enforce_current_source=False,
+    )
+
+    assert called == ["sii-glm-5-2"]
+    assert result["profiles"][0]["status"] == "failed"
+    assert result["profiles"][1]["status"] == "not_started"
+    assert result["profiles"][2]["status"] == "not_started"
+    assert result["decision"]["g4_live"] == "provider_timeout"

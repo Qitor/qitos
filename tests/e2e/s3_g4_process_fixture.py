@@ -42,7 +42,8 @@ from qitos.engine.work_runtime import (
 )
 from qitos.kit.tool.agent.durable_adapter import submit_durable_work
 from qitos.qita._cli_app import main as qita_main
-from qitos.tracing.work_graph_reader import work_graph_event_record
+from qitos.tracing.sinks import TrajectoryStoreEventSink
+from qitos.tracing.store import JsonTrajectoryStore
 
 
 @dataclass
@@ -142,8 +143,10 @@ class Scheduler:
 
 
 def _runtime(store: SqliteCheckpointStore, scheduler: Scheduler) -> RuntimeComposition:
-    return RuntimeComposition(
+    trajectory = JsonTrajectoryStore(os.environ["QITOS_G4_CANDIDATE"])
+    runtime = RuntimeComposition(
         checkpoint_store=store,
+        event_sink=TrajectoryStoreEventSink(trajectory),
         lifecycle_policy=PauseFirst(),
         work_runtime=DurableWorkRuntime(
             scheduler,
@@ -158,6 +161,8 @@ def _runtime(store: SqliteCheckpointStore, scheduler: Scheduler) -> RuntimeCompo
             ),
         ),
     )
+    runtime._g4_trajectory_store = trajectory
+    return runtime
 
 
 def _child_ids(receipt: Any) -> list[str]:
@@ -293,7 +298,11 @@ def create() -> None:
     os._exit(0)
 
 
-def _restore_registry(store: SqliteCheckpointStore, session_id: str) -> ResolverRegistry:
+def _restore_registry(
+    store: SqliteCheckpointStore,
+    session_id: str,
+    runtime: RuntimeComposition,
+) -> ResolverRegistry:
     head = store.get_session_head(session_id)
     assert head is not None
     snapshot = store.get_session_snapshot(head.snapshot_id)
@@ -307,57 +316,9 @@ def _restore_registry(store: SqliteCheckpointStore, session_id: str) -> Resolver
             registry.register_resource(reference, agent)
         elif reference.namespace is ResolverNamespace.TOOL_REGISTRY:
             registry.register_resource(reference, agent.tool_registry)
+        elif reference.namespace is ResolverNamespace.RUNTIME_EVENT_SINK:
+            registry.register_resource(reference, runtime.event_sink)
     return registry
-
-
-def _candidate_records(graph: Any, session_id: str) -> list[Any]:
-    records = []
-    for item in graph.work_items.values():
-        records.append(work_graph_event_record(
-            "work_declared",
-            session_id=session_id,
-            run_id="run_g4_restore",
-            work_item_id=item.work_item_id.value,
-            parent_work_item_id=(
-                item.parent_work_item_id.value if item.parent_work_item_id else None
-            ),
-            operation_id=f"declare:{item.work_item_id.value}",
-            owner_generation=item.owner.generation,
-            producer_authority="tests.g4.integrated",
-            record_provenance={"process": "restored"},
-            payload={"lifecycle": item.lifecycle, "owner_id": item.owner.agent_id.value},
-        ))
-    for transfer in graph.transfers:
-        records.append(work_graph_event_record(
-            "ownership_transfer_committed",
-            session_id=session_id,
-            run_id="run_g4_restore",
-            work_item_id=transfer.work_item_id.value,
-            operation_id=transfer.transfer_id,
-            owner_generation=transfer.committed_generation,
-            producer_authority="tests.g4.integrated",
-            record_provenance={"process": "restored"},
-            payload={
-                "from_owner_id": transfer.from_agent_id.value,
-                "to_owner_id": transfer.to_agent_id.value,
-            },
-        ))
-    join = graph.joins[0]
-    records.append(work_graph_event_record(
-        "join_closed",
-        session_id=session_id,
-        run_id="run_g4_restore",
-        work_item_id=join.parent_work_item_id.value,
-        operation_id=join.join_id,
-        producer_authority="tests.g4.integrated",
-        record_provenance={"process": "restored"},
-        payload={
-            "policy": join.policy,
-            "accepted_child_ids": [item.value for item in join.accepted_child_ids],
-            "discarded_child_ids": [item.value for item in join.discarded_child_ids],
-        },
-    ))
-    return records
 
 
 def restore() -> None:
@@ -365,7 +326,7 @@ def restore() -> None:
     store = SqliteCheckpointStore(os.environ["QITOS_G4_DB"])
     scheduler = Scheduler(admit_queued=True)
     runtime = _runtime(store, scheduler)
-    runtime.resolvers = _restore_registry(store, control["session_id"])
+    runtime.resolvers = _restore_registry(store, control["session_id"], runtime)
     session = Engine.restore(control["session_id"], runtime=runtime)
     graph = session._engine._qitos_work_graph
     before = {item.operation_id: item.state for item in graph.operation_receipts}
@@ -406,15 +367,7 @@ def restore() -> None:
     session._commit_work_graph()
 
     candidate = Path(os.environ["QITOS_G4_CANDIDATE"])
-    candidate.write_text(
-        json.dumps({
-            "records": [
-                record.to_dict()
-                for record in _candidate_records(graph, control["session_id"])
-            ]
-        }),
-        encoding="utf-8",
-    )
+    runtime.flush_events()
     graph_output = io.StringIO()
     with redirect_stdout(graph_output):
         graph_code = qita_main([
@@ -457,6 +410,7 @@ def restore() -> None:
         "qita_timeline": timeline_code == 0 and bool(timeline_view["timeline"]),
     }
     print(json.dumps(result, sort_keys=True))
+    runtime._g4_trajectory_store.close()
     store.close()
 
 
@@ -495,7 +449,7 @@ def prepare_restore() -> None:
     store = SqliteCheckpointStore(os.environ["QITOS_G4_DB"])
     scheduler = Scheduler(admit_queued=True)
     runtime = _runtime(store, scheduler)
-    runtime.resolvers = _restore_registry(store, control["session_id"])
+    runtime.resolvers = _restore_registry(store, control["session_id"], runtime)
     session = Engine.restore(control["session_id"], runtime=runtime)
     before = session._engine._qitos_work_graph.operation_receipts[0]
     recovered = session.recover_work()[0]

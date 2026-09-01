@@ -9,8 +9,7 @@ import json
 import re
 import subprocess
 import sys
-import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
@@ -19,7 +18,7 @@ from typing import Any, Mapping, Optional, Sequence
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-SCHEMA_VERSION = "qitos.s3.g4_l2_qualification/v1"
+SCHEMA_VERSION = "qitos.s3.g4_l3_qualification/v1"
 MAX_REQUESTS_PER_PROFILE = 12
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 _HOST_PATH_RE = re.compile(r"(?:/Users/|/home/|[A-Za-z]:\\Users\\)")
@@ -139,118 +138,6 @@ def _validate_source(source_commit: str, *, enforce_current: bool = True) -> Non
         )
 
 
-def _native_message(response: Any) -> Any:
-    choices = getattr(response, "choices", None)
-    if isinstance(choices, list) and choices:
-        return getattr(choices[0], "message", None)
-    if isinstance(response, Mapping):
-        choices = response.get("choices")
-        if isinstance(choices, list) and choices:
-            first = choices[0]
-            return first.get("message") if isinstance(first, Mapping) else None
-    return None
-
-
-def _field(value: Any, name: str) -> Any:
-    return value.get(name) if isinstance(value, Mapping) else getattr(value, name, None)
-
-
-def _native_calls(response: Any) -> list[dict[str, Any]]:
-    """Read only provider-native tool calls; never parse assistant text."""
-    calls = _field(_native_message(response), "tool_calls")
-    if not isinstance(calls, list):
-        return []
-    output: list[dict[str, Any]] = []
-    for item in calls:
-        function = _field(item, "function")
-        call_id = _field(item, "id")
-        name = _field(function, "name")
-        arguments = _field(function, "arguments")
-        if not isinstance(call_id, str) or not isinstance(name, str):
-            continue
-        output.append(
-            {
-                "id": call_id,
-                "type": str(_field(item, "type") or "function"),
-                "function": {
-                    "name": name,
-                    "arguments": str(arguments if arguments is not None else "{}"),
-                },
-            }
-        )
-    return output
-
-
-def _response_text(response: Any) -> str:
-    content = _field(_native_message(response), "content")
-    if isinstance(content, str):
-        return content
-    if isinstance(response, str):
-        return response
-    return ""
-
-
-def _tool(name: str, argument: str) -> dict[str, Any]:
-    return {
-        "type": "function",
-        "function": {
-            "name": name,
-            "description": "Return one harmless qualification value.",
-            "parameters": {
-                "type": "object",
-                "properties": {argument: {"type": "string"}},
-                "required": [argument],
-                "additionalProperties": False,
-            },
-        },
-    }
-
-
-_SINGLE_TOOL = _tool("echo_value", "value")
-_PARALLEL_TOOLS = (
-    _tool("echo_alpha", "alpha"),
-    _tool("echo_beta", "beta"),
-    _tool("echo_gamma", "gamma"),
-)
-
-
-def _safe_response_receipt(response: Any, *, latency_ms: int) -> dict[str, Any]:
-    text = _response_text(response)
-    calls = _native_calls(response)
-    usage = _field(response, "usage")
-    input_tokens = _field(usage, "prompt_tokens") or _field(usage, "input_tokens") or 0
-    output_tokens = (
-        _field(usage, "completion_tokens") or _field(usage, "output_tokens") or 0
-    )
-    total_tokens = _field(usage, "total_tokens") or input_tokens + output_tokens
-    return {
-        "latency_ms": latency_ms,
-        "text_present": bool(text.strip()),
-        "text_digest": _sha256_text(text),
-        "native_tool_call_count": len(calls),
-        "native_tool_names": sorted(
-            str(call["function"]["name"]) for call in calls
-        ),
-        "usage": {
-            "input_tokens": int(input_tokens),
-            "output_tokens": int(output_tokens),
-            "total_tokens": int(total_tokens),
-        },
-    }
-
-
-def _call(model: Any, messages: list[dict[str, Any]], **kwargs: Any) -> tuple[Any, int]:
-    started = time.monotonic()
-    response = model.call_raw(messages, **kwargs)
-    return response, int((time.monotonic() - started) * 1000)
-
-
-def _provider_error_code(exc: BaseException) -> str:
-    name = type(exc).__name__.lower()
-    message = str(exc).lower()
-    return "timeout" if "timeout" in name or "timeout" in message else "provider_error"
-
-
 def _count_model_requests(
     model: Any, *, max_attempts: Optional[int] = None
 ) -> dict[str, int]:
@@ -271,132 +158,89 @@ def _count_model_requests(
 
 
 def _preflight_profile(profile: LiveProfile, resolver: Any) -> dict[str, Any]:
-    from qitos.config.builder import build_model
+    """Run the provider probe through the canonical composition and Engine."""
+    from qitos.config.builder import build_agent_composition
 
-    model = build_model(profile.config.model, credential_resolver=resolver)
-    requests = 0
-    receipts: list[dict[str, Any]] = []
-
-    text_ok = single_ok = parallel_ok = continuation_ok = False
-    error_code: Optional[str] = None
+    composition = build_agent_composition(
+        profile.config, credential_resolver=resolver
+    )
+    counter = _count_model_requests(
+        composition.model,
+        max_attempts=int(profile.config.budgets.max_requests),
+    )
     try:
-        requests += 1
-        response, latency = _call(
-            model,
-            [
-                {
-                    "role": "user",
-                    "content": "Reply with exactly QITOS_PREFLIGHT_OK and no tool call.",
-                }
-            ],
+        task = (
+            profile.config.dataset[0].task
+            if profile.config.dataset
+            else "Use one declared tool, then return a verified final answer."
         )
-        text_ok = "QITOS_PREFLIGHT_OK" in _response_text(response)
-        receipts.append(
-            {"route": "text", **_safe_response_receipt(response, latency_ms=latency)}
+        result = composition.engine.run(task)
+        tool_route = bool(result.tool_calls_by_name)
+        capability_loss = any(
+            event.payload.get("code") == "provider_capability_loss"
+            for event in result.events
         )
-
-        requests += 1
-        response, latency = _call(
-            model,
-            [{"role": "user", "content": "Call echo_value once with value qitos."}],
-            tools=[_SINGLE_TOOL],
-            tool_choice="required",
-        )
-        single_calls = _native_calls(response)
-        single_ok = (
-            len(single_calls) == 1
-            and single_calls[0]["function"]["name"] == "echo_value"
-        )
-        receipts.append(
-            {
-                "route": "single_tool",
-                **_safe_response_receipt(response, latency_ms=latency),
-            }
-        )
-
-        requests += 1
-        response, latency = _call(
-            model,
-            [
-                {
-                    "role": "user",
-                    "content": "In one assistant turn call echo_alpha, echo_beta, and echo_gamma once each.",
-                }
-            ],
-            tools=list(_PARALLEL_TOOLS),
-            tool_choice="required",
-        )
-        parallel_calls = _native_calls(response)
-        parallel_names = {call["function"]["name"] for call in parallel_calls}
-        parallel_ok = parallel_names == {"echo_alpha", "echo_beta", "echo_gamma"}
-        receipts.append(
-            {
-                "route": "parallel_tool",
-                **_safe_response_receipt(response, latency_ms=latency),
-            }
-        )
-
-        continuation_messages: list[dict[str, Any]] = [
-            {
-                "role": "user",
-                "content": "Call all three tools, then after their results reply QITOS_CONTINUATION_OK.",
+        provider_categories = {
+            str(event.payload.get("provider_failure", {}).get("category") or "")
+            for event in result.events
+            if event.payload.get("stage") == "provider_failure"
+        }
+        status = "passed" if result.state.final_result and tool_route else "failed"
+        error_code = None
+        if status == "failed":
+            error_code = (
+                "provider_capability_loss"
+                if capability_loss
+                else "timeout"
+                if "timeout" in provider_categories
+                else "engine_workflow_failed"
+            )
+        receipt = {
+            "profile_id": profile.profile_id,
+            "config_digest": profile.config.digest(),
+            "credential": composition.credential_receipt,
+            "requests": counter["attempts"],
+            "engine": {
+                "run_id": result.run_id,
+                "stop_reason": str(result.state.stop_reason or ""),
+                "final_present": bool(result.state.final_result),
+                "tool_calls": result.tool_calls_by_name,
+                "native_tool_route": tool_route,
             },
-            {"role": "assistant", "content": None, "tool_calls": parallel_calls},
-        ]
-        continuation_messages.extend(
-            {
-                "role": "tool",
-                "tool_call_id": call["id"],
-                "content": json.dumps({"status": "success", "value": "ok"}),
-            }
-            for call in parallel_calls
-        )
-        requests += 1
-        response, latency = _call(
-            model, continuation_messages, tools=list(_PARALLEL_TOOLS)
-        )
-        continuation_ok = "QITOS_CONTINUATION_OK" in _response_text(response)
-        receipts.append(
-            {
-                "route": "continuation",
-                **_safe_response_receipt(response, latency_ms=latency),
-            }
-        )
+            "status": status,
+        }
+        if error_code:
+            receipt["error_code"] = error_code
+        return receipt
     except Exception as exc:
-        error_code = _provider_error_code(exc)
-    status = "passed" if all((text_ok, single_ok, parallel_ok, continuation_ok)) else "failed"
-    if error_code is None and status == "failed":
-        error_code = (
-            "capability_loss"
-            if not single_ok or not parallel_ok
-            else "protocol_error"
-        )
-    result = {
-        "profile_id": profile.profile_id,
-        "config_digest": profile.config.digest(),
-        "credential": dict(getattr(model, "qitos_credential_receipt", {}) or {}),
-        "requests": requests,
-        "routes": receipts,
-        "assertions": {
-            "text": text_ok,
-            "single_tool": single_ok,
-            "parallel_tool": parallel_ok,
-            "continuation": continuation_ok,
-        },
-        "status": status,
-    }
-    if error_code:
-        result["error_code"] = error_code
-    return result
+        return {
+            "profile_id": profile.profile_id,
+            "config_digest": profile.config.digest(),
+            "credential": composition.credential_receipt,
+            "requests": counter["attempts"],
+            "status": "failed",
+            "error_code": getattr(exc, "code", type(exc).__name__),
+        }
+    finally:
+        composition.close()
 
 
 _OFFLINE_NODES = (
     "tests/test_yaml_config.py",
     "tests/test_agent_credentials.py",
-    "tests/test_native_tool_calling_runtime.py::test_default_history_window_never_sends_orphan_parallel_tool_results",
-    "tests/e2e/test_s2_g3_runtime_vertical.py::test_twenty_clean_process_vertical_continuity_rounds",
+    "tests/test_config_security.py",
+    "tests/test_native_tool_calling_runtime.py",
+    "tests/test_config_trajectory_integration.py",
+    "tests/test_sandbox_backend_contract.py",
+    "tests/engine/test_session_runtime.py",
+    "tests/engine/test_work_runtime.py",
+    "tests/checkpoint",
+    "tests/tracing",
+    "tests/test_qita_cli.py",
+    "tests/test_no_local_paths.py",
     "tests/e2e/test_session_core_process_restore.py::test_fresh_process_restore_uses_no_live_parent_object",
-    "tests/e2e/test_multi_agent_process_restore.py::test_clean_process_restores_receipts_without_replaying_unknown",
+    "tests/e2e/test_s3_g4_configured_process_recovery.py",
+    "tests/e2e/test_s3_g4_multi_agent_process_loss.py",
     "tests/test_docker_qualification.py",
 )
 
@@ -425,22 +269,22 @@ def run_offline_gates(
         output_digest = _sha256_text("injected-offline-pass")
         returncode = None
     names = (
-        "strict_parser",
-        "unknown_field_rejection",
-        "canonical_serialization",
-        "credential_non_disclosure",
-        "environment_compatibility_receipts",
-        "fake_resolver_provider_preflight",
-        "fake_single_step",
-        "fake_env_tool_route",
-        "fake_parallel_tools",
-        "fake_continuation",
+        "canonical_config_and_unknown_field_rejection",
+        "compatibility_reader_canonical_writer",
+        "deep_immutability_and_digest",
+        "credential_permissions_and_non_disclosure",
+        "protocol_parser_codec_convergence",
+        "native_tool_and_malformed_response_diagnostics",
+        "tool_use_policy_enforcement",
+        "configured_single_agent_trajectory",
+        "configured_multi_agent_trajectory",
+        "sandbox_structural_conformance",
+        "docker_inspect_attestation",
         "single_agent_clean_process_restore",
         "multi_agent_clean_process_restore",
-        "real_docker_creation_inspect",
-        "real_docker_tools_denials_digest",
-        "source_config_policy_cleanup_binding",
-        "reachable_g4_live_passed",
+        "stale_owner_corrupt_snapshot_and_partial_batch",
+        "qita_graph_timeline_and_replay",
+        "privacy_path_and_cleanup_failures",
     )
     return {
         "status": "passed" if passed else "failed",
@@ -476,6 +320,7 @@ def _restore_worker(
     request_counter = _count_model_requests(
         composition.model, max_attempts=max_requests
     )
+    payload: dict[str, Any]
     try:
         composition.runtime.bind_engine_resources(composition.engine)
         try:
@@ -502,10 +347,18 @@ def _restore_worker(
                 "status": "failed",
                 "error_code": getattr(exc, "code", type(exc).__name__),
             }
-        print(json.dumps(payload, sort_keys=True))
-        return 0 if payload["status"] == "passed" else 1
     finally:
-        composition.close()
+        try:
+            composition.close()
+        except Exception as exc:
+            payload = {
+                **payload,
+                "status": "failed",
+                "error_code": getattr(exc, "code", "sandbox_cleanup_failed"),
+            }
+    payload["sandbox"] = dict(composition.sandbox_receipt)
+    print(json.dumps(payload, sort_keys=True))
+    return 0 if payload["status"] == "passed" else 1
 
 
 def _run_restore_subprocess(
@@ -515,43 +368,67 @@ def _run_restore_subprocess(
     session_id: str,
     max_requests: int,
 ) -> dict[str, Any]:
-    result = subprocess.run(
-        [
-            sys.executable,
-            str(Path(__file__).resolve()),
-            "--restore-worker",
-            "--config",
-            str(config_path),
-            "--credentials",
-            str(credentials_path),
-            "--session-id",
-            session_id,
-            "--max-requests",
-            str(max_requests),
-        ],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        timeout=900,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(Path(__file__).resolve()),
+                "--restore-worker",
+                "--config",
+                str(config_path),
+                "--credentials",
+                str(credentials_path),
+                "--session-id",
+                session_id,
+                "--max-requests",
+                str(max_requests),
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=900,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return {
+            "session_id": session_id,
+            "status": "failed",
+            "error_code": "restore_worker_timeout",
+            "requests": max_requests,
+            "request_count_exact": False,
+            "request_attempt_upper_bound": max_requests,
+        }
     lines = [line for line in result.stdout.splitlines() if line.strip()]
     if not lines:
-        raise QualificationError(
-            "restore worker emitted no receipt", code="restore_worker_no_receipt"
-        )
+        return {
+            "session_id": session_id,
+            "status": "failed",
+            "error_code": "restore_worker_no_receipt",
+            "requests": max_requests,
+            "request_count_exact": False,
+            "request_attempt_upper_bound": max_requests,
+        }
     try:
         receipt = dict(json.loads(lines[-1]))
-    except (TypeError, ValueError, json.JSONDecodeError) as exc:
-        raise QualificationError(
-            "restore worker emitted an invalid receipt",
-            code="restore_worker_invalid_receipt",
-        ) from exc
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return {
+            "session_id": session_id,
+            "status": "failed",
+            "error_code": "restore_worker_invalid_receipt",
+            "requests": max_requests,
+            "request_count_exact": False,
+            "request_attempt_upper_bound": max_requests,
+        }
     if result.returncode != 0 and receipt.get("status") != "failed":
-        raise QualificationError(
-            "restore worker failed without a typed failure receipt",
-            code="restore_worker_failed",
-        )
+        return {
+            "session_id": session_id,
+            "status": "failed",
+            "error_code": "restore_worker_failed",
+            "requests": max_requests,
+            "request_count_exact": False,
+            "request_attempt_upper_bound": max_requests,
+        }
+    receipt["request_count_exact"] = True
     return receipt
 
 
@@ -642,10 +519,12 @@ def _live_restore_workflows(
             ),
         ),
     )
+    identities: dict[str, Any] = {}
+    setup_error: Optional[Exception] = None
     try:
         task = config.dataset[0].task if config.dataset else "Inspect the workspace, run one tool, and finish."
         single = composition.engine.session(task)
-        single.run()
+        single_first = single.run()
         if single.lifecycle.value != "paused":
             raise QualificationError(
                 "single-agent session did not reach a restorable pause",
@@ -654,7 +533,7 @@ def _live_restore_workflows(
         parent = composition.engine.session(
             "Call read_file once for README.md, then after its result return a final answer."
         )
-        parent.run()
+        parent_first = parent.run()
         if parent.lifecycle.value != "paused":
             raise QualificationError(
                 "parent session did not reach a dispatch-safe pause",
@@ -664,23 +543,23 @@ def _live_restore_workflows(
             [
                 {
                     "agent": config.name,
-                    "task": "independent child zero",
+                    "task": "Call read_file once for README.md, then return a concise final answer.",
                     "capabilities": ["read"],
-                    "budget": {"model_requests": 1},
+                    "budget": {"model_requests": 2},
                 },
                 {
                     "agent": config.name,
-                    "task": "independent child one",
+                    "task": "Call read_file once for README.md, then return a concise final answer.",
                     "capabilities": ["read"],
-                    "budget": {"model_requests": 1},
+                    "budget": {"model_requests": 2},
                 },
             ],
-            operation_id="g4-l2-live-fan-out",
+            operation_id="g4-l3-live-fan-out",
         )
         joined = parent.join(
             [fan_out.operation_id],
             policy="all",
-            operation_id="g4-l2-live-join",
+            operation_id="g4-l3-live-join",
         )
         descriptor = WorkDescriptor.from_dict(fan_out.descriptor)
         identities = {
@@ -692,10 +571,34 @@ def _live_restore_workflows(
             "child_work_items": list(descriptor.child_work_item_ids),
             "transfer_receipts": len(descriptor.transfer_receipts),
             "join_operation": joined.operation_id,
+            "initial_single_tool_calls": single_first.tool_calls_by_name,
+            "initial_parent_tool_calls": parent_first.tool_calls_by_name,
+            "sandbox": dict(composition.sandbox_receipt),
         }
+    except Exception as exc:
+        setup_error = exc
     finally:
-        composition.close()
-        composition.runtime.work_runtime.close()
+        try:
+            composition.close()
+        except Exception as exc:
+            setup_error = exc
+        if identities:
+            identities["sandbox"] = dict(composition.sandbox_receipt)
+        try:
+            composition.runtime.work_runtime.close()
+        except Exception as exc:
+            setup_error = setup_error or exc
+    if setup_error is not None:
+        return {
+            "status": "failed",
+            "error_code": getattr(
+                setup_error, "code", type(setup_error).__name__
+            ),
+            "requests": request_counter["attempts"],
+            "sandbox_cleanup": (
+                composition.sandbox_receipt.get("cleanup") == "passed"
+            ),
+        }
     remaining = request_limit - int(identities["parent_requests"])
     if remaining < 1:
         single_receipt = {
@@ -730,12 +633,44 @@ def _live_restore_workflows(
             consumed += int(receipt.get("requests", 0))
             if receipt.get("status") != "passed":
                 break
-    single_tool_route = bool(single_receipt.get("tool_calls"))
+    join_receipt = (
+        _close_live_parent_join(
+            profile,
+            credentials_path=credentials_path,
+            parent_session_id=str(identities["parent"]),
+            child_receipts=child_receipts,
+        )
+        if len(child_receipts) == 2
+        and all(receipt.get("status") == "passed" for receipt in child_receipts)
+        else {"status": "not_started", "sandbox_cleanup": False}
+    )
+    single_tool_route = bool(
+        identities["initial_single_tool_calls"]
+        or single_receipt.get("tool_calls")
+    )
     multi_distinct = (
         len(child_receipts) == 2
         and len(set(identities["child_work_items"])) == 2
         and identities["parent_work_item"] not in identities["child_work_items"]
         and len({receipt.get("session_id") for receipt in child_receipts}) == 2
+    )
+    try:
+        artifact_receipt = _verify_live_artifacts(
+            profile,
+            session_id=str(identities["single"]),
+            parent_session_id=str(identities["parent"]),
+        )
+    except Exception as exc:
+        artifact_receipt = {
+            "status": "failed",
+            "error_code": getattr(exc, "code", type(exc).__name__),
+        }
+    cleanup_passed = (
+        identities["sandbox"].get("cleanup") in {"passed", "not_applicable"}
+        and all(
+            receipt.get("sandbox", {}).get("cleanup") == "passed"
+            for receipt in (single_receipt, *child_receipts)
+        )
     )
     status = (
         "passed"
@@ -744,6 +679,9 @@ def _live_restore_workflows(
         and single_tool_route
         and multi_distinct
         and identities["transfer_receipts"] == 2
+        and join_receipt["status"] == "passed"
+        and artifact_receipt["status"] == "passed"
+        and cleanup_passed
         else "failed"
     )
     return {
@@ -756,13 +694,335 @@ def _live_restore_workflows(
             "context_transfer_receipts": identities["transfer_receipts"],
             "join_operation_digest": _sha256_text(identities["join_operation"]),
             "fan_out_lineage_distinct": multi_distinct,
+            "join": join_receipt,
         },
+        "artifacts": artifact_receipt,
+        "sandbox_cleanup": cleanup_passed,
         "real_tool_route": single_tool_route,
         "credential_re_resolved": all(
             receipt.get("credential", {}).get("resolver") == "local_file"
             for receipt in (single_receipt, *child_receipts)
         ),
         "requests": consumed,
+    }
+
+
+def _close_live_parent_join(
+    profile: LiveProfile,
+    *,
+    credentials_path: Path,
+    parent_session_id: str,
+    child_receipts: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Reconcile actual child results into a fresh-process durable join."""
+    from qitos.config import LocalCredentialFileResolver
+    from qitos.config.builder import build_agent_composition
+    from qitos.core.session import WorkItemIdentity
+    from qitos.core.tool_result import ToolResult
+    from qitos.engine import Engine
+
+    resolver = LocalCredentialFileResolver(credentials_path, repository_root=ROOT)
+    composition = build_agent_composition(
+        profile.config, credential_resolver=resolver
+    )
+    payload: dict[str, Any]
+    try:
+        composition.runtime.bind_engine_resources(composition.engine)
+        parent = Engine.restore(parent_session_id, runtime=composition.runtime)
+        graph = parent._engine._qitos_work_graph
+        child_ids = [
+            WorkItemIdentity(str(receipt["work_item_id"]))
+            for receipt in child_receipts
+        ]
+        join = next(
+            item
+            for item in graph.joins
+            if set(item.child_work_item_ids) == set(child_ids)
+        )
+        dispositions: list[str] = []
+        for index, (child_id, receipt) in enumerate(
+            zip(child_ids, child_receipts, strict=True)
+        ):
+            child = graph.work_items[child_id]
+            outcome = ToolResult(
+                output={
+                    "status": "passed",
+                    "final_result_digest": str(
+                        receipt.get("final_result_digest") or ""
+                    ),
+                }
+            )
+            disposition = graph.record_completion(
+                completion_id=f"g4-l3-live-child-{index}",
+                work_item_id=child_id,
+                owner_generation=child.owner.generation,
+                outcome=outcome,
+            )
+            dispositions.append(disposition)
+            graph.accept_join_result(join.join_id, child_id)
+        generation = next(
+            item.generation for item in graph.joins if item.join_id == join.join_id
+        )
+        duplicate = graph.record_completion(
+            completion_id="g4-l3-live-child-duplicate",
+            work_item_id=child_ids[0],
+            owner_generation=graph.work_items[child_ids[0]].owner.generation,
+            outcome=ToolResult(
+                output={
+                    "status": "passed",
+                    "final_result_digest": str(
+                        child_receipts[0].get("final_result_digest") or ""
+                    ),
+                }
+            ),
+        )
+        graph.accept_join_result(join.join_id, child_ids[0])
+        closed = next(
+            item for item in graph.joins if item.join_id == join.join_id
+        )
+        parent._commit_work_graph()
+        payload = {
+            "status": (
+                "passed"
+                if dispositions == ["committed", "committed"]
+                and duplicate == "duplicate_ignored"
+                and closed.state == "closed"
+                and closed.generation == generation == 2
+                else "failed"
+            ),
+            "completion_dispositions": dispositions,
+            "duplicate_disposition": duplicate,
+            "state": closed.state,
+            "generation": closed.generation,
+            "terminal_receipt_digest": _sha256_text(
+                str(closed.terminal_receipt_ref or "")
+            ),
+        }
+    except Exception as exc:
+        payload = {
+            "status": "failed",
+            "error_code": getattr(exc, "code", type(exc).__name__),
+        }
+    finally:
+        try:
+            composition.close()
+        except Exception as exc:
+            payload = {
+                **payload,
+                "status": "failed",
+                "error_code": getattr(exc, "code", "sandbox_cleanup_failed"),
+            }
+    payload["sandbox_cleanup"] = (
+        composition.sandbox_receipt.get("cleanup") == "passed"
+    )
+    if not payload["sandbox_cleanup"]:
+        payload["status"] = "failed"
+    return payload
+
+
+def _trajectory_path(config: Any) -> Path:
+    output = Path(config.runtime.trajectory.output).expanduser().resolve()
+    return output if output.suffix == ".json" else output / "trajectory.json"
+
+
+def _prepare_coding_fixture(profile: LiveProfile) -> dict[str, Any]:
+    """Restore only the explicitly disposable qualification fixture."""
+    workspace = Path(
+        profile.config.runtime.environment.workspace
+    ).expanduser().resolve()
+    marker = workspace / "README.md"
+    if (
+        workspace.name != "disposable-agent"
+        or not marker.is_file()
+        or "Disposable qualification fixture"
+        not in marker.read_text(encoding="utf-8")
+    ):
+        raise QualificationConfigurationError(
+            "coding qualification workspace is not the declared disposable fixture"
+        )
+    restore = subprocess.run(
+        [
+            "git",
+            "restore",
+            "--worktree",
+            "--",
+            "calculator.py",
+            "tests/test_calculator.py",
+            "README.md",
+        ],
+        cwd=workspace,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    if restore.returncode != 0:
+        raise QualificationConfigurationError(
+            "disposable coding fixture could not be restored"
+        )
+    baseline = subprocess.run(
+        ["git", "diff", "--", "calculator.py", "tests/test_calculator.py"],
+        cwd=workspace,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    if baseline.returncode != 0 or baseline.stdout.strip():
+        raise QualificationConfigurationError(
+            "disposable coding fixture did not return to its clean baseline"
+        )
+    return {
+        "status": "prepared",
+        "baseline_digest": _sha256_text(
+            (workspace / "calculator.py").read_text(encoding="utf-8")
+        ),
+    }
+
+
+def _verify_live_artifacts(
+    profile: LiveProfile,
+    *,
+    session_id: str,
+    parent_session_id: str,
+) -> dict[str, Any]:
+    """Verify source/tests and reopen only canonical trajectory bytes."""
+    from qitos.config.builder import build_environment
+    from qitos.qita.reader import candidate_file_reader, load_session_payload
+    from qitos.tracing.trajectory import PrivacyView
+    from qitos.tracing.work_graph_reader import GraphSelector, WorkGraphReader
+
+    env = build_environment(profile.config)
+    container = str(getattr(env, "container", "") or "")
+    try:
+        tests = env.cmd.run("python3 -m pytest -q", timeout=180)
+        source_diff = env.cmd.run("git diff -- calculator.py", timeout=30)
+    finally:
+        env.close()
+    cleanup = subprocess.run(
+        ["docker", "inspect", container],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    reader = candidate_file_reader(_trajectory_path(profile.config))
+    trajectory = reader.read_session(session_id, view=PrivacyView.RAW_PRIVATE)
+    qita_session = load_session_payload(reader, session_id)
+    graph = WorkGraphReader(reader).read(
+        GraphSelector("session", parent_session_id)
+    )
+    kinds = sorted({record.kind.value for record in trajectory.records})
+    tests_passed = int(tests.get("returncode", 1)) == 0
+    diff_text = str(source_diff.get("stdout", ""))
+    source_changed = (
+        int(source_diff.get("returncode", 1)) == 0
+        and bool(diff_text.strip())
+        and "return max(low, min(value, high))" in diff_text
+    )
+    qita_readable = (
+        qita_session.get("trajectory_meta", {}).get("session_id") == session_id
+        and bool(graph.timeline)
+        and graph.session_summary.get("work_item_count", 0) >= 3
+    )
+    status = (
+        "passed"
+        if tests_passed
+        and source_changed
+        and cleanup.returncode != 0
+        and qita_readable
+        else "failed"
+    )
+    return {
+        "status": status,
+        "tests_passed": tests_passed,
+        "test_output_digest": _sha256_text(
+            str(tests.get("stdout", "")) + str(tests.get("stderr", ""))
+        ),
+        "source_changed": source_changed,
+        "source_diff_digest": _sha256_text(diff_text),
+        "trajectory_record_count": len(trajectory.records),
+        "trajectory_kinds": kinds,
+        "qita_session_readable": qita_readable,
+        "qita_graph_work_item_count": graph.session_summary.get(
+            "work_item_count", 0
+        ),
+        "verification_container_absent": cleanup.returncode != 0,
+    }
+
+
+def _qualify_capability_loss_profile(
+    profile: LiveProfile,
+    *,
+    credentials_path: Path,
+) -> dict[str, Any]:
+    """Prove text service and a typed native-tool capability loss via Engine."""
+    from qitos.config import LocalCredentialFileResolver
+    from qitos.config.builder import build_agent_composition
+
+    resolver = LocalCredentialFileResolver(credentials_path, repository_root=ROOT)
+    text_config = replace(
+        profile.config,
+        tools=(),
+        tool_preset="none",
+        tool_options={},
+        tool_use_policy="disabled",
+    )
+    text_composition = build_agent_composition(
+        text_config, credential_resolver=resolver
+    )
+    text_counter = _count_model_requests(
+        text_composition.model,
+        max_attempts=int(profile.config.budgets.max_requests),
+    )
+    try:
+        text_result = text_composition.engine.run(
+            "Return a concise plain-text statement naming the repository title."
+        )
+    finally:
+        text_composition.close()
+    remaining = int(profile.config.budgets.max_requests) - text_counter["attempts"]
+    if remaining < 1:
+        raise QualificationError(
+            "capability probe has no request budget",
+            code="request_budget_exhausted",
+        )
+    native_composition = build_agent_composition(
+        profile.config, credential_resolver=resolver
+    )
+    native_counter = _count_model_requests(
+        native_composition.model, max_attempts=remaining
+    )
+    try:
+        native_result = native_composition.engine.run(
+            "Call read_file once for README.md before returning any final answer."
+        )
+    finally:
+        native_composition.close()
+    capability_loss = any(
+        event.payload.get("code") == "provider_capability_loss"
+        for event in native_result.events
+    )
+    requests = text_counter["attempts"] + native_counter["attempts"]
+    text_ok = bool(text_result.state.final_result)
+    cleanup_ok = (
+        text_composition.sandbox_receipt.get("cleanup") == "passed"
+        and native_composition.sandbox_receipt.get("cleanup") == "passed"
+    )
+    return {
+        "profile_id": profile.profile_id,
+        "role": "capability_loss",
+        "status": (
+            "passed" if text_ok and capability_loss and cleanup_ok else "failed"
+        ),
+        "requests": requests,
+        "text_available": text_ok,
+        "native_tool_capability_loss": capability_loss,
+        "false_tool_success_absent": not bool(native_result.tool_calls_by_name),
+        "error_code": (
+            "provider_capability_loss" if capability_loss else "capability_probe_failed"
+        ),
+        "sandbox_cleanup": cleanup_ok,
     }
 
 
@@ -795,9 +1055,14 @@ def qualify(
     """Run offline gates, then optional live providers and restore workflows."""
     _validate_source(source_commit, enforce_current=enforce_current_source)
     offline = run_offline_gates(profiles, execute_external=execute_offline_gates)
+    created_at = generated_at or datetime.now(timezone.utc).isoformat()
+    round_id = "s3-g4-l3-" + _sha256_text(
+        f"{source_commit}:{created_at}:{SCHEMA_VERSION}"
+    )[:16]
     base: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
-        "generated_at": generated_at or datetime.now(timezone.utc).isoformat(),
+        "qualification_round_id": round_id,
+        "generated_at": created_at,
         "source_commit": source_commit,
         "runner_digest": _sha256_bytes(Path(__file__).read_bytes()),
         "configs": [
@@ -835,7 +1100,6 @@ def qualify(
         return base
     if credentials_path is None:
         raise QualificationConfigurationError("--credentials is required for live mode")
-
     from qitos.config import LocalCredentialFileResolver
     from qitos.kit.env.docker_qualification import (
         SandboxIdentity,
@@ -880,9 +1144,19 @@ def qualify(
         base["privacy"] = _privacy_report(base, forbidden_values)
         base["evidence_digest"] = _evidence_digest(base)
         return base
+    profile_by_id = {profile.profile_id: profile for profile in profiles}
+    required_profile_ids = (
+        "sii-glm-5-2",
+        "sii-dsv4",
+        "sii-qwen3-8-27b",
+    )
+    if set(profile_by_id) != set(required_profile_ids):
+        raise QualificationConfigurationError(
+            "live mode requires the GLM primary, DSV parity, and Qwen capability profiles"
+        )
     try:
         sandbox = qualify_docker_environment(
-            profiles[0].config,
+            profile_by_id[required_profile_ids[0]].config,
             identity=SandboxIdentity(
                 session_id="qualification-session",
                 run_id="qualification-run",
@@ -902,91 +1176,108 @@ def qualify(
         base["evidence_digest"] = _evidence_digest(base)
         return base
     base["sandbox"] = sandbox.to_dict()
-    for profile in profiles:
+    primary = profile_by_id[required_profile_ids[0]]
+    parity = profile_by_id[required_profile_ids[1]]
+    capability = profile_by_id[required_profile_ids[2]]
+
+    def run_workflow(profile: LiveProfile, role: str) -> dict[str, Any]:
         try:
-            receipt = _preflight_profile(profile, resolver)
-        except Exception as exc:
-            receipt = {
-                "profile_id": profile.profile_id,
-                "config_digest": profile.config.digest(),
-                "requests": 0,
-                "status": "failed",
-                "error_code": type(exc).__name__,
-            }
-        base["profiles"].append(receipt)
-        base["totals"]["requests"] += int(receipt.get("requests", 0))
-        for route in receipt.get("routes", []):
-            usage = route.get("usage", {})
-            base["totals"]["input_tokens"] += int(usage.get("input_tokens", 0))
-            base["totals"]["output_tokens"] += int(usage.get("output_tokens", 0))
-            base["totals"]["reported_tokens"] += int(usage.get("total_tokens", 0))
-    qualified_index = next(
-        (
-            index
-            for index, item in enumerate(base["profiles"])
-            if item.get("status") == "passed"
-        ),
-        None,
-    )
-    if qualified_index is not None:
-        try:
-            base["workflows"] = _live_restore_workflows(
-                profiles[qualified_index],
+            fixture = _prepare_coding_fixture(profile)
+            workflow = _live_restore_workflows(
+                profile,
                 credentials_path=credentials_path,
-                request_limit=(
-                    int(profiles[qualified_index].config.budgets.max_requests)
-                    - int(base["profiles"][qualified_index].get("requests", 0))
-                ),
+                request_limit=int(profile.config.budgets.max_requests),
             )
-            base["totals"]["requests"] += int(
-                base["workflows"].get("requests", 0)
+            return {
+                "profile_id": profile.profile_id,
+                "role": role,
+                "config_digest": profile.config.digest(),
+                "fixture": fixture,
+                **workflow,
+            }
+        except Exception as exc:
+            return {
+                "profile_id": profile.profile_id,
+                "role": role,
+                "config_digest": profile.config.digest(),
+                "status": "failed",
+                "requests": 0,
+                "error_code": getattr(exc, "code", "workflow_failure"),
+                "detail_code": type(exc).__name__,
+            }
+
+    primary_receipt = run_workflow(primary, "primary")
+    base["profiles"].append(primary_receipt)
+    base["workflows"]["primary"] = primary_receipt
+    if primary_receipt.get("status") == "passed":
+        parity_receipt = run_workflow(parity, "provider_parity")
+    else:
+        parity_receipt = {
+            "profile_id": parity.profile_id,
+            "role": "provider_parity",
+            "status": "not_started",
+            "requests": 0,
+            "error_code": "primary_dependency_failed",
+        }
+    base["profiles"].append(parity_receipt)
+    base["workflows"]["provider_parity"] = parity_receipt
+    if parity_receipt.get("status") == "passed":
+        try:
+            capability_receipt = _qualify_capability_loss_profile(
+                capability,
+                credentials_path=credentials_path,
             )
         except Exception as exc:
-            base["workflows"] = {
+            capability_receipt = {
+                "profile_id": capability.profile_id,
+                "role": "capability_loss",
                 "status": "failed",
-                "error_code": "workflow_failure",
+                "requests": 0,
+                "error_code": getattr(exc, "code", "capability_probe_failed"),
                 "detail_code": type(exc).__name__,
             }
     else:
-        base["workflows"] = {"status": "not_started"}
+        capability_receipt = {
+            "profile_id": capability.profile_id,
+            "role": "capability_loss",
+            "status": "not_started",
+            "requests": 0,
+            "error_code": "parity_dependency_failed",
+        }
+    base["profiles"].append(capability_receipt)
+    base["workflows"]["capability_loss"] = capability_receipt
+    base["totals"]["requests"] = sum(
+        int(receipt.get("requests", 0)) for receipt in base["profiles"]
+    )
 
     all_passed = (
         sandbox.status == "passed"
-        and qualified_index is not None
-        and all(
-            item.get("status") == "passed"
-            or item.get("error_code") == "capability_loss"
-            for item in base["profiles"]
-        )
-        and base["workflows"].get("status") == "passed"
-        and int(base["profiles"][qualified_index].get("requests", 0))
-        + int(base["workflows"].get("requests", 0))
-        <= int(profiles[qualified_index].config.budgets.max_requests)
+        and all(item.get("status") == "passed" for item in base["profiles"])
         and all(
             int(receipt.get("requests", 0))
-            <= int(profile.config.budgets.max_requests)
-            for index, (profile, receipt) in enumerate(zip(profiles, base["profiles"]))
-            if index != qualified_index
+            <= int(profile_by_id[receipt["profile_id"]].config.budgets.max_requests)
+            for receipt in base["profiles"]
         )
     )
     if all_passed:
         base["decision"] = {
-            "s3_status": "qualified",
+            "s3_status": "closed",
             "g4_live": "passed",
             "s4_ready": True,
             "feature_baseline_promoted": False,
             "default_branch_ready": False,
         }
     else:
-        failures = [
-            str(item.get("error_code") or "provider_error")
-            for item in base["profiles"]
-            if item.get("status") != "passed"
-        ]
-        base["decision"]["g4_live"] = (
-            "workflow_failure"
-            if base["workflows"].get("status") == "failed"
-            else failures[0] if failures else "provider_error"
+        first_failure = next(
+            (
+                item
+                for item in base["profiles"]
+                if item.get("status") != "passed"
+            ),
+            {},
+        )
+        base["decision"]["g4_live"] = str(
+            first_failure.get("error_code") or "provider_error"
         )
     base["privacy"] = _privacy_report(base, forbidden_values)
     if not base["privacy"]["scan_passed"]:
