@@ -9,29 +9,34 @@ description: "QitOS 的 canonical AgentConfig 启动、程序化 composition 与
 qit run --config agent.yaml
 ```
 
-Python 入口复用同一个严格 `AgentConfig` 与 composition root：
+Python 入口复用同一个严格 `AgentConfig` 路径：
 
 ```python
-from qitos.config import LocalCredentialFileResolver, build_agent_composition, load_agent_config
+from qitos.config import run_agent_config
 
-config = load_agent_config("agent.yaml")
-resolver = LocalCredentialFileResolver("<user-config-dir>/credentials.yaml")
-composition = build_agent_composition(config, credential_resolver=resolver)
-result = composition.run()
+result = run_agent_config("agent.yaml")
 ```
 
-canonical `qitos.agent/v1` YAML 根节点固定包含 `schema`、`agent`、`model`、
+canonical `qitos.agent` YAML 根节点固定包含 `schema`、`agent`、`model`、
 `tools`、`runtime`、`budgets`，并可选包含 `context`、`metadata`、`dataset`。
 未知字段、重复键、含糊类型、不安全 YAML tag、缺少必填值与环境插值都会
 失败关闭。仓库提供了
 [`examples/config/agent.yaml`](../../../examples/config/agent.yaml) 这一份供应商无关示例。
 
+`qitos.agent/v1` 只由兼容 reader 接受；canonical writer、示例、CLI receipt
+与文档只输出 `qitos.agent`，也不创建带版本后缀的公共 AgentConfig 类型。
+加载对象深度不可变；canonical JSON 确定且不含已解析 credential、live
+client、本机 source path 或 runtime object。等价配置产生相同 digest，该
+digest 会绑定启动 receipt、Session snapshot/restore 与 Trajectory provenance。
+
 配置只保存逻辑凭据引用，不保存凭据值：
 
 ```yaml
-schema: qitos.agent/v1
+schema: qitos.agent
 agent:
   name: coding-agent
+  protocol: auto
+  parser: auto
 model:
   provider: openai_compatible
   model: example-model
@@ -40,19 +45,84 @@ model:
     ref: example-openai-compatible
 tools:
   preset: env_coding
+  policy: required_before_final
 runtime:
   environment:
-    type: host
+    type: docker
+    image: python:3.12-slim
     workspace: .
+    network: none
+    read_only_root: true
+    cap_drop: true
+    no_new_privileges: true
+    pids_limit: 256
+    memory_mb: 2048
+    cpus: 2
+  trajectory:
+    enabled: true
+    output: ./private-runs
+    privacy: private
+    failure_policy: required
 budgets:
   max_steps: 10
 ```
 
-默认本地 resolver 读取仓库外、权限为 `0600` 的私有凭据文件；
+默认本地 resolver 读取仓库外的私有凭据文件；文件权限必须精确为 `0600`，
+credential 目录不得开放 group/world 权限（不宽于 `0700`）。
 `FakeCredentialResolver` 用于确定性测试；`EnvironmentCredentialResolver`
 仅是显式兼容/部署适配器。环境变量不是 canonical 启动接口，缺失变量始终
-产生 typed failure。canonical serialization 只包含引用与 source digest，
+产生 typed failure。canonical serialization 只包含逻辑引用与安全 digest，
 绝不包含已解析 secret。
+
+protocol 是 request/response 语义的唯一真相。`parser: auto` 从 resolved
+protocol 派生；显式但不兼容的 parser 会在启动前拒绝。provider capability、
+`RequestView`、codec projection、tool schema/choice、reasoning、continuation
+与 response parser 都走同一路径；malformed structured response 与未经授权的
+lossy fallback 是 typed failure，不会被猜成文本成功。
+
+Tool policy 是配置语义，不是 live harness 的 provider 特例：
+
+| Policy | 语义 |
+|---|---|
+| `auto` | 默认；模型可用工具，也可正常结束 |
+| `required_for_next_decision` | 下一次可接受 decision 必须执行工具 action |
+| `required_before_final` | 本次 run 获得真实工具结果前拒绝 final |
+| `disabled` | 不投影 tool schema，也不接受 tool call |
+
+coding/file-write 配置必须使用真实 sandbox backend。Docker reference backend
+从 runtime inspect 事实证明 non-root、只读 rootfs、仅 workspace 可写、禁网、
+capability drop、no-new-privileges、CPU/memory/process 限额、无 credential
+注入、provider request 留在可信 host 以及 cleanup。Docker 不可用返回
+`sandbox_unavailable`，绝不回退 host。`unsafe_host` 是显式未隔离退出选项，
+会生成 unsafe receipt，并拒绝 `network: none`、`read_only_root: true` 等
+Docker-only 声明。
+
+启用 `runtime.trajectory` 时，composition 注册现有 Trajectory EventSink。
+config、sandbox、request/response、tool/effect、pause/snapshot/restore、child/
+WorkGraph、join、failure 与 final 事实均由 canonical runtime 写入，并可由
+现有 reader/qita 重开。private artifact 必须留在 source control 之外；公开
+export 保持 redacted；sink failure 沿用 `required`/`optional` 语义。本轮不冻结
+新的 Trajectory schema。
+
+真实 lower-level composition 用法如下：
+
+```python
+from qitos.config import LocalCredentialFileResolver, build_agent_composition, load_agent_config
+
+config = load_agent_config("agent.yaml")
+resolver = LocalCredentialFileResolver("<user-config-dir>/credentials.yaml")
+composition = build_agent_composition(config, credential_resolver=resolver)
+try:
+    result = composition.engine.run(config.dataset[0].task)
+finally:
+    composition.close()
+```
+
+framework config、本地 credential store、tool sandbox、host-side provider
+request runtime、private trajectory 与 public/redacted export 是不同的 trust
+boundary。QitOS 不声称 distributed scheduler、外部 effect exactly-once、
+Python thread hard cancellation，也不把 Docker reference backend 描述为
+microVM isolation。
 
 底层程序化 API 仍可按三层使用：
 

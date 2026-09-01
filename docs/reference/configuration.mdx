@@ -9,30 +9,37 @@ For a complete agent launch, QitOS has one declarative golden path:
 qit run --config agent.yaml
 ```
 
-The same strict `AgentConfig` and composition root are available from Python:
+The same strict `AgentConfig` path is available from Python:
 
 ```python
-from qitos.config import LocalCredentialFileResolver, build_agent_composition, load_agent_config
+from qitos.config import run_agent_config
 
-config = load_agent_config("agent.yaml")
-resolver = LocalCredentialFileResolver("<user-config-dir>/credentials.yaml")
-composition = build_agent_composition(config, credential_resolver=resolver)
-result = composition.run()
+result = run_agent_config("agent.yaml")
 ```
 
-The canonical `qitos.agent/v1` YAML root has exactly `schema`, `agent`,
+The canonical `qitos.agent` YAML root has exactly `schema`, `agent`,
 `model`, `tools`, `runtime`, and `budgets`, plus optional `context`, `metadata`,
 and `dataset`. Unknown or duplicate fields, ambiguous types, unsafe YAML tags,
 missing required values, and environment interpolation fail closed. A complete
 provider-neutral example is checked in at
 [`examples/config/agent.yaml`](../../examples/config/agent.yaml).
 
+`qitos.agent/v1` is accepted only by a compatibility reader. Canonical
+serialization, examples, CLI receipts, and documentation always write
+`qitos.agent`; there are no public version-suffixed AgentConfig classes. Loaded
+objects are deeply immutable. Their canonical JSON is deterministic and omits
+resolved credentials, live clients, local source paths, and runtime objects, so
+equivalent configuration produces the same digest. That digest binds launch
+receipts, Session snapshots/restores, and Trajectory provenance.
+
 Credentials are logical references, never values:
 
 ```yaml
-schema: qitos.agent/v1
+schema: qitos.agent
 agent:
   name: coding-agent
+  protocol: auto
+  parser: auto
 model:
   provider: openai_compatible
   model: example-model
@@ -41,20 +48,90 @@ model:
     ref: example-openai-compatible
 tools:
   preset: env_coding
+  policy: required_before_final
 runtime:
   environment:
-    type: host
+    type: docker
+    image: python:3.12-slim
     workspace: .
+    network: none
+    read_only_root: true
+    cap_drop: true
+    no_new_privileges: true
+    pids_limit: 256
+    memory_mb: 2048
+    cpus: 2
+  trajectory:
+    enabled: true
+    output: ./private-runs
+    privacy: private
+    failure_policy: required
 budgets:
   max_steps: 10
 ```
 
-The default local resolver reads a private `0600` credential file outside the
-repository. `FakeCredentialResolver` supports deterministic tests.
+The default local resolver reads a private credential file outside the
+repository. The file must be exactly `0600`, and every containing credential
+directory must deny group/world permissions (no broader than `0700`).
+`FakeCredentialResolver` supports deterministic tests.
 `EnvironmentCredentialResolver` is an explicit compatibility/deployment
 adapter; environment variables are not the canonical launch interface and a
 missing variable is always a typed failure. Canonical serialization contains
-the reference and source digest, but never the resolved secret.
+only a credential reference and safe digests, never the resolved secret.
+
+Protocol is the sole request/response semantic authority. `parser: auto`
+derives the parser from the resolved protocol; an explicit incompatible parser
+is rejected before launch. Provider capability declarations, `RequestView`,
+codec projection, tool schemas/tool choice, reasoning and continuation facts,
+and response parsing remain on that same route. Malformed structured responses
+or unauthorized lossy fallback are typed failures rather than text-success
+guesses.
+
+Tool policy is configuration, not a provider-specific harness rule:
+
+| Policy | Meaning |
+|---|---|
+| `auto` | Default; the model may use tools or finish normally |
+| `required_for_next_decision` | The next accepted decision must perform a tool action |
+| `required_before_final` | A final answer is rejected until this run has a real tool result |
+| `disabled` | No tool schema or tool call is accepted |
+
+Coding/file-write configurations use a real sandbox backend. Docker is the
+reference backend and is attested from runtime inspect facts: non-root,
+read-only root filesystem, workspace-only writable mount, disabled network,
+dropped capabilities, no-new-privileges, bounded CPU/memory/processes, no
+credential injection, host-side provider requests, and proven cleanup. Docker
+unavailability is `sandbox_unavailable`; it never falls back to host execution.
+`unsafe_host` is an explicit unisolated opt-out. It emits an unsafe receipt and
+rejects Docker-only claims such as `network: none` or `read_only_root: true`.
+
+When `runtime.trajectory.enabled` is true, composition installs the existing
+Trajectory EventSink. Config, sandbox, request/response, tool/effect,
+pause/snapshot/restore, child/work-graph, join, failure, and final facts flow
+through the canonical runtime and can be reopened by the existing reader and
+qita. `privacy: private` artifacts stay outside source control; public exports
+remain redacted. Sink failure follows the existing `required`/`optional`
+policy. This does not freeze a new Trajectory schema.
+
+The lower-level composition path is also real and explicit:
+
+```python
+from qitos.config import LocalCredentialFileResolver, build_agent_composition, load_agent_config
+
+config = load_agent_config("agent.yaml")
+resolver = LocalCredentialFileResolver("<user-config-dir>/credentials.yaml")
+composition = build_agent_composition(config, credential_resolver=resolver)
+try:
+    result = composition.engine.run(config.dataset[0].task)
+finally:
+    composition.close()
+```
+
+Framework configuration, the local credential store, the tool sandbox, the
+host-side provider request runtime, private trajectory storage, and
+public/redacted exports are separate trust boundaries. QitOS does not claim a
+distributed scheduler, external-effect exactly-once delivery, Python-thread
+hard cancellation, or microVM isolation from the Docker reference backend.
 
 Lower-level programmatic APIs remain available through three overlapping
 layers:

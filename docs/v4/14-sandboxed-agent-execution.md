@@ -1,8 +1,7 @@
 # Task 14 — sandboxed agent execution
 
-Status: architecture planned; G4-L2 has a bounded executable Docker
-qualification harness that passed live attestation/cleanup, but the Agent
-workflow failed and the complete untrusted-agent sandbox is not shipped
+Status: G4-L3 reference contract implemented and under final qualification;
+stronger isolation and the complete managed-sandbox architecture remain planned
 Depends on: Tasks 03, 09, 12, and 13
 Feeds: Task 05 trajectory qualification, S4 developer experience, release gate
 Risk: critical — agents execute model-selected code against files, processes,
@@ -32,6 +31,35 @@ not: one sandbox contract, one Env adapter, one lifecycle/evidence vocabulary,
 and multiple replaceable backends.
 
 ## 2. Current repository truth
+
+G4-L3 adds the first framework-owned structural `SandboxBackend` protocol under
+`qitos.kit.env.sandbox`. It requires prepare, execute, capability inspection,
+cancellation request, cleanup, and durability/safety receipt operations. The
+declarative coding path uses an inspect-backed Docker adapter and fails closed
+when Docker or a required capability is unavailable; it never falls back to the
+host. A third-party adapter can satisfy the same protocol without subclassing
+Docker, and the conformance tests exercise that structural replacement point.
+
+The reference Docker launch attests a non-root user, read-only root filesystem,
+one writable workspace mount, disabled network, all capabilities dropped,
+no-new-privileges, CPU/memory/process bounds, a bounded tmpfs, no credential
+environment, host-side provider requests, and container absence after cleanup.
+Receipts contain digests and capability facts rather than host paths or secret
+values. A partially prepared or later-failing composition must clean up; an
+unproven destroy is `sandbox_cleanup_failed`, not success.
+
+`unsafe_host` is the only declarative host-execution spelling. It is explicit,
+never default for executable tools, publishes `unisolated_host_execution`, and
+rejects Docker-only constraints it cannot enforce. This is a compatibility and
+local-development escape hatch, not a sandbox.
+
+The G4-L3 adapter still bind-mounts the selected host workspace and shares the
+Docker host kernel. It is not a microVM, distributed scheduler, external-effect
+exactly-once mechanism, or Python-thread hard-cancellation guarantee. Private
+workspace staging, stronger runtime classes, disk quotas, network allowlists,
+and managed backends remain later Task 14 work.
+
+### Historical G4-L2 harness
 
 G4-L2 adds a qualification-only harness around the existing `DockerEnv`. It
 creates one uniquely labelled container from canonical AgentConfig, then derives

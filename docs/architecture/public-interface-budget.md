@@ -1,7 +1,7 @@
 # G2 public-interface budget
 
-Status: G2 evidence preserved; S3 convergence candidate remains within the frozen budget
-Updated: 2026-08-31
+Status: G2 baseline preserved; G4-L3 module-level extension growth reviewed
+Updated: 2026-09-01
 
 G2 adds persistence and migration contracts without expanding the root `qitos`
 API or `Engine.__init__`. The executable source of truth is
@@ -20,13 +20,23 @@ classification.
 | persistence-internal | current writers and compatibility readers | Schema constants, component envelopes, receipts, integrity records, and migration readers; never part of the beginner path |
 | internal-private | implementation helpers | No supported import promise |
 
-The reviewed module budget is 124 deliberate exports plus three visible but
+The historical G2 reviewed module budget was 124 deliberate exports plus three visible but
 unsupported implementation-private diagnostic symbols. Those three helpers
 are deliberately absent from `qitos.core.diagnostics.__all__`. The deliberate
 count includes the canonical `ArtifactRef` re-exported by `request_view`; that
 re-export is the same class, not a second artifact contract. The root package
 remains at the reviewed 41 exports and `Engine.__init__` at the reviewed 33
-parameters, so G2 growth at both surfaces is zero.
+parameters, so G2 growth at both surfaces was zero.
+
+G4-L3 reviews two additional module-level surfaces without adding a root export
+or Engine constructor parameter: 10 structural sandbox names and all 25 names
+in `qitos.config.errors` (12 pre-existing configuration failures plus 13 new
+typed protocol/policy/capability/sandbox/digest failures). The executable
+classified total is therefore 159 deliberate module exports plus the same three
+visible internal-private symbols. Sandbox backends and typed failures are
+extension-facing; `ConfigurationError` alone is beginner-facing. The exact
+root surface remains 41 and `Engine.__init__` remains 34 parameters including
+`self`.
 
 ## Beginner path
 
@@ -113,10 +123,11 @@ Runtime type tracks are forbidden. The full review contract is in
 ## G4 candidate review
 
 The converged S3 candidate reuses the existing Session façade and module-level
-extension protocols. Its executable budget remains exactly 41 root exports,
+extension protocols. Its executable aggregate budget remains exactly 41 root exports,
 27/24/28/22 reviewed aggregate exports (101 total), and 34
-`Engine.__init__` parameters including `self`. No root export, aggregate export,
-Engine constructor parameter, or parallel versioned Agent/Session/Runtime type
-was approved or added. This budget pass does not promote the branch: live-model
-qualification is blocked by absent configuration, while the candidate
-Trajectory plane stays unfrozen and non-default.
+`Engine.__init__` parameters including `self`. G4-L3 additionally classifies the
+explicit sandbox and config-error modules described above. No root export,
+aggregate export, Engine constructor parameter, or parallel versioned
+Agent/Session/Runtime type was added. This budget pass does not itself promote
+the branch; live-model qualification and the remaining acceptance gates still
+control promotion. The candidate Trajectory schema stays unfrozen.

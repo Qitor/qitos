@@ -1,7 +1,7 @@
 {
   "schema_version": "qitos.g2_interface_budget/v2",
   "reviewed_policy": {
-    "deliberate_module_exports": 124,
+    "deliberate_module_exports": 159,
     "visible_internal_private_symbols": 3,
     "root_exports": 41,
     "root_export_growth": 0,
@@ -50,6 +50,18 @@
       "beginner-facing": ["ProviderFailure"],
       "extension-facing": ["CodecCapabilityError", "CodecError", "CodecLossError", "CodecReport", "CodecUnavailableError", "ProviderCapabilities", "ProviderCodec", "capability_mismatches", "report_for_request", "validate_codec_result"],
       "persistence-internal": ["CODEC_REPORT_SCHEMA_VERSION", "PROVIDER_CAPABILITIES_SCHEMA_VERSION", "PROVIDER_FAILURE_SCHEMA_VERSION"],
+      "internal-private": []
+    },
+    "qitos.config.errors": {
+      "beginner-facing": ["ConfigurationError"],
+      "extension-facing": ["CompositionError", "ConfigDigestMismatchError", "ConfigSchemaError", "ConfigSourceError", "ConfigSyntaxError", "ContinuationUnavailableError", "CredentialError", "CredentialFileSecurityError", "CredentialNotFoundError", "CredentialResolutionError", "LossyFallbackNotAuthorizedError", "MalformedStructuredResponseError", "MissingEnvironmentVariableError", "ProtocolParserMismatchError", "ProviderCapabilityLossError", "SandboxCleanupError", "SandboxError", "SandboxUnavailableError", "SourceBindingError", "ToolCallProjectionLossError", "ToolUsePolicyViolationError", "UnknownConfigFieldError", "UnsafeHostConfigurationError", "UnsupportedProtocolError"],
+      "persistence-internal": [],
+      "internal-private": []
+    },
+    "qitos.kit.env.sandbox": {
+      "beginner-facing": [],
+      "extension-facing": ["SandboxBackend", "SandboxBackendError", "SandboxCapabilities", "SandboxCapabilityMismatch", "SandboxCleanupFailure", "SandboxReceipt", "SandboxUnavailable", "assert_sandbox_backend_conformance"],
+      "persistence-internal": ["DockerSandboxBackend", "UnsafeHostBackend"],
       "internal-private": []
     },
     "qitos.core.diagnostics": {
