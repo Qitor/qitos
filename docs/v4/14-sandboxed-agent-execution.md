@@ -1,7 +1,7 @@
 # Task 14 — sandboxed agent execution
 
-Status: architecture planned; current Docker integration is functional but not
-qualified as an untrusted-agent sandbox
+Status: architecture planned; G4-L2 has a bounded executable Docker
+qualification harness, but the complete untrusted-agent sandbox is not shipped
 Depends on: Tasks 03, 09, 12, and 13
 Feeds: Task 05 trajectory qualification, S4 developer experience, release gate
 Risk: critical — agents execute model-selected code against files, processes,
@@ -31,6 +31,21 @@ not: one sandbox contract, one Env adapter, one lifecycle/evidence vocabulary,
 and multiple replaceable backends.
 
 ## 2. Current repository truth
+
+G4-L2 adds a qualification-only harness around the existing `DockerEnv`. It
+creates one uniquely labelled container from canonical AgentConfig, then derives
+its receipt from `docker inspect` and real in-container identity, tool,
+read/grep/write/test, boundary-denial, rootfs, network, tmpfs, repository-digest,
+and cleanup probes. Model-visible operations use one Env-only toolset and have no
+HostEnv fallback. The receipt binds config/policy/image/workspace and
+Session/Run/WorkItem/Environment identities; cleanup targets only that identity
+and proves absence.
+
+This closes the bounded G4-L2 promotion prerequisite only. It does not add the
+typed `SandboxSpec`, lease/generation ownership, secret broker, read-only trusted
+input/output mount split, egress allowlists, microVM/gVisor backend, snapshot/
+fork contract, or the full shared conformance suite below. Therefore it must not
+be cited as Task 14 completion or production-grade untrusted-code isolation.
 
 QitOS already has useful foundations:
 

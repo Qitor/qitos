@@ -1,13 +1,64 @@
 ---
 title: "配置"
-description: "QitOS 的配置入口总览：`AgentModule.run()` 参数、`Engine` 构造参数、追踪控制与环境变量。"
+description: "QitOS 的 canonical AgentConfig 启动、程序化 composition 与底层运行时控制。"
 ---
 
-QitOS 的配置主要分三层：
+完整 Agent 启动只有一条声明式黄金路径：
+
+```bash
+qit run --config agent.yaml
+```
+
+Python 入口复用同一个严格 `AgentConfig` 与 composition root：
+
+```python
+from qitos.config import LocalCredentialFileResolver, build_agent_composition, load_agent_config
+
+config = load_agent_config("agent.yaml")
+resolver = LocalCredentialFileResolver("<user-config-dir>/credentials.yaml")
+composition = build_agent_composition(config, credential_resolver=resolver)
+result = composition.run()
+```
+
+canonical `qitos.agent/v1` YAML 根节点固定包含 `schema`、`agent`、`model`、
+`tools`、`runtime`、`budgets`，并可选包含 `context`、`metadata`、`dataset`。
+未知字段、重复键、含糊类型、不安全 YAML tag、缺少必填值与环境插值都会
+失败关闭。仓库提供了
+[`examples/config/agent.yaml`](../../../examples/config/agent.yaml) 这一份供应商无关示例。
+
+配置只保存逻辑凭据引用，不保存凭据值：
+
+```yaml
+schema: qitos.agent/v1
+agent:
+  name: coding-agent
+model:
+  provider: openai_compatible
+  model: example-model
+  base_url: https://provider.example/v1
+  credential:
+    ref: example-openai-compatible
+tools:
+  preset: env_coding
+runtime:
+  environment:
+    type: host
+    workspace: .
+budgets:
+  max_steps: 10
+```
+
+默认本地 resolver 读取仓库外、权限为 `0600` 的私有凭据文件；
+`FakeCredentialResolver` 用于确定性测试；`EnvironmentCredentialResolver`
+仅是显式兼容/部署适配器。环境变量不是 canonical 启动接口，缺失变量始终
+产生 typed failure。canonical serialization 只包含引用与 source digest，
+绝不包含已解析 secret。
+
+底层程序化 API 仍可按三层使用：
 
 1. **`AgentModule.run()` 关键字参数**：最常见、最推荐的每次运行配置入口
 2. **`Engine` 构造函数参数**：更底层的运行时控制
-3. **环境变量**：供应商凭证与模型默认值
+3. **兼容环境适配器**：旧 provider 默认值，不是声明式启动权威
 
 ## OpenAI 传输模式
 

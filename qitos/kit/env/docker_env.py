@@ -5,6 +5,8 @@ from __future__ import annotations
 import shlex
 import subprocess
 import threading
+import posixpath
+from uuid import uuid4
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, Iterator, Optional
@@ -55,9 +57,16 @@ class DockerCommandCapability(CommandCapability):
 
 
 class DockerFSCapability(FileSystemCapability):
-    def __init__(self, container: str, workdir: str = "/workspace"):
+    def __init__(
+        self,
+        container: str,
+        workdir: str = "/workspace",
+        *,
+        strict_workspace: bool = False,
+    ):
         self.container = container
         self.workdir = workdir.rstrip("/") or "/workspace"
+        self.strict_workspace = bool(strict_workspace)
         self.cmd = DockerCommandCapability(container=container, workdir=workdir)
 
     def read_text(self, path: str) -> str:
@@ -97,9 +106,17 @@ class DockerFSCapability(FileSystemCapability):
 
     def _inner_path(self, path: str) -> str:
         value = str(path)
-        if value.startswith("/"):
-            return value
-        return f"{self.workdir}/{value}" if value else self.workdir
+        candidate = (
+            posixpath.normpath(value)
+            if value.startswith("/")
+            else posixpath.normpath(posixpath.join(self.workdir, value or "."))
+        )
+        if self.strict_workspace and not (
+            candidate == self.workdir
+            or candidate.startswith(self.workdir.rstrip("/") + "/")
+        ):
+            raise PermissionError("path is outside the configured container workspace")
+        return candidate
 
 
 class DockerEnv(HostEnv):
@@ -126,6 +143,7 @@ class DockerEnv(HostEnv):
         extra_run_args: Optional[list[str]] = None,
         container_env: Optional[Dict[str, str]] = None,
         create_timeout: int = 60,
+        strict_workspace: bool = False,
     ):
         self.container = str(container).strip() if container else ""
         self.container_workspace = workspace_root
@@ -139,12 +157,20 @@ class DockerEnv(HostEnv):
             str(key): str(value) for key, value in dict(container_env or {}).items()
         }
         self.create_timeout = int(create_timeout)
+        self.strict_workspace = bool(strict_workspace)
         self._created_here = False
 
         if not self.container and self.auto_create:
-            self.container = f"qitos_{Path(self.host_workspace or 'workspace').name}_{threading.get_ident()}"
+            self.container = (
+                f"qitos_{Path(self.host_workspace or 'workspace').name}_"
+                f"{threading.get_ident()}_{uuid4().hex[:10]}"
+            )
 
-        fs = DockerFSCapability(container=self.container or "", workdir=workspace_root)
+        fs = DockerFSCapability(
+            container=self.container or "",
+            workdir=workspace_root,
+            strict_workspace=self.strict_workspace,
+        )
         cmd = DockerCommandCapability(
             container=self.container or "", workdir=workspace_root
         )
@@ -163,7 +189,9 @@ class DockerEnv(HostEnv):
             )
 
         self.fs = DockerFSCapability(
-            container=self.container, workdir=self.container_workspace
+            container=self.container,
+            workdir=self.container_workspace,
+            strict_workspace=self.strict_workspace,
         )
         self.cmd = DockerCommandCapability(
             container=self.container, workdir=self.container_workspace

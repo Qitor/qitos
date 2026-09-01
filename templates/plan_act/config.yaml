@@ -3,7 +3,8 @@ max_steps: 10
 model:
   provider: openai_compatible
   base_url: https://api.siliconflow.cn/v1/
-  api_key: ${OPENAI_API_KEY}
+  credential:
+    ref: example-openai-compatible
   model: Qwen/Qwen3-8B
   model_name: Qwen/Qwen3-8B
   temperature: 0.2

@@ -36,6 +36,8 @@ qitos.evaluate/metric  thin evaluation/metric contracts (implementations in kit)
 qitos.recipes       canonical recipes: method templates + benchmarks (migration target)
 qitos.benchmark     deprecated benchmark adapters, migrating to recipes.benchmarks
 qitos.mcp/func/cache/debug/…  integration & deprecated leaves (see audit)
+qitos.config       strict qitos.agent/v1 loader, credential references/resolvers,
+                   and the sole declarative model/tool/Env/Session/Engine composition root
 qitos.cli.py        `qit` CLI — thin dispatch over the packages above
 ```
 
@@ -43,9 +45,11 @@ Outside the package: `examples/` (canonical learning path), `templates/` (cookie
 
 ## Control Flow
 
-One agent execution, mapped to real modules:
+One declarative launch and agent execution, mapped to real modules:
 
 ```text
+agent.yaml → strict AgentConfig + explicit CredentialResolver (qitos/config)
+           → ModelFactory + ToolRegistry + Env + RuntimeComposition + existing Engine
 task in (Task/RunSpec, core/task.py, core/spec.py)
 → AgentModule.init_state (core/state.py StateSchema)
 → Engine.run loop (engine/engine.py)
@@ -90,6 +94,7 @@ forbidden:
 - **Public contract**: root `qitos.__init__` export list (guarded by `tests/test_public_surface.py`); `qitos.core` data model; `Engine`/`AsyncEngine` semantics, `EngineHook` payloads, `StopReason` vocabulary.
 - **Extension points**: `BaseTool.execute(args, runtime_context)` + `ToolRegistry`; `Model`/`ModelFactory`; `FamilyPreset`; parser/protocol registry (`qitos.protocols._protocol_table`); `EngineHook`; critic and stop-criteria contracts; checkpoint `CheckpointStore`; tracing processors.
 - **Compatibility boundary**: the v1 trace artifact format (`manifest.json`/`events.jsonl`/`steps.jsonl`) consumed by qita, benchmark runners, evaluate, hf push/pull.
+- **Declarative composition boundary**: `qitos.config.AgentConfig` is the one YAML/Python launch description. Its canonical view contains only credential references; resolved secrets exist only transiently at model composition and are re-resolved after process restore. The CLI is a thin caller of this boundary.
 - **Internal implementation** (free to change): engine mixins, `_model_runtime` assembly, kit internals, qita `_cli_app`.
 
 ## Known Architecture Debt

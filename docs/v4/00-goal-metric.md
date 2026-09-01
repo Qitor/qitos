@@ -2,7 +2,7 @@
 
 Status: active acceptance anchor
 Updated: 2026-08-31
-Scope: Tasks 01–05 and 08–13
+Scope: Tasks 01–05 and 08–14
 
 ---
 
@@ -19,6 +19,14 @@ protocol, and experiment. Campaign strategy, vulnerability vocabulary, benchmark
 heuristics, and task-specific renderers remain out of tree.
 
 ## 2. What success means
+
+G4-L2 adds an admission condition shared by these gates: a complete launch must
+come from the strict, digest-bound `qitos.agent/v1` configuration and resolve
+credentials only at composition. A sixteen-gate offline round now proves the
+parser, resolvers, native-tool continuation, Session/process restore, real
+Docker qualification, privacy, and reachable success state before any live
+provider request. This evidence is necessary for S3 promotion but does not
+complete the broader Task 14 threat model.
 
 The old “10% agent” target mixed code size and task performance and could be gamed
 by weakening the reference agent. v4 uses seven independent gates instead.

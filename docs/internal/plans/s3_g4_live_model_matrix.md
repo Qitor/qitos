@@ -1,11 +1,11 @@
 # S3 G4 live-model matrix
 
-Status: budget accepted; all three credential references missing at execution;
-live qualification blocked before the first request
+Status: canonical local launch configs validated; sixteen offline gates passed;
+bounded live execution pending
 Updated: 2026-09-01
 Owner: G4 live-qualification owner
-Candidate source: `7b89dbcca97be5dfd9562276578353900af4e02d`
-Qualification runner commit: `e3a4b86ad10496f1e6ee98b4cfb92fffafd58c59`
+Candidate source: to be bound by the G4-L2 implementation commit
+Qualification runner: `scripts/qualify_s3_live.py` (byte digest in receipt)
 
 ## Purpose
 
@@ -15,37 +15,36 @@ change provider defaults, persist credentials, freeze Trajectory, or qualify the
 candidate before executable receipts exist. Framework code must select a profile
 explicitly rather than hard-code one of these routes into core or engine.
 
-## 2026-09-01 execution outcome
+## 2026-09-01 G4-L2 checkpoint
 
-The maintainer accepted the exact 12-request, 10,240-output-token, 180-second,
-zero-automatic-retry policy below. The bounded runner then resolved only the
-three registered credential references. All three were missing, so every
-profile returned `configuration_blocked:credential_missing` before sandbox
-provisioning or the first model request. Request, reported-token, latency, and
-retry totals are all zero. No profile has a measured native tool capability,
-and no single-agent, multi-agent, restore, sandbox, or live Trajectory scenario
-ran.
+The exact 12-request, 10,240-output-token, 180-second,
+zero-automatic-retry policy remains fixed. The execution authority is no longer
+this Markdown table: three strict private `qitos.agent/v1` files under
+`<user-config-dir>` hold provider/model/request/Env/Session/Trajectory desired
+state, and a hardened local resolver supplies each logical credential at the
+composition boundary. All launch files and refs validated without disclosing a
+value, and all sixteen offline gates passed with zero provider requests.
 
 The committed redacted receipt is
 [`s3_g4_live_qualification_summary.json`](s3_g4_live_qualification_summary.json),
 with the execution narrative and raw/private storage policy in
 [`s3_g4_live_qualification_evidence.md`](s3_g4_live_qualification_evidence.md).
-This is a typed failure outcome, not an unavailable skip. It sets
-`S3_STATUS=blocked_live_qualification`, prohibits promotion/push/worktree
-retirement, and leaves every capability cell unqualified.
+Live outcomes are still pending. This checkpoint prohibits promotion, push, and
+worktree retirement and leaves capability cells unqualified until the runner's
+digest-bound live receipt is committed.
 
 ## Registered profiles
 
 | Profile | Chat-completions endpoint | Model | Credential reference | Request override | Intended use |
 |---|---|---|---|---|---|
-| `sii-dsv4-flash` | `https://d8cj8amkhbkccckmh5g9cpdh5ogm8cpk.openapi-sj.sii.edu.cn/v1/chat/completions` | `dsv4-flash-0731` | `env:QITOS_LIVE_DSV4_API_KEY` | `chat_template_kwargs.thinking=true` | reasoning/continuation preflight, trajectory and agent candidate |
-| `sii-glm-5-2` | `https://hgbemok5dkq8cp8bjaebba89mkkkpjb8.openapi-sj.sii.edu.cn/v1/chat/completions` | `GLM-5.2-w4a8c8` | `env:QITOS_LIVE_GLM52_API_KEY` | `chat_template_kwargs.enable_thinking=false` | non-thinking protocol comparison, trajectory and agent candidate |
-| `sii-qwen3-8-27b` | `https://cqhbod8bjjjbcoakk8pmeebgkaq9akcq.openapi-sj.sii.edu.cn/v1/chat/completions` | `Qwen3.8-27B` | `env:QITOS_LIVE_QWEN38_API_KEY` | `chat_template_kwargs.enable_thinking=false` | non-thinking protocol comparison, trajectory and agent candidate |
+| `sii-dsv4-flash` | private launch config | `dsv4-flash-0731` | `sii-dsv4` | `chat_template_kwargs.thinking=true` | reasoning/continuation preflight, trajectory and agent candidate |
+| `sii-glm-5-2` | private launch config | `GLM-5.2-w4a8c8` | `sii-glm-5-2` | `chat_template_kwargs.enable_thinking=false` | non-thinking protocol comparison, trajectory and agent candidate |
+| `sii-qwen3-8-27b` | private launch config | `Qwen3.8-27B` | `sii-qwen3-8-27b` | `chat_template_kwargs.enable_thinking=false` | non-thinking protocol comparison, trajectory and agent candidate |
 
-Credential values were supplied outside repository state. They must never be
-copied into this file, a fixture, command argument, snapshot, trajectory, test
-report, or Git commit. Separate environment names avoid reusing and overwriting
-one credential variable across endpoints.
+Credential values remain outside repository state. They must never be copied
+into this file, a fixture, command argument, snapshot, trajectory, test report,
+or Git commit. The committed summary stores only configuration and
+credential-reference digests; endpoints remain in the private launch sources.
 
 ## Capability preflight
 
@@ -98,9 +97,10 @@ must fail closed rather than fall back to the primary checkout or `HostEnv`.
 
 Accepted fixed bounds for this qualification:
 
-- `QITOS_LIVE_MAX_REQUESTS_PER_PROFILE=12`
-- `QITOS_LIVE_MAX_OUTPUT_TOKENS_PER_REQUEST=10240`
-- `QITOS_LIVE_TIMEOUT_SECONDS=180`
+- `budgets.max_requests=12`
+- `model.request.max_tokens=10240`
+- `model.request.timeout_seconds=180`
+- `model.request.retries=0`
 - one disposable agent task per qualified profile
 - no automatic retry after a billed or ambiguous request
 
@@ -112,14 +112,15 @@ rather than assuming every response consumes the ceiling.
 
 Record actual request count, reported input/output tokens, latency, failure
 class, and provider retries. Unknown pricing must not become a fabricated cost
-claim. The budget is accepted, but the credential gate produced three typed
-configuration blockers and no executable model receipt. Promotion, push,
-cleanup, and default-branch readiness remain blocked.
+claim. The budget is accepted and validated offline. Promotion, push, cleanup,
+and default-branch readiness remain blocked until all three live typed outcomes
+and the required workflows pass.
 
 ## Secret handling
 
-- Load credentials into the three endpoint-specific environment variables only
-  in the live runner process.
+- Resolve only the three explicit logical references through the hardened local
+  private-file resolver. Environment lookup is compatibility-only and is not
+  used by this qualification.
 - Do not use `set -x`, print environment variables, put Authorization headers in
   command-line arguments, or commit `.env` files.
 - Raw payloads and private trajectories stay outside the repository; committed

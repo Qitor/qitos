@@ -1,13 +1,67 @@
 ---
 title: "Configuration"
-description: "All configuration options available in QitOS: AgentModule.run() arguments, Engine constructor arguments, tracing controls, and environment variables."
+description: "Canonical declarative AgentConfig launches, programmatic composition, and lower-level runtime controls."
 ---
 
-QitOS is configured through three overlapping layers:
+For a complete agent launch, QitOS has one declarative golden path:
+
+```bash
+qit run --config agent.yaml
+```
+
+The same strict `AgentConfig` and composition root are available from Python:
+
+```python
+from qitos.config import LocalCredentialFileResolver, build_agent_composition, load_agent_config
+
+config = load_agent_config("agent.yaml")
+resolver = LocalCredentialFileResolver("<user-config-dir>/credentials.yaml")
+composition = build_agent_composition(config, credential_resolver=resolver)
+result = composition.run()
+```
+
+The canonical `qitos.agent/v1` YAML root has exactly `schema`, `agent`,
+`model`, `tools`, `runtime`, and `budgets`, plus optional `context`, `metadata`,
+and `dataset`. Unknown or duplicate fields, ambiguous types, unsafe YAML tags,
+missing required values, and environment interpolation fail closed. A complete
+provider-neutral example is checked in at
+[`examples/config/agent.yaml`](../../examples/config/agent.yaml).
+
+Credentials are logical references, never values:
+
+```yaml
+schema: qitos.agent/v1
+agent:
+  name: coding-agent
+model:
+  provider: openai_compatible
+  model: example-model
+  base_url: https://provider.example/v1
+  credential:
+    ref: example-openai-compatible
+tools:
+  preset: env_coding
+runtime:
+  environment:
+    type: host
+    workspace: .
+budgets:
+  max_steps: 10
+```
+
+The default local resolver reads a private `0600` credential file outside the
+repository. `FakeCredentialResolver` supports deterministic tests.
+`EnvironmentCredentialResolver` is an explicit compatibility/deployment
+adapter; environment variables are not the canonical launch interface and a
+missing variable is always a typed failure. Canonical serialization contains
+the reference and source digest, but never the resolved secret.
+
+Lower-level programmatic APIs remain available through three overlapping
+layers:
 
 1. **`AgentModule.run()` keyword arguments** — the normal per-run entrypoint
 2. **`Engine` constructor keyword arguments** — lower-level runtime control
-3. **Environment variables** — provider credentials and model defaults
+3. **Compatibility environment adapters** — legacy provider defaults, not the declarative launch authority
 
 ---
 

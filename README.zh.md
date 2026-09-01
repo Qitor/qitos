@@ -18,8 +18,8 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 
 ## 最新进展
 
-- **G4-L 已在凭据门禁安全停止**：已接受精确 live 预算，并新增一个受限、显式启用的 qualification runner；它从 internal matrix 解析三个 profile，只承认原生 `tool_calls`，禁止自动重试，将私有 payload 留在 Git 之外，并要求任何已配置请求前先通过 sandbox attestation。三个唯一允许的凭据引用均缺失，因此已提交的结果是三个 typed `configuration_blocked`，请求/token/retry 均为 0。S3 未提升、未推送，worktree 全部保留；不声称 Task 14 或 production readiness 已完成。详见 [live 证据](docs/internal/plans/s3_g4_live_qualification_evidence.md)。
-- **S3 确定性候选已收敛，live 执行仍未取得资格**：从固定 `851f790...` 严格按 A -> B -> C -> D 回放后，现已具备 Session fork、严格上下文/权限转移、可重建的持久 WorkGraph runtime，以及只读 qita graph/timeline 检查。20 个独立 SQLite work-graph 进程丢失轮次及另外 20 个 preparation-crash 轮次均通过，已完成或 `outcome_unknown` 工作不会被重放，fork child 也不会被重复创建。后续 G4-L 尝试到达上文所述 typed credential blocker，因此 capability、trajectory 与一次性 agent 执行证据未运行，候选仍不提升。Trajectory 仍未冻结且默认关闭，qita 仍读取冻结的 trace 兼容平面，也不声称分布式或外部副作用 exactly-once。详见 [G4 证据](docs/internal/plans/s3_g4_convergence_evidence.md)。
+- **Canonical 声明式 Agent 启动**：严格的 `qitos.agent/v1` 文件现在通过 `qit run --config agent.yaml` 或同一 Python composition API 驱动一致的 model、tools、Env、Session store、budgets、`AgentModule` 与 `Engine`。配置只保存 typed credential reference；加固的本地 resolver、确定性 fake resolver 与显式环境兼容 resolver 把解析限制在 composition boundary。G4-L2 同时加入真实 Docker inspect/probe、无 secret 且绑定 digest 的 receipt，以及 16 门离线资格路径；不声称完整 Task 14 sandbox 已完成。详见 [配置 ADR](docs/internal/plans/s3_g4_l2_agent_config_adr.md)。
+- **S3 确定性候选已收敛，live 执行仍是提升门禁**：从固定 `851f790...` 严格按 A -> B -> C -> D 回放后，现已具备 Session fork、严格上下文/权限转移、可重建的持久 WorkGraph runtime，以及只读 qita graph/timeline 检查。20 个独立 SQLite work-graph 进程丢失轮次及另外 20 个 preparation-crash 轮次均通过，已完成或 `outcome_unknown` 工作不会被重放，fork child 也不会被重复创建。G4-L2 已用本地 credential reference 和可执行 pre-live 门禁取代历史上缺少环境凭据的尝试；三个 live receipt 全部通过前候选仍不提升。Trajectory 仍未冻结且默认关闭，qita 仍读取冻结的 trace 兼容平面，也不声称分布式或外部副作用 exactly-once。详见 [G4 证据](docs/internal/plans/s3_g4_convergence_evidence.md)。
 - **规划安全默认的 agent 沙箱架构**：[Task 14](docs/v4/14-sandboxed-agent-execution.md) 将研究 harness 中已验证的失败关闭、任务独占容器边界提炼为领域无关的框架合同。现有 `DockerEnv` 是原生 Docker 执行能力，但还不是经过安全资格验证的沙箱；S4 将补齐模型调用前 attestation、私有 workspace、网络/资源/secret 策略、Session/WorkGraph 绑定、强隔离及托管 adapter 和统一 conformance 门禁。研究/编码 agent 默认必须进入沙箱，宿主机执行仅作为显式的低保障退出选项。
 - **保留历史派发 ancestry**：`c0f19cd...` 的 G2-R2 契约代码、`446a347...` 的 S2 lane source 与 `47cd4dc...` 的 G3 integration source 继续作为审计证据，而非当前派发点。后续四条 S3 产线必须使用 S3 dispatch closure 公布的同一个完整远端 SHA。
 - **持久会话与原生多智能体架构**：[Task 12](docs/v4/12-session-runtime-and-persistence.md) 规划了以当前 canonical checkpoint 为唯一持久化机制的安全暂停、跨进程恢复、fork 与 effect-aware recovery；[Task 13](docs/v4/13-durable-multi-agent-work-graph.md) 则把 handoff、delegate、fan-out、spawn、fork、steer、join 明确为一个持久 work graph 上不同的所有权语义。[四产线手册](docs/v4/11-four-lane-execution-playbook.md)也已调整：G1 后工程质量成为跨线合并门禁，四条能力线转为 Session、Conversation/Context、Tools/Multi-Agent、Trajectory/qita/DX。
@@ -67,6 +67,17 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 ## 2 分钟跑通 QitOS
 
 QitOS 里的 minimal agent 应该是一个最轻量的 **coding agent**。它会配置真实模型、进入 workspace、改代码、跑验证，并留下 qita 可检查的 trace。
+
+声明式黄金路径无需 Python glue。复制
+[`examples/config/agent.yaml`](examples/config/agent.yaml)，把它引用的 secret
+放进 `<user-config-dir>` 下权限为 `0600` 的私有 credentials mapping，然后运行：
+
+```bash
+qit run --config agent.yaml --credentials <user-config-dir>/credentials.yaml
+```
+
+下方环境变量方式仅保留给 packaged demo 兼容使用，不是 canonical AgentConfig
+凭据接口。
 
 ```bash
 pip install "qitos[models]"

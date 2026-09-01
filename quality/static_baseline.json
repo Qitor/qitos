@@ -1,10 +1,10 @@
 {
   "counts": {
-    "active": 347,
+    "active": 345,
     "by_category": {
       "contract": 131,
       "correctness": 32,
-      "hygiene": 184,
+      "hygiene": 182,
       "vendored/generated": 22
     },
     "by_owner": {
@@ -12,7 +12,7 @@
       "Lane B / Tasks 02/04": 30,
       "Lane C / Task 03": 11,
       "Lane C / Tasks 03/09/10": 205,
-      "Lane D / Task 10 admission owner": 46,
+      "Lane D / Task 10 admission owner": 44,
       "Lane D / Tasks 05/10": 72
     },
     "by_rule": {
@@ -22,7 +22,7 @@
       "E704": 8,
       "E722": 1,
       "E741": 3,
-      "F401": 111,
+      "F401": 109,
       "F541": 37,
       "F811": 1,
       "F821": 3,
@@ -48,13 +48,13 @@
     "by_semantic_category": {
       "contract": 151,
       "correctness": 33,
-      "hygiene": 185
+      "hygiene": 183
     },
     "by_tool": {
-      "flake8": 188,
+      "flake8": 186,
       "mypy": 181
     },
-    "total": 369,
+    "total": 367,
     "vendored_generated": 22
   },
   "created_from": "fb75cd5902fedf50d5e67dd617e62cd981c3128f",
@@ -249,38 +249,6 @@
       "semantic_category": "hygiene",
       "source_anchor": "f5645adfe54d1f8709ba",
       "symbol": "_experiment_run",
-      "tool": "flake8"
-    },
-    {
-      "category": "hygiene",
-      "column": 1,
-      "correctness_kind": null,
-      "id": "af17922d4b5259a8a52a449c5317a72c9c218d488ed225a2183c48b0edb5421b",
-      "line": 6,
-      "message": "'typing.List' imported but unused",
-      "occurrence": 1,
-      "owner": "Lane D / Task 10 admission owner",
-      "path": "qitos/config/builder.py",
-      "rule": "F401",
-      "semantic_category": "hygiene",
-      "source_anchor": "d0ac32f0ff7e82b0f83c",
-      "symbol": "<module>",
-      "tool": "flake8"
-    },
-    {
-      "category": "hygiene",
-      "column": 1,
-      "correctness_kind": null,
-      "id": "2f9859af6231f6ae98fe93e23fe1e25fbc5aa63d8d303ca0105d504be4f4a8aa",
-      "line": 6,
-      "message": "'typing.Optional' imported but unused",
-      "occurrence": 1,
-      "owner": "Lane D / Task 10 admission owner",
-      "path": "qitos/config/builder.py",
-      "rule": "F401",
-      "semantic_category": "hygiene",
-      "source_anchor": "d0ac32f0ff7e82b0f83c",
-      "symbol": "<module>",
       "tool": "flake8"
     },
     {

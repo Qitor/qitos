@@ -15,6 +15,7 @@ from .computer_use import ComputerUseToolSet, computer_use_tools
 from .coding import CodingToolSet, FullCodingToolSet, coding_tools
 from .editor import EditorToolSet, editor_tools
 from .epub import EpubToolSet, epub_tools
+from .env_coding import EnvCodingToolSet
 from .notebook import notebook_tools
 from .report import report_tools
 from .task import task_tools
@@ -29,6 +30,7 @@ __all__ = [
     "CodingToolSet",
     "EditorToolSet",
     "EpubToolSet",
+    "EnvCodingToolSet",
     "FilesToolSet",
     "FullCodingToolSet",
     "NotebookToolSet",

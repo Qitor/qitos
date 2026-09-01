@@ -14,8 +14,8 @@ Promoted S2 runtime head:
 `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`
 S3 plan freeze: `52e050d9bc1ee0d4c6dcc78c90a5497c25722648`
 S3 convergence source: `851f7902f15da670e72f4c04d7453cf37201aee7`
-Current gate: **S3 DETERMINISTIC CANDIDATE QUALIFIED; LIVE QUALIFICATION
-CONFIGURATION BLOCKED; PROMOTION AND TRAJECTORY PUBLICATION BLOCKED**
+Current gate: **S3 DETERMINISTIC CANDIDATE AND G4-L2 OFFLINE LAUNCH/SANDBOX
+QUALIFICATION PASSED; LIVE QUALIFICATION AND PROMOTION PENDING**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md),
 [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md),
@@ -23,9 +23,30 @@ and [`Task 14 sandboxed agent execution`](v4/14-sandboxed-agent-execution.md)
 
 ## 0. S3 deterministic convergence candidate (2026-09-01)
 
-### G4-L configuration-blocked qualification
+### G4-L2 canonical launch checkpoint
 
-The exact live budget was accepted and the bounded qualification runner was
+The sole declarative authority is now strict `qitos.agent/v1`, consumed by both
+`qit run --config` and the Python composition API. Credential values live behind
+typed resolvers and never enter canonical config, Session snapshots, public
+receipts, or Git. All nine model-bearing official templates use logical
+references; the three orchestration-only templates remain intentionally
+unchanged. The previous Markdown/env-driven live runner is no longer execution
+truth.
+
+The authoritative pre-live run passed all sixteen gates with zero provider
+requests. Those gates include strict/security/resolver tests, native single and
+parallel tool continuation, twenty-round deterministic Session continuity,
+fresh-process single and multi-agent restore, a real uniquely labelled Docker
+inspect/probe/cleanup round, and a fake-provider Agent workflow through the same
+Env tool surface. Private launch sources and credentials remain outside Git;
+committed evidence contains only logical identities and digests. Live outcomes,
+promotion, push, and worktree cleanup remain pending and cannot be inferred from
+this offline checkpoint.
+
+### Historical G4-L credential blocker (superseded by G4-L2)
+
+This section preserves the earlier G4-L attempt as provenance; it is not the
+current launch architecture or gate state. The exact live budget was accepted and the bounded qualification runner was
 added at `e3a4b86ad10496f1e6ee98b4cfb92fffafd58c59`. It parses the three
 registered profiles from the internal matrix, requires explicit profile plus
 `--live`, uses zero automatic retries, counts only provider-native

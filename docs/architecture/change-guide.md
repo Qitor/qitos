@@ -40,6 +40,23 @@ Boundary rules behind this table: [module-boundaries.md](module-boundaries.md). 
 
 ## Agent and kernel
 
+**Add/change declarative Agent launch configuration**
+→ Evolve the single `qitos.config.AgentConfig` and strict `qitos.agent/v1`
+loader in place; compose through `build_agent_composition`. Keep `qit run` a
+thin dispatch and reuse `ModelFactory`, `ToolRegistry`, `Env`,
+`RuntimeComposition`, checkpoint stores, `AgentModule`, and `Engine`.
+→ Credentials are `CredentialRef` values. Resolver implementations belong in
+`qitos/config/credentials.py`; providers must never open credential stores.
+Canonical and diagnostic views must remain secret-free, deterministic, and
+digest-bound. Environment resolution is compatibility-only and missing values
+fail closed.
+→ Avoid: parallel `V2`/`Legacy` config types, YAML in core, provider-specific
+launch runners, runtime client objects in config, or Engine reverse-dependencies
+on the loader.
+→ Tests: `tests/test_yaml_config.py`, `tests/test_agent_credentials.py`,
+`tests/test_config_security.py`, `tests/test_s3_live_qualification.py`, and CLI
+governance tests.
+
 **Change agent lifecycle / execution semantics**
 → `qitos/engine/engine.py` `Engine.run()` loop + the `_*.py` runtime mixins; stop logic in `engine/stop_criteria.py` + `_control_runtime.py`.
 → Read `qitos/engine/AGENTS.md` first — lazy-import conventions and mixin protocol are load-bearing.

@@ -31,8 +31,8 @@
     {"path": "tests/fixtures/s3/lane_c/join-matrix.json", "sha256": "083e489413ca5a336efc8553927b5f909b2df61cb0b1ed02f7404246378f8c9a"},
     {"path": "tests/fixtures/s3/lane_c/operation-idempotency.json", "sha256": "5da33d39250f2359026c5a92dd912eda7e093553a0f119e2a7ef924ed3c2a1c0"},
     {"path": "tests/fixtures/s3/lane_c/runtime-handoff.json", "sha256": "ed70089895741ae430040bcf4bb6b7623a7e5e36ce262792a7a2b7f838682d8f"},
-    {"path": "tests/fixtures/s3/lane_c/qualification-evidence.json", "sha256": "29e14cd4474cbc4450b6118fcf4669b681e8769ccf271a96d444be5190b68d7d"},
-    {"path": "quality/static_baseline.json", "sha256": "9cba51b7d55d13b41a7f95da15aa9284a001f93e6bfe2bedf46a6d0e2e425cb5"}
+    {"path": "tests/fixtures/s3/lane_c/qualification-evidence.json", "sha256": "822afcfa1e5f78a99dd99209fe85ec3fdfa63c49ecaf3f46939f00af4a9d003a"},
+    {"path": "quality/static_baseline.json", "sha256": "9f7a14481849ce884123eb84a287ba458e06dd1a932f3e6a84005a112a751ed2"}
   ],
   "strict_readers": [
     "qitos.core.work_graph.WorkGraph.from_canonical_dict",

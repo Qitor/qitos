@@ -2,6 +2,11 @@
 
 from .desktop import ContainerDesktopProvider, DesktopEnv, MockDesktopProvider
 from .docker_env import DockerEnv, DockerEnvScheduler
+from .docker_qualification import (
+    SandboxIdentity,
+    SandboxQualificationReceipt,
+    qualify_docker_environment,
+)
 from .host_env import HostEnv
 from .repo_env import RepoEnv
 from .screenshot_env import ScreenshotEnv, ScreenshotObserverOps, MockGUIControllerOps
@@ -16,6 +21,9 @@ __all__ = [
     "MockDesktopProvider",
     "DockerEnv",
     "DockerEnvScheduler",
+    "SandboxIdentity",
+    "SandboxQualificationReceipt",
+    "qualify_docker_environment",
     "RepoEnv",
     "ScreenshotEnv",
     "ScreenshotObserverOps",

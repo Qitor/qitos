@@ -1,15 +1,65 @@
-"""QitOS Agent Configuration — YAML-driven agent definitions."""
+"""QitOS Agent Configuration — one declarative launch composition root."""
 
-from .loader import AgentConfig, DatasetItem, ModelConfig, load_agent_config, resolve_env_vars
-from .builder import build_model, build_run_spec, build_tool_registry
+from .builder import (
+    AgentComposition,
+    build_agent_composition,
+    build_environment,
+    build_model,
+    build_run_spec,
+    build_runtime,
+    build_tool_registry,
+    run_agent_config,
+)
+from .credentials import (
+    CredentialRef,
+    CredentialResolution,
+    CredentialResolver,
+    EnvironmentCredentialResolver,
+    FakeCredentialResolver,
+    LocalCredentialFileResolver,
+)
+from .errors import ConfigurationError
+from .loader import (
+    AgentConfig,
+    BudgetConfig,
+    CANONICAL_SCHEMA,
+    DatasetItem,
+    EnvironmentConfig,
+    ModelConfig,
+    ModelRequestConfig,
+    RuntimeConfig,
+    SessionConfig,
+    TrajectoryConfig,
+    load_agent_config,
+    resolve_env_vars,
+)
 
 __all__ = [
     "AgentConfig",
+    "AgentComposition",
+    "BudgetConfig",
+    "CANONICAL_SCHEMA",
+    "ConfigurationError",
+    "CredentialRef",
+    "CredentialResolution",
+    "CredentialResolver",
     "DatasetItem",
+    "EnvironmentConfig",
+    "EnvironmentCredentialResolver",
+    "FakeCredentialResolver",
+    "LocalCredentialFileResolver",
     "ModelConfig",
+    "ModelRequestConfig",
+    "RuntimeConfig",
+    "SessionConfig",
+    "TrajectoryConfig",
     "load_agent_config",
     "resolve_env_vars",
+    "build_agent_composition",
+    "build_environment",
     "build_model",
     "build_run_spec",
+    "build_runtime",
     "build_tool_registry",
+    "run_agent_config",
 ]

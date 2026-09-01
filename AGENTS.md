@@ -107,7 +107,7 @@ Every meaningful change updates, in the same task:
 
 - No unrelated drive-by changes; no large rewrites without justification; no hidden breaking changes — call out migration implications.
 - Never use destructive git commands (`git reset --hard`, `git checkout --`) or amend commits unless explicitly requested.
-- Security-sensitive tools stay opt-in under `qitos.kit.tool.experimental.security_research`; never export them from defaults, demos, or quickstart. Credentials come from environment variables only.
+- Security-sensitive tools stay opt-in under `qitos.kit.tool.experimental.security_research`; never export them from defaults, demos, or quickstart. Declarative launches store only `CredentialRef`; resolution happens at the `qitos.config` composition boundary through an explicit resolver. Environment lookup is a compatibility/deployment adapter, not the canonical user path.
 - If a task reveals a larger issue, fix what is necessary and record the follow-up in `docs/architecture/architecture-debt.md`.
 
 ## Further Reading

@@ -1,0 +1,45 @@
+schema: qitos.agent/v1
+agent:
+  name: example-coding-agent
+  protocol: auto
+  parser: auto
+  seed: 0
+model:
+  provider: openai_compatible
+  model: example-model
+  base_url: https://provider.example/v1
+  credential:
+    ref: example-openai-compatible
+  api_mode: chat_completions
+  context_window: 32768
+  request:
+    temperature: 0.0
+    max_tokens: 2048
+    timeout_seconds: 180
+    extra_body: {}
+tools:
+  preset: env_coding
+  include: []
+  options: {}
+runtime:
+  environment:
+    type: host
+    workspace: .
+    network: none
+    read_only_root: true
+  session:
+    enabled: false
+    store: memory
+  trajectory:
+    enabled: true
+    output: ./runs
+    privacy: private
+budgets:
+  max_steps: 10
+  max_runtime_seconds: 600
+  max_requests: 12
+context: {}
+metadata:
+  purpose: provider-neutral-launch-example
+dataset:
+  - task: Inspect the workspace and report one verified fact.

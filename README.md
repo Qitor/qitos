@@ -18,8 +18,8 @@ QitOS core is the small framework. Product-grade applications and showcase agent
 
 ## What's New
 
-- **G4-L stopped safely at the credential gate**: the exact live budget was accepted and a bounded, opt-in qualification runner now parses the three registered profiles from the internal matrix, requires native `tool_calls`, forbids automatic retry, keeps private payloads outside Git, and requires sandbox attestation before any configured request. All three allowed credential references were absent, so the committed result is three typed `configuration_blocked` outcomes with 0 requests/tokens/retries. S3 is not promoted or pushed; its worktrees remain; Task 14 and production readiness are not claimed. See the [live evidence](docs/internal/plans/s3_g4_live_qualification_evidence.md).
-- **S3 deterministic candidate converged; live execution remains unqualified**: the fixed `851f790...` A -> B -> C -> D replay now provides Session fork, strict context/authority transfer, a reconstructable durable WorkGraph runtime, and read-only qita graph/timeline inspection. Twenty independent SQLite graph process-loss rounds plus twenty preparation-crash rounds pass without replaying completed or outcome-unknown work or creating a second fork child. The later G4-L attempt reached the typed credential blocker described above, so capability, trajectory, and disposable-agent receipts did not run and the candidate remains unpromoted. Trajectory remains unfrozen/off, qita still defaults to frozen trace compatibility, and no distributed or exactly-once claim is made. See the [G4 evidence](docs/internal/plans/s3_g4_convergence_evidence.md).
+- **Canonical declarative Agent launch**: strict `qitos.agent/v1` files now drive the same model, tools, Env, Session store, budgets, `AgentModule`, and `Engine` through `qit run --config agent.yaml` or the Python composition API. Configs contain typed credential references rather than secret values; hardened local, deterministic fake, and explicit environment-compatibility resolvers keep resolution at the composition boundary. G4-L2 also adds executable Docker inspection/probes, secret-free digest-bound receipts, and a 16-gate offline qualification path without claiming the complete Task 14 sandbox. See the [configuration ADR](docs/internal/plans/s3_g4_l2_agent_config_adr.md).
+- **S3 deterministic candidate converged; live execution remains the promotion gate**: the fixed `851f790...` A -> B -> C -> D replay provides Session fork, strict context/authority transfer, a reconstructable durable WorkGraph runtime, and read-only qita graph/timeline inspection. Twenty independent SQLite graph process-loss rounds plus twenty preparation-crash rounds pass without replaying completed or outcome-unknown work or creating a second fork child. G4-L2 supersedes the historical missing-environment-credential attempt with local credential references and executable pre-live gates; the candidate remains unpromoted until its three live receipts pass. Trajectory remains unfrozen/off, qita still defaults to frozen trace compatibility, and no distributed or exactly-once claim is made. See the [G4 evidence](docs/internal/plans/s3_g4_convergence_evidence.md).
 - **Safe-by-default agent sandbox architecture planned**: [Task 14](docs/v4/14-sandboxed-agent-execution.md) turns the fail-closed, task-exclusive container boundary proven in the research harness into a domain-neutral framework contract. Existing `DockerEnv` is native Docker execution, not yet a security-qualified sandbox; S4 adds pre-model attestation, private workspaces, network/resource/secret policy, Session/WorkGraph binding, stronger local and managed adapters, and shared conformance gates. Research/coding agents will require a sandbox by default, while host execution remains an explicit lower-assurance opt-out.
 - **Historical dispatch ancestry retained**: G2-R2 contract code at `c0f19cd...`, S2 lane source `446a347...`, and G3 integration source `47cd4dc...` remain audit provenance, not current dispatch points. All future S3 lanes must use the same complete remote SHA published by the S3 dispatch closure.
 - **Durable-session and native multi-agent architecture**: [Task 12](docs/v4/12-session-runtime-and-persistence.md) defines one canonical checkpoint-backed session truth for safe pause, fresh-process resume, fork, and effect-aware recovery; [Task 13](docs/v4/13-durable-multi-agent-work-graph.md) defines distinct handoff, delegate, fan-out, spawn, fork, steer, and join semantics over durable work items. The [four-lane playbook](docs/v4/11-four-lane-execution-playbook.md) now makes quality a cross-lane gate after G1 and assigns future capacity to Session, Conversation/Context, Tools/Multi-Agent, and Trajectory/qita/DX.
@@ -75,6 +75,17 @@ See [CHANGELOG.md](CHANGELOG.md) for the full list.
 ## Run QitOS in 2 Minutes
 
 The minimal agent in QitOS is a minimal **coding agent**. It configures a real model, works inside a workspace, edits code, runs a verification command, and leaves behind a qita-ready trace.
+
+The declarative launch path needs no Python glue. Copy
+[`examples/config/agent.yaml`](examples/config/agent.yaml), place the referenced
+secret in a private `0600` credentials mapping under `<user-config-dir>`, then run:
+
+```bash
+qit run --config agent.yaml --credentials <user-config-dir>/credentials.yaml
+```
+
+Environment-based provider setup below remains a compatibility path for the
+packaged demo; it is not the canonical AgentConfig credential interface.
 
 ```bash
 pip install "qitos[models]"

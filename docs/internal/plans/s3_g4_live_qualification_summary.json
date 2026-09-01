@@ -1,134 +1,300 @@
 {
-  "budget": {
-    "automatic_retries": 0,
-    "max_output_tokens_per_request": 10240,
-    "max_requests_per_profile": 12,
-    "timeout_seconds": 180
-  },
+  "configs": [
+    {
+      "config_digest": "885a920f27398fd46ddf2a080c4a10e5525c1c909c14aedb67c53c7d8fc41e56",
+      "profile_id": "sii-dsv4-flash",
+      "receipt": {
+        "budgets": {
+          "max_requests": 12,
+          "max_runtime_seconds": 600.0,
+          "max_steps": 5
+        },
+        "compatibility": [],
+        "config_digest": "885a920f27398fd46ddf2a080c4a10e5525c1c909c14aedb67c53c7d8fc41e56",
+        "loss": [],
+        "model": {
+          "api_mode": "chat_completions",
+          "credential_reference_digest": "8ef1545abdb12693fcf8babf7991d849cf5417468bf1a3e47d3ddcd7fef380c9",
+          "endpoint_digest": "99b3cbddf7afadb13a0564a7d16b64eccae87de7958c54361aa62ed0bcad1d34",
+          "model": "dsv4-flash-0731",
+          "provider": "openai_compatible",
+          "request_policy_digest": "76df4fe887b9867cff33ad2e7809c9a5f95b732fa20bb7c4843ef17d53e582c3"
+        },
+        "omitted": [
+          "credential_value",
+          "credential_store_path",
+          "endpoint",
+          "host_workspace_path",
+          "session_store_path",
+          "trajectory_output_path",
+          "request_headers",
+          "provider_payload"
+        ],
+        "protocol": "react_text_v1",
+        "runtime": {
+          "environment_type": "docker",
+          "image_digest": "bf7844ff63786193dd1b7ac02c5eb49a43837e7108520b7636a26de6ac47dfff",
+          "sandbox_policy_digest": "b97559ba08ef091086e798aacd9cbd01aca193934d34cb58c7d6405e54a84cb9",
+          "session": {
+            "enabled": true,
+            "restore": false,
+            "store": "sqlite"
+          },
+          "trajectory": {
+            "enabled": true,
+            "privacy": "private"
+          },
+          "workspace_digest": "f7204318d25bad635c9f6e19146c9aeb17cca8c8488f422232438fed1970f088"
+        },
+        "schema": "qitos.agent/v1",
+        "source_digest": "7e9ad2126e1a93dc66fbc9d88e1ed0c378f57fd764a54ef16914b7b6d9330831",
+        "tools": {
+          "include": [],
+          "preset": "env_coding"
+        }
+      },
+      "source_digest": "7e9ad2126e1a93dc66fbc9d88e1ed0c378f57fd764a54ef16914b7b6d9330831"
+    },
+    {
+      "config_digest": "53cb51c6c1b4898908e8ce0ff9e3cacdbd0e5666bab6b7d28c7efdaf35270b7c",
+      "profile_id": "sii-glm-5-2",
+      "receipt": {
+        "budgets": {
+          "max_requests": 12,
+          "max_runtime_seconds": 600.0,
+          "max_steps": 5
+        },
+        "compatibility": [],
+        "config_digest": "53cb51c6c1b4898908e8ce0ff9e3cacdbd0e5666bab6b7d28c7efdaf35270b7c",
+        "loss": [],
+        "model": {
+          "api_mode": "chat_completions",
+          "credential_reference_digest": "aa939519957c83a26513954d0ee3398f4693685b722a5f33631f565a6b35b9cd",
+          "endpoint_digest": "aaacf3da803de557d928013f3a32811993e7227e1dd16e20b631386f76ebbc8e",
+          "model": "GLM-5.2-w4a8c8",
+          "provider": "openai_compatible",
+          "request_policy_digest": "fc1005dc5f42e33794102304a75ce7ad00d7fe42e3c6c13c5f4dd568c9de6b61"
+        },
+        "omitted": [
+          "credential_value",
+          "credential_store_path",
+          "endpoint",
+          "host_workspace_path",
+          "session_store_path",
+          "trajectory_output_path",
+          "request_headers",
+          "provider_payload"
+        ],
+        "protocol": "react_text_v1",
+        "runtime": {
+          "environment_type": "docker",
+          "image_digest": "bf7844ff63786193dd1b7ac02c5eb49a43837e7108520b7636a26de6ac47dfff",
+          "sandbox_policy_digest": "b97559ba08ef091086e798aacd9cbd01aca193934d34cb58c7d6405e54a84cb9",
+          "session": {
+            "enabled": true,
+            "restore": false,
+            "store": "sqlite"
+          },
+          "trajectory": {
+            "enabled": true,
+            "privacy": "private"
+          },
+          "workspace_digest": "f7204318d25bad635c9f6e19146c9aeb17cca8c8488f422232438fed1970f088"
+        },
+        "schema": "qitos.agent/v1",
+        "source_digest": "fad46f8b07cce173dfdda3d1d29b38567b0b340f6bce2005163cf0587cd1a1a1",
+        "tools": {
+          "include": [],
+          "preset": "env_coding"
+        }
+      },
+      "source_digest": "fad46f8b07cce173dfdda3d1d29b38567b0b340f6bce2005163cf0587cd1a1a1"
+    },
+    {
+      "config_digest": "1e8809eddc93c00c21ed02d8b78ea1352bcb0060b046d6872e5f747e633ab436",
+      "profile_id": "sii-qwen3-8-27b",
+      "receipt": {
+        "budgets": {
+          "max_requests": 12,
+          "max_runtime_seconds": 600.0,
+          "max_steps": 5
+        },
+        "compatibility": [],
+        "config_digest": "1e8809eddc93c00c21ed02d8b78ea1352bcb0060b046d6872e5f747e633ab436",
+        "loss": [],
+        "model": {
+          "api_mode": "chat_completions",
+          "credential_reference_digest": "b521dad7584b17cec7a14b926377f03b0df2f295a935213005d9286e84680c99",
+          "endpoint_digest": "20a5bc2077f9ffa73e3356ef7804badfc59a843a4d495021b59e94b978cef0c4",
+          "model": "Qwen3.8-27B",
+          "provider": "openai_compatible",
+          "request_policy_digest": "fc1005dc5f42e33794102304a75ce7ad00d7fe42e3c6c13c5f4dd568c9de6b61"
+        },
+        "omitted": [
+          "credential_value",
+          "credential_store_path",
+          "endpoint",
+          "host_workspace_path",
+          "session_store_path",
+          "trajectory_output_path",
+          "request_headers",
+          "provider_payload"
+        ],
+        "protocol": "react_text_v1",
+        "runtime": {
+          "environment_type": "docker",
+          "image_digest": "bf7844ff63786193dd1b7ac02c5eb49a43837e7108520b7636a26de6ac47dfff",
+          "sandbox_policy_digest": "b97559ba08ef091086e798aacd9cbd01aca193934d34cb58c7d6405e54a84cb9",
+          "session": {
+            "enabled": true,
+            "restore": false,
+            "store": "sqlite"
+          },
+          "trajectory": {
+            "enabled": true,
+            "privacy": "private"
+          },
+          "workspace_digest": "f7204318d25bad635c9f6e19146c9aeb17cca8c8488f422232438fed1970f088"
+        },
+        "schema": "qitos.agent/v1",
+        "source_digest": "081d845363c43171b02f6b2e7e77d74fe08fa691dd4c26316cfaf7bdd71a2888",
+        "tools": {
+          "include": [],
+          "preset": "env_coding"
+        }
+      },
+      "source_digest": "081d845363c43171b02f6b2e7e77d74fe08fa691dd4c26316cfaf7bdd71a2888"
+    }
+  ],
   "decision": {
     "default_branch_ready": false,
     "feature_baseline_promoted": false,
-    "g4_live": "configuration_blocked",
+    "g4_live": "live_flag_required",
     "s3_status": "blocked_live_qualification",
     "s4_ready": false
   },
-  "generated_at": "2026-09-01T00:52:03+00:00",
-  "live_requested": true,
-  "matrix_digest": "7a085b28757e32c1293c25f0c4e5f679aaffc52e15bd25c7d9f126c11d431660",
-  "matrix_path": "docs/internal/plans/s3_g4_live_model_matrix.md",
-  "multi_agent_restore_workflow": {
-    "model_requests": 0,
-    "outcome": "configuration_blocked",
-    "reason": "no_tool_capable_live_route"
+  "evidence_digest": "dbfd1ddb040e8a20035d9fdb304b0bd2cddc0b632f54938793fd38f3edeef5dd",
+  "generated_at": "2026-09-01T02:30:18.168735+00:00",
+  "offline": {
+    "command": [
+      "python",
+      "-m",
+      "pytest",
+      "-q",
+      "tests/test_yaml_config.py",
+      "tests/test_agent_credentials.py",
+      "tests/test_native_tool_calling_runtime.py::test_default_history_window_never_sends_orphan_parallel_tool_results",
+      "tests/e2e/test_s2_g3_runtime_vertical.py::test_twenty_clean_process_vertical_continuity_rounds",
+      "tests/e2e/test_session_core_process_restore.py::test_fresh_process_restore_uses_no_live_parent_object",
+      "tests/e2e/test_multi_agent_process_restore.py::test_clean_process_restores_receipts_without_replaying_unknown",
+      "tests/test_docker_qualification.py"
+    ],
+    "count": 16,
+    "gates": [
+      {
+        "index": 1,
+        "name": "strict_parser",
+        "status": "passed"
+      },
+      {
+        "index": 2,
+        "name": "unknown_field_rejection",
+        "status": "passed"
+      },
+      {
+        "index": 3,
+        "name": "canonical_serialization",
+        "status": "passed"
+      },
+      {
+        "index": 4,
+        "name": "credential_non_disclosure",
+        "status": "passed"
+      },
+      {
+        "index": 5,
+        "name": "environment_compatibility_receipts",
+        "status": "passed"
+      },
+      {
+        "index": 6,
+        "name": "fake_resolver_provider_preflight",
+        "status": "passed"
+      },
+      {
+        "index": 7,
+        "name": "fake_single_step",
+        "status": "passed"
+      },
+      {
+        "index": 8,
+        "name": "fake_env_tool_route",
+        "status": "passed"
+      },
+      {
+        "index": 9,
+        "name": "fake_parallel_tools",
+        "status": "passed"
+      },
+      {
+        "index": 10,
+        "name": "fake_continuation",
+        "status": "passed"
+      },
+      {
+        "index": 11,
+        "name": "single_agent_clean_process_restore",
+        "status": "passed"
+      },
+      {
+        "index": 12,
+        "name": "multi_agent_clean_process_restore",
+        "status": "passed"
+      },
+      {
+        "index": 13,
+        "name": "real_docker_creation_inspect",
+        "status": "passed"
+      },
+      {
+        "index": 14,
+        "name": "real_docker_tools_denials_digest",
+        "status": "passed"
+      },
+      {
+        "index": 15,
+        "name": "source_config_policy_cleanup_binding",
+        "status": "passed"
+      },
+      {
+        "index": 16,
+        "name": "reachable_g4_live_passed",
+        "status": "passed"
+      }
+    ],
+    "output_digest": "81db4c0c8755fba419bb858bda541e8e4b6cc98f1a551d7ab7c17a7e2dac54d7",
+    "returncode": 0,
+    "status": "passed"
   },
   "privacy": {
+    "authorization_markers_absent": true,
     "credential_values_absent": true,
-    "findings": [],
-    "hidden_reasoning_committed": false,
     "host_paths_absent": true,
     "raw_endpoints_absent": true,
-    "raw_provider_payload_committed": false,
     "scan_passed": true
   },
-  "profiles": [
-    {
-      "credential_reference": "env:QITOS_LIVE_DSV4_API_KEY",
-      "credential_reference_status": "missing",
-      "endpoint_digest": "2105aa3fe71a3bba3ea963e533f83f017db0cfb2b7c8a68095ac68f2bc7e32e1",
-      "latency_ms": 0,
-      "model": "dsv4-flash-0731",
-      "outcome": "configuration_blocked",
-      "preflight": [],
-      "profile_id": "sii-dsv4-flash",
-      "raw_private_evidence_digest": null,
-      "request_count": 0,
-      "request_policy_digest": "ac2cf7535c99cc717078ca3d946d5540b2ee8ee194278369f57bc009fea93632",
-      "retry_count": 0,
-      "stop_reason": "credential_missing",
-      "tool_capable": false,
-      "usage": {
-        "input_tokens": 0,
-        "output_tokens": 0,
-        "provider_reported": false,
-        "total_tokens": 0
-      }
-    },
-    {
-      "credential_reference": "env:QITOS_LIVE_GLM52_API_KEY",
-      "credential_reference_status": "missing",
-      "endpoint_digest": "fc840dd71bd36f89c910aaf25eb705e2e8234babb19757c557474d38eff07827",
-      "latency_ms": 0,
-      "model": "GLM-5.2-w4a8c8",
-      "outcome": "configuration_blocked",
-      "preflight": [],
-      "profile_id": "sii-glm-5-2",
-      "raw_private_evidence_digest": null,
-      "request_count": 0,
-      "request_policy_digest": "e4db69037defb932e34c45845c427d7db956c9251b510cc9583f1f1ab85b73c5",
-      "retry_count": 0,
-      "stop_reason": "credential_missing",
-      "tool_capable": false,
-      "usage": {
-        "input_tokens": 0,
-        "output_tokens": 0,
-        "provider_reported": false,
-        "total_tokens": 0
-      }
-    },
-    {
-      "credential_reference": "env:QITOS_LIVE_QWEN38_API_KEY",
-      "credential_reference_status": "missing",
-      "endpoint_digest": "2c54f77965f38ed5d7ffe244de7282634c2c2e460b0087adda955f8d849b09bc",
-      "latency_ms": 0,
-      "model": "Qwen3.8-27B",
-      "outcome": "configuration_blocked",
-      "preflight": [],
-      "profile_id": "sii-qwen3-8-27b",
-      "raw_private_evidence_digest": null,
-      "request_count": 0,
-      "request_policy_digest": "e4db69037defb932e34c45845c427d7db956c9251b510cc9583f1f1ab85b73c5",
-      "retry_count": 0,
-      "stop_reason": "credential_missing",
-      "tool_capable": false,
-      "usage": {
-        "input_tokens": 0,
-        "output_tokens": 0,
-        "provider_reported": false,
-        "total_tokens": 0
-      }
-    }
-  ],
-  "runner_digest": "e0f6fcc6bf573113ac9e0ec2e14d585fd81085e924620de95fc7892861941dcd",
-  "sandbox": {
-    "attestation_digest": null,
-    "cleanup": "not_applicable_no_resource_created",
-    "host_fallback": false,
-    "model_requests_before_attestation": 0,
-    "pre_model_attestation": "not_started",
-    "reason": "credential_gate_preceded_sandbox_provisioning"
-  },
-  "schema_version": "qitos.s3.live_qualification/v1",
-  "single_agent_workflow": {
-    "model_requests": 0,
-    "outcome": "configuration_blocked",
-    "reason": "no_tool_capable_live_route"
-  },
-  "source_commit": "e3a4b86ad10496f1e6ee98b4cfb92fffafd58c59",
+  "profiles": [],
+  "runner_digest": "d56ab71ca83a994ebf8d42aa9081744bd33fee0b3b70937d4129e8bf3b8bf077",
+  "sandbox": {},
+  "schema_version": "qitos.s3.g4_l2_qualification/v1",
+  "source_commit": "bd0f93328ccb37b66e62855de8ad489916c47e1e",
   "totals": {
-    "configuration_blocked": 3,
     "input_tokens": 0,
-    "latency_ms": 0,
     "output_tokens": 0,
     "profiles": 3,
     "reported_tokens": 0,
     "requests": 0,
-    "retries": 0,
-    "tool_capable_profiles": 0
+    "retries": 0
   },
-  "trajectory": {
-    "candidate_writer_default": false,
-    "live_events_recorded": 0,
-    "qita_default": "frozen_trace_v1_compatibility",
-    "schema_frozen": false
-  }
+  "workflows": {}
 }

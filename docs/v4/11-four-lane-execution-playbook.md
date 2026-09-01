@@ -7,8 +7,8 @@ Source tasks: Tasks 02–05 and 08–13
 Baseline: Task 01 complete; exact current integration status lives in
 [`docs/progress.md`](../progress.md)
 
-Current dispatch state: **S3 deterministic candidate qualified; live
-configuration and promotion blocked.** The durable single-agent vertical and clean-process restore were
+Current dispatch state: **S3 deterministic candidate and G4-L2 offline launch
+qualification passed; live qualification and promotion pending.** The durable single-agent vertical and clean-process restore were
 qualified, promoted, repeated in the primary checkout, pushed, and verified at
 fixed pre-S3-closure source `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`;
 the previous-wave worktrees were retired without force and their branch refs
@@ -17,7 +17,10 @@ remain. The historical S2 lane baseline `446a347...` and G3 integration source
 complete remote SHA published by this S3 dispatch closure, never from either
 historical source. The fixed `851f790...` replay subsequently converged the four
 S3 lanes and passed twenty deterministic process-loss rounds. It remains an
-unpromoted candidate because no live matrix was supplied. Trajectory v2 remains
+unpromoted candidate. A single strict `AgentConfig` composition path, local
+credential-reference resolution, executable Docker qualification, and all
+sixteen prerequisite gates now pass with zero live requests; the three
+configured live outcomes remain the promotion gate. Trajectory v2 remains
 unfrozen, its candidate reader is not the qita default, and distributed or
 external-effect exactly-once behavior is not claimed.
 

@@ -1,7 +1,8 @@
 # Task 12 — durable session runtime and process-independent resume
 
 Status: 12B–D promoted; S3 fork/ownership deterministic candidate qualified;
-live promotion blocked; qita/default migration remains S4
+G4-L2 canonical restore composition qualified offline; live promotion pending;
+qita/default migration remains S4
 Depends on: Task 01; coordinates with Tasks 02, 03, 04, and 09
 Unblocks: Task 05 schema freeze, Task 13 durable multi-agent work, and the v4
 long-horizon reference flow
@@ -11,6 +12,13 @@ public runtime ergonomics
 ---
 
 ## 1. Goal
+
+G4-L2 now gives fresh-process restore one declarative authority:
+`qitos.agent/v1` is reloaded, the logical `CredentialRef` is re-resolved at the
+new composition boundary, and the existing SQLite store and `Engine.restore`
+reconstruct the Session. Neither the secret nor a live resolver/client is
+serialized into the Session snapshot. This is a bounded qualification of the
+existing Task 12 path, not a second Session store or runtime.
 
 Make a QitOS session a durable, inspectable runtime object rather than an
 in-memory convenience around `Engine.step()`.

@@ -36,6 +36,7 @@ def main(argv: list[str] | None = None) -> int:
             prog="qit", description="QitOS CLI for demos, benchmarks, and developer workflows"
         )
         subparsers = parser.add_subparsers(dest="command")
+        subparsers.add_parser("run", help="Run an agent from canonical agent.yaml")
         subparsers.add_parser("demo", help="Run packaged demos and quickstarts")
         subparsers.add_parser("skill", help="Manage third-party skills")
         subparsers.add_parser("bench", help="Unified benchmark CLI")
@@ -50,6 +51,8 @@ def main(argv: list[str] | None = None) -> int:
     if args:
         command = args[0]
         remaining = args[1:]
+        if command == "run":
+            return _run_main(remaining)
         if command == "demo":
             return _demo_main(remaining)
         if command == "skill":
@@ -72,6 +75,7 @@ def main(argv: list[str] | None = None) -> int:
         prog="qit", description="QitOS CLI for demos, benchmarks, and developer workflows"
     )
     subparsers = parser.add_subparsers(dest="command")
+    subparsers.add_parser("run", help="Run an agent from canonical agent.yaml")
     subparsers.add_parser("demo", help="Run packaged demos and quickstarts")
     subparsers.add_parser("skill", help="Manage third-party skills")
     subparsers.add_parser("bench", help="Unified benchmark CLI")
@@ -83,6 +87,62 @@ def main(argv: list[str] | None = None) -> int:
     subparsers.add_parser("pull", help="Pull trace artifacts from HF Hub")
     parser.print_help()
     return 1
+
+
+def _run_main(argv: list[str]) -> int:
+    """Thin dispatch into the canonical qitos.config composition root."""
+    parser = argparse.ArgumentParser(
+        prog="qit run", description="Run one canonical declarative agent config"
+    )
+    parser.add_argument("--config", required=True, help="Path to canonical agent.yaml")
+    parser.add_argument(
+        "--credentials",
+        default="~/.config/qitos/credentials.yaml",
+        help="Hardened local credential mapping (default: ~/.config/qitos/credentials.yaml)",
+    )
+    parser.add_argument("--task", help="Override the first configured dataset task")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate and print only the secret-free config identity",
+    )
+    args = parser.parse_args(argv)
+
+    from qitos.config import LocalCredentialFileResolver, load_agent_config, run_agent_config
+    from qitos.config.errors import ConfigurationError
+
+    try:
+        config = load_agent_config(args.config)
+        if args.dry_run:
+            print(
+                json.dumps(
+                    {
+                        "schema": config.schema,
+                        "config_digest": config.digest(),
+                        "source": config.source,
+                        "compatibility": config.compatibility,
+                        "loss": config.loss,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+            return 0
+        resolver = LocalCredentialFileResolver(
+            args.credentials,
+            repository_root=Path(__file__).resolve().parent.parent,
+        )
+        result = run_agent_config(
+            config,
+            credential_resolver=resolver,
+            task=str(args.task) if args.task else None,
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    except ConfigurationError as exc:
+        print(json.dumps(exc.to_dict(), ensure_ascii=False, sort_keys=True), file=sys.stderr)
+        return 2
 
 
 def _demo_main(argv: list[str]) -> int:
@@ -349,7 +409,7 @@ def _experiment_run(args: argparse.Namespace) -> int:
     from qitos.experiment.sweep import sweep_product
     from qitos.core.spec import ExperimentSpec
 
-    config = load_agent_config(args.config)
+    config = load_agent_config(args.config, compatibility=True)
 
     # Parse sweep from config metadata if present
     sweep = SweepSpec()

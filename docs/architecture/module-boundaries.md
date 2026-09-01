@@ -37,7 +37,7 @@ Dependencies may only point downward (or within the same layer where noted). "La
 | `qitos.metric` | Benchmark metric contracts | `Metric`, `MetricInput` | (leaf) | everything qitos |
 | `qitos.benchmark` (deprecated) | Legacy benchmark adapters | `BenchmarkAdapter`, runners | core, engine, kit, trace, tracing, recipes (migration-era only) | models, harness, render, evaluate, metric, periphery |
 | `qitos.recipes` | Canonical recipes + benchmarks (target home) | `qitos.recipes.benchmarks.*`, method recipes | core, engine, kit, models, trace, render, evaluate, metric, harness, benchmark (migration-era only) | periphery |
-| `qitos.config` | YAML → Agent/Engine assembly | `load_config`, builders | core, models, engine | benchmark, recipes, periphery |
+| `qitos.config` | Strict declarative launch parsing, credential resolution boundary, and Agent/Engine composition | `load_agent_config`, `CredentialRef`, resolvers, `build_agent_composition`, `run_agent_config` | core, models, engine, kit, checkpoint | benchmark, recipes, periphery |
 | `qitos.experiment` | Sweep/concurrent runs | `ExperimentRunner` | core, engine, config, cache, checkpoint | benchmark, recipes, kit, qita |
 | `qitos.cli`, `qitos.demo`, `qitos.qita`, `qitos.leaderboard`, `qitos.hf`, `qitos.func`, `qitos.debug`, `qitos.cache` | Edge aggregators / deprecated leaves | CLI commands, `qit demo minimal`, qita commands | anything below them | — (nothing inside `qitos` may import them; `qita -> debug` is a legacy exception) |
 
@@ -75,6 +75,8 @@ graph TD
     CLI --> KIT
     CLI --> BM
     CLI --> ENG
+    CLI --> MOD
+    CLI --> CKP
     REC --> ENG
     REC --> KIT
     REC --> TRACE

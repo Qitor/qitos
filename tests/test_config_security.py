@@ -12,27 +12,27 @@ from qitos.trace.writer import TraceWriter
 from qitos.tracing.config import _REDACTED_FIELDS, _REDACTED_MARKER, _redact_dict
 
 
-def test_model_config_to_dict_masks_api_key():
-    """ModelConfig.to_dict() masks non-empty api_key."""
+def test_model_config_to_dict_omits_api_key():
+    """Canonical serialization excludes the compatibility secret field."""
     cfg = ModelConfig(api_key="sk-12345-secret")
     d = cfg.to_dict()
-    assert d["api_key"] == "***REDACTED***"
+    assert "api_key" not in d
+    assert "sk-12345-secret" not in json.dumps(d)
 
 
-def test_model_config_to_dict_empty_api_key():
-    """ModelConfig.to_dict() returns empty string for empty api_key."""
+def test_model_config_to_dict_empty_api_key_is_still_omitted():
     cfg = ModelConfig(api_key="")
     d = cfg.to_dict()
-    assert d["api_key"] == ""
+    assert "api_key" not in d
 
 
 def test_model_config_preserves_other_fields():
-    """Other fields are not affected by api_key masking."""
+    """Other fields are not affected by secret omission."""
     cfg = ModelConfig(provider="anthropic", model="claude-3", api_key="sk-test")
     d = cfg.to_dict()
     assert d["provider"] == "anthropic"
     assert d["model"] == "claude-3"
-    assert d["api_key"] == "***REDACTED***"
+    assert "api_key" not in d
 
 
 def test_redacted_fields_includes_sensitive_names():

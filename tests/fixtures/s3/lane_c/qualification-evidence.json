@@ -38,7 +38,7 @@
     "focused_cross_lane": "107 passed",
     "integrated_evidence_group": "88 passed",
     "runtime_process_group": "18 passed including 20 G4 graph rounds and 20 preparation-crash rounds",
-    "python_3_12_7_static_ratchet": "passed; baseline shrank by 7 to 369 findings (347 active, 22 vendored/generated)",
+    "python_3_12_7_static_ratchet": "passed; baseline now 367 findings (345 active, 22 vendored/generated)",
     "stable_flake8": "passed",
     "focused_mypy": "passed"
   },
