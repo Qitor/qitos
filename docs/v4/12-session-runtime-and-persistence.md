@@ -1,7 +1,8 @@
 # Task 12 — durable session runtime and process-independent resume
 
 Status: 12B–D promoted; S3 fork/ownership deterministic candidate qualified;
-G4-L2 canonical restore composition qualified offline; live promotion pending;
+G4-L2 canonical restore composition qualified offline; live workflow failed;
+promotion blocked;
 qita/default migration remains S4
 Depends on: Task 01; coordinates with Tasks 02, 03, 04, and 09
 Unblocks: Task 05 schema freeze, Task 13 durable multi-agent work, and the v4

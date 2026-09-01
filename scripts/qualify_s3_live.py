@@ -251,11 +251,18 @@ def _provider_error_code(exc: BaseException) -> str:
     return "timeout" if "timeout" in name or "timeout" in message else "provider_error"
 
 
-def _count_model_requests(model: Any) -> dict[str, int]:
+def _count_model_requests(
+    model: Any, *, max_attempts: Optional[int] = None
+) -> dict[str, int]:
     counter = {"attempts": 0}
     original = model.call_raw
 
     def counted(*args: Any, **kwargs: Any) -> Any:
+        if max_attempts is not None and counter["attempts"] >= max_attempts:
+            raise QualificationError(
+                "model request budget exhausted",
+                code="request_budget_exhausted",
+            )
         counter["attempts"] += 1
         return original(*args, **kwargs)
 
@@ -453,7 +460,11 @@ def run_offline_gates(
 
 
 def _restore_worker(
-    *, config_path: Path, credentials_path: Path, session_id: str
+    *,
+    config_path: Path,
+    credentials_path: Path,
+    session_id: str,
+    max_requests: int,
 ) -> int:
     from qitos.config import LocalCredentialFileResolver, load_agent_config
     from qitos.config.builder import build_agent_composition
@@ -462,22 +473,35 @@ def _restore_worker(
     config = load_agent_config(config_path)
     resolver = LocalCredentialFileResolver(credentials_path, repository_root=ROOT)
     composition = build_agent_composition(config, credential_resolver=resolver)
-    request_counter = _count_model_requests(composition.model)
+    request_counter = _count_model_requests(
+        composition.model, max_attempts=max_requests
+    )
     try:
         composition.runtime.bind_engine_resources(composition.engine)
-        restored = Engine.restore(session_id, runtime=composition.runtime)
-        result = restored.run()
-        payload = {
-            "session_id": session_id,
-            "run_id": result.run_id,
-            "work_item_id": restored.work_item_id.value,
-            "stop_reason": result.state.stop_reason,
-            "final_result_digest": _sha256_text(str(result.state.final_result or "")),
-            "tool_calls": result.tool_calls_by_name,
-            "requests": request_counter["attempts"],
-            "credential": composition.credential_receipt,
-            "status": "passed" if result.state.final_result else "failed",
-        }
+        try:
+            restored = Engine.restore(session_id, runtime=composition.runtime)
+            result = restored.run()
+            payload = {
+                "session_id": session_id,
+                "run_id": result.run_id,
+                "work_item_id": restored.work_item_id.value,
+                "stop_reason": result.state.stop_reason,
+                "final_result_digest": _sha256_text(
+                    str(result.state.final_result or "")
+                ),
+                "tool_calls": result.tool_calls_by_name,
+                "requests": request_counter["attempts"],
+                "credential": composition.credential_receipt,
+                "status": "passed" if result.state.final_result else "failed",
+            }
+        except Exception as exc:
+            payload = {
+                "session_id": session_id,
+                "requests": request_counter["attempts"],
+                "credential": composition.credential_receipt,
+                "status": "failed",
+                "error_code": getattr(exc, "code", type(exc).__name__),
+            }
         print(json.dumps(payload, sort_keys=True))
         return 0 if payload["status"] == "passed" else 1
     finally:
@@ -485,7 +509,11 @@ def _restore_worker(
 
 
 def _run_restore_subprocess(
-    *, config_path: Path, credentials_path: Path, session_id: str
+    *,
+    config_path: Path,
+    credentials_path: Path,
+    session_id: str,
+    max_requests: int,
 ) -> dict[str, Any]:
     result = subprocess.run(
         [
@@ -498,6 +526,8 @@ def _run_restore_subprocess(
             str(credentials_path),
             "--session-id",
             session_id,
+            "--max-requests",
+            str(max_requests),
         ],
         cwd=ROOT,
         capture_output=True,
@@ -505,18 +535,31 @@ def _run_restore_subprocess(
         timeout=900,
         check=False,
     )
-    if result.returncode != 0:
-        raise QualificationError(
-            "clean-process restore worker failed", code="restore_worker_failed"
-        )
     lines = [line for line in result.stdout.splitlines() if line.strip()]
     if not lines:
-        raise QualificationError("restore worker emitted no receipt")
-    return dict(json.loads(lines[-1]))
+        raise QualificationError(
+            "restore worker emitted no receipt", code="restore_worker_no_receipt"
+        )
+    try:
+        receipt = dict(json.loads(lines[-1]))
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise QualificationError(
+            "restore worker emitted an invalid receipt",
+            code="restore_worker_invalid_receipt",
+        ) from exc
+    if result.returncode != 0 and receipt.get("status") != "failed":
+        raise QualificationError(
+            "restore worker failed without a typed failure receipt",
+            code="restore_worker_failed",
+        )
+    return receipt
 
 
 def _live_restore_workflows(
-    profile: LiveProfile, *, credentials_path: Path
+    profile: LiveProfile,
+    *,
+    credentials_path: Path,
+    request_limit: Optional[int] = None,
 ) -> dict[str, Any]:
     from qitos.config import LocalCredentialFileResolver
     from qitos.config.builder import build_agent_composition
@@ -570,7 +613,18 @@ def _live_restore_workflows(
         )
     resolver = LocalCredentialFileResolver(credentials_path, repository_root=ROOT)
     composition = build_agent_composition(config, credential_resolver=resolver)
-    request_counter = _count_model_requests(composition.model)
+    request_limit = (
+        int(request_limit)
+        if request_limit is not None
+        else int(config.budgets.max_requests)
+    )
+    if request_limit < 1:
+        raise QualificationError(
+            "no model request budget remains", code="request_budget_exhausted"
+        )
+    request_counter = _count_model_requests(
+        composition.model, max_attempts=request_limit
+    )
     setattr(composition.runtime, "lifecycle_policy", _PauseFirstBoundary())
     scheduler = _HoldScheduler()
     composition.runtime.work_runtime = DurableWorkRuntime(
@@ -592,10 +646,20 @@ def _live_restore_workflows(
         task = config.dataset[0].task if config.dataset else "Inspect the workspace, run one tool, and finish."
         single = composition.engine.session(task)
         single.run()
+        if single.lifecycle.value != "paused":
+            raise QualificationError(
+                "single-agent session did not reach a restorable pause",
+                code="workflow_single_not_paused",
+            )
         parent = composition.engine.session(
             "Call read_file once for README.md, then after its result return a final answer."
         )
         parent.run()
+        if parent.lifecycle.value != "paused":
+            raise QualificationError(
+                "parent session did not reach a dispatch-safe pause",
+                code="workflow_parent_not_paused",
+            )
         fan_out = parent.fan_out(
             [
                 {
@@ -632,22 +696,44 @@ def _live_restore_workflows(
     finally:
         composition.close()
         composition.runtime.work_runtime.close()
-    single_receipt = _run_restore_subprocess(
-        config_path=profile.config_path,
-        credentials_path=credentials_path,
-        session_id=identities["single"],
-    )
-    child_receipts = [
-        _run_restore_subprocess(
+    remaining = request_limit - int(identities["parent_requests"])
+    if remaining < 1:
+        single_receipt = {
+            "session_id": identities["single"],
+            "status": "failed",
+            "error_code": "request_budget_exhausted",
+            "requests": 0,
+        }
+    else:
+        single_receipt = _run_restore_subprocess(
             config_path=profile.config_path,
             credentials_path=credentials_path,
-            session_id=session_id,
+            session_id=identities["single"],
+            max_requests=remaining,
         )
-        for session_id in identities["children"]
-    ]
+    consumed = int(identities["parent_requests"]) + int(
+        single_receipt.get("requests", 0)
+    )
+    child_receipts: list[dict[str, Any]] = []
+    if single_receipt.get("status") == "passed":
+        for session_id in identities["children"]:
+            remaining = request_limit - consumed
+            if remaining < 1:
+                break
+            receipt = _run_restore_subprocess(
+                config_path=profile.config_path,
+                credentials_path=credentials_path,
+                session_id=session_id,
+                max_requests=remaining,
+            )
+            child_receipts.append(receipt)
+            consumed += int(receipt.get("requests", 0))
+            if receipt.get("status") != "passed":
+                break
     single_tool_route = bool(single_receipt.get("tool_calls"))
     multi_distinct = (
-        len(set(identities["child_work_items"])) == 2
+        len(child_receipts) == 2
+        and len(set(identities["child_work_items"])) == 2
         and identities["parent_work_item"] not in identities["child_work_items"]
         and len({receipt.get("session_id") for receipt in child_receipts}) == 2
     )
@@ -676,11 +762,7 @@ def _live_restore_workflows(
             receipt.get("credential", {}).get("resolver") == "local_file"
             for receipt in (single_receipt, *child_receipts)
         ),
-        "requests": sum(
-            int(receipt.get("requests", 0))
-            for receipt in (single_receipt, *child_receipts)
-        )
-        + int(identities["parent_requests"]),
+        "requests": consumed,
     }
 
 
@@ -849,7 +931,12 @@ def qualify(
     if qualified_index is not None:
         try:
             base["workflows"] = _live_restore_workflows(
-                profiles[qualified_index], credentials_path=credentials_path
+                profiles[qualified_index],
+                credentials_path=credentials_path,
+                request_limit=(
+                    int(profiles[qualified_index].config.budgets.max_requests)
+                    - int(base["profiles"][qualified_index].get("requests", 0))
+                ),
             )
             base["totals"]["requests"] += int(
                 base["workflows"].get("requests", 0)
@@ -957,14 +1044,22 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--private-dir")
     parser.add_argument("--restore-worker", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--session-id", help=argparse.SUPPRESS)
+    parser.add_argument("--max-requests", type=int, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
     if args.restore_worker:
-        if len(args.config) != 1 or not args.credentials or not args.session_id:
+        if (
+            len(args.config) != 1
+            or not args.credentials
+            or not args.session_id
+            or args.max_requests is None
+            or args.max_requests < 1
+        ):
             parser.error("restore worker requires one config, credentials, and session id")
         return _restore_worker(
             config_path=Path(args.config[0]).expanduser().resolve(),
             credentials_path=Path(args.credentials).expanduser().resolve(),
             session_id=str(args.session_id),
+            max_requests=int(args.max_requests),
         )
     if not args.source_commit:
         parser.error("--source-commit is required")

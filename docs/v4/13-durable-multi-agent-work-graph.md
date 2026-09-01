@@ -338,10 +338,12 @@ unrelated consumer patterns and the compact coding-agent example pass. The
 candidate intentionally makes no distributed scheduler, hard-cancellation, or
 external-effect exactly-once claim.
 
-Live-model qualification is `profiles_configured_execution_pending`: three
-provider/model profiles are registered through external credential references,
-but no bounded live execution receipt exists yet. This receipt therefore does
-not promote or push a baseline and does not authorize source-worktree cleanup or
-a default-branch readiness claim. Candidate Trajectory remains unfrozen/off and
-qita remains on frozen trace-v1. Exact evidence is in
-[`s3_g4_convergence_evidence.md`](../internal/plans/s3_g4_convergence_evidence.md).
+Live-model qualification is `workflow_failure`: all three profiles produced
+typed preflight outcomes, and one live run exercised distinct child lineage,
+ContextTransfer, join declaration, and fresh-process restore, but no complete
+tool-using Agent workflow passed and one route exceeded its request cap. This
+receipt therefore does not promote or push a baseline and does not authorize
+source-worktree cleanup or a default-branch readiness claim. Candidate
+Trajectory remains unfrozen/off and qita remains on frozen trace-v1. Exact live
+evidence is in
+[`s3_g4_live_qualification_evidence.md`](../internal/plans/s3_g4_live_qualification_evidence.md).

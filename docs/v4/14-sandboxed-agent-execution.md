@@ -1,7 +1,8 @@
 # Task 14 — sandboxed agent execution
 
 Status: architecture planned; G4-L2 has a bounded executable Docker
-qualification harness, but the complete untrusted-agent sandbox is not shipped
+qualification harness that passed live attestation/cleanup, but the Agent
+workflow failed and the complete untrusted-agent sandbox is not shipped
 Depends on: Tasks 03, 09, 12, and 13
 Feeds: Task 05 trajectory qualification, S4 developer experience, release gate
 Risk: critical — agents execute model-selected code against files, processes,

@@ -7,8 +7,8 @@ Source tasks: Tasks 02–05 and 08–13
 Baseline: Task 01 complete; exact current integration status lives in
 [`docs/progress.md`](../progress.md)
 
-Current dispatch state: **S3 deterministic candidate and G4-L2 offline launch
-qualification passed; live qualification and promotion pending.** The durable single-agent vertical and clean-process restore were
+Current dispatch state: **S3 deterministic candidate and G4-L2 config/sandbox
+qualification passed; live Agent workflow failed; promotion blocked.** The durable single-agent vertical and clean-process restore were
 qualified, promoted, repeated in the primary checkout, pushed, and verified at
 fixed pre-S3-closure source `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`;
 the previous-wave worktrees were retired without force and their branch refs
@@ -19,8 +19,10 @@ historical source. The fixed `851f790...` replay subsequently converged the four
 S3 lanes and passed twenty deterministic process-loss rounds. It remains an
 unpromoted candidate. A single strict `AgentConfig` composition path, local
 credential-reference resolution, executable Docker qualification, and all
-sixteen prerequisite gates now pass with zero live requests; the three
-configured live outcomes remain the promotion gate. Trajectory v2 remains
+sixteen prerequisite gates passed before live use. The later provider preflight
+proved two native-tool routes and one typed capability loss, but the required
+coding/restore workflows failed and one route exceeded its request cap.
+Trajectory v2 remains
 unfrozen, its candidate reader is not the qita default, and distributed or
 external-effect exactly-once behavior is not claimed.
 
@@ -992,10 +994,10 @@ fifth implementation. Its responsibilities are:
 | D | work-graph observability and DX | `codex/v4-s3-d-graph-observability` | tracing/qita/evaluate/examples | exact A/B/C facts, two patterns, public-shape example | qualified candidate |
 
 G4 deterministic convergence passed twenty rounds. Three provider/model profiles
-are registered with external credential references, but bounded execution and
-sanitized receipts are pending. The independent live gate is
-`profiles_configured_execution_pending`, so the dashboard does not authorize
-promotion, push, cleanup, or default-branch readiness.
+produced real typed preflight outcomes, but bounded Agent execution failed; the
+independent live gate is `workflow_failure` and the request budget is no longer
+clean. The dashboard does not authorize promotion, push, cleanup, or
+default-branch readiness.
 
 ### 10.1.1 Historical G2 contract-stage dashboard (superseded)
 

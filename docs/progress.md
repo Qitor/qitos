@@ -14,8 +14,8 @@ Promoted S2 runtime head:
 `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`
 S3 plan freeze: `52e050d9bc1ee0d4c6dcc78c90a5497c25722648`
 S3 convergence source: `851f7902f15da670e72f4c04d7453cf37201aee7`
-Current gate: **S3 DETERMINISTIC CANDIDATE AND G4-L2 OFFLINE LAUNCH/SANDBOX
-QUALIFICATION PASSED; LIVE QUALIFICATION AND PROMOTION PENDING**
+Current gate: **S3 DETERMINISTIC CANDIDATE AND G4-L2 CONFIG/SANDBOX PASSED;
+LIVE AGENT WORKFLOW FAILED; PROMOTION BLOCKED**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md),
 [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md),
@@ -39,9 +39,17 @@ parallel tool continuation, twenty-round deterministic Session continuity,
 fresh-process single and multi-agent restore, a real uniquely labelled Docker
 inspect/probe/cleanup round, and a fake-provider Agent workflow through the same
 Env tool surface. Private launch sources and credentials remain outside Git;
-committed evidence contains only logical identities and digests. Live outcomes,
-promotion, push, and worktree cleanup remain pending and cannot be inferred from
-this offline checkpoint.
+committed evidence contains only logical identities and digests.
+
+The three-provider preflight subsequently completed with real typed outcomes:
+DSV4 and GLM passed single/parallel native tools and continuation; Qwen reported
+`capability_loss`. The required Agent workflows did not pass. DSV4 exposed a
+created-Session restore defect and later `unrecoverable_error`; GLM restored a
+single Session and two distinct children but did not route a real tool, while a
+native-protocol projection stopped at `budget_steps` with the disposable tests
+still failing. Observed requests were 9/13/4 respectively, so GLM exceeded its
+12-request cap. `G4_LIVE=workflow_failure`; no further live request, promotion,
+push, or worktree cleanup is authorized.
 
 ### Historical G4-L credential blocker (superseded by G4-L2)
 

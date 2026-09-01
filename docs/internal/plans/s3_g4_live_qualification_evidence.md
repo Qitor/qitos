@@ -1,6 +1,6 @@
 # S3 G4-L2 live qualification evidence
 
-Status: sixteen offline gates passed; bounded live execution pending
+Status: deterministic/config/sandbox gates passed; live workflow failed
 Updated: 2026-09-01
 Owner: G4 integration owner
 Fixed integration source: `851f7902f15da670e72f4c04d7453cf37201aee7`
@@ -82,37 +82,70 @@ requests, zero reported tokens, and zero retries. Its pytest command covered:
 Focused post-change checks also passed: 267 configuration/security/credential/
 runner/Docker/provider/codec/Session/WorkGraph/tracing/qita/architecture tests,
 two CLI launch tests, flake8 for the changed configuration/runner surface, and
-mypy for `qitos/config` plus the runner. The full repository rerun passed
-`2372 passed, 50 skipped`; the static ratchet passed with 367 baselined findings
+mypy for `qitos/config` plus the runner. The final full repository rerun passed
+`2374 passed, 50 skipped`; the static ratchet passed with 367 baselined findings
 (345 active, 22 vendored/generated), stable flake8 passed, and stable mypy passed
 on 93 source files. Build and twine checks passed for both distribution artifacts,
 and a 1,310-file scan found zero credential-value, private-endpoint, or private-
 launch-path hits.
 
-## Live and promotion gate
+## Live provider facts
 
-No live provider request had been sent when this checkpoint was written. Live
-qualification must load all three exact private configs, run basic/single-tool/
-parallel-tool/continuation preflights, produce a real tool-using disposable
-Agent workflow and fresh-process Session restore, pass privacy and cleanup, and
-stay within each config's request budget. Each failure retains its concrete
-type; provider, protocol, capability, timeout, sandbox, workflow, privacy, and
-configuration failures are not collapsed into `configuration_blocked`.
+All three private configs were loaded by the canonical loader and each provider
+produced four real preflight responses. DSV4 and GLM passed text, one native
+tool, three parallel native tools, and continuation. Qwen passed text but
+returned no native calls for the single/parallel requests and returned three
+calls where continuation required a final response, so its honest typed outcome
+is `capability_loss`. This satisfies the provider-capability minimum but does
+not by itself qualify an Agent workflow.
 
-Promotion, push, and worktree retirement remain prohibited until the live
-receipt, deterministic/full/static/package/privacy gates, fast-forward
-preconditions, primary-checkout rerun, and remote identity checks all pass.
-The committed JSON summary will be replaced by the final sanitized runner
-receipt after execution.
+The preflight used 12 requests, 3,403 reported input tokens, 905 reported output
+tokens, 4,308 reported total tokens, 34,599 ms aggregate latency, and zero
+model-layer retries. These are provider-reported preflight facts only; workflow
+usage was not reliably emitted after worker failure and is intentionally not
+fabricated.
+
+## Workflow failure and stop decision
+
+Neither qualified provider completed the required coding workflow. The first
+DSV4 run reached a real parent Env read and declared two distinct children, two
+ContextTransfers, fan-out, and all-join, but attempted to restore a still-created
+single Session and stopped. A direct DSV4 retry ended in typed model recovery
+failure. The generic runner defect was fixed by running the single Session to a
+safe pause before restore and by preserving a sanitized typed child-process
+failure receipt instead of discarding it.
+
+With that fix, GLM's text-protocol run restored the single Session and two
+children in fresh processes and retained distinct lineage, two transfers, and a
+join, but the model never routed a real tool, so the receipt remained failed.
+Explicitly projecting the already-proven native-tool profiles onto the existing
+`json_decision_multi_v1` protocol did not close the gap: DSV4 ended
+`unrecoverable_error`; GLM stopped at `budget_steps`, left the disposable source
+unchanged, and its tests remained 2 failed / 1 passed.
+
+Across the preflight and bounded diagnostic attempts, observed request counts
+were DSV4 9, GLM 13, and Qwen 4. GLM therefore exceeded the configured
+12-request qualification budget by one request. No further provider request is
+authorized. The immutable preflight receipt remains
+[`s3_g4_live_qualification_summary.json`](s3_g4_live_qualification_summary.json);
+the sanitized closure facts and private-artifact digests are in
+[`s3_g4_live_workflow_failure_receipt.json`](s3_g4_live_workflow_failure_receipt.json).
+
+Privacy, Docker attestation, targeted container cleanup, main-checkout
+non-modification, and absence of HostEnv fallback all passed. The private
+disposable repository and Session stores are preserved outside Git for audit.
+Because the full single-agent workflow, full multi-agent workflow, live qita
+inspection, and request budget did not pass together, promotion, push, and every
+worktree removal are prohibited.
 
 Current status variables:
 
 ```text
 S3_STATUS=blocked_live_qualification
 G4_DETERMINISTIC=passed
-G4_LIVE=live_pending
+G4_LIVE=workflow_failure
 CONFIG_LAUNCH=passed
-SANDBOX_ATTESTATION=passed_offline
+SANDBOX_ATTESTATION=passed
 S4_READY=false
 DEFAULT_BRANCH_READY=false
 FINAL_STATUS=BLOCKED

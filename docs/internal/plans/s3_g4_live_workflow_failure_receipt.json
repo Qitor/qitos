@@ -1,0 +1,137 @@
+{
+  "schema": "qitos.s3.g4_l2_workflow_failure/v1",
+  "generated_at": "2026-09-01",
+  "parent_preflight_evidence_digest": "20af599b9178febba504ffebe1e0648ff1117f964c824c15dcf0a535c6215e40",
+  "execution_sources": [
+    "241a669c8856ad50a22e68c0a15422cf00d0a648",
+    "bec6886b12a7384f7cccd1e0cfc85d9f2b36670c"
+  ],
+  "decision": {
+    "s3_status": "blocked_live_qualification",
+    "g4_live": "workflow_failure",
+    "config_launch": "passed",
+    "sandbox_attestation": "passed",
+    "s4_ready": false,
+    "promotion_authorized": false,
+    "push_authorized": false,
+    "cleanup_authorized": false
+  },
+  "preflight": {
+    "status": "typed_outcomes_complete",
+    "profiles": {
+      "sii-dsv4-flash": "passed",
+      "sii-glm-5-2": "passed",
+      "sii-qwen3-8-27b": "capability_loss"
+    },
+    "native_tool_capable_profiles": 2,
+    "requests": 12,
+    "reported_input_tokens": 3403,
+    "reported_output_tokens": 905,
+    "reported_total_tokens": 4308,
+    "reported_latency_ms": 34599
+  },
+  "request_accounting": {
+    "sii-dsv4-flash": 9,
+    "sii-glm-5-2": 13,
+    "sii-qwen3-8-27b": 4,
+    "aggregate": 26,
+    "configured_limit_per_profile": 12,
+    "within_limit": false,
+    "violating_profile": "sii-glm-5-2",
+    "model_layer_retries": 0,
+    "engine_recovery_requests_included": true,
+    "workflow_usage_unreported": true
+  },
+  "workflow_attempts": [
+    {
+      "profile": "sii-dsv4-flash",
+      "protocol": "react_text_v1",
+      "status": "failed",
+      "typed_reason": "restore_worker_failed",
+      "single_agent_complete": false,
+      "multi_agent_complete": false,
+      "parent_real_tool_route_observed": true,
+      "context_transfer_receipts": 2,
+      "child_work_items": 2
+    },
+    {
+      "profile": "sii-glm-5-2",
+      "protocol": "react_text_v1",
+      "status": "failed",
+      "typed_reason": "real_tool_route_missing",
+      "single_agent_restore_complete": true,
+      "child_restores_complete": 2,
+      "context_transfer_receipts": 2,
+      "join_declared": true,
+      "real_tool_route_observed": false,
+      "requests": 5
+    },
+    {
+      "profile": "sii-dsv4-flash",
+      "protocol": "json_decision_multi_v1",
+      "status": "failed",
+      "typed_reason": "unrecoverable_error",
+      "requests": 2
+    },
+    {
+      "profile": "sii-glm-5-2",
+      "protocol": "json_decision_multi_v1",
+      "status": "failed",
+      "typed_reason": "budget_steps",
+      "requests": 4,
+      "workspace_source_modified": false,
+      "workspace_tests_passed": 1,
+      "workspace_tests_failed": 2
+    }
+  ],
+  "private_artifact_digests": {
+    "dsv4_react_session_store": "ef5068757307aa12ed45b98c46c3f09bd4c4283271dd316e5a782486464dfb0d",
+    "dsv4_native_session_store": "744c9ebc462fb57165f8a416d3cca8f1913b42827499c7997be4ef1a51cc4382",
+    "glm52_react_session_store": "95eefef12e1edf364715f1ab0169640c4b1cb40b0d316463b69204a5949b6b14",
+    "glm52_native_session_store": "57415d8a91cce100b2805b313b5cbd1d2bf722fe1d06bb7fecf2fe63afb0a116",
+    "workspace_initial_head": "de2c78570c2b7538fd2d98906585cefc4c1e5999"
+  },
+  "config_projections": [
+    {
+      "profile": "sii-dsv4-flash",
+      "protocol": "json_decision_multi_v1",
+      "config_digest": "a7cf0c7d8cea58d225a2ad18c11bae0b2c4f43494afb30726bc8fb2fd8c28c1a",
+      "source_digest": "d1fdaad7e9a2406843858f65af113ec001b5b716d7323731f661c7b9f5e52600"
+    },
+    {
+      "profile": "sii-glm-5-2",
+      "protocol": "json_decision_multi_v1",
+      "config_digest": "8ee54566d78ef9b838121e8ea05753ac8f6b1f4c2b2dbbd8eb46c7c0fa201bcd",
+      "source_digest": "1da85f9e30970dbc99e9ca827174ec0a3fa64d1a718d6cdac667d98a6b8c5120"
+    },
+    {
+      "profile": "sii-qwen3-8-27b",
+      "protocol": "react_text_v1",
+      "config_digest": "1e8809eddc93c00c21ed02d8b78ea1352bcb0060b046d6872e5f747e633ab436",
+      "source_digest": "081d845363c43171b02f6b2e7e77d74fe08fa691dd4c26316cfaf7bdd71a2888"
+    }
+  ],
+  "sandbox": {
+    "attestation": "passed",
+    "cleanup": "passed",
+    "host_env_fallback": false,
+    "main_repository_modified_by_agent": false
+  },
+  "session_work_graph_trajectory": {
+    "distinct_children_observed": true,
+    "context_transfers_observed": 2,
+    "join_declaration_observed": true,
+    "fresh_process_restore_observed": true,
+    "complete_live_workflow": false,
+    "live_qita_inspection_complete": false,
+    "duplicate_committed_effect_observed": false
+  },
+  "privacy": {
+    "credential_values_absent": true,
+    "raw_endpoints_absent": true,
+    "host_paths_absent": true,
+    "raw_provider_payloads_absent": true,
+    "scan_passed": true
+  },
+  "evidence_digest": "137505b83a7b2fbfb5e7cc3a0ea8dc59827e99904e92fa3f8f647e98ad3a5c96"
+}

@@ -37,9 +37,9 @@ join lineage and read-only qita graph/timeline inspection across twenty
 independent SQLite rounds. That evidence qualifies the runtime input to this
 task, but it does not freeze the candidate schema, enable its writer, change the
 qita default from frozen trace-v1, or authorize publication. Three live-model
-profiles are registered through external credential references, but no bounded
-trajectory or agent execution receipt exists yet. Qualification is therefore
-`profiles_configured_execution_pending`.
+profiles produced typed live preflight outcomes, but no complete tool-using
+Agent workflow or live qita inspection passed. Qualification is therefore
+`workflow_failure`; no trajectory publication is authorized.
 
 ## 1. Goal
 

@@ -28,6 +28,12 @@ Docker qualification, privacy, and reachable success state before any live
 provider request. This evidence is necessary for S3 promotion but does not
 complete the broader Task 14 threat model.
 
+The 2026-09-01 live round passed real Docker attestation and produced typed
+preflight outcomes for all three configured profiles, including native tool
+support on two routes. It did not pass the complete Agent workflows, and one
+route exceeded its request cap during bounded diagnosis. The gate is therefore
+`workflow_failure`; S3 remains unpromoted and S4 is not ready.
+
 The old “10% agent” target mixed code size and task performance and could be gamed
 by weakening the reference agent. v4 uses seven independent gates instead.
 

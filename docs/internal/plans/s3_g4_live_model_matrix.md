@@ -1,7 +1,6 @@
 # S3 G4 live-model matrix
 
-Status: canonical local launch configs validated; sixteen offline gates passed;
-bounded live execution pending
+Status: provider preflight complete; live Agent workflows failed and are frozen
 Updated: 2026-09-01
 Owner: G4 live-qualification owner
 Candidate source: to be bound by the G4-L2 implementation commit
@@ -15,7 +14,7 @@ change provider defaults, persist credentials, freeze Trajectory, or qualify the
 candidate before executable receipts exist. Framework code must select a profile
 explicitly rather than hard-code one of these routes into core or engine.
 
-## 2026-09-01 G4-L2 checkpoint
+## 2026-09-01 G4-L2 outcome
 
 The exact 12-request, 10,240-output-token, 180-second,
 zero-automatic-retry policy remains fixed. The execution authority is no longer
@@ -25,13 +24,23 @@ state, and a hardened local resolver supplies each logical credential at the
 composition boundary. All launch files and refs validated without disclosing a
 value, and all sixteen offline gates passed with zero provider requests.
 
-The committed redacted receipt is
+The committed redacted preflight receipt is
 [`s3_g4_live_qualification_summary.json`](s3_g4_live_qualification_summary.json),
 with the execution narrative and raw/private storage policy in
 [`s3_g4_live_qualification_evidence.md`](s3_g4_live_qualification_evidence.md).
-Live outcomes are still pending. This checkpoint prohibits promotion, push, and
-worktree retirement and leaves capability cells unqualified until the runner's
-digest-bound live receipt is committed.
+The separate sanitized
+[`workflow failure receipt`](s3_g4_live_workflow_failure_receipt.json) binds the
+subsequent restore attempts and private Session-store digests. DSV4 and GLM
+passed native single/parallel/continuation preflight; Qwen produced typed
+`capability_loss`. Full Agent execution nevertheless failed, and GLM reached 13
+observed requests against its 12-request cap. Execution is frozen; promotion,
+push, and worktree retirement are prohibited.
+
+| Profile | Text | Single native tool | Three parallel tools | Continuation | Final typed outcome |
+|---|---:|---:|---:|---:|---|
+| `sii-dsv4-flash` | pass | pass | pass | pass | `workflow_failure` |
+| `sii-glm-5-2` | pass | pass | pass | pass | `workflow_failure` + request-budget violation |
+| `sii-qwen3-8-27b` | pass | loss | loss | loss | `capability_loss` |
 
 ## Registered profiles
 

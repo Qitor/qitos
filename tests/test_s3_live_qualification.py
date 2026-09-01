@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -354,10 +356,12 @@ def test_live_workflow_builds_two_child_fan_out_transfers_and_join(
 
     monkeypatch.setattr("qitos.config.builder.build_agent_composition", fake_build)
     seen: list[str] = []
+    remaining_limits: list[int] = []
 
     def fake_restore(**kwargs: object) -> dict[str, object]:
         session_id = str(kwargs["session_id"])
         seen.append(session_id)
+        remaining_limits.append(int(kwargs["max_requests"]))
         return {
             "session_id": session_id,
             "status": "passed",
@@ -376,3 +380,65 @@ def test_live_workflow_builds_two_child_fan_out_transfers_and_join(
     assert receipt["multi_agent"]["context_transfer_receipts"] == 2
     assert receipt["multi_agent"]["fan_out_lineage_distinct"] is True
     assert len(seen) == 3
+    assert remaining_limits == sorted(remaining_limits, reverse=True)
+    assert len(set(remaining_limits)) == 3
+
+
+def test_restore_subprocess_preserves_typed_failure_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _module()
+    completed = subprocess.CompletedProcess(
+        args=["restore-worker"],
+        returncode=1,
+        stdout=json.dumps(
+            {
+                "session_id": "session-safe",
+                "status": "failed",
+                "error_code": "protocol_error",
+                "requests": 2,
+            }
+        ),
+        stderr="private provider detail",
+    )
+    calls: list[list[str]] = []
+
+    def fake_run(args: list[str], **kwargs: object) -> object:
+        calls.append(args)
+        return completed
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    receipt = module._run_restore_subprocess(
+        config_path=tmp_path / "agent.yaml",
+        credentials_path=tmp_path / "credentials.yaml",
+        session_id="session-safe",
+        max_requests=2,
+    )
+
+    assert receipt == {
+        "session_id": "session-safe",
+        "status": "failed",
+        "error_code": "protocol_error",
+        "requests": 2,
+    }
+    assert "private provider detail" not in json.dumps(receipt)
+    assert calls[0][-2:] == ["--max-requests", "2"]
+
+
+def test_model_request_counter_fails_before_exceeding_limit() -> None:
+    module = _module()
+
+    class Model:
+        def call_raw(self) -> str:
+            return "ok"
+
+    model = Model()
+    counter = module._count_model_requests(model, max_attempts=1)
+
+    assert model.call_raw() == "ok"
+    with pytest.raises(module.QualificationError) as exc_info:
+        model.call_raw()
+
+    assert exc_info.value.code == "request_budget_exhausted"
+    assert counter == {"attempts": 1}

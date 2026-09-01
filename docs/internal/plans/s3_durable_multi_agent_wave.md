@@ -386,9 +386,9 @@ The frozen public-surface counts remain 41/27/24/28/22/101/34. Candidate
 Trajectory remains unfrozen and off; qita's default remains frozen trace-v1.
 Three OpenAI-compatible live profiles are now registered through external,
 endpoint-specific credential references; no credential value is stored in the
-repository. Budget acceptance, capability preflight, trajectory collection, and
-disposable-agent execution receipts are still pending, so
-`live_model_qualification=profiles_configured_execution_pending`. Consequently
+repository. Capability preflight later completed, but the disposable Agent
+workflows failed and one profile exceeded its request cap, so
+`live_model_qualification=workflow_failure`. Consequently
 the candidate is not promoted or pushed, source worktrees are retained, and no
 S3 release/default-branch readiness claim is authorized. The exact replay ledger
 and deterministic validation receipts live in

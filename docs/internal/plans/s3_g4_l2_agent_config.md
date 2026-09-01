@@ -1,6 +1,6 @@
 # S3 G4-L2 canonical AgentConfig and live qualification plan
 
-Status: implementation and all 16 offline gates passed; live qualification pending
+Status: implementation/offline/sandbox passed; live workflow failed; blocked
 Updated: 2026-09-01
 Owner: G4 integration owner
 Fixed integration source: `851f7902f15da670e72f4c04d7453cf37201aee7`
@@ -39,9 +39,10 @@ Architecture decision and pre-implementation census:
 - [x] Run the sixteen offline gates, including fake-provider single/parallel/
   continuation and clean-process single/multi-agent restore paths.
 - [x] Create private launch files with safe ownership/modes, validate local
-  credential authority without disclosing values. The bounded live provider/
-  workflow qualification remains pending.
-- [ ] Update architecture/product docs, changelog, README, evidence, summary,
+  credential authority without disclosing values, and run the bounded live
+  provider/workflow qualification. Provider preflight completed, but the Agent
+  workflow failed and one profile exceeded its request cap.
+- [x] Update architecture/product docs, changelog, README, evidence, summary,
   and exact digests; run focused, full, static, package, diff, secret, source,
   and remote stability gates.
 - [ ] If and only if every gate passes, fast-forward the integration branch,
@@ -69,6 +70,7 @@ Architecture decision and pre-implementation census:
 
 ## Current boundary
 
-Until the ledger is complete, the branch is an unpromoted candidate. Existing
-trace-v1/qita behavior remains unchanged, no Task 14 completeness claim is
-made, and no provider request or worktree cleanup is authorized.
+The branch is an unpromoted blocked candidate. Existing trace-v1/qita behavior
+remains unchanged, no Task 14 completeness claim is made, and no further
+provider request, promotion, push, or worktree cleanup is authorized. The final
+promotion ledger item remains unchecked because its precondition failed.
