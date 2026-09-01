@@ -175,6 +175,8 @@ qitos/benchmark/cybergym/agent/
 
 # API secrets (never push)
 api_info.md
+private-live-evidence/
+*.live-private.json
 
 # Auto-generated security reports
 security_report*.md
