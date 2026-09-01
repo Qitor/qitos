@@ -45,14 +45,12 @@ class DockerCommandCapability(CommandCapability):
                 "stdout": r.stdout,
                 "stderr": r.stderr,
                 "command": command,
-                "container": self.container,
             }
         except Exception as exc:
             return {
                 "status": "error",
                 "error": str(exc),
                 "command": command,
-                "container": self.container,
             }
 
 
@@ -226,7 +224,6 @@ class DockerEnv(HostEnv):
             }
         return {
             "ok": True,
-            "container": self.container,
             "workspace_root": self.workspace_root,
         }
 
