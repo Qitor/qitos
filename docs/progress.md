@@ -14,14 +14,39 @@ Promoted S2 runtime head:
 `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`
 S3 plan freeze: `52e050d9bc1ee0d4c6dcc78c90a5497c25722648`
 S3 convergence source: `851f7902f15da670e72f4c04d7453cf37201aee7`
-Current gate: **S3 DETERMINISTIC CANDIDATE QUALIFIED; LIVE PROFILES CONFIGURED;
-EXECUTION EVIDENCE, PROMOTION, AND TRAJECTORY PUBLICATION BLOCKED**
+Current gate: **S3 DETERMINISTIC CANDIDATE QUALIFIED; LIVE QUALIFICATION
+CONFIGURATION BLOCKED; PROMOTION AND TRAJECTORY PUBLICATION BLOCKED**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md),
 [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md),
 and [`Task 14 sandboxed agent execution`](v4/14-sandboxed-agent-execution.md)
 
 ## 0. S3 deterministic convergence candidate (2026-09-01)
+
+### G4-L configuration-blocked qualification
+
+The exact live budget was accepted and the bounded qualification runner was
+added at `e3a4b86ad10496f1e6ee98b4cfb92fffafd58c59`. It parses the three
+registered profiles from the internal matrix, requires explicit profile plus
+`--live`, uses zero automatic retries, counts only provider-native
+`tool_calls`, and cannot send a request without both external private evidence
+storage and a passing redacted sandbox attestation.
+
+All three allowed credential references were absent. The authoritative command
+exited 2 with three `configuration_blocked:credential_missing` outcomes, zero
+requests, zero input/output/reported tokens, zero latency, and zero retries.
+The credential gate preceded sandbox provisioning, so attestation, cleanup,
+single-agent coding, multi-agent/process restore, and live Trajectory collection
+did not run. This is not an unavailable skip and qualifies no model capability.
+
+Consequently `S3_STATUS=blocked_live_qualification`,
+`G4_LIVE=configuration_blocked`, `S4_READY=false`,
+`FEATURE_BASELINE_PROMOTED=false`, and `DEFAULT_BRANCH_READY=false`.
+Deterministic G4 remains a separately qualified candidate. No fast-forward
+promotion, push, release, default-branch change, or S3 worktree retirement is
+authorized. See the redacted
+[`live summary`](internal/plans/s3_g4_live_qualification_summary.json) and
+[`execution evidence`](internal/plans/s3_g4_live_qualification_evidence.md).
 
 The convergence branch replayed the verified A/B/C/D source branches strictly
 in that order from `851f7902f15da670e72f4c04d7453cf37201aee7`. It repaired B's
@@ -42,10 +67,11 @@ coding-agent public-shape example also pass.
 
 This is a candidate, not a promoted baseline. Three provider/model profiles are
 registered with endpoint-specific external credential references, but no secret
-is repository state and no live request has run. Budget acceptance and
-executable preflight, trajectory, and disposable-agent receipts remain pending,
-so `live_model_qualification=profiles_configured_execution_pending`. No
-main-branch update, push, release claim, or worktree cleanup is authorized.
+is repository state. The subsequent G4-L attempt accepted the budget and
+stopped with three typed missing-credential outcomes before any request;
+preflight, trajectory, and disposable-agent receipts therefore remain absent,
+and `live_model_qualification=configuration_blocked`. No main-branch update,
+push, release claim, or worktree cleanup is authorized.
 Candidate Trajectory remains unfrozen and off by default; qita remains on frozen
 trace-v1 compatibility; distributed scheduling, hard cancellation, and
 exactly-once external effects

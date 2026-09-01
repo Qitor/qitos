@@ -1,10 +1,11 @@
 # S3 G4 live-model matrix
 
-Status: profiles configured locally; credentials remain external; budget approval
-and execution pending
+Status: budget accepted; all three credential references missing at execution;
+live qualification blocked before the first request
 Updated: 2026-09-01
 Owner: G4 live-qualification owner
-Candidate: `a278fa2a86a9976f89e29a6c9dac4fd9c7ec90f9`
+Candidate source: `7b89dbcca97be5dfd9562276578353900af4e02d`
+Qualification runner commit: `e3a4b86ad10496f1e6ee98b4cfb92fffafd58c59`
 
 ## Purpose
 
@@ -13,6 +14,25 @@ protocol checks, trajectory collection, and disposable agent runs. It does not
 change provider defaults, persist credentials, freeze Trajectory, or qualify the
 candidate before executable receipts exist. Framework code must select a profile
 explicitly rather than hard-code one of these routes into core or engine.
+
+## 2026-09-01 execution outcome
+
+The maintainer accepted the exact 12-request, 10,240-output-token, 180-second,
+zero-automatic-retry policy below. The bounded runner then resolved only the
+three registered credential references. All three were missing, so every
+profile returned `configuration_blocked:credential_missing` before sandbox
+provisioning or the first model request. Request, reported-token, latency, and
+retry totals are all zero. No profile has a measured native tool capability,
+and no single-agent, multi-agent, restore, sandbox, or live Trajectory scenario
+ran.
+
+The committed redacted receipt is
+[`s3_g4_live_qualification_summary.json`](s3_g4_live_qualification_summary.json),
+with the execution narrative and raw/private storage policy in
+[`s3_g4_live_qualification_evidence.md`](s3_g4_live_qualification_evidence.md).
+This is a typed failure outcome, not an unavailable skip. It sets
+`S3_STATUS=blocked_live_qualification`, prohibits promotion/push/worktree
+retirement, and leaves every capability cell unqualified.
 
 ## Registered profiles
 
@@ -76,8 +96,7 @@ must fail closed rather than fall back to the primary checkout or `HostEnv`.
 
 ## Budget and execution gate
 
-Suggested safe defaults, requiring explicit maintainer acceptance before any
-network request:
+Accepted fixed bounds for this qualification:
 
 - `QITOS_LIVE_MAX_REQUESTS_PER_PROFILE=12`
 - `QITOS_LIVE_MAX_OUTPUT_TOKENS_PER_REQUEST=10240`
@@ -93,9 +112,9 @@ rather than assuming every response consumes the ceiling.
 
 Record actual request count, reported input/output tokens, latency, failure
 class, and provider retries. Unknown pricing must not become a fabricated cost
-claim. Until the budget is accepted and executable receipts exist, status is
-`profiles_configured_execution_pending`; promotion, push, cleanup, and
-default-branch readiness remain blocked.
+claim. The budget is accepted, but the credential gate produced three typed
+configuration blockers and no executable model receipt. Promotion, push,
+cleanup, and default-branch readiness remain blocked.
 
 ## Secret handling
 

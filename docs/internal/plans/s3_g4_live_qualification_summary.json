@@ -1,0 +1,134 @@
+{
+  "budget": {
+    "automatic_retries": 0,
+    "max_output_tokens_per_request": 10240,
+    "max_requests_per_profile": 12,
+    "timeout_seconds": 180
+  },
+  "decision": {
+    "default_branch_ready": false,
+    "feature_baseline_promoted": false,
+    "g4_live": "configuration_blocked",
+    "s3_status": "blocked_live_qualification",
+    "s4_ready": false
+  },
+  "generated_at": "2026-09-01T00:52:03+00:00",
+  "live_requested": true,
+  "matrix_digest": "7a085b28757e32c1293c25f0c4e5f679aaffc52e15bd25c7d9f126c11d431660",
+  "matrix_path": "docs/internal/plans/s3_g4_live_model_matrix.md",
+  "multi_agent_restore_workflow": {
+    "model_requests": 0,
+    "outcome": "configuration_blocked",
+    "reason": "no_tool_capable_live_route"
+  },
+  "privacy": {
+    "credential_values_absent": true,
+    "findings": [],
+    "hidden_reasoning_committed": false,
+    "host_paths_absent": true,
+    "raw_endpoints_absent": true,
+    "raw_provider_payload_committed": false,
+    "scan_passed": true
+  },
+  "profiles": [
+    {
+      "credential_reference": "env:QITOS_LIVE_DSV4_API_KEY",
+      "credential_reference_status": "missing",
+      "endpoint_digest": "2105aa3fe71a3bba3ea963e533f83f017db0cfb2b7c8a68095ac68f2bc7e32e1",
+      "latency_ms": 0,
+      "model": "dsv4-flash-0731",
+      "outcome": "configuration_blocked",
+      "preflight": [],
+      "profile_id": "sii-dsv4-flash",
+      "raw_private_evidence_digest": null,
+      "request_count": 0,
+      "request_policy_digest": "ac2cf7535c99cc717078ca3d946d5540b2ee8ee194278369f57bc009fea93632",
+      "retry_count": 0,
+      "stop_reason": "credential_missing",
+      "tool_capable": false,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "provider_reported": false,
+        "total_tokens": 0
+      }
+    },
+    {
+      "credential_reference": "env:QITOS_LIVE_GLM52_API_KEY",
+      "credential_reference_status": "missing",
+      "endpoint_digest": "fc840dd71bd36f89c910aaf25eb705e2e8234babb19757c557474d38eff07827",
+      "latency_ms": 0,
+      "model": "GLM-5.2-w4a8c8",
+      "outcome": "configuration_blocked",
+      "preflight": [],
+      "profile_id": "sii-glm-5-2",
+      "raw_private_evidence_digest": null,
+      "request_count": 0,
+      "request_policy_digest": "e4db69037defb932e34c45845c427d7db956c9251b510cc9583f1f1ab85b73c5",
+      "retry_count": 0,
+      "stop_reason": "credential_missing",
+      "tool_capable": false,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "provider_reported": false,
+        "total_tokens": 0
+      }
+    },
+    {
+      "credential_reference": "env:QITOS_LIVE_QWEN38_API_KEY",
+      "credential_reference_status": "missing",
+      "endpoint_digest": "2c54f77965f38ed5d7ffe244de7282634c2c2e460b0087adda955f8d849b09bc",
+      "latency_ms": 0,
+      "model": "Qwen3.8-27B",
+      "outcome": "configuration_blocked",
+      "preflight": [],
+      "profile_id": "sii-qwen3-8-27b",
+      "raw_private_evidence_digest": null,
+      "request_count": 0,
+      "request_policy_digest": "e4db69037defb932e34c45845c427d7db956c9251b510cc9583f1f1ab85b73c5",
+      "retry_count": 0,
+      "stop_reason": "credential_missing",
+      "tool_capable": false,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "provider_reported": false,
+        "total_tokens": 0
+      }
+    }
+  ],
+  "runner_digest": "e0f6fcc6bf573113ac9e0ec2e14d585fd81085e924620de95fc7892861941dcd",
+  "sandbox": {
+    "attestation_digest": null,
+    "cleanup": "not_applicable_no_resource_created",
+    "host_fallback": false,
+    "model_requests_before_attestation": 0,
+    "pre_model_attestation": "not_started",
+    "reason": "credential_gate_preceded_sandbox_provisioning"
+  },
+  "schema_version": "qitos.s3.live_qualification/v1",
+  "single_agent_workflow": {
+    "model_requests": 0,
+    "outcome": "configuration_blocked",
+    "reason": "no_tool_capable_live_route"
+  },
+  "source_commit": "e3a4b86ad10496f1e6ee98b4cfb92fffafd58c59",
+  "totals": {
+    "configuration_blocked": 3,
+    "input_tokens": 0,
+    "latency_ms": 0,
+    "output_tokens": 0,
+    "profiles": 3,
+    "reported_tokens": 0,
+    "requests": 0,
+    "retries": 0,
+    "tool_capable_profiles": 0
+  },
+  "trajectory": {
+    "candidate_writer_default": false,
+    "live_events_recorded": 0,
+    "qita_default": "frozen_trace_v1_compatibility",
+    "schema_frozen": false
+  }
+}

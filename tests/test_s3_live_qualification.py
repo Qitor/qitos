@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -8,6 +9,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "qualify_s3_live.py"
+SUMMARY = (
+    ROOT
+    / "docs"
+    / "internal"
+    / "plans"
+    / "s3_g4_live_qualification_summary.json"
+)
 
 
 def _module():
@@ -134,3 +142,27 @@ def test_privacy_scan_rejects_values_paths_endpoints_and_auth_markers() -> None:
     assert report["credential_values_absent"] is False
     assert report["raw_endpoints_absent"] is False
     assert report["host_paths_absent"] is False
+
+
+def test_committed_blocked_summary_binds_current_runner_and_matrix() -> None:
+    module = _module()
+    summary = json.loads(SUMMARY.read_text(encoding="utf-8"))
+
+    assert summary["schema_version"] == module.SCHEMA_VERSION
+    assert summary["runner_digest"] == hashlib.sha256(SCRIPT.read_bytes()).hexdigest()
+    assert summary["matrix_digest"] == hashlib.sha256(
+        module.MATRIX_PATH.read_bytes()
+    ).hexdigest()
+    assert summary["decision"]["g4_live"] == "configuration_blocked"
+    assert summary["totals"] == {
+        "configuration_blocked": 3,
+        "input_tokens": 0,
+        "latency_ms": 0,
+        "output_tokens": 0,
+        "profiles": 3,
+        "reported_tokens": 0,
+        "requests": 0,
+        "retries": 0,
+        "tool_capable_profiles": 0,
+    }
+    assert summary["privacy"]["scan_passed"] is True
