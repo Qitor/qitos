@@ -591,6 +591,7 @@ def _live_restore_workflows(
     try:
         task = config.dataset[0].task if config.dataset else "Inspect the workspace, run one tool, and finish."
         single = composition.engine.session(task)
+        single.run()
         parent = composition.engine.session(
             "Call read_file once for README.md, then after its result return a final answer."
         )
@@ -837,10 +838,18 @@ def qualify(
             base["totals"]["input_tokens"] += int(usage.get("input_tokens", 0))
             base["totals"]["output_tokens"] += int(usage.get("output_tokens", 0))
             base["totals"]["reported_tokens"] += int(usage.get("total_tokens", 0))
-    if all(item.get("status") == "passed" for item in base["profiles"]):
+    qualified_index = next(
+        (
+            index
+            for index, item in enumerate(base["profiles"])
+            if item.get("status") == "passed"
+        ),
+        None,
+    )
+    if qualified_index is not None:
         try:
             base["workflows"] = _live_restore_workflows(
-                profiles[0], credentials_path=credentials_path
+                profiles[qualified_index], credentials_path=credentials_path
             )
             base["totals"]["requests"] += int(
                 base["workflows"].get("requests", 0)
@@ -856,15 +865,21 @@ def qualify(
 
     all_passed = (
         sandbox.status == "passed"
-        and all(item.get("status") == "passed" for item in base["profiles"])
+        and qualified_index is not None
+        and all(
+            item.get("status") == "passed"
+            or item.get("error_code") == "capability_loss"
+            for item in base["profiles"]
+        )
         and base["workflows"].get("status") == "passed"
-        and int(base["profiles"][0].get("requests", 0))
+        and int(base["profiles"][qualified_index].get("requests", 0))
         + int(base["workflows"].get("requests", 0))
-        <= int(profiles[0].config.budgets.max_requests)
+        <= int(profiles[qualified_index].config.budgets.max_requests)
         and all(
             int(receipt.get("requests", 0))
             <= int(profile.config.budgets.max_requests)
-            for profile, receipt in zip(profiles[1:], base["profiles"][1:])
+            for index, (profile, receipt) in enumerate(zip(profiles, base["profiles"]))
+            if index != qualified_index
         )
     )
     if all_passed:

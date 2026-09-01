@@ -169,12 +169,12 @@
   "decision": {
     "default_branch_ready": false,
     "feature_baseline_promoted": false,
-    "g4_live": "live_flag_required",
+    "g4_live": "capability_loss",
     "s3_status": "blocked_live_qualification",
     "s4_ready": false
   },
-  "evidence_digest": "dbfd1ddb040e8a20035d9fdb304b0bd2cddc0b632f54938793fd38f3edeef5dd",
-  "generated_at": "2026-09-01T02:30:18.168735+00:00",
+  "evidence_digest": "20af599b9178febba504ffebe1e0648ff1117f964c824c15dcf0a535c6215e40",
+  "generated_at": "2026-09-01T02:31:19.013622+00:00",
   "offline": {
     "command": [
       "python",
@@ -272,7 +272,7 @@
         "status": "passed"
       }
     ],
-    "output_digest": "81db4c0c8755fba419bb858bda541e8e4b6cc98f1a551d7ab7c17a7e2dac54d7",
+    "output_digest": "90d4085d2932c24916aaed54224b17a48eee9a88c78f2f893c727a925d20dbad",
     "returncode": 0,
     "status": "passed"
   },
@@ -283,18 +283,328 @@
     "raw_endpoints_absent": true,
     "scan_passed": true
   },
-  "profiles": [],
+  "profiles": [
+    {
+      "assertions": {
+        "continuation": true,
+        "parallel_tool": true,
+        "single_tool": true,
+        "text": true
+      },
+      "config_digest": "885a920f27398fd46ddf2a080c4a10e5525c1c909c14aedb67c53c7d8fc41e56",
+      "credential": {
+        "compatibility": false,
+        "ref": "sii-dsv4",
+        "resolver": "local_file",
+        "warnings": []
+      },
+      "profile_id": "sii-dsv4-flash",
+      "requests": 4,
+      "routes": [
+        {
+          "latency_ms": 1973,
+          "native_tool_call_count": 0,
+          "native_tool_names": [],
+          "route": "text",
+          "text_digest": "6451cdfcebf0c7276411489d575062a409bc097b1bb22913c2bc81007a5671e0",
+          "text_present": true,
+          "usage": {
+            "input_tokens": 20,
+            "output_tokens": 9,
+            "total_tokens": 29
+          }
+        },
+        {
+          "latency_ms": 1325,
+          "native_tool_call_count": 1,
+          "native_tool_names": [
+            "echo_value"
+          ],
+          "route": "single_tool",
+          "text_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "text_present": false,
+          "usage": {
+            "input_tokens": 286,
+            "output_tokens": 45,
+            "total_tokens": 331
+          }
+        },
+        {
+          "latency_ms": 1971,
+          "native_tool_call_count": 3,
+          "native_tool_names": [
+            "echo_alpha",
+            "echo_beta",
+            "echo_gamma"
+          ],
+          "route": "parallel_tool",
+          "text_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "text_present": false,
+          "usage": {
+            "input_tokens": 402,
+            "output_tokens": 110,
+            "total_tokens": 512
+          }
+        },
+        {
+          "latency_ms": 807,
+          "native_tool_call_count": 0,
+          "native_tool_names": [],
+          "route": "continuation",
+          "text_digest": "9d07f3b1e2ff73151194fd46eb9cdedb6f2d753a540d8dd9b327babecabd0f35",
+          "text_present": true,
+          "usage": {
+            "input_tokens": 574,
+            "output_tokens": 9,
+            "total_tokens": 583
+          }
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "assertions": {
+        "continuation": true,
+        "parallel_tool": true,
+        "single_tool": true,
+        "text": true
+      },
+      "config_digest": "53cb51c6c1b4898908e8ce0ff9e3cacdbd0e5666bab6b7d28c7efdaf35270b7c",
+      "credential": {
+        "compatibility": false,
+        "ref": "sii-glm-5-2",
+        "resolver": "local_file",
+        "warnings": []
+      },
+      "profile_id": "sii-glm-5-2",
+      "requests": 4,
+      "routes": [
+        {
+          "latency_ms": 1874,
+          "native_tool_call_count": 0,
+          "native_tool_names": [],
+          "route": "text",
+          "text_digest": "6451cdfcebf0c7276411489d575062a409bc097b1bb22913c2bc81007a5671e0",
+          "text_present": true,
+          "usage": {
+            "input_tokens": 26,
+            "output_tokens": 46,
+            "total_tokens": 72
+          }
+        },
+        {
+          "latency_ms": 2210,
+          "native_tool_call_count": 1,
+          "native_tool_names": [
+            "echo_value"
+          ],
+          "route": "single_tool",
+          "text_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "text_present": false,
+          "usage": {
+            "input_tokens": 168,
+            "output_tokens": 31,
+            "total_tokens": 199
+          }
+        },
+        {
+          "latency_ms": 2565,
+          "native_tool_call_count": 3,
+          "native_tool_names": [
+            "echo_alpha",
+            "echo_beta",
+            "echo_gamma"
+          ],
+          "route": "parallel_tool",
+          "text_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "text_present": false,
+          "usage": {
+            "input_tokens": 278,
+            "output_tokens": 65,
+            "total_tokens": 343
+          }
+        },
+        {
+          "latency_ms": 2134,
+          "native_tool_call_count": 0,
+          "native_tool_names": [],
+          "route": "continuation",
+          "text_digest": "9d07f3b1e2ff73151194fd46eb9cdedb6f2d753a540d8dd9b327babecabd0f35",
+          "text_present": true,
+          "usage": {
+            "input_tokens": 358,
+            "output_tokens": 34,
+            "total_tokens": 392
+          }
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "assertions": {
+        "continuation": false,
+        "parallel_tool": false,
+        "single_tool": false,
+        "text": true
+      },
+      "config_digest": "1e8809eddc93c00c21ed02d8b78ea1352bcb0060b046d6872e5f747e633ab436",
+      "credential": {
+        "compatibility": false,
+        "ref": "sii-qwen3-8-27b",
+        "resolver": "local_file",
+        "warnings": []
+      },
+      "error_code": "capability_loss",
+      "profile_id": "sii-qwen3-8-27b",
+      "requests": 4,
+      "routes": [
+        {
+          "latency_ms": 2897,
+          "native_tool_call_count": 0,
+          "native_tool_names": [],
+          "route": "text",
+          "text_digest": "d55e8579be054bda36d88d53d12b2655cd50f440ae3aa2d0870feb541020e1ca",
+          "text_present": true,
+          "usage": {
+            "input_tokens": 65,
+            "output_tokens": 47,
+            "total_tokens": 112
+          }
+        },
+        {
+          "latency_ms": 941,
+          "native_tool_call_count": 0,
+          "native_tool_names": [],
+          "route": "single_tool",
+          "text_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "text_present": false,
+          "usage": {
+            "input_tokens": 319,
+            "output_tokens": 67,
+            "total_tokens": 386
+          }
+        },
+        {
+          "latency_ms": 3324,
+          "native_tool_call_count": 0,
+          "native_tool_names": [],
+          "route": "parallel_tool",
+          "text_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "text_present": false,
+          "usage": {
+            "input_tokens": 449,
+            "output_tokens": 294,
+            "total_tokens": 743
+          }
+        },
+        {
+          "latency_ms": 12578,
+          "native_tool_call_count": 3,
+          "native_tool_names": [
+            "echo_alpha",
+            "echo_beta",
+            "echo_gamma"
+          ],
+          "route": "continuation",
+          "text_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "text_present": false,
+          "usage": {
+            "input_tokens": 458,
+            "output_tokens": 148,
+            "total_tokens": 606
+          }
+        }
+      ],
+      "status": "failed"
+    }
+  ],
   "runner_digest": "d56ab71ca83a994ebf8d42aa9081744bd33fee0b3b70937d4129e8bf3b8bf077",
-  "sandbox": {},
+  "sandbox": {
+    "cleanup": {
+      "close_called": true,
+      "container_absent": true,
+      "scratch_absent": true
+    },
+    "config_digest": "885a920f27398fd46ddf2a080c4a10e5525c1c909c14aedb67c53c7d8fc41e56",
+    "container_id": "qitos_disposable-agent_8779620928_cd11f424aa",
+    "created_at": "2026-09-01T02:31:19.021579+00:00",
+    "identity": {
+      "environment_id": "qualification-environment",
+      "run_id": "qualification-run",
+      "session_id": "qualification-session",
+      "work_item_id": "qualification-work"
+    },
+    "image_id": "sha256:430c1255a732f53a93dbfb02dc407b6e5e1782a96fe66b91c04e35d447a2546e",
+    "inspect_digest": "4155485fe5444cdbc863f7ed7773ef5b84d01e3cc1061757c87a833846474cf1",
+    "policy_digest": "f77a846bb72aa074eb7a3f6f0826657bdcdcc0644c50f5cf1b436627b11547fa",
+    "probes": {
+      "capabilities": {
+        "ok": true,
+        "returncode": 0,
+        "stderr_present": false,
+        "stdout_sha256": "5747048155f458090b095171325280c9bb6bcbfe78261a847dc2ad1c411ee6ea"
+      },
+      "grep": {
+        "ok": true,
+        "returncode": 0,
+        "stderr_present": false,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "identity": {
+        "ok": true,
+        "returncode": 0,
+        "stderr_present": false,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "inspect_capabilities_dropped": true,
+      "inspect_config_label": true,
+      "inspect_cpu_limit": true,
+      "inspect_memory_limit": true,
+      "inspect_network_none": true,
+      "inspect_no_host_credentials": true,
+      "inspect_no_new_privileges": true,
+      "inspect_no_unexpected_mount": true,
+      "inspect_non_root_user": true,
+      "inspect_pid_limit": true,
+      "inspect_read_only_root": true,
+      "inspect_tmpfs": true,
+      "inspect_workspace_mount": true,
+      "network_denied": true,
+      "path_escape_denied": true,
+      "read": true,
+      "repository_digest_stable": true,
+      "rootfs_write_denied": true,
+      "test": {
+        "ok": true,
+        "returncode": 0,
+        "stderr_present": false,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tmpfs_write": {
+        "ok": true,
+        "returncode": 0,
+        "stderr_present": false,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "write_readback": true
+    },
+    "schema": "qitos.sandbox.qualification/v1",
+    "status": "passed",
+    "unexpected_mounts": [],
+    "workspace_digest_after": "c95ff8f9a1e4093c868db1602952f5fc118ffb36a4c8534cb8b077b263257ba6",
+    "workspace_digest_before": "c95ff8f9a1e4093c868db1602952f5fc118ffb36a4c8534cb8b077b263257ba6"
+  },
   "schema_version": "qitos.s3.g4_l2_qualification/v1",
-  "source_commit": "bd0f93328ccb37b66e62855de8ad489916c47e1e",
+  "source_commit": "241a669c8856ad50a22e68c0a15422cf00d0a648",
   "totals": {
-    "input_tokens": 0,
-    "output_tokens": 0,
+    "input_tokens": 3403,
+    "output_tokens": 905,
     "profiles": 3,
-    "reported_tokens": 0,
-    "requests": 0,
+    "reported_tokens": 4308,
+    "requests": 12,
     "retries": 0
   },
-  "workflows": {}
+  "workflows": {
+    "status": "not_started"
+  }
 }
