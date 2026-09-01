@@ -56,6 +56,7 @@ How to update:
 
 ### Changed
 
+- Recorded the fresh G4-L3 live round as a primary-profile failure with zero provider requests: nested immutable request options reached codec projection as a non-JSON `mappingproxy`, so GLM did not reach the required pause. DSV and Qwen were not started; offline gates, Docker attestation/cleanup, and privacy passed, while promotion, push, and worktree cleanup remain blocked.
 - Made `qitos.agent/v1` reader-only compatibility; canonical writers and examples now emit `qitos.agent`. Config objects are deeply immutable, protocol resolution owns parser/codec selection, tool-use requirements are explicit request facts, and configuration digests bind launch, snapshots, restores, and trajectory provenance.
 - Coding-capable declarative launches now default to a fail-closed Docker environment. Host execution must be named `unsafe_host`, emits an unisolated receipt, and rejects container-only safety claims. Provider credentials and requests remain host-side and are never injected into the tool container.
 - Recorded the G4-L execution outcome as three `configuration_blocked:credential_missing` profiles with zero requests, tokens, latency, and retries. No model capability, sandbox, single-agent, multi-agent/restore, or live Trajectory scenario was qualified; S3 promotion, push, and worktree retirement remain blocked while deterministic G4 stays separately qualified.

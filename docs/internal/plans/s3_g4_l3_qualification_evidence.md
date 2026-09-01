@@ -1,6 +1,6 @@
 # G4-L3 stable config, sandbox, and live-workflow evidence
 
-Status: full offline gate passed; new live round pending
+Status: full offline gate passed; new live primary failed; promotion blocked
 Updated: 2026-09-01
 Fixed baseline: `851f7902f15da670e72f4c04d7453cf37201aee7`
 Candidate branch: `codex/v4-s3-g4-convergence`
@@ -48,8 +48,8 @@ attestation, and cleanup gate passes on committed candidate bytes.
   local launch paths, and private home paths absent; and
 - no L3 live provider request was issued during any offline check.
 
-The runner's own 16-node offline subprocess is rerun after these bytes are
-committed, before live mode is enabled.
+The runner's own 16-node offline subprocess passed against committed source
+`535b26838231fcac97ac944d88961253f008b7bf` before live mode was enabled.
 
 ## New live round contract
 
@@ -74,6 +74,32 @@ Primary failure stops the round immediately. It cannot be hidden with added
 requests, reruns, prompt switching, or another provider. A failure preserves
 the candidate and blocks promotion, push, and every worktree removal.
 
+## Live failure receipt
+
+Fresh round `s3-g4-l3-71564b10447bf692` bound source
+`535b26838231fcac97ac944d88961253f008b7bf`, runner digest
+`8155051f92fa969391609433a9e45f5a501d999d6774518eb3b86f97f85e25d7`,
+and evidence digest
+`2f9d8b089dfaeb6c04fb82093f86eaa956727bd497b59afc7c82f0dd29963ccc`.
+The embedded 16-node offline gate, Docker attestation, cleanup, and privacy scan
+passed.
+
+GLM stopped before provider dispatch with zero requests. The observed runtime
+failure was `CodecCapabilityError: transport options must be JSON-compatible`:
+deeply immutable nested request options still contained a `mappingproxy` at the
+provider projection boundary. Engine recovery left the Session running rather
+than at the qualification pause, so the outer workflow receipt is
+`workflow_single_not_paused`. This is an implementation blocker, not provider
+capability evidence.
+
+The primary failure stopped the round. DSV is `not_started` with
+`primary_dependency_failed`; Qwen is `not_started` with
+`parity_dependency_failed`. All three request ledgers are zero. No rerun,
+prompt switch, provider substitution, promotion, push, or worktree removal was
+performed. The private machine receipt remains outside Git with mode `0600`;
+the sanitized immutable failure record is
+`s3_g4_l3_live_failure_receipt.json`.
+
 ## Current decision
 
 ```text
@@ -83,14 +109,14 @@ ENGINE_REQUEST_PARITY=candidate_passed
 OFFLINE_AGENT_RECOVERY=candidate_passed
 OFFLINE_MULTI_AGENT=candidate_passed
 FULL_OFFLINE_GATE=passed
-LIVE_SINGLE_AGENT=not_started
+LIVE_SINGLE_AGENT=failed_before_request
 LIVE_RESTORE=not_started
 LIVE_PROVIDER_PARITY=not_started
 LIVE_MULTI_AGENT=not_started
 LIVE_TRAJECTORY=not_started
 QITA_LIVE_READ=not_started
-G4_LIVE=not_started
-S3_STATUS=open_l3_qualification
+G4_LIVE=workflow_single_not_paused
+S3_STATUS=blocked_live_qualification
 S4_READY=false
 DEFAULT_BRANCH_READY=false
 RELEASE_READY=false

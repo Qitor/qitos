@@ -1,6 +1,6 @@
 # S3 G4-L3 stable config, sandbox truth, and live workflow closure
 
-Status: implementation and full offline qualification complete; live pending
+Status: full offline qualification passed; live primary failed; promotion blocked
 Updated: 2026-09-01
 Owner: G4 integration owner
 Fixed baseline: `851f7902f15da670e72f4c04d7453cf37201aee7`

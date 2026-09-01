@@ -1,0 +1,52 @@
+{
+  "schema_version": "qitos.s3.g4_l3_failure/v1",
+  "qualification_round_id": "s3-g4-l3-71564b10447bf692",
+  "source_commit": "535b26838231fcac97ac944d88961253f008b7bf",
+  "runner_digest": "8155051f92fa969391609433a9e45f5a501d999d6774518eb3b86f97f85e25d7",
+  "evidence_digest": "2f9d8b089dfaeb6c04fb82093f86eaa956727bd497b59afc7c82f0dd29963ccc",
+  "offline": {
+    "status": "passed",
+    "gate_count": 16
+  },
+  "sandbox": {
+    "status": "passed",
+    "container_absent_after_cleanup": true
+  },
+  "privacy": {
+    "status": "passed",
+    "credential_values_absent": true,
+    "host_paths_absent": true,
+    "raw_endpoints_absent": true
+  },
+  "primary": {
+    "profile_id": "sii-glm-5-2",
+    "status": "failed",
+    "requests": 0,
+    "outer_error_code": "workflow_single_not_paused",
+    "observed_runtime_error": "CodecCapabilityError",
+    "observed_runtime_detail": "transport options must be JSON-compatible",
+    "root_cause": "nested immutable request option retained mappingproxy at provider projection"
+  },
+  "provider_parity": {
+    "profile_id": "sii-dsv4",
+    "status": "not_started",
+    "requests": 0,
+    "error_code": "primary_dependency_failed"
+  },
+  "capability_loss": {
+    "profile_id": "sii-qwen3-8-27b",
+    "status": "not_started",
+    "requests": 0,
+    "error_code": "parity_dependency_failed"
+  },
+  "decision": {
+    "g4_live": "workflow_single_not_paused",
+    "s3_status": "blocked_live_qualification",
+    "s4_ready": false,
+    "promoted": false,
+    "pushed": false,
+    "worktrees_removed": false,
+    "default_branch_ready": false,
+    "release_ready": false
+  }
+}

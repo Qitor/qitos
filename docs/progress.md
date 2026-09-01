@@ -14,8 +14,8 @@ Promoted S2 runtime head:
 `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`
 S3 plan freeze: `52e050d9bc1ee0d4c6dcc78c90a5497c25722648`
 S3 convergence source: `851f7902f15da670e72f4c04d7453cf37201aee7`
-Current gate: **G4-L3 CANDIDATE IMPLEMENTED; FULL OFFLINE AND NEW LIVE ROUND
-PENDING; PROMOTION BLOCKED**
+Current gate: **G4-L3 OFFLINE PASSED; NEW LIVE PRIMARY FAILED BEFORE REQUEST;
+PROMOTION BLOCKED**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md),
 [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md),
@@ -42,9 +42,12 @@ single-agent Docker pause/fresh-process-restore workflow and the existing
 40-round multi-agent process-loss workflow pass. The full suite reports `2393
 passed, 50 skipped`; static quality, stable lint/type, package/twine, interface,
 architecture, privacy, permission, and diff gates also pass. The committed
-runner preflight and a fresh GLM -> DSV -> Qwen live round are still pending; no
-L3 live request has been issued, and no promotion, push, or cleanup is yet
-authorized. The immutable L2 failure remains historical evidence. See
+runner preflight passed all 16 nodes. Fresh live round
+`s3-g4-l3-71564b10447bf692` then stopped in GLM before provider dispatch:
+codec projection rejected a nested immutable `mappingproxy` as non-JSON, so the
+Session did not reach pause. The exact request ledger is zero; DSV and Qwen were
+not started. Docker attestation/cleanup and privacy passed. Promotion, push,
+and cleanup are blocked, and the immutable L2 failure remains historical. See
 [`s3_g4_l3_qualification_evidence.md`](internal/plans/s3_g4_l3_qualification_evidence.md).
 
 ## 0. S3 deterministic convergence candidate (2026-09-01)
