@@ -7,9 +7,10 @@ import json
 import math
 import os
 import re
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional
+from types import MappingProxyType
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 import yaml
 
@@ -23,18 +24,26 @@ from .errors import (
 )
 
 
-CANONICAL_SCHEMA = "qitos.agent/v1"
+CANONICAL_SCHEMA = "qitos.agent"
+COMPATIBLE_SCHEMA_REVISIONS = frozenset({"qitos.agent/v1"})
 _ENV_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
+TOOL_USE_POLICIES = frozenset(
+    {"auto", "required_for_next_decision", "required_before_final", "disabled"}
+)
 
-@dataclass
+
+@dataclass(frozen=True)
 class ModelRequestConfig:
     temperature: float = 0.2
     top_p: Optional[float] = None
     max_tokens: int = 2048
     timeout_seconds: float = 180.0
     retries: int = 0
-    extra_body: Dict[str, Any] = field(default_factory=dict)
+    extra_body: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "extra_body", _deep_freeze(self.extra_body))
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -47,7 +56,7 @@ class ModelRequestConfig:
         }
 
 
-@dataclass
+@dataclass(frozen=True)
 class ModelConfig:
     provider: str = "openai"
     model: str = ""
@@ -64,14 +73,16 @@ class ModelConfig:
     max_tokens: Optional[int] = None
 
     def __post_init__(self) -> None:
+        request = self.request
         if self.temperature is not None:
-            self.request.temperature = float(self.temperature)
+            request = replace(request, temperature=float(self.temperature))
         else:
-            self.temperature = self.request.temperature
+            object.__setattr__(self, "temperature", request.temperature)
         if self.max_tokens is not None:
-            self.request.max_tokens = int(self.max_tokens)
+            request = replace(request, max_tokens=int(self.max_tokens))
         else:
-            self.max_tokens = self.request.max_tokens
+            object.__setattr__(self, "max_tokens", request.max_tokens)
+        object.__setattr__(self, "request", request)
 
     def to_dict(self) -> Dict[str, Any]:
         """Return the canonical, secret-free model mapping."""
@@ -86,27 +97,50 @@ class ModelConfig:
         }
 
 
-@dataclass
+@dataclass(frozen=True)
 class DatasetItem:
     task: str
     expected: Any = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "expected", _deep_freeze(self.expected))
+        object.__setattr__(self, "metadata", _deep_freeze(self.metadata))
 
 
-@dataclass
+@dataclass(frozen=True)
 class EnvironmentConfig:
-    type: str = "host"
-    image: str = ""
+    type: str = "docker"
+    image: str = "python:3.12-slim"
     workspace: str = "."
     container_workspace: str = "/workspace"
     network: str = "none"
     read_only_root: bool = True
+    cap_drop: bool = True
+    no_new_privileges: bool = True
+    pids_limit: Optional[int] = 256
+    memory_mb: Optional[int] = 2048
+    cpus: Optional[float] = 2.0
+    cleanup_required: bool = True
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        return {
+            "type": self.type,
+            "image": self.image,
+            "workspace": self.workspace,
+            "container_workspace": self.container_workspace,
+            "network": self.network,
+            "read_only_root": self.read_only_root,
+            "cap_drop": self.cap_drop,
+            "no_new_privileges": self.no_new_privileges,
+            "pids_limit": self.pids_limit,
+            "memory_mb": self.memory_mb,
+            "cpus": self.cpus,
+            "cleanup_required": self.cleanup_required,
+        }
 
 
-@dataclass
+@dataclass(frozen=True)
 class SessionConfig:
     enabled: bool = False
     store: str = "memory"
@@ -115,20 +149,32 @@ class SessionConfig:
     restore: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        return {
+            "enabled": self.enabled,
+            "store": self.store,
+            "path": self.path,
+            "session_id": self.session_id,
+            "restore": self.restore,
+        }
 
 
-@dataclass
+@dataclass(frozen=True)
 class TrajectoryConfig:
-    enabled: bool = True
+    enabled: bool = False
     output: str = "./runs"
     privacy: str = "private"
+    failure_policy: str = "required"
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        return {
+            "enabled": self.enabled,
+            "output": self.output,
+            "privacy": self.privacy,
+            "failure_policy": self.failure_policy,
+        }
 
 
-@dataclass
+@dataclass(frozen=True)
 class RuntimeConfig:
     environment: EnvironmentConfig = field(default_factory=EnvironmentConfig)
     session: SessionConfig = field(default_factory=SessionConfig)
@@ -142,50 +188,72 @@ class RuntimeConfig:
         }
 
 
-@dataclass
+@dataclass(frozen=True)
 class BudgetConfig:
     max_steps: int = 10
     max_runtime_seconds: float = 600.0
     max_requests: int = 12
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        return {
+            "max_steps": self.max_steps,
+            "max_runtime_seconds": self.max_runtime_seconds,
+            "max_requests": self.max_requests,
+        }
 
 
-@dataclass
+@dataclass(frozen=True)
 class AgentConfig:
     """The one canonical declarative agent launch configuration."""
 
     name: str = "agent"
     max_steps: int = 10
     model: ModelConfig = field(default_factory=ModelConfig)
-    dataset: List[DatasetItem] = field(default_factory=list)
-    tools: List[str] = field(default_factory=list)
+    dataset: Sequence[DatasetItem] = field(default_factory=tuple)
+    tools: Sequence[str] = field(default_factory=tuple)
     tool_preset: str = "none"
-    tool_options: Dict[str, Any] = field(default_factory=dict)
+    tool_options: Mapping[str, Any] = field(default_factory=dict)
+    tool_use_policy: str = "auto"
     protocol: str = "auto"
     parser: str = "auto"
-    environment: Dict[str, Any] = field(default_factory=dict)
+    environment: Mapping[str, Any] = field(default_factory=dict)
     seed: int = 0
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    context: Dict[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+    context: Mapping[str, Any] = field(default_factory=dict)
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
     budgets: Optional[BudgetConfig] = None
     schema: str = CANONICAL_SCHEMA
-    source: Dict[str, Any] = field(default_factory=dict)
-    compatibility: List[Dict[str, Any]] = field(default_factory=list)
-    loss: List[Dict[str, Any]] = field(default_factory=list)
+    source: Mapping[str, Any] = field(default_factory=dict)
+    compatibility: Sequence[Mapping[str, Any]] = field(default_factory=tuple)
+    loss: Sequence[Mapping[str, Any]] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
         if self.budgets is None:
-            self.budgets = BudgetConfig(max_steps=int(self.max_steps))
+            object.__setattr__(
+                self, "budgets", BudgetConfig(max_steps=int(self.max_steps))
+            )
         else:
-            self.max_steps = int(self.budgets.max_steps)
+            object.__setattr__(self, "max_steps", int(self.budgets.max_steps))
+        if self.tool_use_policy not in TOOL_USE_POLICIES:
+            raise ConfigSchemaError(
+                "tools.policy has an unsupported value", field="tools.policy"
+            )
+        object.__setattr__(self, "dataset", tuple(self.dataset))
+        object.__setattr__(self, "tools", tuple(self.tools))
+        for name in ("tool_options", "environment", "metadata", "context", "source"):
+            object.__setattr__(self, name, _deep_freeze(getattr(self, name)))
+        object.__setattr__(
+            self,
+            "compatibility",
+            tuple(_deep_freeze(item) for item in self.compatibility),
+        )
+        object.__setattr__(
+            self, "loss", tuple(_deep_freeze(item) for item in self.loss)
+        )
 
     def to_dict(self) -> Dict[str, Any]:
         """Return deterministic JSON/YAML-safe canonical launch data."""
         budgets = self.budgets or BudgetConfig(max_steps=self.max_steps)
-        budgets.max_steps = int(self.max_steps)
         payload = {
             "schema": self.schema,
             "agent": {
@@ -199,6 +267,7 @@ class AgentConfig:
                 "preset": self.tool_preset,
                 "include": list(self.tools),
                 "options": _json_safe(self.tool_options, "tools.options"),
+                "policy": self.tool_use_policy,
             },
             "runtime": self.runtime.to_dict(),
             "budgets": budgets.to_dict(),
@@ -212,9 +281,6 @@ class AgentConfig:
                 }
                 for item in self.dataset
             ],
-            "source": _json_safe(self.source, "source"),
-            "compatibility": _json_safe(self.compatibility, "compatibility"),
-            "loss": _json_safe(self.loss, "loss"),
         }
         return _json_safe(payload, "config")
 
@@ -246,6 +312,7 @@ class AgentConfig:
             "tools": {
                 "preset": self.tool_preset,
                 "include": list(self.tools),
+                "policy": self.tool_use_policy,
             },
             "protocol": self.protocol,
             "runtime": {
@@ -292,6 +359,17 @@ class AgentConfig:
 
 class _UniqueKeyLoader(yaml.SafeLoader):
     pass
+
+
+def _deep_freeze(value: Any) -> Any:
+    """Recursively isolate caller data and expose immutable loaded state."""
+    if isinstance(value, Mapping):
+        return MappingProxyType(
+            {str(key): _deep_freeze(item) for key, item in value.items()}
+        )
+    if isinstance(value, (list, tuple)):
+        return tuple(_deep_freeze(item) for item in value)
+    return value
 
 
 def _stable_digest(value: Any) -> str:
@@ -411,8 +489,21 @@ def load_agent_config(
         "name": source_path.name,
         "sha256": hashlib.sha256(raw_bytes).hexdigest(),
     }
-    if raw.get("schema") == CANONICAL_SCHEMA:
+    schema = raw.get("schema")
+    if schema == CANONICAL_SCHEMA:
         config = _parse_canonical_config(raw)
+    elif schema in COMPATIBLE_SCHEMA_REVISIONS:
+        normalized, revision_receipts = _normalize_schema_revision(raw)
+        config = _parse_canonical_config(normalized)
+        receipts.extend(revision_receipts)
+        receipts.append(
+            {
+                "code": "agent_schema_revision_compatibility",
+                "revision": str(schema).rsplit("/", 1)[-1],
+                "warning": True,
+                "canonical_schema": CANONICAL_SCHEMA,
+            }
+        )
     elif compatibility:
         config = _parse_legacy_config(raw)
         receipts.append(
@@ -426,8 +517,12 @@ def load_agent_config(
         raise ConfigSchemaError(
             f"schema must equal {CANONICAL_SCHEMA!r}", field="schema"
         )
-    config.source = source
-    config.compatibility.extend(receipts)
+    config = replace(
+        config,
+        schema=CANONICAL_SCHEMA,
+        source=source,
+        compatibility=tuple(config.compatibility) + tuple(receipts),
+    )
     config.canonical_json()
     return config
 
@@ -451,7 +546,7 @@ def _parse_canonical_config(raw: Mapping[str, Any]) -> AgentConfig:
     _exact_keys(
         tools,
         required=set(),
-        optional={"preset", "include", "options"},
+        optional={"preset", "include", "options", "policy"},
         field="tools",
     )
     include = _string_list(tools.get("include", []), "tools.include")
@@ -468,6 +563,7 @@ def _parse_canonical_config(raw: Mapping[str, Any]) -> AgentConfig:
             tools.get("preset", "none"), "tools.preset", non_empty=True
         ),
         tool_options=_mapping(tools.get("options", {}), "tools.options"),
+        tool_use_policy=_tool_use_policy(tools.get("policy", "auto")),
         protocol=_string(
             agent.get("protocol", "auto"), "agent.protocol", non_empty=True
         ),
@@ -478,6 +574,45 @@ def _parse_canonical_config(raw: Mapping[str, Any]) -> AgentConfig:
         runtime=runtime,
         budgets=budgets,
     )
+
+
+def _normalize_schema_revision(
+    raw: Mapping[str, Any],
+) -> tuple[Dict[str, Any], List[Dict[str, Any]]]:
+    """Copy one supported persisted revision into the canonical reader shape."""
+    normalized = dict(raw)
+    receipts: List[Dict[str, Any]] = []
+    runtime = normalized.get("runtime")
+    if isinstance(runtime, Mapping):
+        runtime_copy = dict(runtime)
+        environment = runtime_copy.get("environment")
+        if isinstance(environment, Mapping) and environment.get("type") == "host":
+            environment_copy = dict(environment)
+            environment_copy["type"] = "unsafe_host"
+            for field_name in (
+                "image",
+                "container_workspace",
+                "network",
+                "read_only_root",
+                "cap_drop",
+                "no_new_privileges",
+                "pids_limit",
+                "memory_mb",
+                "cpus",
+                "cleanup_required",
+            ):
+                environment_copy.pop(field_name, None)
+            runtime_copy["environment"] = environment_copy
+            normalized["runtime"] = runtime_copy
+            receipts.append(
+                {
+                    "code": "host_environment_renamed_unsafe_host",
+                    "warning": True,
+                    "safety": "unisolated_host_execution",
+                }
+            )
+    normalized["schema"] = CANONICAL_SCHEMA
+    return normalized, receipts
 
 
 def _parse_context(raw: Mapping[str, Any]) -> Dict[str, Any]:
@@ -637,17 +772,25 @@ def _parse_runtime(raw: Mapping[str, Any]) -> RuntimeConfig:
             "container_workspace",
             "network",
             "read_only_root",
+            "cap_drop",
+            "no_new_privileges",
+            "pids_limit",
+            "memory_mb",
+            "cpus",
+            "cleanup_required",
         },
         field="runtime.environment",
     )
     env_type = _string(
         environment["type"], "runtime.environment.type", non_empty=True
     )
-    if env_type not in {"host", "docker"}:
+    if env_type not in {"unsafe_host", "docker"}:
         raise ConfigSchemaError(
-            "runtime.environment.type must be host or docker",
+            "runtime.environment.type must be unsafe_host or docker",
             field="runtime.environment.type",
         )
+    if env_type == "unsafe_host":
+        _validate_unsafe_host_environment(environment)
     session = _mapping(raw.get("session", {}), "runtime.session")
     _exact_keys(
         session,
@@ -659,7 +802,7 @@ def _parse_runtime(raw: Mapping[str, Any]) -> RuntimeConfig:
     _exact_keys(
         trajectory,
         required=set(),
-        optional={"enabled", "output", "privacy"},
+        optional={"enabled", "output", "privacy", "failure_policy"},
         field="runtime.trajectory",
     )
     privacy = _string(
@@ -672,11 +815,49 @@ def _parse_runtime(raw: Mapping[str, Any]) -> RuntimeConfig:
             "runtime.trajectory.privacy has an unsupported value",
             field="runtime.trajectory.privacy",
         )
+    failure_policy = _string(
+        trajectory.get("failure_policy", "required"),
+        "runtime.trajectory.failure_policy",
+        non_empty=True,
+    )
+    if failure_policy not in {"required", "optional"}:
+        raise ConfigSchemaError(
+            "runtime.trajectory.failure_policy has an unsupported value",
+            field="runtime.trajectory.failure_policy",
+        )
+    environment_defaults: Dict[str, Any] = (
+        {
+            "image": "",
+            "container_workspace": "",
+            "network": "host",
+            "read_only_root": False,
+            "cap_drop": False,
+            "no_new_privileges": False,
+            "pids_limit": None,
+            "memory_mb": None,
+            "cpus": None,
+            "cleanup_required": False,
+        }
+        if env_type == "unsafe_host"
+        else {
+            "image": "python:3.12-slim",
+            "container_workspace": "/workspace",
+            "network": "none",
+            "read_only_root": True,
+            "cap_drop": True,
+            "no_new_privileges": True,
+            "pids_limit": 256,
+            "memory_mb": 2048,
+            "cpus": 2.0,
+            "cleanup_required": True,
+        }
+    )
     return RuntimeConfig(
         environment=EnvironmentConfig(
             type=env_type,
             image=_string(
-                environment.get("image", ""), "runtime.environment.image"
+                environment.get("image", environment_defaults["image"]),
+                "runtime.environment.image",
             ),
             workspace=_string(
                 environment["workspace"],
@@ -684,18 +865,54 @@ def _parse_runtime(raw: Mapping[str, Any]) -> RuntimeConfig:
                 non_empty=True,
             ),
             container_workspace=_string(
-                environment.get("container_workspace", "/workspace"),
+                environment.get(
+                    "container_workspace", environment_defaults["container_workspace"]
+                ),
                 "runtime.environment.container_workspace",
-                non_empty=True,
+                non_empty=env_type == "docker",
             ),
             network=_string(
-                environment.get("network", "none"),
+                environment.get("network", environment_defaults["network"]),
                 "runtime.environment.network",
                 non_empty=True,
             ),
             read_only_root=_boolean(
-                environment.get("read_only_root", True),
+                environment.get(
+                    "read_only_root", environment_defaults["read_only_root"]
+                ),
                 "runtime.environment.read_only_root",
+            ),
+            cap_drop=_boolean(
+                environment.get("cap_drop", environment_defaults["cap_drop"]),
+                "runtime.environment.cap_drop",
+            ),
+            no_new_privileges=_boolean(
+                environment.get(
+                    "no_new_privileges",
+                    environment_defaults["no_new_privileges"],
+                ),
+                "runtime.environment.no_new_privileges",
+            ),
+            pids_limit=_optional_integer(
+                environment.get("pids_limit", environment_defaults["pids_limit"]),
+                "runtime.environment.pids_limit",
+                minimum=1,
+            ),
+            memory_mb=_optional_integer(
+                environment.get("memory_mb", environment_defaults["memory_mb"]),
+                "runtime.environment.memory_mb",
+                minimum=64,
+            ),
+            cpus=_optional_number(
+                environment.get("cpus", environment_defaults["cpus"]),
+                "runtime.environment.cpus",
+                minimum=0.01,
+            ),
+            cleanup_required=_boolean(
+                environment.get(
+                    "cleanup_required", environment_defaults["cleanup_required"]
+                ),
+                "runtime.environment.cleanup_required",
             ),
         ),
         session=SessionConfig(
@@ -717,7 +934,7 @@ def _parse_runtime(raw: Mapping[str, Any]) -> RuntimeConfig:
         ),
         trajectory=TrajectoryConfig(
             enabled=_boolean(
-                trajectory.get("enabled", True), "runtime.trajectory.enabled"
+                trajectory.get("enabled", False), "runtime.trajectory.enabled"
             ),
             output=_string(
                 trajectory.get("output", "./runs"),
@@ -725,6 +942,7 @@ def _parse_runtime(raw: Mapping[str, Any]) -> RuntimeConfig:
                 non_empty=True,
             ),
             privacy=privacy,
+            failure_policy=failure_policy,
         ),
     )
 
@@ -747,6 +965,39 @@ def _parse_budgets(raw: Mapping[str, Any]) -> BudgetConfig:
             raw.get("max_requests", 12), "budgets.max_requests", minimum=1
         ),
     )
+
+
+def _tool_use_policy(value: Any) -> str:
+    policy = _string(value, "tools.policy", non_empty=True)
+    if policy not in TOOL_USE_POLICIES:
+        raise ConfigSchemaError(
+            "tools.policy has an unsupported value", field="tools.policy"
+        )
+    return policy
+
+
+def _validate_unsafe_host_environment(environment: Mapping[str, Any]) -> None:
+    unsupported_claims = {
+        "image",
+        "container_workspace",
+        "network",
+        "read_only_root",
+        "cap_drop",
+        "no_new_privileges",
+        "pids_limit",
+        "memory_mb",
+        "cpus",
+        "cleanup_required",
+    } & set(environment)
+    if unsupported_claims:
+        from .errors import UnsafeHostConfigurationError
+
+        raise UnsafeHostConfigurationError(
+            "unsafe_host cannot declare sandbox-only constraints: "
+            + ", ".join(sorted(unsupported_claims)),
+            field="runtime.environment",
+            remediation="select a conforming sandbox backend or remove the claims",
+        )
 
 
 def _parse_dataset(value: Any) -> List[DatasetItem]:
@@ -935,6 +1186,14 @@ def _integer(
     return value
 
 
+def _optional_integer(
+    value: Any, field_name: str, *, minimum: Optional[int] = None
+) -> Optional[int]:
+    if value is None:
+        return None
+    return _integer(value, field_name, minimum=minimum)
+
+
 def _number(
     value: Any,
     field_name: str,
@@ -958,6 +1217,14 @@ def _number(
     return result
 
 
+def _optional_number(
+    value: Any, field_name: str, *, minimum: Optional[float] = None
+) -> Optional[float]:
+    if value is None:
+        return None
+    return _number(value, field_name, minimum=minimum)
+
+
 def _contains_env_reference(value: Any) -> bool:
     if isinstance(value, str):
         return bool(_ENV_PATTERN.search(value))
@@ -977,11 +1244,9 @@ def _json_safe(value: Any, field_name: str) -> Any:
                 f"{field_name} contains a non-finite number", field=field_name
             )
         return value
-    if isinstance(value, list):
+    if isinstance(value, (list, tuple)):
         return [_json_safe(item, field_name) for item in value]
-    if isinstance(value, tuple):
-        return [_json_safe(item, field_name) for item in value]
-    if isinstance(value, dict) and all(
+    if isinstance(value, Mapping) and all(
         isinstance(key, str) for key in value
     ):
         return {
@@ -997,6 +1262,7 @@ __all__ = [
     "AgentConfig",
     "BudgetConfig",
     "CANONICAL_SCHEMA",
+    "COMPATIBLE_SCHEMA_REVISIONS",
     "DatasetItem",
     "EnvironmentConfig",
     "ModelConfig",
@@ -1004,6 +1270,7 @@ __all__ = [
     "RuntimeConfig",
     "SessionConfig",
     "TrajectoryConfig",
+    "TOOL_USE_POLICIES",
     "load_agent_config",
     "resolve_env_vars",
 ]

@@ -18,7 +18,7 @@ def test_qit_run_dry_run_uses_strict_loader_without_resolving_credentials(
 ) -> None:
     assert main(["run", "--config", str(FIXTURE), "--dry-run"]) == 0
     payload = json.loads(getattr(capsys, "readouterr")().out)
-    assert payload["schema"] == "qitos.agent/v1"
+    assert payload["schema"] == "qitos.agent"
     assert len(payload["config_digest"]) == 64
 
 

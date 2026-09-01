@@ -134,3 +134,19 @@ def test_parent_directory_must_not_be_group_or_world_writable(
             )
     finally:
         path.parent.chmod(0o700)
+
+
+def test_parent_directory_must_not_be_group_or_world_readable(
+    tmp_path: Path,
+) -> None:
+    repository = tmp_path / "repo"
+    repository.mkdir()
+    path = _credential_file(tmp_path)
+    path.parent.chmod(0o750)
+    try:
+        with pytest.raises(CredentialFileSecurityError, match="group/world"):
+            LocalCredentialFileResolver(path, repository_root=repository).resolve(
+                CredentialRef("demo")
+            )
+    finally:
+        path.parent.chmod(0o700)

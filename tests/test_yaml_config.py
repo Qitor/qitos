@@ -24,12 +24,14 @@ from qitos.config.errors import (
     ConfigSchemaError,
     ConfigSyntaxError,
     MissingEnvironmentVariableError,
+    ProtocolParserMismatchError,
     UnknownConfigFieldError,
+    UnsafeHostConfigurationError,
 )
 
 
 CANONICAL = """
-schema: qitos.agent/v1
+schema: qitos.agent
 agent:
   name: test-agent
   protocol: react_text_v1
@@ -55,17 +57,16 @@ tools:
   preset: env_coding
   include: []
   options: {}
+  policy: auto
 runtime:
   environment:
-    type: host
+    type: unsafe_host
     workspace: .
-    network: none
-    read_only_root: true
   session:
     enabled: false
     store: memory
   trajectory:
-    enabled: true
+    enabled: false
     output: ./runs
     privacy: private
 budgets:
@@ -93,7 +94,7 @@ def test_load_canonical_config_and_source_identity(tmp_path: Path) -> None:
     assert config.max_steps == 4
     assert config.model.credential == CredentialRef("test-credential")
     assert config.tool_preset == "env_coding"
-    assert config.runtime.environment.type == "host"
+    assert config.runtime.environment.type == "unsafe_host"
     assert config.dataset[0].task == "verify fixture"
     assert config.source["name"] == "agent.yaml"
     assert len(config.source["sha256"]) == 64
@@ -112,6 +113,58 @@ def test_canonical_serialization_is_stable_json_safe_and_secret_free(
     assert payload["model"]["credential"] == {"ref": "test-credential"}
     assert "api_key" not in first
     assert "secret" not in first.lower()
+
+
+def test_loaded_config_is_deeply_immutable_and_digest_is_format_independent(
+    tmp_path: Path,
+) -> None:
+    first = load_agent_config(_write(tmp_path / "first.yaml"))
+    second_text = CANONICAL.replace("metadata:\n  purpose: test", "metadata: {purpose: test}")
+    second = load_agent_config(_write(tmp_path / "second.yaml", second_text))
+
+    assert first.digest() == second.digest()
+    with pytest.raises(TypeError):
+        first.metadata["purpose"] = "changed"  # type: ignore[index]
+    with pytest.raises(TypeError):
+        first.model.request.extra_body["new"] = True  # type: ignore[index]
+    with pytest.raises(AttributeError):
+        first.tools.append("unsafe")  # type: ignore[attr-defined]
+
+
+def test_v1_schema_is_reader_only_and_writes_canonical_identity(tmp_path: Path) -> None:
+    legacy = CANONICAL.replace("schema: qitos.agent", "schema: qitos.agent/v1")
+    config = load_agent_config(_write(tmp_path / "legacy.yaml", legacy))
+
+    assert config.schema == "qitos.agent"
+    assert json.loads(config.canonical_json())["schema"] == "qitos.agent"
+    assert any(
+        item["code"] == "agent_schema_revision_compatibility"
+        for item in config.compatibility
+    )
+
+
+def test_unsafe_host_rejects_unenforceable_sandbox_claims(tmp_path: Path) -> None:
+    invalid = CANONICAL.replace(
+        "type: unsafe_host\n    workspace: .",
+        "type: unsafe_host\n    workspace: .\n    network: none",
+    )
+    with pytest.raises(UnsafeHostConfigurationError) as caught:
+        load_agent_config(_write(tmp_path / "invalid.yaml", invalid))
+    assert caught.value.code == "unsafe_host_constraint_rejected"
+
+
+def test_explicit_protocol_parser_mismatch_is_typed(tmp_path: Path) -> None:
+    mismatch = CANONICAL.replace("parser: auto", "parser: JsonDecisionParser")
+    config = load_agent_config(_write(tmp_path / "mismatch.yaml", mismatch))
+    from qitos.kit.env import HostEnv
+
+    with pytest.raises(ProtocolParserMismatchError) as caught:
+        build_agent_composition(
+            config,
+            model_override=object(),
+            env_override=HostEnv(workspace_root=str(tmp_path)),
+        )
+    assert caught.value.code == "protocol_parser_mismatch"
 
 
 def test_sanitized_receipt_uses_digests_and_omits_private_locations(
@@ -247,7 +300,9 @@ def test_one_config_composes_matching_model_tools_env_runtime_and_budget(
 ) -> None:
     config = load_agent_config(_write(tmp_path / "agent.yaml"))
     model = object()
-    env = object()
+    from qitos.kit.env import HostEnv
+
+    env = HostEnv(workspace_root=str(tmp_path))
     composition = build_agent_composition(
         config,
         model_override=model,

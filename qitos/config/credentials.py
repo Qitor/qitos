@@ -146,9 +146,9 @@ class LocalCredentialFileResolver:
             raise CredentialFileSecurityError(
                 "credential directory must be owned by the current user"
             )
-        if stat.S_IMODE(parent_stat.st_mode) & 0o022:
+        if stat.S_IMODE(parent_stat.st_mode) & 0o077:
             raise CredentialFileSecurityError(
-                "credential directory must not be group/world writable"
+                "credential directory must not grant group/world permissions"
             )
         return path
 

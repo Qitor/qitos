@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -57,22 +57,24 @@ def _apply_sweep_to_config(
     Supports dotted paths like ``model.temperature`` and top-level keys
     like ``max_steps``.
     """
-    import copy
-
-    config = copy.deepcopy(base_config)
+    config = base_config
+    metadata = dict(config.metadata)
 
     for key, value in overrides.items():
         parts = key.split(".")
         if len(parts) == 1:
             if hasattr(config, key):
-                setattr(config, key, value)
+                config = replace(config, **{key: value})
         elif len(parts) == 2 and parts[0] == "model":
             if hasattr(config.model, parts[1]):
-                setattr(config.model, parts[1], value)
+                config = replace(
+                    config,
+                    model=replace(config.model, **{parts[1]: value}),
+                )
         else:
-            config.metadata[key] = value
+            metadata[key] = value
 
-    return config
+    return replace(config, metadata=metadata)
 
 
 def _build_cache_backend(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Mapping
 import json
 from pathlib import Path
 import sys
@@ -119,9 +120,9 @@ def _run_main(argv: list[str]) -> int:
                     {
                         "schema": config.schema,
                         "config_digest": config.digest(),
-                        "source": config.source,
-                        "compatibility": config.compatibility,
-                        "loss": config.loss,
+                        "source": dict(config.source),
+                        "compatibility": [dict(item) for item in config.compatibility],
+                        "loss": [dict(item) for item in config.loss],
                     },
                     ensure_ascii=False,
                     indent=2,
@@ -414,14 +415,14 @@ def _experiment_run(args: argparse.Namespace) -> int:
     # Parse sweep from config metadata if present
     sweep = SweepSpec()
     sweep_raw = config.metadata.get("sweep", {})
-    if sweep_raw and isinstance(sweep_raw, dict):
-        sweep = SweepSpec(params=sweep_raw)
+    if sweep_raw and isinstance(sweep_raw, Mapping):
+        sweep = SweepSpec(params=dict(sweep_raw))
 
     experiment_spec = ExperimentSpec(
         name=config.name,
         benchmark_name=config.metadata.get("benchmark"),
         benchmark_split=config.metadata.get("split"),
-        metadata=config.metadata,
+        metadata=dict(config.metadata),
     )
 
     # Build cache config

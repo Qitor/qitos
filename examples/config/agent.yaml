@@ -1,4 +1,4 @@
-schema: qitos.agent/v1
+schema: qitos.agent
 agent:
   name: example-coding-agent
   protocol: auto
@@ -21,12 +21,21 @@ tools:
   preset: env_coding
   include: []
   options: {}
+  policy: auto
 runtime:
   environment:
-    type: host
+    type: docker
+    image: python:3.12-slim
     workspace: .
+    container_workspace: /workspace
     network: none
     read_only_root: true
+    cap_drop: true
+    no_new_privileges: true
+    pids_limit: 256
+    memory_mb: 2048
+    cpus: 2.0
+    cleanup_required: true
   session:
     enabled: false
     store: memory
@@ -34,6 +43,7 @@ runtime:
     enabled: true
     output: ./runs
     privacy: private
+    failure_policy: required
 budgets:
   max_steps: 10
   max_runtime_seconds: 600

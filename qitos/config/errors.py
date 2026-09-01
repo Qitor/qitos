@@ -70,12 +70,65 @@ class CompositionError(ConfigurationError):
     code = "agent_composition_failed"
 
 
+class UnsupportedProtocolError(CompositionError):
+    code = "unsupported_protocol"
+
+
+class ProtocolParserMismatchError(CompositionError):
+    code = "protocol_parser_mismatch"
+
+
+class ProviderCapabilityLossError(CompositionError):
+    code = "provider_capability_loss"
+
+
+class MalformedStructuredResponseError(CompositionError):
+    code = "malformed_structured_response"
+
+
+class ToolCallProjectionLossError(CompositionError):
+    code = "tool_call_projection_loss"
+
+
+class ContinuationUnavailableError(CompositionError):
+    code = "continuation_unavailable"
+
+
+class LossyFallbackNotAuthorizedError(CompositionError):
+    code = "lossy_fallback_not_authorized"
+
+
+class ToolUsePolicyViolationError(CompositionError):
+    code = "tool_use_policy_violation"
+
+
+class SandboxError(CompositionError):
+    code = "sandbox_invalid"
+
+
+class SandboxUnavailableError(SandboxError):
+    code = "sandbox_unavailable"
+
+
+class UnsafeHostConfigurationError(SandboxError):
+    code = "unsafe_host_constraint_rejected"
+
+
+class SandboxCleanupError(SandboxError):
+    code = "sandbox_cleanup_failed"
+
+
+class ConfigDigestMismatchError(CompositionError):
+    code = "config_digest_mismatch"
+
+
 class SourceBindingError(ConfigurationError):
     code = "source_binding_failed"
 
 
 __all__ = [
     "CompositionError",
+    "ConfigDigestMismatchError",
     "ConfigSchemaError",
     "ConfigSourceError",
     "ConfigSyntaxError",
@@ -85,6 +138,18 @@ __all__ = [
     "CredentialNotFoundError",
     "CredentialResolutionError",
     "MissingEnvironmentVariableError",
+    "ContinuationUnavailableError",
+    "LossyFallbackNotAuthorizedError",
+    "MalformedStructuredResponseError",
+    "ProtocolParserMismatchError",
+    "ProviderCapabilityLossError",
+    "SandboxCleanupError",
+    "SandboxError",
+    "SandboxUnavailableError",
     "SourceBindingError",
+    "ToolCallProjectionLossError",
+    "ToolUsePolicyViolationError",
     "UnknownConfigFieldError",
+    "UnsafeHostConfigurationError",
+    "UnsupportedProtocolError",
 ]
