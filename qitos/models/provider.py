@@ -34,6 +34,7 @@ from .codec import (
     ProviderCapabilities,
     ProviderCodec,
     ProviderFailure,
+    _request_tool_options,
     report_for_request,
     validate_codec_result,
 )
@@ -730,9 +731,7 @@ class LegacyMessageCodec:
                     if item != "reasoning" and not item.startswith("reasoning:")
                 ),
             )
-        options: Dict[str, Any] = {}
-        if request.tool_schemas:
-            options["tools"] = list(request.tool_schemas)
+        options = _request_tool_options(request)
         return validate_codec_result(
             {"messages": messages, "options": options},
             report,

@@ -33,9 +33,13 @@ from .multimodal import ContentBlock
 from .session import ContinuationIdentity, SnapshotComponentCodec
 
 
-REQUEST_VIEW_SCHEMA_VERSION = "qitos.request_view/v1"
+REQUEST_VIEW_SCHEMA_VERSION = "qitos.request_view/v2"
+_HISTORICAL_REQUEST_VIEW_SCHEMA_VERSION = "qitos.request_view/v1"
 CONVERSATION_COMPONENT_SCHEMA_VERSION = "qitos.conversation_component/v1"
 REQUEST_BUILDER_VERSION = "qitos.exchange_request_builder/v1"
+TOOL_USE_POLICY_VALUES = frozenset(
+    {"auto", "required_for_next_decision", "required_before_final", "disabled"}
+)
 
 
 class RequestContractError(ConversationValidationError):
@@ -620,6 +624,9 @@ class RequestView:
     steering_boundary_json: str = "{}"
     correlation_facts_json: tuple[str, ...] = field(default=(), repr=False)
     provenance_json: str = "{}"
+    protocol_id: str = "unknown"
+    tool_use_policy: str = "auto"
+    tool_use_satisfied: bool = False
     schema_version: str = REQUEST_VIEW_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -629,6 +636,12 @@ class RequestView:
             )
         if self.continuation is not None:
             self.continuation.assert_compatible(self.target)
+        if not isinstance(self.protocol_id, str) or not self.protocol_id.strip():
+            raise RequestContractError("protocol_id must be a non-empty string")
+        if self.tool_use_policy not in TOOL_USE_POLICY_VALUES:
+            raise RequestContractError("tool_use_policy is unsupported")
+        if not isinstance(self.tool_use_satisfied, bool):
+            raise RequestContractError("tool_use_satisfied must be boolean")
         for name, values in (
             ("selected_items", self.selected_items_json),
             ("instructions", self.instructions_json),
@@ -682,13 +695,16 @@ class RequestView:
                 _json_value(value) for value in self.correlation_facts_json
             ],
             "provenance": _json_value(self.provenance_json),
+            "protocol_id": self.protocol_id,
+            "tool_use_policy": self.tool_use_policy,
+            "tool_use_satisfied": self.tool_use_satisfied,
         }
         _strict_json(payload, "request_view")
         return payload
 
     @classmethod
     def from_dict(cls, value: Any) -> "RequestView":
-        fields = frozenset(
+        base_fields = frozenset(
             {
                 "schema_version",
                 "request_id",
@@ -710,11 +726,29 @@ class RequestView:
                 "provenance",
             }
         )
-        data = _strict_object(value, path="request_view", fields=fields)
-        if data["schema_version"] != REQUEST_VIEW_SCHEMA_VERSION:
+        policy_fields = frozenset(
+            {"protocol_id", "tool_use_policy", "tool_use_satisfied"}
+        )
+        schema_version = (
+            value.get("schema_version") if isinstance(value, Mapping) else None
+        )
+        if schema_version == _HISTORICAL_REQUEST_VIEW_SCHEMA_VERSION:
+            fields = base_fields
+            required = base_fields
+        elif schema_version == REQUEST_VIEW_SCHEMA_VERSION:
+            fields = base_fields | policy_fields
+            required = fields
+        else:
             raise UnsupportedRequestVersionError(
-                f"unsupported request view schema: {data['schema_version']!r}"
+                f"unsupported request view schema: {schema_version!r}"
             )
+        data = _strict_object(
+            value,
+            path="request_view",
+            fields=fields,
+            required=required,
+        )
+        data["schema_version"] = REQUEST_VIEW_SCHEMA_VERSION
         source = _strict_object(
             data["source"],
             path="request_view.source",
@@ -784,6 +818,9 @@ class RequestView:
                 for item in data["correlation_facts"]
             ),
             provenance_json=_json_text(data["provenance"], "provenance"),
+            protocol_id=str(data.get("protocol_id") or "unknown"),
+            tool_use_policy=str(data.get("tool_use_policy") or "auto"),
+            tool_use_satisfied=bool(data.get("tool_use_satisfied", False)),
         )
 
     @classmethod
@@ -805,6 +842,9 @@ class RequestView:
         compaction_receipts: Iterable[CompactionReceipt] = (),
         artifact_refs: Iterable[ArtifactRef] = (),
         available_artifact_ids: Optional[Iterable[str]] = None,
+        protocol_id: str = "unknown",
+        tool_use_policy: str = "auto",
+        tool_use_satisfied: bool = False,
     ) -> "RequestView":
         log.assert_ready_for_model_transaction()
         resolved_target = target or _target_from_model(model)
@@ -1016,6 +1056,8 @@ class RequestView:
             "queued_item_ids": [],
         }
         requirements = set(str(requirement) for requirement in capability_requirements)
+        if schema_values:
+            requirements.update({"tool_calls", "tool_schemas"})
         requirements.update(
             category
             for category in selected_categories
@@ -1044,6 +1086,9 @@ class RequestView:
             "compaction_receipts": [
                 receipt.to_dict() for receipt in compaction_receipts
             ],
+            "protocol_id": protocol_id,
+            "tool_use_policy": tool_use_policy,
+            "tool_use_satisfied": tool_use_satisfied,
         }
         request_id = f"request_{_digest(provisional)[:24]}"
         result = cls(
@@ -1089,6 +1134,9 @@ class RequestView:
                 },
                 "provenance",
             ),
+            protocol_id=protocol_id,
+            tool_use_policy=tool_use_policy,
+            tool_use_satisfied=tool_use_satisfied,
         )
         return cls.from_dict(result.to_dict())
 

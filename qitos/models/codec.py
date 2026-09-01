@@ -17,7 +17,8 @@ from ..core.diagnostics import redact_diagnostic_value, safe_diagnostic_text
 from ..core.request_view import RequestTarget, RequestView
 
 
-CODEC_REPORT_SCHEMA_VERSION = "qitos.codec_report/v1"
+CODEC_REPORT_SCHEMA_VERSION = "qitos.codec_report/v2"
+_HISTORICAL_CODEC_REPORT_SCHEMA_VERSION = "qitos.codec_report/v1"
 PROVIDER_CAPABILITIES_SCHEMA_VERSION = "qitos.provider_capabilities/v1"
 PROVIDER_FAILURE_SCHEMA_VERSION = "qitos.provider_failure/v1"
 
@@ -76,10 +77,12 @@ class CodecError(RuntimeError):
 
 class CodecCapabilityError(CodecError):
     code = "codec_capability_mismatch"
+    diagnostic_code = "provider_capability_loss"
 
 
 class CodecLossError(CodecError):
     code = "codec_loss_rejected"
+    diagnostic_code = "lossy_fallback_not_authorized"
 
 
 class CodecUnavailableError(CodecError):
@@ -381,6 +384,9 @@ class CodecReport:
     lossy_fields: tuple[str, ...]
     warnings: tuple[str, ...]
     fallback: str = "none"
+    protocol_id: str = "unknown"
+    tool_use_policy: str = "auto"
+    tool_use_satisfied: bool = False
     schema_version: str = CODEC_REPORT_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -388,6 +394,13 @@ class CodecReport:
             raise CodecError(f"unsupported codec report: {self.schema_version!r}")
         if self.fallback not in {"none", "stateless_replay"}:
             raise CodecError(f"unsupported codec fallback: {self.fallback!r}")
+        if self.tool_use_policy not in {
+            "auto",
+            "required_for_next_decision",
+            "required_before_final",
+            "disabled",
+        }:
+            raise CodecError("unsupported codec tool-use policy")
 
     @property
     def lossless(self) -> bool:
@@ -424,12 +437,15 @@ class CodecReport:
             "lossy_fields": list(self.lossy_fields),
             "warnings": list(self.warnings),
             "fallback": self.fallback,
+            "protocol_id": self.protocol_id,
+            "tool_use_policy": self.tool_use_policy,
+            "tool_use_satisfied": self.tool_use_satisfied,
             "lossless": self.lossless,
         }
 
     @classmethod
     def from_dict(cls, value: Any) -> "CodecReport":
-        fields = frozenset(
+        base_fields = frozenset(
             {
                 "schema_version",
                 "codec_id",
@@ -451,8 +467,31 @@ class CodecReport:
                 "lossless",
             }
         )
-        data = _object(value, path="codec_report", fields=fields)
+        policy_fields = frozenset(
+            {"protocol_id", "tool_use_policy", "tool_use_satisfied"}
+        )
+        schema_version = (
+            value.get("schema_version") if isinstance(value, Mapping) else None
+        )
+        if schema_version == _HISTORICAL_CODEC_REPORT_SCHEMA_VERSION:
+            fields = base_fields
+            required = base_fields
+        elif schema_version == CODEC_REPORT_SCHEMA_VERSION:
+            fields = base_fields | policy_fields
+            required = fields
+        else:
+            raise CodecError(f"unsupported codec report: {schema_version!r}")
+        data = _object(
+            value,
+            path="codec_report",
+            fields=fields,
+            required=required,
+        )
         reported_lossless = data.pop("lossless")
+        data.setdefault("protocol_id", "unknown")
+        data.setdefault("tool_use_policy", "auto")
+        data.setdefault("tool_use_satisfied", False)
+        data["schema_version"] = CODEC_REPORT_SCHEMA_VERSION
         data["target"] = RequestTarget.from_dict(data["target"])
         for name in (
             "supported",
@@ -696,7 +735,26 @@ def report_for_request(
         lossy_fields=tuple(lossy_fields),
         warnings=tuple(warnings),
         fallback=fallback,
+        protocol_id=request.protocol_id,
+        tool_use_policy=request.tool_use_policy,
+        tool_use_satisfied=request.tool_use_satisfied,
     )
+
+
+def _request_tool_options(request: RequestView) -> Dict[str, Any]:
+    """Project the provider-neutral tool-use policy into transport options."""
+    if request.tool_use_policy == "disabled":
+        return {}
+    options: Dict[str, Any] = {}
+    if request.tool_schemas:
+        options["tools"] = list(request.tool_schemas)
+    if (
+        request.tool_use_policy
+        in {"required_for_next_decision", "required_before_final"}
+        and not request.tool_use_satisfied
+    ):
+        options["tool_choice"] = "required"
+    return options
 
 
 __all__ = [

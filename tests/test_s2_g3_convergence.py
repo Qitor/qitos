@@ -68,6 +68,7 @@ class _RecoveryAgent(AgentModule[_RecoveryState, dict[str, Any], Action]):
 
         @tool(name="committed_effect", concurrency_safe=True)
         def committed_effect() -> str:
+            assert barrier_entered.wait(timeout=5)
             counts["committed_effect"] += 1
             return "committed"
 

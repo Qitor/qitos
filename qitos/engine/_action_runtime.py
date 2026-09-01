@@ -601,6 +601,21 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                     )
                 )
         record.action_results = results
+        if executable_actions:
+            setattr(engine, "_qitos_tool_use_satisfied", True)
+            engine._emit(
+                record.step_id,
+                RuntimePhase.ACT,
+                payload={
+                    "stage": "tool_use_policy_satisfied",
+                    "tool_count": len(executable_actions),
+                    "policy": str(
+                        dict(getattr(engine.agent, "config", {}) or {}).get(
+                            "tool_use_policy", "auto"
+                        )
+                    ),
+                },
+            )
         model_views = self._model_visible_tool_result_dicts(results)
         for item in results:
             engine._memory_append("action_result", item, record.step_id)

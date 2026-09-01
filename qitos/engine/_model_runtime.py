@@ -149,6 +149,7 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
         decision = self.normalize_decision(
             raw_decision, step=record.step_id, record=record
         )
+        decision = self._enforce_tool_use_policy(decision, record=record)
         if decision.mode == "branch":
             decision = self.select_branch(state, observation, decision)
 
@@ -550,8 +551,10 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
         request_kwargs: Dict[str, Any] = {
             "target": target,
             "instructions": instructions,
-            "tool_schemas": list(
-                getattr(prompt_bundle, "tool_schema_payload", None) or []
+            "tool_schemas": (
+                []
+                if str(agent_config.get("tool_use_policy") or "auto") == "disabled"
+                else list(getattr(prompt_bundle, "tool_schema_payload", None) or [])
             ),
             "continuation": continuation,
             "context_budget": context_services["budget"],
@@ -562,6 +565,15 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             "available_artifact_ids": [
                 reference.artifact_id for reference in artifact_refs
             ],
+            "protocol_id": str(
+                getattr(self.engine.resolve_protocol(), "id", "unknown") or "unknown"
+            ),
+            "tool_use_policy": str(
+                agent_config.get("tool_use_policy") or "auto"
+            ),
+            "tool_use_satisfied": bool(
+                getattr(self.engine, "_qitos_tool_use_satisfied", False)
+            ),
         }
         request = RequestView.from_exchange_log(log, **request_kwargs)
         compaction_policy = context_services.get("compaction_policy")
@@ -1281,6 +1293,35 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
         )
         if native_decision is not None:
             return native_decision
+        agent_config = dict(getattr(self.engine.agent, "config", {}) or {})
+        native_required = bool(agent_config.get("native_tool_calls_required", False))
+        tool_use_satisfied = bool(
+            getattr(self.engine, "_qitos_tool_use_satisfied", False)
+        )
+        if response is not None and native_required and not tool_use_satisfied:
+            if record is not None:
+                record.native_tool_call_used = False
+                record.native_tool_call_fallback_reason = "provider_capability_loss"
+            self.engine._emit(
+                step,
+                RuntimePhase.DECIDE,
+                ok=False,
+                payload={
+                    "stage": "native_tool_call_required",
+                    "code": "provider_capability_loss",
+                },
+                error="provider_capability_loss",
+            )
+            raise ParseExecutionError(
+                RuntimeErrorInfo(
+                    category=ErrorCategory.PARSE,
+                    message="Provider did not return a required native tool call.",
+                    phase=RuntimePhase.DECIDE.value,
+                    step_id=step,
+                    recoverable=False,
+                    details={"code": "provider_capability_loss"},
+                )
+            )
         parser_input = response.text if response is not None else raw_decision
 
         # When native tool calling is preferred and the model returned plain
@@ -2257,7 +2298,11 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
         for item in response.tool_calls:
             normalized = self._action_from_tool_call(item)
             if normalized is None:
-                reason = "tool_call_arguments_invalid"
+                reason = (
+                    "tool_call_projection_loss"
+                    if actions
+                    else "malformed_structured_response"
+                )
                 if record is not None:
                     record.native_tool_call_used = False
                     record.native_tool_call_fallback_reason = reason
@@ -2265,12 +2310,26 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                     step,
                     RuntimePhase.DECIDE,
                     payload={
-                        "stage": "native_tool_call_fallback",
+                        "stage": "native_tool_call_rejected",
                         "reason": reason,
                         "tool_call": item,
                     },
                 )
-                return None
+                raise ParseExecutionError(
+                    RuntimeErrorInfo(
+                        category=ErrorCategory.PARSE,
+                        message="Provider returned a malformed native tool call.",
+                        phase=RuntimePhase.DECIDE.value,
+                        step_id=step,
+                        recoverable=True,
+                        details={
+                            "code": reason,
+                            "malformed_structured_response": True,
+                            "tool_call_projection_loss": bool(actions),
+                            "max_recoveries": 1,
+                        },
+                    )
+                )
             if open_batch_id is not None:
                 normalized.metadata["conversation_batch_id"] = open_batch_id
             actions.append(normalized)
@@ -2300,6 +2359,72 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             record.native_tool_call_used = True
             record.native_tool_call_fallback_reason = None
         return decision
+
+    def _enforce_tool_use_policy(
+        self,
+        decision: Decision[ActionT],
+        *,
+        record: StepRecord,
+    ) -> Decision[ActionT]:
+        config = dict(getattr(self.engine.agent, "config", {}) or {})
+        policy = str(config.get("tool_use_policy") or "auto")
+        satisfied = bool(
+            getattr(self.engine, "_qitos_tool_use_satisfied", False)
+        )
+        violation: str | None = None
+        if policy == "disabled" and decision.mode == "act":
+            violation = "tool_use_disabled"
+        elif (
+            policy == "required_for_next_decision"
+            and decision.mode != "act"
+            and not satisfied
+        ):
+            violation = "tool_required_for_next_decision"
+        elif (
+            policy == "required_before_final"
+            and decision.mode == "final"
+            and not satisfied
+        ):
+            violation = "tool_required_before_final"
+        if violation is None:
+            return decision
+        feedback = (
+            "Tool use is disabled for this launch; return a final answer without "
+            "declaring actions."
+            if violation == "tool_use_disabled"
+            else "A declared tool must be executed before the final answer."
+        )
+        self.engine._history_append(
+            "user",
+            feedback,
+            record.step_id,
+            metadata={"source": "tool_use_policy", "code": violation},
+        )
+        self.engine._emit(
+            record.step_id,
+            RuntimePhase.DECIDE,
+            ok=False,
+            payload={
+                "stage": "tool_use_policy_rejected",
+                "code": "tool_use_policy_violation",
+                "reason": violation,
+                "policy": policy,
+                "satisfied": satisfied,
+            },
+            error="tool_use_policy_violation",
+        )
+        return cast(
+            Decision[ActionT],
+            Decision.wait(
+                rationale=feedback,
+                meta={
+                    "tool_use_policy_violation": True,
+                    "diagnostic_code": "tool_use_policy_violation",
+                    "reason": violation,
+                    "policy": policy,
+                },
+            ),
+        )
 
     def _native_tool_call_preferred(self) -> bool:
         llm = getattr(self.engine.agent, "llm", None)

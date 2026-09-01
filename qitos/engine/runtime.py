@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Any, Iterable, Mapping, Optional, Protocol, Sequence, runtime_checkable
 
@@ -136,6 +136,7 @@ class RuntimeCompositionConfig:
     resolver_references: tuple[Mapping[str, Any], ...] = ()
     snapshot_component_schemas: tuple[str, ...] = ()
     tool_execution_policy: Mapping[str, Any] = field(default_factory=dict)
+    launch_metadata: Mapping[str, Any] = field(default_factory=dict)
     context_model_runtime: Optional[str] = None
 
     def __post_init__(self) -> None:
@@ -146,9 +147,10 @@ class RuntimeCompositionConfig:
             raise ValueError("Runtime composition config must be strict JSON.") from exc
 
     def to_dict(self) -> dict[str, Any]:
-        return json.loads(
-            json.dumps(asdict(self), allow_nan=False, sort_keys=True)
-        )
+        payload = asdict(self)
+        if not self.launch_metadata:
+            payload.pop("launch_metadata", None)
+        return json.loads(json.dumps(payload, allow_nan=False, sort_keys=True))
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> "RuntimeCompositionConfig":
@@ -162,6 +164,7 @@ class RuntimeCompositionConfig:
                 payload.get("snapshot_component_schemas", ())
             ),
             tool_execution_policy=dict(payload.get("tool_execution_policy", {})),
+            launch_metadata=dict(payload.get("launch_metadata", {})),
             context_model_runtime=payload.get("context_model_runtime"),
         )
 
@@ -179,6 +182,7 @@ class RuntimeComposition:
     event_sink_failure_policy: Any = None
     event_sink_view: Any = None
     tool_execution_policy: Any = None
+    launch_metadata: Mapping[str, Any] = field(default_factory=dict)
     context_model_runtime: Optional[ContextModelRuntime] = None
     work_runtime: Any = None
     event_sink_reports: list[Any] = field(default_factory=list, init=False)
@@ -192,6 +196,8 @@ class RuntimeComposition:
             FailurePolicy,
         )
         from ..tracing.trajectory import PrivacyView
+
+        self.launch_metadata = _json_safe(dict(self.launch_metadata))
 
         if not isinstance(self.resolvers, ResolverRegistry):
             self.resolvers = ResolverRegistry(self.resolvers)  # type: ignore[arg-type]
@@ -329,11 +335,35 @@ class RuntimeComposition:
                 session_id=(
                     handle.session_id.value if handle is not None else None
                 ),
+                work_item_id=(
+                    handle.work_item_id.value
+                    if handle is not None
+                    and getattr(handle, "work_item_id", None) is not None
+                    else None
+                ),
                 agent_id=str(getattr(getattr(engine, "agent", None), "name", ""))
                 or None,
             )
+        return self._dispatch_records(records)
+
+    def publish_record(self, record: Any) -> Any:
+        """Publish one already-normalized trajectory fact through the sink seam."""
+        if self._event_dispatcher is None:
+            return None
+        return self._dispatch_records((record,))
+
+    def _dispatch_records(self, records: Iterable[Any]) -> tuple[Any, ...]:
         reports = []
         for record in records:
+            if self.launch_metadata:
+                provenance = dict(record.record_provenance)
+                provenance["launch"] = _json_safe(dict(self.launch_metadata))
+                enriched = replace(
+                    record,
+                    record_provenance=provenance,
+                    digest="",
+                )
+                record = replace(enriched, digest=enriched.compute_digest())
             report = self._event_dispatcher.receive(record)
             self.event_sink_reports.append(report)
             reports.append(report)
@@ -460,6 +490,7 @@ class RuntimeComposition:
                 sorted(component.codec.schema_version for component in self.snapshot_components)
             ),
             tool_execution_policy=policy_payload,
+            launch_metadata=dict(self.launch_metadata),
             context_model_runtime=(
                 str(self.context_model_runtime.capability_id)
                 if self.context_model_runtime is not None

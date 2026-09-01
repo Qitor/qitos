@@ -143,6 +143,30 @@ def test_cooperative_pause_is_durable_and_restore_gets_new_run() -> None:
     assert restored.inspect().lifecycle is SessionLifecycle.COMPLETED
 
 
+def test_restore_rejects_a_different_agent_config_digest() -> None:
+    runtime = RuntimeComposition(
+        lifecycle_policy=PauseAfterFirstStep(),
+        launch_metadata={"config_digest": "a" * 64},
+    )
+    session = Engine(CounterAgent(), runtime=runtime).session("digest-bound")
+    session.run()
+    mismatched_runtime = RuntimeComposition(
+        checkpoint_store=runtime.checkpoint_store,
+        resolvers=runtime.resolvers,
+        lifecycle_policy=PauseAfterFirstStep(),
+        launch_metadata={"config_digest": "b" * 64},
+    )
+
+    with pytest.raises(SessionContractError) as mismatch:
+        Engine.restore(session.session_id, runtime=mismatched_runtime)
+
+    assert mismatch.value.error_code is SessionErrorCode.CONFIG_DIGEST_MISMATCH
+    assert mismatch.value.metadata == {
+        "expected_config_digest": "a" * 64,
+        "actual_config_digest": "b" * 64,
+    }
+
+
 def test_unsupported_pause_is_typed_and_does_not_start_worker() -> None:
     runtime = RuntimeComposition(lifecycle_policy=UnsupportedPausePolicy())
     session = Engine(CounterAgent(), runtime=runtime).session("count")

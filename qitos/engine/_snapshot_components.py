@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..core.conversation import ExchangeLog
+from ..core.conversation import ExchangeLog, ToolResultItem
 from ..core.request_view import (
     CONVERSATION_SNAPSHOT_COMPONENT_CODEC,
     ConversationSnapshotComponent,
@@ -133,6 +133,9 @@ class ConversationRuntimeSnapshotComponent:
             CodecReport.from_dict(value.last_codec_report)
             if value.last_codec_report is not None
             else None
+        )
+        engine._qitos_tool_use_satisfied = any(
+            isinstance(item, ToolResultItem) for item in value.exchange_log.items
         )
 
 

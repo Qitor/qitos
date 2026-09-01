@@ -48,6 +48,7 @@ class SessionErrorCode(str, Enum):
     SNAPSHOT_SESSION_MISMATCH = "snapshot_session_mismatch"
     DUPLICATE_FORK_OPERATION = "duplicate_fork_operation"
     INCOMPATIBLE_CHECKPOINT = "incompatible_checkpoint"
+    CONFIG_DIGEST_MISMATCH = "config_digest_mismatch"
 
 
 class SessionContractError(ValueError):

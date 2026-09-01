@@ -1232,7 +1232,7 @@ def test_engine_salvages_glm_text_tool_call_markup_before_parser():
     assert record.model_response["tool_calls"][0]["function"]["name"] == "add"
 
 
-def test_engine_native_tool_call_lane_falls_back_to_parser_on_bad_arguments():
+def test_engine_native_tool_call_lane_rejects_bad_arguments_without_text_fallback():
     class _BadArgsModel:
         model = "qwen-plus"
 
@@ -1272,18 +1272,19 @@ def test_engine_native_tool_call_lane_falls_back_to_parser_on_bad_arguments():
             return None
 
     result = Engine(agent=_Agent(), budget=RuntimeBudget(max_steps=3)).run("compute")
-    assert result.state.final_result == "recovered"
+    assert result.state.final_result == "done"
     record = result.records[0]
-    assert record.decision_source == "parser"
+    assert record.decision_source != "parser"
     assert record.native_tool_call_used is False
-    assert record.native_tool_call_fallback_reason == "tool_call_arguments_invalid"
-    fallback_events = [
+    assert record.native_tool_call_fallback_reason == "malformed_structured_response"
+    rejected_events = [
         e
         for e in result.events
         if getattr(e.phase, "value", e.phase) == "DECIDE"
-        and (e.payload or {}).get("stage") == "native_tool_call_fallback"
+        and (e.payload or {}).get("stage") == "native_tool_call_rejected"
     ]
-    assert fallback_events
+    assert rejected_events
+    assert rejected_events[0].payload["reason"] == "malformed_structured_response"
 
 
 def test_engine_native_tool_call_lane_repairs_control_chars_in_arguments():

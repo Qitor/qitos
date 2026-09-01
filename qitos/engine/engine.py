@@ -27,7 +27,7 @@ from ..core.decision import Decision
 from ..core.errors import ErrorCategory, StopReason
 from ..core.env import Env, EnvObservation, EnvStepResult
 from ..core.history import History, HistoryMessage, HistoryPolicy
-from ..core.conversation import ExchangeLog
+from ..core.conversation import ExchangeLog, ToolResultItem
 from ..core.interceptor import InterceptorChain, ToolInterceptor
 from ..core.memory import Memory, MemoryRecord
 from ..core.state import StateSchema
@@ -419,6 +419,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self._qitos_steering_receipts: tuple[Any, ...] = ()
         self._qitos_tool_batch_snapshot: Any = None
         self._qitos_restored_conversation_pending: bool = False
+        self._qitos_tool_use_satisfied: bool = False
         self._runtime_history: History = _EngineWindowHistory(window_size=24)
         self._tool_loop_detector: Optional[ToolCallLoopDetector] = (
             loop_detector
@@ -2427,6 +2428,14 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self._trace_runtime.inject_hook_payload(method_name, ctx)
 
     def _reset_run_state(self) -> None:
+        restored_tool_use_satisfied = (
+            self._session_handle is not None
+            and isinstance(self._qitos_exchange_log, ExchangeLog)
+            and any(
+                isinstance(item, ToolResultItem)
+                for item in self._qitos_exchange_log.items
+            )
+        )
         self._trace_runtime.reset_run_state()
         self._last_runtime_error = None
         self._resolved_protocol = None
@@ -2439,6 +2448,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self._critic_instruction_patch = None
         self._cancel_token.clear()
         self._session_paused = False
+        self._qitos_tool_use_satisfied = restored_tool_use_satisfied
 
     # -- MCP server lifecycle helpers --
 

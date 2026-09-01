@@ -1,10 +1,183 @@
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from qitos import Action, AgentModule, Decision, Engine, Observation, StateSchema, ToolRegistry, tool
 from qitos.core.model_response import ModelResponse
 from qitos.engine import RuntimeBudget
 from qitos.kit import ReActTextParser
+
+
+def test_required_before_final_rejects_early_text_and_then_allows_final(
+    tmp_path: Path,
+) -> None:
+    from qitos.config import (
+        AgentConfig,
+        BudgetConfig,
+        EnvironmentConfig,
+        RuntimeConfig,
+        build_agent_composition,
+    )
+    from qitos.kit.env import HostEnv
+
+    (tmp_path / "fact.txt").write_text("verified\n", encoding="utf-8")
+
+    class PolicyModel:
+        model = "policy-model"
+        qitos_harness_metadata = {"protocol": "json_decision_v1"}
+
+        def __init__(self) -> None:
+            self.options: list[dict[str, Any]] = []
+
+        def call_raw(
+            self, messages: list[dict[str, Any]], **options: Any
+        ) -> dict[str, Any]:
+            _ = messages
+            self.options.append(dict(options))
+            if len(self.options) == 1:
+                return {"choices": [{"message": {"content": "too early"}}]}
+            if len(self.options) == 2:
+                return {
+                    "choices": [
+                        {
+                            "message": {
+                                "content": None,
+                                "tool_calls": [
+                                    {
+                                        "id": "read-policy",
+                                        "type": "function",
+                                        "function": {
+                                            "name": "read_file",
+                                            "arguments": '{"path":"fact.txt"}',
+                                        },
+                                    }
+                                ],
+                            }
+                        }
+                    ]
+                }
+            return {"choices": [{"message": {"content": "verified final"}}]}
+
+    model = PolicyModel()
+    config = AgentConfig(
+        name="policy-agent",
+        protocol="json_decision_v1",
+        parser="auto",
+        tool_preset="env_coding",
+        tool_use_policy="required_before_final",
+        runtime=RuntimeConfig(
+            environment=EnvironmentConfig(
+                type="unsafe_host",
+                image="",
+                workspace=str(tmp_path),
+                container_workspace="",
+                network="host",
+                read_only_root=False,
+                cap_drop=False,
+                no_new_privileges=False,
+                pids_limit=None,
+                memory_mb=None,
+                cpus=None,
+                cleanup_required=False,
+            )
+        ),
+        budgets=BudgetConfig(max_steps=5),
+    )
+    composition = build_agent_composition(
+        config,
+        model_override=model,
+        env_override=HostEnv(workspace_root=str(tmp_path)),
+    )
+    try:
+        result = composition.engine.run("read the fact and finish")
+    finally:
+        composition.close()
+
+    assert result.state.final_result == "verified final"
+    assert result.tool_calls_by_name == {"read_file": 1}
+    assert model.options[0]["tool_choice"] == "required"
+    assert model.options[1]["tool_choice"] == "required"
+    assert "tool_choice" not in model.options[2]
+    assert any(
+        event.payload.get("stage") == "tool_use_policy_rejected"
+        and event.payload.get("code") == "tool_use_policy_violation"
+        for event in result.events
+    )
+
+
+def test_malformed_native_tool_call_is_typed_and_not_text_fallback() -> None:
+    class MalformedModel:
+        model = "malformed-model"
+        qitos_harness_metadata = {"protocol": "json_decision_v1"}
+
+        def call_raw(self, messages: object, **options: object) -> dict[str, Any]:
+            _ = messages, options
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": "I called it successfully",
+                            "tool_calls": [
+                                {
+                                    "id": "bad",
+                                    "type": "function",
+                                    "function": {
+                                        "name": "read_file",
+                                        "arguments": "[not-an-object]",
+                                    },
+                                }
+                            ],
+                        }
+                    }
+                ]
+        }
+
+    engine = Engine(
+        agent=_NativeToolAgent(llm=MalformedModel()),
+        budget=RuntimeBudget(max_steps=1),
+        protocol="json_decision_v1",
+    )
+    result = engine.run("malformed")
+
+    assert result.state.final_result in {None, ""}
+    assert any(
+        event.payload.get("stage") == "native_tool_call_rejected"
+        and event.payload.get("reason") == "malformed_structured_response"
+        for event in result.events
+    )
+
+
+def test_required_native_tool_call_reports_provider_capability_loss() -> None:
+    class TextOnlyModel:
+        model = "text-only"
+        qitos_harness_metadata = {
+            "tool_policy": {"native_tool_call_preferred": True},
+            "protocol": "react_text_v1",
+        }
+
+        def call_raw(self, messages: object, **options: object) -> dict[str, Any]:
+            _ = messages, options
+            return {"choices": [{"message": {"content": "Final Answer: guessed"}}]}
+
+    agent = _NativeToolAgent(llm=TextOnlyModel())
+    agent.config.update(
+        {
+            "native_tool_calls_required": True,
+            "tool_use_policy": "required_for_next_decision",
+        }
+    )
+    result = Engine(
+        agent=agent,
+        budget=RuntimeBudget(max_steps=1),
+        protocol="react_text_v1",
+    ).run("native required")
+
+    assert result.state.final_result in {None, ""}
+    assert any(
+        event.payload.get("stage") == "native_tool_call_required"
+        and event.payload.get("code") == "provider_capability_loss"
+        for event in result.events
+    )
 from qitos.models._openai_responses import _to_responses_input
 
 

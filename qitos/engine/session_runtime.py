@@ -820,6 +820,9 @@ class Session:
 
     def _commit_work_graph(self) -> None:
         with self._lock:
+            graph = getattr(self._engine, "_qitos_work_graph", None)
+            if not isinstance(graph, WorkGraph):
+                return
             head = self._require_head()
             snapshot = self._load_snapshot(head)
             state = self._engine.current_state
@@ -848,13 +851,188 @@ class Session:
                             "unresolved_effect_count"
                         ],
                     )
-            self._commit_snapshot(
+            committed_head = self._commit_snapshot(
                 state=state,
                 task=task,
                 lifecycle=lifecycle,
                 step_id=step_id,
                 expected_head=head,
                 pause_safety=pause_safety,
+            )
+            self._publish_work_graph_facts(graph, committed_head)
+
+    def _publish_work_graph_facts(self, graph: WorkGraph, head: Any) -> None:
+        """Project durable graph state into the canonical trajectory seam."""
+        if self._runtime.event_sink is None:
+            return
+        from ..tracing.work_graph_reader import work_graph_event_record
+
+        head_generation = int(getattr(head.generation, "value", head.generation))
+        head_snapshot_id = str(
+            getattr(head.snapshot_id, "value", head.snapshot_id)
+        )
+        head_checkpoint_id = str(
+            getattr(head.checkpoint_id, "value", head.checkpoint_id)
+        )
+        record_provenance = {
+            "source": "durable_work_graph",
+            "graph_id": graph.graph_id,
+            "head_generation": head_generation,
+        }
+
+        def publish(
+            event_type: str,
+            *,
+            operation_id: str,
+            payload: Mapping[str, Any],
+            work_item_id: Optional[str] = None,
+            parent_work_item_id: Optional[str] = None,
+            attempt_id: Optional[str] = None,
+            owner_generation: Optional[int] = None,
+        ) -> None:
+            self._runtime.publish_record(
+                work_graph_event_record(
+                    event_type,
+                    session_id=self._session_id.value,
+                    run_id=self._run_id.value,
+                    operation_id=operation_id,
+                    producer_authority="qitos.engine.session_runtime",
+                    record_provenance=record_provenance,
+                    payload=payload,
+                    work_item_id=work_item_id,
+                    parent_work_item_id=parent_work_item_id,
+                    attempt_id=attempt_id,
+                    owner_generation=owner_generation,
+                )
+            )
+
+        for item in graph.work_items.values():
+            publish(
+                "work_declared",
+                operation_id=f"graph:{graph.graph_id}:generation:{head_generation}",
+                work_item_id=item.work_item_id.value,
+                parent_work_item_id=(
+                    item.parent_work_item_id.value
+                    if item.parent_work_item_id is not None
+                    else None
+                ),
+                owner_generation=item.owner.generation,
+                payload={
+                    "lifecycle": item.lifecycle,
+                    "owner_id": item.owner.agent_id.value,
+                    "detached": item.detached,
+                    "authoritative_head": {
+                        "snapshot_id": head_snapshot_id,
+                        "checkpoint_id": head_checkpoint_id,
+                        "generation": head_generation,
+                    },
+                },
+            )
+        for delegation in graph.delegations:
+            publish(
+                "delegate_declared",
+                operation_id=delegation.delegation_id,
+                work_item_id=delegation.child_work_item_id.value,
+                parent_work_item_id=delegation.parent_work_item_id.value,
+                payload={
+                    "operation": "delegate",
+                    "await_child": delegation.await_child,
+                },
+            )
+        for spawn in graph.spawns:
+            publish(
+                "spawn_declared",
+                operation_id=spawn.spawn_id,
+                work_item_id=spawn.child_work_item_id.value,
+                parent_work_item_id=spawn.parent_work_item_id.value,
+                payload={
+                    "operation": "spawn",
+                    "supervision_policy": spawn.supervision_policy,
+                },
+            )
+        for group in graph.fan_out_groups:
+            publish(
+                "fan_out_declared",
+                operation_id=group.group_id,
+                work_item_id=group.parent_work_item_id.value,
+                payload={
+                    "operation": "fan_out",
+                    "expected_child_ids": [
+                        child.value for child in group.child_work_item_ids
+                    ],
+                },
+            )
+        for operation in graph.operation_receipts:
+            if operation.descriptor is None:
+                continue
+            descriptor = WorkDescriptor.from_dict(operation.descriptor)
+            for index, child_id in enumerate(descriptor.child_work_item_ids):
+                if index < len(descriptor.transfer_receipts):
+                    transfer = descriptor.transfer_receipts[index]
+                    publish(
+                        "context_transferred",
+                        operation_id=f"{operation.operation_id}:transfer:{index}",
+                        work_item_id=child_id,
+                        parent_work_item_id=descriptor.parent_work_item_id,
+                        payload={
+                            "receipt_id": transfer.get("receipt_id"),
+                            "terminal_disposition": transfer.get(
+                                "terminal_disposition"
+                            ),
+                            "failure_code": transfer.get("failure_code"),
+                        },
+                    )
+        for ownership in graph.transfers:
+            publish(
+                "ownership_transfer_committed",
+                operation_id=ownership.transfer_id,
+                work_item_id=ownership.work_item_id.value,
+                owner_generation=ownership.committed_generation,
+                payload={
+                    "from_owner_id": ownership.from_agent_id.value,
+                    "to_owner_id": ownership.to_agent_id.value,
+                    "context_transfer_ref": ownership.context_transfer_ref,
+                },
+            )
+        for join in graph.joins:
+            event_type = "join_closed" if join.state == "closed" else "join_declared"
+            publish(
+                event_type,
+                operation_id=join.join_id,
+                work_item_id=join.parent_work_item_id.value,
+                payload={
+                    "policy": join.policy,
+                    "expected_child_ids": [
+                        child.value for child in join.child_work_item_ids
+                    ],
+                    "accepted_child_ids": [
+                        child.value for child in join.accepted_child_ids
+                    ],
+                    "outstanding_child_ids": [
+                        child.value for child in join.outstanding_child_ids
+                    ],
+                    "discarded_child_ids": [
+                        child.value for child in join.discarded_child_ids
+                    ],
+                },
+            )
+        for cancellation in graph.cancellations:
+            item = graph.work_items[cancellation.work_item_id]
+            publish(
+                "cancellation_requested",
+                operation_id=cancellation.cancellation_id,
+                work_item_id=cancellation.work_item_id.value,
+                attempt_id=f"cancel:{cancellation.cancellation_id}",
+                owner_generation=item.owner.generation,
+                payload={"propagation": cancellation.propagation},
+            )
+        for detachment in graph.detachments:
+            publish(
+                "child_detached",
+                operation_id=detachment.detachment_id,
+                work_item_id=detachment.child_work_item_id.value,
+                parent_work_item_id=detachment.parent_work_item_id.value,
+                payload={"supervisor_ref": detachment.supervisor_ref},
             )
 
     def _submit_steering(
@@ -1583,6 +1761,28 @@ class Session:
             agent.config = config
 
         progress = _component_payload(snapshot, ComponentSlot.ENGINE_PROGRESS.value)
+        persisted_runtime = progress.get("runtime_composition")
+        persisted_launch = (
+            persisted_runtime.get("launch_metadata")
+            if isinstance(persisted_runtime, Mapping)
+            else None
+        )
+        expected_digest = (
+            str(persisted_launch.get("config_digest") or "")
+            if isinstance(persisted_launch, Mapping)
+            else ""
+        )
+        actual_digest = str(runtime.launch_metadata.get("config_digest") or "")
+        if expected_digest and expected_digest != actual_digest:
+            raise _session_error(
+                SessionErrorCode.CONFIG_DIGEST_MISMATCH,
+                "Restored composition does not match the persisted agent config.",
+                recoverable=True,
+                metadata={
+                    "expected_config_digest": expected_digest,
+                    "actual_config_digest": actual_digest or "missing",
+                },
+            )
         budget_payload = _component_payload(
             snapshot, ComponentSlot.BUDGET_CAPABILITY.value
         )

@@ -41,6 +41,7 @@ from .base import Model, ModelStreamChunk
 from .codec import (
     CodecReport,
     ProviderCapabilities,
+    _request_tool_options,
     report_for_request,
     validate_codec_result,
 )
@@ -275,9 +276,7 @@ class OpenAIResponsesCodec(LegacyMessageCodec):
                 reasoning = "native_item_continuation"
             else:
                 reasoning = "dropped"
-        options: Dict[str, Any] = {}
-        if request.tool_schemas:
-            options["tools"] = list(request.tool_schemas)
+        options = _request_tool_options(request)
         report = report_for_request(
             request,
             resolved,
