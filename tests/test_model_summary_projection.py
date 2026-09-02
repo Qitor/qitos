@@ -2,11 +2,14 @@ from dataclasses import dataclass
 from typing import Any
 
 from qitos import Action, AgentModule, Decision, Engine, StateSchema, ToolRegistry, tool
+from qitos.core.env import EnvObservation
 from qitos.core.tool_result import ToolResult
 from qitos.engine._action_runtime import _ActionRuntime
 from qitos.engine._env_runtime import _EnvRuntime
 from qitos.engine.hooks import EngineHook, HookContext
 from qitos.engine.states import RuntimeBudget
+from qitos.kit.env import HostEnv
+from qitos.kit.toolset.env_coding import EnvCodingToolSet
 
 
 def _summary_payload() -> dict[str, str]:
@@ -120,3 +123,76 @@ def test_after_act_hook_uses_same_gdb_projection_as_provider_history() -> None:
     visible = hook.results[0]
     assert visible["model_output"] == "## gdb_debug · route_trace\n- Target hit: `True`"
     assert "raw_artifact_path" not in str(visible)
+
+
+def test_environment_projection_redacts_location_and_omits_repeated_inventory(
+    tmp_path: Any,
+) -> None:
+    (tmp_path / "visible.txt").write_text("content", encoding="utf-8")
+    env = HostEnv(workspace_root=str(tmp_path))
+    engine = Engine(
+        agent=_ProjectionAgent(),
+        env=env,
+        budget=RuntimeBudget(max_steps=2),
+    )
+    engine._last_env_observation = env.reset()
+    runtime = _EnvRuntime(engine)
+
+    first = runtime.env_payload()
+    second = runtime.env_payload()
+
+    assert first["observation"]["value"]["data"]["files"] == ["visible.txt"]
+    assert str(tmp_path) not in str(first)
+    assert second["observation"] == {
+        "unchanged": True,
+        "projection_digest": first["observation"]["projection_digest"],
+        "loss_receipt": {
+            "unchanged_observation_omitted": True,
+            "omitted_characters": first["observation"]["loss_receipt"][
+                "input_characters"
+            ],
+        },
+    }
+
+
+def test_builtin_coding_tool_keeps_canonical_output_but_bounds_model_projection(
+    tmp_path: Any,
+) -> None:
+    body = "x" * 1_000_000
+    (tmp_path / "large.txt").write_text(body, encoding="utf-8")
+    env = HostEnv(workspace_root=str(tmp_path))
+    tools = {item.name: item for item in EnvCodingToolSet().tools()}
+    result = tools["read_file"].run(
+        path="large.txt",
+        runtime_context={"env": env, "ops": {"file": env.fs}},
+    )
+
+    assert isinstance(result, ToolResult)
+    assert result.output["content"] == body
+    projection = result.to_model_dict(max_chars=20_000)
+    assert len(projection["model_output"]) < 17_000
+    assert result.model_output["loss_receipt"] == {
+        "truncated": True,
+        "omitted_characters": 984_014,
+    }
+    assert projection["projection_loss"]["truncated"] is False
+
+
+def test_large_environment_observation_is_bounded_without_losing_canonical_fact(
+    tmp_path: Any,
+) -> None:
+    env = HostEnv(workspace_root=str(tmp_path))
+    engine = Engine(
+        agent=_ProjectionAgent(),
+        env=env,
+        budget=RuntimeBudget(max_steps=2),
+    )
+    body = "z" * 10_000_000
+    engine._last_env_observation = EnvObservation(data={"body": body})
+
+    projected = _EnvRuntime(engine).env_payload()["observation"]
+
+    assert engine._last_env_observation.data["body"] == body
+    assert len(projected["value"]) <= 50_000
+    assert projected["loss_receipt"]["truncated"] is True
+    assert projected["loss_receipt"]["omitted_characters"] > 9_000_000

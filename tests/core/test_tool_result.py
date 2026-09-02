@@ -437,8 +437,9 @@ def test_model_view_is_allowlisted_redacted_and_bounded() -> None:
         "error_code",
         "recoverable",
         "recovery_hint",
-        "next_action",
-    }
+            "next_action",
+            "projection_loss",
+        }
     assert visible["schema_version"] == TOOL_RESULT_MODEL_VIEW_VERSION
     assert len(visible["model_output"]) <= 80
     rendered = json.dumps(visible)
@@ -679,6 +680,20 @@ def test_zero_budget_omitted_projection_is_empty_and_explicitly_lossy() -> None:
     assert trace["omitted"] == {}
     assert trace["loss"]["fields"]["omitted"]["redacted_keys"] == 1
     assert trace["loss"]["fields"]["omitted"]["omitted_fields"] == 2
+
+
+def test_ten_megabyte_custom_output_has_bounded_model_projection_and_loss_receipt() -> None:
+    raw = "x" * 10_000_000
+    result = ToolResult(output={"body": raw}, model_output={"body": raw})
+
+    canonical = result.to_persistence_dict()
+    projected = result.to_model_dict(max_chars=4096)
+    rendered = json.dumps(projected, ensure_ascii=False)
+
+    assert len(canonical["output"]["body"]) == 10_000_000
+    assert len(rendered) < 5000
+    assert projected["projection_loss"]["truncated"] is True
+    assert projected["projection_loss"]["omitted_characters"] > 9_000_000
 
 
 def _scalar_leaves(value: object) -> list[object]:

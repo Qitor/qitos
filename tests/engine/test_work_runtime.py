@@ -17,6 +17,7 @@ from qitos.core.tool_registry import ToolRegistry
 from qitos.core.tool import tool
 from qitos.engine.engine import Engine
 from qitos.engine.runtime import RuntimeComposition
+from qitos.engine.states import RuntimeBudget
 from qitos.core.work_graph import WorkDescriptor, WorkGraph
 from qitos.checkpoint.session import SessionForkReceipt
 from qitos.core.context_transfer import ContextTransferReceipt
@@ -25,6 +26,7 @@ from qitos.engine.work_runtime import (
     SchedulerHandle,
     WorkDispatch,
     WorkRuntimeError,
+    WorkRuntimePolicy,
 )
 from qitos.kit.tool.agent.durable_adapter import JoinTool, SpawnTool, submit_durable_work
 
@@ -298,7 +300,6 @@ def test_session_direct_and_tool_adapter_share_operation_receipt() -> None:
         {
             "work_runtime": work_runtime,
             "session": session,
-            "work_graph": session._engine._qitos_work_graph,
             "slot_id": "slot-1",
         },
     )
@@ -320,13 +321,10 @@ def test_session_snapshot_restores_logical_graph_without_live_handle() -> None:
         work_runtime=DurableWorkRuntime(IndependentSchedulerFake()),
     )
     restored = Engine.restore(session.session_id, runtime=clean_runtime)
-    graph = restored._engine._qitos_work_graph
+    graph = WorkGraph.from_canonical_dict(restored.inspect().work_graph or {})
 
     assert graph.operation_receipts[0].operation_id == "spawn:restore"
-    unknown = clean_runtime.work_runtime.recover(
-        graph,
-        persist=restored._commit_work_graph,
-    )
+    unknown = restored.recover_work()
     assert unknown[0].outcome_unknown is True
 
 
@@ -364,7 +362,6 @@ def test_spawn_and_join_model_adapters_use_session_runtime() -> None:
     context = {
         "work_runtime": work_runtime,
         "session": session,
-        "work_graph": session._engine._qitos_work_graph,
         "slot_id": "adapter-slot",
     }
 
@@ -417,6 +414,83 @@ def test_descriptor_consumes_real_fork_and_context_transfer_receipts() -> None:
     assert transfer.plan.source_session_id == session.session_id
     assert transfer.plan.source_work_item_id == session.work_item_id
     assert transfer.plan.budget_request.child_work_item_id.value == fork.child_work_item_id
+
+
+def test_fan_out_child_snapshot_uses_only_child_task_and_effective_budget() -> None:
+    scheduler = IndependentSchedulerFake()
+    session, runtime = _paused_session(
+        DurableWorkRuntime(
+            scheduler,
+            policy=WorkRuntimePolicy(
+                budget_ceiling={"model_requests": 7},
+            ),
+        )
+    )
+
+    submitted = session.fan_out(
+        [
+            {
+                "agent": "parent",
+                "task": "child-only-task",
+                "budget": {"model_requests": 2},
+            }
+        ],
+        operation_id="fan_out:isolated-child",
+    )
+    descriptor = WorkDescriptor.from_dict(submitted.descriptor)
+    child = Engine.restore(descriptor.child_session_ids[0], runtime=runtime)
+    inspection = child.inspect()
+
+    assert inspection.task == "child-only-task"
+    assert inspection.task != "parent task"
+    assert inspection.budget["max_model_requests"] == 2
+    assert inspection.budget["model_requests_consumed"] == 0
+    assert inspection.last_request_view is None
+    allocation = descriptor.budget_allocations[0]
+    assert allocation["limits"]["model_requests"] == 2
+    transfer = ContextTransferReceipt.from_dict(descriptor.transfer_receipts[0])
+    assert transfer.granted_budget is not None
+    assert transfer.granted_budget.limits["model_requests"] == 2
+
+
+def test_sibling_effective_budgets_share_parent_remaining_authority() -> None:
+    scheduler = IndependentSchedulerFake()
+    runtime = RuntimeComposition(
+        lifecycle_policy=_PauseAtFirstBoundary(),  # type: ignore[arg-type]
+        work_runtime=DurableWorkRuntime(
+            scheduler,
+            policy=WorkRuntimePolicy(
+                budget_ceiling={"model_requests": 9},
+            ),
+        ),
+    )
+    session = Engine(
+        _Agent(),
+        runtime=runtime,
+        budget=RuntimeBudget(max_model_requests=3),
+    ).session("parent task")
+    session.run()
+
+    submitted = session.fan_out(
+        [
+            {"agent": "parent", "task": "child-a", "budget": {"model_requests": 2}},
+            {"agent": "parent", "task": "child-b", "budget": {"model_requests": 2}},
+        ],
+        operation_id="fan_out:shared-parent-budget",
+    )
+    descriptor = WorkDescriptor.from_dict(submitted.descriptor)
+
+    assert [
+        allocation["limits"]["model_requests"]
+        for allocation in descriptor.budget_allocations
+    ] == [2, 1]
+    assert [
+        ContextTransferReceipt.from_dict(receipt).granted_budget.limits[
+            "model_requests"
+        ]
+        for receipt in descriptor.transfer_receipts
+    ] == [2, 1]
+    assert session.inspect().budget["model_requests_reserved"] == 3
 
 
 def test_queued_descriptor_is_persisted_and_recovered_without_new_identity() -> None:
@@ -480,7 +554,7 @@ def test_handoff_commits_one_owner_and_fences_superseded_source() -> None:
 
     handoff = session.handoff("parent", operation_id="handoff:owner")
     retry = session.handoff("parent", operation_id="handoff:owner")
-    graph = session._engine._qitos_work_graph
+    graph = WorkGraph.from_canonical_dict(session.inspect().work_graph or {})
 
     assert retry == handoff
     assert len(graph.transfers) == 1
@@ -505,7 +579,7 @@ def test_preparation_crash_reuses_fork_and_original_operation_identity(
     with pytest.raises(RuntimeError, match="preparation process loss"):
         session.delegate("parent", task="resume prepared child", operation_id="delegate:prepare")
 
-    graph = session._engine._qitos_work_graph
+    graph = WorkGraph.from_canonical_dict(session.inspect().work_graph or {})
     assert graph.operation_receipts[0].state == "declared"
     assert len(graph.work_items) == 1
     fork_id = "fork_" + hashlib.sha256(b"delegate:prepare:0").hexdigest()[:32]
@@ -548,7 +622,7 @@ def test_handoff_process_loss_before_and_after_owner_commit_has_one_owner(
     monkeypatch.setattr(session, "_commit_work_graph", fail_before_owner_commit)
     with pytest.raises(OSError, match="pre-ownership"):
         session.handoff("parent", operation_id="handoff:crash-window")
-    before = session._engine._qitos_work_graph
+    before = WorkGraph.from_canonical_dict(session.inspect().work_graph or {})
     assert before.operation_receipts[0].state == "declared"
     assert before.transfers == []
     assert before.work_items[session.work_item_id].owner.agent_id == session._agent_id
@@ -562,7 +636,7 @@ def test_handoff_process_loss_before_and_after_owner_commit_has_one_owner(
     )
     restored = Engine.restore(session.session_id, runtime=clean_runtime)
     restored.recover_work()
-    committed = restored._engine._qitos_work_graph
+    committed = WorkGraph.from_canonical_dict(restored.inspect().work_graph or {})
     assert len(committed.transfers) == 1
     assert committed.work_items[restored.work_item_id].owner.agent_id != restored._agent_id
 

@@ -30,7 +30,7 @@ from qitos.core.state import StateSchema
 from qitos.core.tool import tool
 from qitos.core.tool_registry import ToolRegistry
 from qitos.core.tool_result import ToolResult
-from qitos.core.work_graph import WorkDescriptor
+from qitos.core.work_graph import WorkDescriptor, WorkGraph
 from qitos.engine import Engine
 from qitos.engine.runtime import DEFAULT_CHECKPOINT_REFERENCE, RuntimeComposition
 from qitos.engine.work_runtime import (
@@ -215,7 +215,6 @@ def create() -> None:
         {
             "work_runtime": runtime.work_runtime,
             "session": session,
-            "work_graph": session._engine._qitos_work_graph,
             "slot_id": "tool-parity",
         },
     )
@@ -226,7 +225,7 @@ def create() -> None:
         quorum=2,
         operation_id="join:g4",
     )
-    graph = session._engine._qitos_work_graph
+    graph = WorkGraph.from_canonical_dict(session.inspect().work_graph or {})
     completed_child = graph.work_items[next(iter(
         item for item in graph.work_items if item.value == _child_ids(completed)[0]
     ))]
@@ -284,7 +283,7 @@ def create() -> None:
         ).schema_version
     )
     assert joined.state in {"dispatched", "completed"}
-    session._commit_work_graph()
+    session._commit_work_graph_value(graph)
     session.handoff("g4-agent", operation_id="handoff:g4")
     control = {
         "session_id": session.session_id.value,
@@ -328,9 +327,10 @@ def restore() -> None:
     runtime = _runtime(store, scheduler)
     runtime.resolvers = _restore_registry(store, control["session_id"], runtime)
     session = Engine.restore(control["session_id"], runtime=runtime)
-    graph = session._engine._qitos_work_graph
+    graph = WorkGraph.from_canonical_dict(session.inspect().work_graph or {})
     before = {item.operation_id: item.state for item in graph.operation_receipts}
-    runtime.work_runtime.recover(graph, persist=session._commit_work_graph)
+    session.recover_work()
+    graph = WorkGraph.from_canonical_dict(session.inspect().work_graph or {})
     after = {item.operation_id: item.state for item in graph.operation_receipts}
 
     queued = next(
@@ -338,6 +338,7 @@ def restore() -> None:
         if item.operation_id == "delegate:queued"
     )
     scheduler.handles[queued.worker_ref].finish()
+    graph = WorkGraph.from_canonical_dict(session.inspect().work_graph or {})
     queued_child_id = _child_ids(queued)[0]
     queued_child = next(item for item in graph.work_items if item.value == queued_child_id)
     graph.record_completion(
@@ -364,7 +365,7 @@ def restore() -> None:
         outcome=ToolResult(output="late reconciled"),
     )
     graph.accept_join_result(control["join_id"], running_child)
-    session._commit_work_graph()
+    session._commit_work_graph_value(graph)
 
     candidate = Path(os.environ["QITOS_G4_CANDIDATE"])
     runtime.flush_events()
@@ -435,7 +436,7 @@ def prepare_create() -> None:
         assert str(exc) == "deterministic loss after fork preparation"
     fork_id = "fork_" + hashlib.sha256(b"delegate:declared:0").hexdigest()[:32]
     assert store.get_session_fork(fork_id) is not None
-    graph = session._engine._qitos_work_graph
+    graph = WorkGraph.from_canonical_dict(session.inspect().work_graph or {})
     assert graph.operation_receipts[0].state == "declared"
     Path(os.environ["QITOS_G4_CONTROL"]).write_text(
         json.dumps({"session_id": session.session_id.value, "fork_id": fork_id}),
@@ -451,7 +452,8 @@ def prepare_restore() -> None:
     runtime = _runtime(store, scheduler)
     runtime.resolvers = _restore_registry(store, control["session_id"], runtime)
     session = Engine.restore(control["session_id"], runtime=runtime)
-    before = session._engine._qitos_work_graph.operation_receipts[0]
+    before_graph = WorkGraph.from_canonical_dict(session.inspect().work_graph or {})
+    before = before_graph.operation_receipts[0]
     recovered = session.recover_work()[0]
     descriptor = WorkDescriptor.from_dict(recovered.descriptor)
     fork = descriptor.fork_receipts[0]

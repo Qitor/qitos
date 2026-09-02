@@ -431,7 +431,8 @@ def parent(root: Path) -> dict[str, Any]:
     session = Engine(agent, runtime=runtime).session("vertical convergence")
     sink.session = session
     result = session.run()
-    batch = session._engine._qitos_tool_batch_snapshot
+    batch = session.inspect().tool_batch
+    assert batch is not None
     payload = {
         "session_id": session.session_id.value,
         "run_id": session.run_id.value,
@@ -442,7 +443,7 @@ def parent(root: Path) -> dict[str, Any]:
         "missing_slots": [slot.slot_id for slot in batch.missing_slots],
         "completion_order": list(batch.completion_order),
         "worker_running_proof": sink.worker_running_proof,
-        "runtime_budget_max_steps": session._engine.budget.max_steps,
+        "runtime_budget_max_steps": session.inspect().budget["max_steps"],
         "reduced_batches": result.state.reduced_batches,
         "counters": json.loads((root / "counters.json").read_text(encoding="utf-8")),
     }

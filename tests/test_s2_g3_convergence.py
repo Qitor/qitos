@@ -174,7 +174,8 @@ def test_session_head_recovers_only_safe_missing_slot() -> None:
     assert session.lifecycle.value == "paused"
     assert parent.state.reduced_batches == 0
     assert counts == {"committed_effect": 1, "barrier": 1, "eligible_missing": 0}
-    partial = session._engine._qitos_tool_batch_snapshot
+    partial = session.inspect().tool_batch
+    assert partial is not None
     assert partial.closed is False
     assert [slot.slot_id for slot in partial.missing_slots] == ["call_missing"]
     assert all(

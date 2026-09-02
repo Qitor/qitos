@@ -19,11 +19,11 @@ from qitos.core.session import (
     ResolverNamespace,
     ResolverReference,
     ResolverRegistry,
-    SessionLifecycle,
 )
 from qitos.core.state import StateSchema
 from qitos.core.tool_registry import ToolRegistry
 from qitos.core.tool import tool
+from qitos.core.work_graph import WorkGraph
 from qitos.engine import Engine
 from qitos.engine.runtime import DEFAULT_CHECKPOINT_REFERENCE, RuntimeComposition
 from qitos.engine.work_runtime import DurableWorkRuntime, WorkDispatch
@@ -126,23 +126,16 @@ def create() -> None:
     scheduler.handles[completed.worker_ref].finish()
     session.spawn("lane_c_parent", task="missing", operation_id="spawn:missing")
     session.spawn("lane_c_parent", task="unknown", operation_id="spawn:unknown")
-    graph = session._engine._qitos_work_graph
+    graph = WorkGraph.from_canonical_dict(session.inspect().work_graph or {})
     # A different scheduler instance cannot reattach the third logical worker.
-    DurableWorkRuntime(Scheduler()).recover(graph, persist=session._commit_work_graph)
+    DurableWorkRuntime(Scheduler()).recover(
+        graph, persist=lambda: session._commit_work_graph_value(graph)
+    )
     # Keep the second receipt dispatched to exercise clean-process recovery.
     graph.operation_receipts[1] = graph.operation_receipts[1].__class__(
         **{**graph.operation_receipts[1].__dict__, "state": "dispatched", "outcome_unknown": False}
     )
-    session._commit_work_graph()
-    head = session._require_head()
-    state, task, step_id = session._restore_core_state(session._load_snapshot(head))
-    session._commit_snapshot(
-        state=state,
-        task=task,
-        lifecycle=SessionLifecycle.PAUSED,
-        step_id=step_id,
-        expected_head=head,
-    )
+    session._commit_work_graph_value(graph)
     print(json.dumps({"session_id": session.session_id.value}))
     store.close()
 
@@ -170,8 +163,8 @@ def restore() -> None:
         work_runtime=DurableWorkRuntime(scheduler),
     )
     session = Engine.restore(session_id, runtime=runtime)
-    graph = session._engine._qitos_work_graph
-    runtime.work_runtime.recover(graph, persist=session._commit_work_graph)
+    session.recover_work()
+    graph = WorkGraph.from_canonical_dict(session.inspect().work_graph or {})
     print(json.dumps({
         "states": {item.operation_id: item.state for item in graph.operation_receipts},
         "unknown": {item.operation_id: item.outcome_unknown for item in graph.operation_receipts},

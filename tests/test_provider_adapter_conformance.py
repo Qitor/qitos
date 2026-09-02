@@ -606,6 +606,107 @@ def test_provider_failure_is_sanitized_and_carries_codec_report() -> None:
     assert "/Users/" not in rendered
 
 
+def test_provider_failure_stages_distinguish_encode_projection_and_decode() -> None:
+    class EncodeFailureCodec(AcmeCodec):
+        def encode(self, *args: Any, **kwargs: Any) -> Any:
+            _ = args, kwargs
+            raise RuntimeError("private encode detail")
+
+    class DecodeFailureCodec(AcmeCodec):
+        def decode(self, response: Any, *, request: RequestView) -> Any:
+            _ = response, request
+            raise RuntimeError("private decode detail")
+
+    class MalformedCodec(AcmeCodec):
+        def decode(self, response: Any, *, request: RequestView) -> Any:
+            _ = response, request
+            raise ValueError("private response body")
+
+    class CodecAdapter(AcmeAdapter):
+        def __init__(self, codec: AcmeCodec) -> None:
+            self.codec = codec
+            self.attempts = 0
+
+        def qitos_provider_codec(self) -> AcmeCodec:
+            return self.codec
+
+        def qitos_transport(self, payload: Mapping[str, Any]) -> Any:
+            _ = payload
+            self.attempts += 1
+            return {"accepted": True}
+
+    class ProjectionFailure:
+        transform_id = "x.tests.projection_failure"
+
+        def transform(self, *args: Any, **kwargs: Any) -> Any:
+            _ = args, kwargs
+            raise RuntimeError("private projection value")
+
+    cases = (
+        (CodecAdapter(EncodeFailureCodec()), None, "codec_encode_failed", "encode", False),
+        (AcmeAdapter(), ProjectionFailure(), "request_projection_failed", "projection", False),
+        (CodecAdapter(DecodeFailureCodec()), None, "provider_response_decode_failed", "decode", True),
+        (CodecAdapter(MalformedCodec()), None, "provider_response_malformed", "decode", True),
+    )
+    for adapter, transform, code, stage, sent in cases:
+        try:
+            execute_provider_request(
+                adapter,
+                _request(adapter.qitos_request_target()),
+                request_transform=transform,
+            )
+        except ProviderFailure as failure:
+            receipt = failure.to_dict()
+        else:
+            raise AssertionError("typed provider-stage failure was not raised")
+        assert receipt["error_code"] == code
+        assert receipt["stage"] == stage
+        assert receipt["provider_request_sent"] is sent
+        assert "private" not in json.dumps(receipt)
+
+
+@pytest.mark.parametrize(
+    ("status", "error_type", "code", "retryable"),
+    [
+        (401, RuntimeError, "provider_authentication_failed", False),
+        (429, RuntimeError, "provider_rate_limited", True),
+        (408, RuntimeError, "provider_timeout", True),
+        (400, RuntimeError, "provider_request_rejected", False),
+        (503, RuntimeError, "provider_server_error", True),
+        (None, ConnectionError, "provider_connection_failed", True),
+    ],
+)
+def test_transport_failure_taxonomy_is_closed_safe_and_attempted(
+    status: Optional[int],
+    error_type: type[BaseException],
+    code: str,
+    retryable: bool,
+) -> None:
+    class FailingAdapter(AcmeAdapter):
+        def qitos_transport(self, payload: Mapping[str, Any]) -> Any:
+            _ = payload
+            error = error_type("private endpoint and response")
+            if status is not None:
+                error.status_code = status  # type: ignore[attr-defined]
+            raise error
+
+    try:
+        execute_provider_request(
+            FailingAdapter(),
+            _request(FailingAdapter().qitos_request_target()),
+        )
+    except ProviderFailure as failure:
+        receipt = failure.to_dict()
+    else:
+        raise AssertionError("transport failure was not normalized")
+
+    assert receipt["error_code"] == code
+    assert receipt["stage"] == "transport"
+    assert receipt["provider_request_sent"] is True
+    assert receipt["retryable"] is retryable
+    assert "private endpoint" not in json.dumps(receipt)
+
+
 def test_stable_provider_matrix_matches_official_adapter_declarations() -> None:
     fixture_path = (
         Path(__file__).parent
