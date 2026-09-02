@@ -210,6 +210,12 @@ def test_privacy_scan_rejects_values_paths_endpoints_and_auth_markers() -> None:
     assert report["raw_endpoints_absent"] is False
     assert report["host_paths_absent"] is False
 
+    endpoint_only = module._privacy_report(
+        {"location": "https://example.invalid/v1"},
+        [],
+    )
+    assert endpoint_only["scan_passed"] is False
+
 
 def test_evidence_digest_detects_mutation(tmp_path: Path) -> None:
     module = _module()
@@ -713,3 +719,69 @@ def test_primary_failure_stops_parity_and_capability_profiles(
     assert result["profiles"][1]["status"] == "not_started"
     assert result["profiles"][2]["status"] == "not_started"
     assert result["decision"]["g4_live"] == "provider_timeout"
+
+
+def test_informational_smoke_accepts_one_glm_without_promoting_capability(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _module()
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    config_path = _config(
+        tmp_path / "glm.yaml",
+        profile="sii-glm-5-2",
+        credential="credential-glm",
+        workspace=workspace,
+    )
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8").replace(
+            "max_requests: 12", "max_requests: 3"
+        ),
+        encoding="utf-8",
+    )
+    profiles = module.load_profiles([config_path])
+    private = tmp_path / "private"
+    private.mkdir(mode=0o700)
+    credentials = private / "credentials.yaml"
+    credentials.write_text(
+        "credentials:\n  credential-glm: private-value\n",
+        encoding="utf-8",
+    )
+    credentials.chmod(0o600)
+
+    class PassedSandbox:
+        status = "passed"
+
+        def to_dict(self) -> dict[str, object]:
+            return {"status": "passed"}
+
+    monkeypatch.setattr(
+        "qitos.kit.env.docker_qualification.qualify_docker_environment",
+        lambda *args, **kwargs: PassedSandbox(),
+    )
+    monkeypatch.setattr(
+        module,
+        "_informational_smoke_profile",
+        lambda *args, **kwargs: {
+            "profile_id": "sii-glm-5-2",
+            "status": "provider_unavailable",
+            "requests": 1,
+            "framework_invariant_failure": False,
+        },
+    )
+
+    result = module.qualify(
+        profiles,
+        live=True,
+        source_commit="1" * 40,
+        credentials_path=credentials,
+        execute_offline_gates=False,
+        enforce_current_source=False,
+        informational_smoke=True,
+    )
+
+    assert result["totals"]["requests"] == 1
+    assert result["decision"]["live_agent_capability_matrix"] == "informational"
+    assert result["decision"]["glm_smoke"] == "provider_unavailable"
+    assert result["decision"]["s3_status"] == "unchanged"
+    assert result["decision"]["s4_ready"] is False

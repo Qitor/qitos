@@ -279,6 +279,149 @@ def _preflight_profile(profile: LiveProfile, resolver: Any) -> dict[str, Any]:
         composition.close()
 
 
+def _informational_smoke_profile(
+    profile: LiveProfile,
+    resolver: Any,
+) -> dict[str, Any]:
+    """Run one bounded Session as capability evidence, not a release oracle."""
+
+    from qitos.config.builder import build_agent_composition
+    from qitos.qita.reader import candidate_file_reader, load_session_payload
+    from qitos.tracing.trajectory import PrivacyView
+
+    maximum = int(profile.config.budgets.max_requests)
+    if maximum < 1 or maximum > 3:
+        raise QualificationConfigurationError(
+            "informational smoke requires a one-to-three request config budget"
+        )
+    composition = build_agent_composition(
+        profile.config,
+        credential_resolver=resolver,
+    )
+    counter = _count_model_requests(composition.model, max_attempts=maximum)
+    task = (
+        profile.config.dataset[0].task
+        if profile.config.dataset
+        else "Inspect the declared workspace with a native tool and report one fact."
+    )
+    sentinel_text = "qitos-session-isolation-sentinel"
+    session = None
+    result = None
+    inspection = None
+    cleanup_passed = False
+    try:
+        composition.engine.session(sentinel_text)
+        session = composition.engine.session(task)
+        result = session.run()
+        inspection = session.inspect()
+    finally:
+        try:
+            composition.close()
+        finally:
+            cleanup_passed = (
+                composition.sandbox_receipt.get("cleanup") == "passed"
+            )
+
+    assert session is not None and result is not None and inspection is not None
+    request_view = inspection.last_request_view
+    request_view_json = (
+        json.dumps(
+            request_view.to_dict(),
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+        if request_view is not None
+        else ""
+    )
+    session_isolated = bool(request_view_json) and sentinel_text not in request_view_json
+    native_request_expressed = bool(
+        request_view is not None and request_view.tool_schemas
+    )
+    durable_requests = int(
+        inspection.budget.get("model_requests_consumed", 0)
+    )
+    request_accounting_exact = durable_requests == counter["attempts"]
+    trajectory_readable = False
+    qita_readable = False
+    try:
+        reader = candidate_file_reader(_trajectory_path(profile.config))
+        trajectory = reader.read_session(
+            session.session_id.value,
+            view=PrivacyView.RAW_PRIVATE,
+        )
+        qita = load_session_payload(reader, session.session_id.value)
+        trajectory_readable = bool(trajectory.records)
+        qita_readable = (
+            qita.get("trajectory_meta", {}).get("session_id")
+            == session.session_id.value
+        )
+    except (FileNotFoundError, ValueError, KeyError):
+        pass
+
+    root_code = _engine_result_error_code(result)
+    external_codes = {
+        "provider_connection_failed",
+        "provider_timeout",
+        "provider_authentication_failed",
+        "provider_rate_limited",
+        "provider_request_rejected",
+        "provider_server_error",
+        "provider_request_cancelled",
+    }
+    framework_codes = {
+        "codec_encode_failed",
+        "codec_transport_options_invalid",
+        "request_projection_failed",
+        "provider_response_decode_failed",
+        "provider_response_malformed",
+    }
+    framework_invariant_failure = (
+        not session_isolated
+        or not request_accounting_exact
+        or durable_requests > maximum
+        or not trajectory_readable
+        or not qita_readable
+        or not cleanup_passed
+        or root_code in framework_codes
+    )
+    if framework_invariant_failure:
+        outcome = "framework_invariant_failure"
+    elif root_code == "model_request_budget_exhausted":
+        outcome = "model_budget_exhausted"
+    elif root_code in external_codes:
+        outcome = "provider_unavailable"
+    elif root_code:
+        outcome = "typed_failure"
+    elif counter["attempts"] and native_request_expressed:
+        outcome = "passed"
+    else:
+        outcome = "typed_failure"
+    return {
+        "profile_id": profile.profile_id,
+        "role": "informational_smoke",
+        "config_digest": profile.config.digest(),
+        "status": outcome,
+        "requests": counter["attempts"],
+        "durable_requests": durable_requests,
+        "request_limit": maximum,
+        "request_accounting_exact": request_accounting_exact,
+        "provider_request_sent": counter["attempts"] > 0,
+        "root_error_code": root_code,
+        "lifecycle_consequence": session.lifecycle.value,
+        "session_isolated": session_isolated,
+        "request_view_digest": (
+            _sha256_text(request_view_json) if request_view_json else None
+        ),
+        "native_tool_request_expressed": native_request_expressed,
+        "native_tool_calls": dict(result.tool_calls_by_name),
+        "trajectory_readable": trajectory_readable,
+        "qita_session_readable": qita_readable,
+        "sandbox_cleanup": cleanup_passed,
+        "framework_invariant_failure": framework_invariant_failure,
+        "credential": composition.credential_receipt,
+    }
+
+
 _OFFLINE_NODES = (
     "tests/test_yaml_config.py",
     "tests/test_agent_credentials.py",
@@ -1133,6 +1276,10 @@ def _privacy_report(payload: Any, forbidden_values: Sequence[str]) -> dict[str, 
         "host_paths_absent": _HOST_PATH_RE.search(rendered) is None,
         "authorization_markers_absent": _SECRET_MARKER_RE.search(rendered) is None,
         "scan_passed": values_absent
+        and not any(
+            token in rendered
+            for token in ("/chat/completions", "https://", "http://")
+        )
         and _HOST_PATH_RE.search(rendered) is None
         and _SECRET_MARKER_RE.search(rendered) is None,
     }
@@ -1147,6 +1294,7 @@ def qualify(
     generated_at: Optional[str] = None,
     execute_offline_gates: bool = True,
     enforce_current_source: bool = True,
+    informational_smoke: bool = False,
 ) -> dict[str, Any]:
     """Run offline gates, then optional live providers and restore workflows."""
     _validate_source(source_commit, enforce_current=enforce_current_source)
@@ -1246,13 +1394,21 @@ def qualify(
         "sii-dsv4",
         "sii-qwen3-8-27b",
     )
-    if set(profile_by_id) != set(required_profile_ids):
+    if informational_smoke:
+        if len(profiles) != 1 or profiles[0].profile_id != "sii-glm-5-2":
+            raise QualificationConfigurationError(
+                "informational smoke requires only the GLM primary profile"
+            )
+        sandbox_profile = profiles[0]
+    elif set(profile_by_id) != set(required_profile_ids):
         raise QualificationConfigurationError(
             "live mode requires the GLM primary, DSV parity, and Qwen capability profiles"
         )
+    else:
+        sandbox_profile = profile_by_id[required_profile_ids[0]]
     try:
         sandbox = qualify_docker_environment(
-            profile_by_id[required_profile_ids[0]].config,
+            sandbox_profile.config,
             identity=SandboxIdentity(
                 session_id="qualification-session",
                 run_id="qualification-run",
@@ -1272,6 +1428,47 @@ def qualify(
         base["evidence_digest"] = _evidence_digest(base)
         return base
     base["sandbox"] = sandbox.to_dict()
+    if informational_smoke:
+        try:
+            receipt = _informational_smoke_profile(profiles[0], resolver)
+        except Exception as exc:
+            receipt = {
+                "profile_id": profiles[0].profile_id,
+                "role": "informational_smoke",
+                "config_digest": profiles[0].config.digest(),
+                "status": "framework_invariant_failure",
+                "requests": 0,
+                "provider_request_sent": False,
+                "root_error_code": _exception_error_code(
+                    exc, "informational_smoke_runtime_failed"
+                ),
+                "framework_invariant_failure": True,
+            }
+        base["profiles"] = [receipt]
+        base["workflows"] = {"informational_smoke": receipt}
+        base["totals"]["requests"] = int(receipt["requests"])
+        base["decision"] = {
+            "framework_conformance": "external_required_gate",
+            "live_agent_capability_matrix": "informational",
+            "glm_smoke": receipt["status"],
+            "s3_status": (
+                "blocked_framework_invariant"
+                if receipt["framework_invariant_failure"]
+                else "unchanged"
+            ),
+            "g4_live": "informational",
+            "s4_ready": False,
+            "feature_baseline_promoted": False,
+            "default_branch_ready": False,
+        }
+        base["privacy"] = _privacy_report(base, forbidden_values)
+        if not base["privacy"]["scan_passed"]:
+            receipt["framework_invariant_failure"] = True
+            receipt["status"] = "framework_invariant_failure"
+            base["decision"]["glm_smoke"] = "framework_invariant_failure"
+            base["decision"]["s3_status"] = "blocked_framework_invariant"
+        base["evidence_digest"] = _evidence_digest(base)
+        return base
     primary = profile_by_id[required_profile_ids[0]]
     parity = profile_by_id[required_profile_ids[1]]
     capability = profile_by_id[required_profile_ids[2]]
@@ -1434,6 +1631,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--source-commit")
     parser.add_argument("--live", action="store_true")
     parser.add_argument("--offline-only", action="store_true")
+    parser.add_argument("--informational-smoke", action="store_true")
     parser.add_argument("--output")
     parser.add_argument("--private-dir")
     parser.add_argument("--restore-worker", action="store_true", help=argparse.SUPPRESS)
@@ -1468,6 +1666,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             if args.credentials
             else None
         ),
+        informational_smoke=bool(args.informational_smoke),
     )
     if args.private_dir:
         private = _validate_private_dir(args.private_dir)
@@ -1475,7 +1674,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if args.output:
         _write_json(Path(args.output), result, mode=0o644)
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
-    return 0 if result["decision"]["g4_live"] in {"passed", "live_flag_required"} else 1
+    informational_ok = bool(
+        args.informational_smoke
+        and result.get("profiles")
+        and not result["profiles"][0].get("framework_invariant_failure", False)
+        and result.get("privacy", {}).get("scan_passed", False)
+    )
+    return 0 if (
+        informational_ok
+        or result["decision"]["g4_live"] in {"passed", "live_flag_required"}
+    ) else 1
 
 
 if __name__ == "__main__":
