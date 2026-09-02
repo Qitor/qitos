@@ -210,6 +210,8 @@ def test_live_runner_has_no_private_provider_payload_preflight() -> None:
     assert "def _native_calls" not in source
     assert 'tool_choice="required"' not in source
     assert "_call(model" not in source
+    assert "session.lifecycle.value" not in source
+    assert "inspection.lifecycle.value" in source
 
 
 def test_privacy_scan_rejects_values_paths_endpoints_and_auth_markers() -> None:

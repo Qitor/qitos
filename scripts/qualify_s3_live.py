@@ -469,7 +469,9 @@ def _informational_smoke_profile(
         outcome = "typed_failure"
     try:
         lifecycle_consequence = (
-            session.lifecycle.value if session is not None else "not_created"
+            inspection.lifecycle.value
+            if inspection is not None
+            else "inspection_unavailable"
         )
     except Exception as exc:
         lifecycle_consequence = "inspection_failed"
