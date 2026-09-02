@@ -1,0 +1,47 @@
+{
+  "schema": "qitos.s3.g4_r5.framework_qualification_summary/v1",
+  "code_qualification_head": "901e972ddbaafd2f4e99d95e664ed377ffb254c9",
+  "fixed_baseline": "851f7902f15da670e72f4c04d7453cf37201aee7",
+  "starting_candidate": "0bda057a308983d6eaa2fb0465df0ea7911109cb",
+  "framework_conformance": "passed",
+  "repository_suite": {"passed": 2436, "skipped": 50, "python": "3.12.7"},
+  "deterministic_gates": {
+    "session_isolation_rounds": 100,
+    "multi_agent_process_loss_rounds": 40,
+    "child_budget_restore": "passed",
+    "ten_megabyte_projection": "passed",
+    "docker_attestation_cleanup": "passed",
+    "packaging": "passed",
+    "privacy": "passed"
+  },
+  "live_agent_capability_matrix": "informational",
+  "glm_smoke": {
+    "round_id": "s3-g4-l3-a1146482fb3295ff",
+    "source_commit": "901e972ddbaafd2f4e99d95e664ed377ffb254c9",
+    "runner_digest": "c673ad3a62276c1a4f6fd7288250a877681b8753374f140d5115a5c6687e5034",
+    "config_digest": "5c8ff3a025a8edd6bef13ea0134206291ff5654235089a165ebb1e7ae35f4f4b",
+    "sandbox_policy_digest": "ac1129d47ef4296b013c8469d409d7fd058f7ba55be47aae772d002ca157e3c2",
+    "evidence_digest": "66c1ff2812474eac5bee9afa7ead8c1757c95d22f2f3e7dd8e01768994e7d7d3",
+    "status": "typed_failure",
+    "root_error_code": "malformed_structured_response",
+    "requests": 2,
+    "durable_requests": 2,
+    "request_limit": 3,
+    "provider_request_sent": true,
+    "session_isolated": true,
+    "native_tool_request_expressed": true,
+    "trajectory_readable": true,
+    "qita_session_readable": true,
+    "sandbox_cleanup": true,
+    "privacy": true,
+    "framework_invariant_failure": false
+  },
+  "r5_live_requests": {"sii-glm-5-2": 2, "sii-dsv4": 0, "sii-qwen3-8-27b": 0},
+  "claims": {
+    "default_branch_ready": false,
+    "release_ready": false,
+    "distributed_scheduler": false,
+    "external_exactly_once": false,
+    "python_thread_hard_cancellation": false
+  }
+}

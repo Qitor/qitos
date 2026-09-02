@@ -19,6 +19,7 @@ How to update:
 
 ### Added
 
+- Qualified the committed G4-R5 framework head with 2436 passing tests, deterministic Session/budget/projection/process-loss conformance, and an informational two-request GLM smoke whose typed malformed response exposed no framework invariant failure.
 - Added deterministic G4-R5 framework conformance for independent Session caches, explicit child context transfer, durable request-budget admission and restore, bounded ToolResult/environment model projections with loss receipts, and closed non-echoing provider encode/projection/transport/decode failures. Release qualification now separates required framework correctness from informational live Agent/model capability.
 - Added the G4-L3 stable `qitos.agent` configuration path, a structural sandbox backend contract with inspect-backed Docker and explicit `unsafe_host` adapters, configured Trajectory/EventSink wiring, and deterministic single-/multi-process workflow qualification through the existing AgentModule, Engine, Session, WorkGraph, and qita surfaces.
 - Added one strict `qitos.agent/v1` launch configuration and composition root for `ModelFactory`, toolsets, Env, Session/checkpoint, budgets, the existing `AgentModule`, and the existing `Engine`, exposed through `qit run --config` and the same Python API. Added typed credential references with hardened local-file, deterministic fake, and explicit environment-compatibility resolvers; canonical/source/policy digests remain secret-free.

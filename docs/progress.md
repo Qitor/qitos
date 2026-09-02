@@ -14,8 +14,8 @@ Promoted S2 runtime head:
 `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`
 S3 plan freeze: `52e050d9bc1ee0d4c6dcc78c90a5497c25722648`
 S3 convergence source: `851f7902f15da670e72f4c04d7453cf37201aee7`
-Current gate: **G4-R5 FRAMEWORK CONFORMANCE UNDER COMMITTED-BYTES
-QUALIFICATION; LIVE AGENT CAPABILITY IS INFORMATIONAL**
+Current gate: **G4-R5 FRAMEWORK CONFORMANCE PASSED; FAST-FORWARD PROMOTION
+PENDING; LIVE AGENT CAPABILITY IS INFORMATIONAL**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md),
 [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md),
@@ -45,6 +45,19 @@ remain the authority for promotion. One GLM smoke of at most three requests is
 reported separately as `LIVE_AGENT_CAPABILITY_MATRIX=informational`; a typed
 provider/model outcome does not block promotion unless it exposes a framework
 invariant failure. Historical live receipts remain immutable.
+
+Code qualification head `901e972ddbaafd2f4e99d95e664ed377ffb254c9`
+passes `2436 passed, 50 skipped`, the 367-finding zero-growth static ratchet,
+stable lint/type, packaging/twine, wheel config/Session smoke, architecture,
+public-interface, privacy/path, Docker cleanup, 100-round Session isolation,
+and 40-round multi-agent process-loss gates. Informational GLM round
+`s3-g4-l3-a1146482fb3295ff` issued two real requests against a limit of three;
+durable and outer counters both report 2, the RequestView is Session-isolated,
+native tools are expressible, and Trajectory/qita/cleanup/privacy all pass.
+The model returned typed `malformed_structured_response`, so the Session
+correctly ended `failed`; this is an informational model outcome with
+`framework_invariant_failure=false`. DSV and Qwen were not re-requested in R5.
+Promotion remains pending remote/base verification.
 
 ## G4-L3 stable config/sandbox/live closure (2026-09-01)
 

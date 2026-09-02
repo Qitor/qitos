@@ -151,15 +151,30 @@ third-call rejection across restore, sibling reservation intersection, dispatch
 accounting before and after transport, a 10 MB custom result with a small model
 view, bounded built-in coding output, repeated environment inventory delta,
 provider stage taxonomy/privacy, and the existing 40-round authoritative
-process-loss vertical. Exact committed source identity and final command
-receipts will be recorded after the required gate completes; no live request is
-authorized before then.
+process-loss vertical. The exact committed qualification head is
+`901e972ddbaafd2f4e99d95e664ed377ffb254c9`. It passes `2436 passed, 50
+skipped`, both 10 MB projection gates, Docker attestation/cleanup,
+privacy/path, static/lint/type, packaging, and wheel-installed config/Session
+smoke.
+
+Informational round `s3-g4-l3-a1146482fb3295ff` is bound to that source and
+issued two GLM requests under a three-request ceiling. Outer and durable counts
+are both 2; the Session task and RequestView exclude the sentinel Session,
+native tool schemas are present, Trajectory and qita reopen the Session,
+sandbox cleanup and receipt privacy pass, and no framework invariant failed.
+The model produced `malformed_structured_response` and the Session correctly
+ended `failed`, so `GLM_SMOKE=typed_failure` is capability evidence rather than
+a framework blocker. R5 issued no DSV or Qwen requests; their earlier evidence
+remains historical. The redacted committed summary is
+`s3_g4_l3_r5_framework_qualification_receipt.json`; private round receipts are
+immutable and are not repository content.
 
 ```text
-FRAMEWORK_CONFORMANCE=qualification_in_progress
-LIVE_AGENT_CAPABILITY_MATRIX=not_started_informational
-S3_STATUS=open
-G4_STATUS=open
+FRAMEWORK_CONFORMANCE=passed
+LIVE_AGENT_CAPABILITY_MATRIX=informational
+GLM_SMOKE=typed_failure
+S3_STATUS=promotion_pending
+G4_STATUS=promotion_pending
 S4_READY=false
 DEFAULT_BRANCH_READY=false
 RELEASE_READY=false
