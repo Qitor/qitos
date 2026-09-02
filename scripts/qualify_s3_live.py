@@ -205,6 +205,43 @@ def _exception_error_code(error: BaseException, fallback: str) -> str:
     return fallback
 
 
+_INFORMATIONAL_EXTERNAL_CODES = frozenset(
+    {
+        "provider_connection_failed",
+        "provider_timeout",
+        "provider_authentication_failed",
+        "provider_rate_limited",
+        "provider_request_rejected",
+        "provider_server_error",
+        "provider_request_cancelled",
+    }
+)
+_INFORMATIONAL_FRAMEWORK_CODES = frozenset(
+    {
+        "codec_encode_failed",
+        "codec_transport_options_invalid",
+        "request_projection_failed",
+        "provider_response_decode_failed",
+        "provider_response_malformed",
+    }
+)
+
+
+def _informational_outcome(
+    root_code: Optional[str], *, framework_invariant_failure: bool
+) -> str:
+    """Keep a typed root cause while separating capability from conformance."""
+    if framework_invariant_failure:
+        return "framework_invariant_failure"
+    if root_code == "model_request_budget_exhausted":
+        return "model_budget_exhausted"
+    if root_code in _INFORMATIONAL_EXTERNAL_CODES:
+        return "provider_unavailable"
+    if root_code:
+        return "typed_failure"
+    return "passed"
+
+
 def _preflight_profile(profile: LiveProfile, resolver: Any) -> dict[str, Any]:
     """Run the provider probe through the canonical composition and Engine."""
     from qitos.config.builder import build_agent_composition
@@ -307,12 +344,19 @@ def _informational_smoke_profile(
     sentinel_text = "qitos-session-isolation-sentinel"
     session = None
     result = None
+    run_error: Optional[BaseException] = None
     inspection = None
     cleanup_passed = False
     try:
         composition.engine.session(sentinel_text)
         session = composition.engine.session(task)
-        result = session.run()
+        try:
+            result = session.run()
+        except Exception as exc:
+            # A typed provider failure can escape after the Session has already
+            # committed its terminal snapshot.  Preserve that exact code and
+            # continue the durable accounting/trajectory/privacy audit.
+            run_error = exc
         inspection = session.inspect()
     finally:
         try:
@@ -322,7 +366,7 @@ def _informational_smoke_profile(
                 composition.sandbox_receipt.get("cleanup") == "passed"
             )
 
-    assert session is not None and result is not None and inspection is not None
+    assert session is not None and inspection is not None
     request_view = inspection.last_request_view
     request_view_json = (
         json.dumps(
@@ -358,23 +402,11 @@ def _informational_smoke_profile(
     except (FileNotFoundError, ValueError, KeyError):
         pass
 
-    root_code = _engine_result_error_code(result)
-    external_codes = {
-        "provider_connection_failed",
-        "provider_timeout",
-        "provider_authentication_failed",
-        "provider_rate_limited",
-        "provider_request_rejected",
-        "provider_server_error",
-        "provider_request_cancelled",
-    }
-    framework_codes = {
-        "codec_encode_failed",
-        "codec_transport_options_invalid",
-        "request_projection_failed",
-        "provider_response_decode_failed",
-        "provider_response_malformed",
-    }
+    root_code = (
+        _engine_result_error_code(result)
+        if result is not None
+        else _exception_error_code(run_error, "informational_smoke_runtime_failed")
+    )
     framework_invariant_failure = (
         not session_isolated
         or not request_accounting_exact
@@ -382,19 +414,20 @@ def _informational_smoke_profile(
         or not trajectory_readable
         or not qita_readable
         or not cleanup_passed
-        or root_code in framework_codes
+        or root_code in _INFORMATIONAL_FRAMEWORK_CODES
+        or (
+            result is None
+            and root_code not in _INFORMATIONAL_EXTERNAL_CODES
+            and root_code != "model_request_budget_exhausted"
+        )
     )
-    if framework_invariant_failure:
-        outcome = "framework_invariant_failure"
-    elif root_code == "model_request_budget_exhausted":
-        outcome = "model_budget_exhausted"
-    elif root_code in external_codes:
-        outcome = "provider_unavailable"
-    elif root_code:
-        outcome = "typed_failure"
-    elif counter["attempts"] and native_request_expressed:
-        outcome = "passed"
-    else:
+    outcome = _informational_outcome(
+        root_code,
+        framework_invariant_failure=framework_invariant_failure,
+    )
+    if outcome == "passed" and not (
+        counter["attempts"] and native_request_expressed
+    ):
         outcome = "typed_failure"
     return {
         "profile_id": profile.profile_id,
@@ -413,7 +446,9 @@ def _informational_smoke_profile(
             _sha256_text(request_view_json) if request_view_json else None
         ),
         "native_tool_request_expressed": native_request_expressed,
-        "native_tool_calls": dict(result.tool_calls_by_name),
+        "native_tool_calls": (
+            dict(result.tool_calls_by_name) if result is not None else {}
+        ),
         "trajectory_readable": trajectory_readable,
         "qita_session_readable": qita_readable,
         "sandbox_cleanup": cleanup_passed,
