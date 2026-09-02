@@ -16,7 +16,7 @@
     {"path": "qitos/engine/work_runtime.py", "sha256": "9f8ae3eb33a2687d931eaa71458e9f924c36d38c27ffc6fe9c3e8c7054fe714d"},
     {"path": "qitos/engine/_snapshot_components.py", "sha256": "fa2839a195204497ebc19fb62129091e949b458ce81b67deb3e3fd54da05de30"},
     {"path": "qitos/engine/runtime.py", "sha256": "fa4374e6cb627dc98d33b4bf6f582784dd630854cb07356fd0a654cfa5315890"},
-    {"path": "qitos/engine/session_runtime.py", "sha256": "ab0e9af4c5a69cd5fe8e2da69ac8a578c58d789e0614c8e6114d9246d3f2fbc1"},
+    {"path": "qitos/engine/session_runtime.py", "sha256": "4aafb26c424d5dd8808449304fc456b5870c77188353288c9596d9e239d4018f"},
     {"path": "qitos/kit/tool/agent/durable_adapter.py", "sha256": "2412223926ea8cbadc3cb40ace120b2457e13082f79e67ac6f83ee1b605ba880"},
     {"path": "tests/core/test_work_graph.py", "sha256": "7cc870a2f6c27945b5903c63b174c526f523f924dc51c81b7a7b68696f551896"},
     {"path": "tests/engine/test_work_runtime.py", "sha256": "2f56b6f152eae05ca7c9cbbe08f234dc3e24cf8149ea037ce86716a0af8b2fd0"},
