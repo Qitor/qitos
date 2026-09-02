@@ -90,15 +90,17 @@ def load_run_payload(
         _portable_asset_refs(payload, run_dir)
     projection = project_data(payload, view=selected_view)
     safe = copy.deepcopy(dict(projection.data or {}))
-    meta = safe.setdefault("trajectory_meta", {})
-    if isinstance(meta, dict):
-        meta["privacy_view"] = selected_view.value
-        source_loss = raw.loss.merged(projection.loss)
-        meta["loss"] = source_loss.to_dict()
-        meta["reader_id"] = reader.capabilities.reader_id
-        meta["reader_default_qualified"] = bool(
-            reader.capabilities.default_qualified
-        )
+    meta = safe.get("trajectory_meta")
+    if not isinstance(meta, dict):
+        meta = {}
+        safe["trajectory_meta"] = meta
+    meta["privacy_view"] = selected_view.value
+    source_loss = raw.loss.merged(projection.loss)
+    meta["loss"] = source_loss.to_dict()
+    meta["reader_id"] = reader.capabilities.reader_id
+    meta["reader_default_qualified"] = bool(
+        reader.capabilities.default_qualified
+    )
     return safe
 
 
@@ -120,12 +122,16 @@ def load_session_payload(
     payload = trajectory_to_qita_payload(raw)
     projection = project_data(payload, view=selected_view)
     safe = copy.deepcopy(dict(projection.data or {}))
-    meta = safe.setdefault("trajectory_meta", {})
-    if isinstance(meta, dict):
-        meta["privacy_view"] = selected_view.value
-        meta["loss"] = raw.loss.merged(projection.loss).to_dict()
-        meta["reader_id"] = reader.capabilities.reader_id
-        meta["session_id"] = session_id
+    meta = safe.get("trajectory_meta")
+    if not isinstance(meta, dict):
+        meta = {}
+        safe["trajectory_meta"] = meta
+    meta["privacy_view"] = selected_view.value
+    meta["loss"] = raw.loss.merged(projection.loss).to_dict()
+    meta["reader_id"] = reader.capabilities.reader_id
+    meta["session_id"] = session_id
+    meta["session_ids"] = list(raw.session_ids)
+    meta["run_ids"] = list(raw.run_ids)
     return safe
 
 

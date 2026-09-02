@@ -1,6 +1,6 @@
 # S3 G4-L3 stable config, sandbox truth, and live workflow closure
 
-Status: R1 transport/root-failure repair implemented; committed-byte offline requalification pending
+Status: R1 transport passed live dispatch; deterministic qualification setup repairs pending committed-byte requalification
 Updated: 2026-09-02
 Owner: G4 integration owner
 Fixed baseline: `851f7902f15da670e72f4c04d7453cf37201aee7`
@@ -24,6 +24,25 @@ consequence, pause reachability, and whether dispatch occurred. Focused Python
 3.12.7 config/model/provider/Session/runner tests pass. This checkpoint is not
 offline qualification, live evidence, promotion authority, or an S3 closure;
 those gates must be rerun from committed R1 bytes.
+
+Committed R1 head `bd9711d58436c008be81f5bd9d1b6af604b762fb`
+passed the complete offline matrix (`2410 passed, 50 skipped`), the 16-node
+runner gate, static ratchet, lint, types, build, twine, privacy, Docker, and
+cleanup. Fresh immutable round `s3-g4-l3-1f3414e2567ef3f9` then proved the
+transport repair with six real GLM requests and native read/grep/write/command
+execution. It did not qualify the workflow: the local five-step ceiling stopped
+before the final request, the qualification image lacked pytest, and a bounded
+large qita projection omitted its metadata container. DSV and Qwen remained at
+zero requests. The sanitized receipt is
+`s3_g4_l3_r1_live_failure_receipt.json`; the private full receipt remains
+outside Git with mode `0600`.
+
+The follow-up keeps the prompt and 12-request ceiling unchanged, raises only
+the local step ceiling, uses a locally attested qualification image containing
+pytest, preserves bounded qita projection while rebuilding safe minimum
+metadata, and maps step exhaustion to `engine_step_budget_exhausted`. A new
+round is forbidden until these bytes are committed and every offline gate is
+rerun.
 
 ## Scope and stop gate
 

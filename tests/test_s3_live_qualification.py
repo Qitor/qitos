@@ -537,6 +537,23 @@ def test_restore_subprocess_preserves_typed_failure_receipt(
     assert calls[0][-2:] == ["--max-requests", "2"]
 
 
+def test_step_budget_failure_keeps_typed_root_cause() -> None:
+    module = _module()
+
+    class State:
+        final_result = None
+        stop_reason = "budget_steps"
+
+    class Result:
+        error_code = None
+        state = State()
+
+    assert (
+        module._engine_result_error_code(Result())
+        == "engine_step_budget_exhausted"
+    )
+
+
 def test_model_request_counter_fails_before_exceeding_limit() -> None:
     module = _module()
 

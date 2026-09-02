@@ -1,0 +1,52 @@
+{
+  "schema_version": "qitos.s3.g4_l3_r1_failure_receipt/v1",
+  "qualification_round_id": "s3-g4-l3-1f3414e2567ef3f9",
+  "source_commit": "bd9711d58436c008be81f5bd9d1b6af604b762fb",
+  "runner_digest": "bb6b09b81a6735f214528da4a1076cee1f4bdefcf5e8ea266e51e2f22bb01803",
+  "source_receipt_evidence_digest": "3a72f7a3581ac969ceb9fa5cd06607031db62ef743ee949a8e9d1a32512c2f59",
+  "offline_gate": "passed",
+  "docker_attestation": "passed",
+  "privacy_scan": "passed",
+  "profiles": [
+    {
+      "profile_id": "sii-glm-5-2",
+      "model": "GLM-5.2-w4a8c8",
+      "status": "failed",
+      "requests": 6,
+      "provider_request_sent": true,
+      "pause_reached": true,
+      "lifecycle_consequence": "completed",
+      "observed_stop_reason": "budget_steps",
+      "diagnosed_root_error_code": "engine_step_budget_exhausted",
+      "tool_calls": {
+        "grep_file": 1,
+        "read_file": 1,
+        "run_command": 2,
+        "write_file": 1
+      }
+    },
+    {
+      "profile_id": "sii-dsv4",
+      "model": "dsv4-flash-0731",
+      "status": "not_started",
+      "requests": 0,
+      "error_code": "primary_dependency_failed"
+    },
+    {
+      "profile_id": "sii-qwen3-8-27b",
+      "model": "Qwen3.8-27B",
+      "status": "not_started",
+      "requests": 0,
+      "error_code": "parity_dependency_failed"
+    }
+  ],
+  "deterministic_local_findings": [
+    "launch_step_budget_too_small_for_final_after_restore",
+    "sandbox_image_missing_pytest",
+    "qita_large_projection_metadata_omitted"
+  ],
+  "sandbox_cleanup": "passed",
+  "credential_or_endpoint_disclosed": false,
+  "host_path_disclosed": false,
+  "promotion_authorized": false
+}

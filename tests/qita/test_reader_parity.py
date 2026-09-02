@@ -155,6 +155,35 @@ def test_store_reader_exposes_tool_effect_and_snapshot_timelines() -> None:
     assert session["trajectory_meta"]["session_ids"] == ["session-1"]
 
 
+def test_session_metadata_survives_bounded_large_projection() -> None:
+    store = MemoryTrajectoryStore()
+    store.append_batch(
+        tuple(
+            TrajectoryRecord.create(
+                RecordKind.MODEL_RESPONSE,
+                record_id=f"record-{index}",
+                run_id="run-large",
+                session_id="session-large",
+                step_id=index,
+                payload={"bounded": list(range(80))},
+            )
+            for index in range(400)
+        )
+    )
+
+    payload = load_session_payload(
+        StoreTrajectoryReader(store), "session-large"
+    )
+
+    assert payload["trajectory_meta"]["session_id"] == "session-large"
+    assert payload["trajectory_meta"]["session_ids"] == ["session-large"]
+    assert payload["trajectory_meta"]["run_ids"] == ["run-large"]
+    assert any(
+        entry["code"] == "total_node_limit"
+        for entry in payload["trajectory_meta"]["loss"]["entries"]
+    )
+
+
 def test_qita_no_longer_owns_trace_copy_fork_semantics() -> None:
     source = inspect.getsource(_cli_app._build_handler)
     assert "ReplaySession" not in source

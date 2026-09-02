@@ -121,3 +121,17 @@ S4_READY=false
 DEFAULT_BRANCH_READY=false
 RELEASE_READY=false
 ```
+
+## R1 transport round
+
+Round `s3-g4-l3-1f3414e2567ef3f9`, bound to committed source
+`bd9711d58436c008be81f5bd9d1b6af604b762fb`, passed its embedded offline,
+Docker, cleanup, and privacy gates and issued six real GLM requests. This proves
+that nested immutable request options crossed the repaired JSON transport
+boundary. GLM executed native parallel read/grep, wrote the fixture, and ran
+two commands, but the local five-step ceiling stopped before a final request.
+The qualification image also lacked pytest, and qita's bounded projection
+omitted the metadata container for the large live trajectory. DSV and Qwen were
+not started and used zero requests. This round is immutable failure evidence,
+not provider qualification or promotion authority; its sanitized receipt is
+`s3_g4_l3_r1_live_failure_receipt.json`.

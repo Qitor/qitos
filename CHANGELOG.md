@@ -56,6 +56,7 @@ How to update:
 
 ### Changed
 
+- Recorded immutable R1 live round `s3-g4-l3-1f3414e2567ef3f9`: GLM crossed the repaired JSON transport and issued six requests with real native coding tools, but a five-step launch ceiling, a qualification image without pytest, and bounded qita metadata omission prevented qualification. DSV/Qwen remained at zero requests. Follow-up diagnostics now type step exhaustion and keep qita's safe minimum metadata after bounded large projections.
 - Recorded the fresh G4-L3 live round as a primary-profile failure with zero provider requests: nested immutable request options reached codec projection as a non-JSON `mappingproxy`, so GLM did not reach the required pause. DSV and Qwen were not started; offline gates, Docker attestation/cleanup, and privacy passed, while promotion, push, and worktree cleanup remain blocked.
 - Made `qitos.agent/v1` reader-only compatibility; canonical writers and examples now emit `qitos.agent`. Config objects are deeply immutable, protocol resolution owns parser/codec selection, tool-use requirements are explicit request facts, and configuration digests bind launch, snapshots, restores, and trajectory provenance.
 - Coding-capable declarative launches now default to a fail-closed Docker environment. Host execution must be named `unsafe_host`, emits an unisolated receipt, and rejects container-only safety claims. Provider credentials and requests remain host-side and are never injected into the tool container.

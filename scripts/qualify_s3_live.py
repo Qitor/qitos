@@ -157,6 +157,18 @@ def _count_model_requests(
     return counter
 
 
+def _engine_result_error_code(result: Any) -> Optional[str]:
+    """Project a safe typed cause from an unsuccessful Engine result."""
+    if result.error_code:
+        return str(result.error_code)
+    stop_reason = str(result.state.stop_reason or "")
+    return {
+        "budget_steps": "engine_step_budget_exhausted",
+        "budget_time": "engine_time_budget_exhausted",
+        "budget_cost": "engine_cost_budget_exhausted",
+    }.get(stop_reason)
+
+
 def _preflight_profile(profile: LiveProfile, resolver: Any) -> dict[str, Any]:
     """Run the provider probe through the canonical composition and Engine."""
     from qitos.config.builder import build_agent_composition
@@ -189,12 +201,12 @@ def _preflight_profile(profile: LiveProfile, resolver: Any) -> dict[str, Any]:
         error_code = None
         if status == "failed":
             error_code = (
-                result.error_code
+                _engine_result_error_code(result)
                 or "provider_capability_loss"
                 if capability_loss
                 else "timeout"
                 if "timeout" in provider_categories
-                else result.error_code or "engine_workflow_failed"
+                else _engine_result_error_code(result) or "engine_workflow_failed"
             )
         receipt = {
             "profile_id": profile.profile_id,
@@ -346,8 +358,13 @@ def _restore_worker(
                 "requests": request_counter["attempts"],
                 "credential": composition.credential_receipt,
                 "status": "passed" if passed else "failed",
-                "root_error_code": result.error_code,
-                "error_code": None if passed else result.error_code or "restore_workflow_failed",
+                "root_error_code": _engine_result_error_code(result),
+                "error_code": (
+                    None
+                    if passed
+                    else _engine_result_error_code(result)
+                    or "restore_workflow_failed"
+                ),
                 "lifecycle_consequence": lifecycle,
                 "pause_reached": lifecycle == "paused",
                 "provider_request_sent": request_counter["attempts"] > 0,
@@ -714,8 +731,18 @@ def _live_restore_workflows(
         and cleanup_passed
         else "failed"
     )
+    failure_codes = [
+        single_receipt.get("root_error_code")
+        or single_receipt.get("error_code"),
+        *(receipt.get("root_error_code") or receipt.get("error_code")
+          for receipt in child_receipts),
+        join_receipt.get("error_code"),
+        artifact_receipt.get("error_code"),
+    ]
+    root_error_code = next((str(code) for code in failure_codes if code), None)
     return {
         "status": status,
+        "error_code": None if status == "passed" else root_error_code or "workflow_failed",
         "single_agent": single_receipt,
         "multi_agent": {
             "parent_session_id": identities["parent"],
@@ -734,7 +761,7 @@ def _live_restore_workflows(
             for receipt in (single_receipt, *child_receipts)
         ),
         "requests": consumed,
-        "root_error_code": None,
+        "root_error_code": None if status == "passed" else root_error_code,
         "lifecycle_consequence": "completed",
         "pause_reached": True,
         "provider_request_sent": consumed > 0,
