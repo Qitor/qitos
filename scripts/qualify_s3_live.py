@@ -189,11 +189,12 @@ def _preflight_profile(profile: LiveProfile, resolver: Any) -> dict[str, Any]:
         error_code = None
         if status == "failed":
             error_code = (
-                "provider_capability_loss"
+                result.error_code
+                or "provider_capability_loss"
                 if capability_loss
                 else "timeout"
                 if "timeout" in provider_categories
-                else "engine_workflow_failed"
+                else result.error_code or "engine_workflow_failed"
             )
         receipt = {
             "profile_id": profile.profile_id,
@@ -208,6 +209,11 @@ def _preflight_profile(profile: LiveProfile, resolver: Any) -> dict[str, Any]:
                 "native_tool_route": tool_route,
             },
             "status": status,
+            "root_error_code": result.error_code,
+            "lifecycle_consequence": (
+                "failed" if result.state.stop_reason == "unrecoverable_error" else "completed"
+            ),
+            "provider_request_sent": counter["attempts"] > 0,
         }
         if error_code:
             receipt["error_code"] = error_code
@@ -326,6 +332,8 @@ def _restore_worker(
         try:
             restored = Engine.restore(session_id, runtime=composition.runtime)
             result = restored.run()
+            lifecycle = restored.lifecycle.value
+            passed = bool(result.state.final_result) and lifecycle == "completed"
             payload = {
                 "session_id": session_id,
                 "run_id": result.run_id,
@@ -337,7 +345,12 @@ def _restore_worker(
                 "tool_calls": result.tool_calls_by_name,
                 "requests": request_counter["attempts"],
                 "credential": composition.credential_receipt,
-                "status": "passed" if result.state.final_result else "failed",
+                "status": "passed" if passed else "failed",
+                "root_error_code": result.error_code,
+                "error_code": None if passed else result.error_code or "restore_workflow_failed",
+                "lifecycle_consequence": lifecycle,
+                "pause_reached": lifecycle == "paused",
+                "provider_request_sent": request_counter["attempts"] > 0,
             }
         except Exception as exc:
             payload = {
@@ -346,6 +359,10 @@ def _restore_worker(
                 "credential": composition.credential_receipt,
                 "status": "failed",
                 "error_code": getattr(exc, "code", type(exc).__name__),
+                "root_error_code": getattr(exc, "code", type(exc).__name__),
+                "lifecycle_consequence": "failed",
+                "pause_reached": False,
+                "provider_request_sent": request_counter["attempts"] > 0,
             }
     finally:
         try:
@@ -521,23 +538,31 @@ def _live_restore_workflows(
     )
     identities: dict[str, Any] = {}
     setup_error: Optional[Exception] = None
+    root_error_code: Optional[str] = None
+    lifecycle_consequence = "created"
+    pause_reached = False
     try:
         task = config.dataset[0].task if config.dataset else "Inspect the workspace, run one tool, and finish."
         single = composition.engine.session(task)
         single_first = single.run()
+        lifecycle_consequence = single.lifecycle.value
+        root_error_code = single_first.error_code
+        pause_reached = single.lifecycle.value == "paused"
         if single.lifecycle.value != "paused":
             raise QualificationError(
                 "single-agent session did not reach a restorable pause",
-                code="workflow_single_not_paused",
+                code=single_first.error_code or "workflow_single_not_paused",
             )
         parent = composition.engine.session(
             "Call read_file once for README.md, then after its result return a final answer."
         )
         parent_first = parent.run()
         if parent.lifecycle.value != "paused":
+            root_error_code = parent_first.error_code
+            lifecycle_consequence = parent.lifecycle.value
             raise QualificationError(
                 "parent session did not reach a dispatch-safe pause",
-                code="workflow_parent_not_paused",
+                code=parent_first.error_code or "workflow_parent_not_paused",
             )
         fan_out = parent.fan_out(
             [
@@ -581,7 +606,7 @@ def _live_restore_workflows(
         try:
             composition.close()
         except Exception as exc:
-            setup_error = exc
+            setup_error = setup_error or exc
         if identities:
             identities["sandbox"] = dict(composition.sandbox_receipt)
         try:
@@ -594,6 +619,11 @@ def _live_restore_workflows(
             "error_code": getattr(
                 setup_error, "code", type(setup_error).__name__
             ),
+            "root_error_code": root_error_code
+            or getattr(setup_error, "code", type(setup_error).__name__),
+            "lifecycle_consequence": lifecycle_consequence,
+            "pause_reached": pause_reached,
+            "provider_request_sent": request_counter["attempts"] > 0,
             "requests": request_counter["attempts"],
             "sandbox_cleanup": (
                 composition.sandbox_receipt.get("cleanup") == "passed"
@@ -704,6 +734,10 @@ def _live_restore_workflows(
             for receipt in (single_receipt, *child_receipts)
         ),
         "requests": consumed,
+        "root_error_code": None,
+        "lifecycle_consequence": "completed",
+        "pause_reached": True,
+        "provider_request_sent": consumed > 0,
     }
 
 
@@ -1002,7 +1036,7 @@ def _qualify_capability_loss_profile(
     capability_loss = any(
         event.payload.get("code") == "provider_capability_loss"
         for event in native_result.events
-    )
+    ) or native_result.error_code == "provider_capability_loss"
     requests = text_counter["attempts"] + native_counter["attempts"]
     text_ok = bool(text_result.state.final_result)
     cleanup_ok = (
@@ -1196,13 +1230,18 @@ def qualify(
                 **workflow,
             }
         except Exception as exc:
+            code = getattr(exc, "code", "workflow_failure")
             return {
                 "profile_id": profile.profile_id,
                 "role": role,
                 "config_digest": profile.config.digest(),
                 "status": "failed",
                 "requests": 0,
-                "error_code": getattr(exc, "code", "workflow_failure"),
+                "error_code": code,
+                "root_error_code": code,
+                "lifecycle_consequence": "failed",
+                "pause_reached": False,
+                "provider_request_sent": False,
                 "detail_code": type(exc).__name__,
             }
 
@@ -1268,7 +1307,7 @@ def qualify(
             "default_branch_ready": False,
         }
     else:
-        first_failure = next(
+        first_failure: Mapping[str, Any] = next(
             (
                 item
                 for item in base["profiles"]

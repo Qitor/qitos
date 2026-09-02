@@ -34,6 +34,7 @@ from .codec import (
     ProviderCapabilities,
     ProviderCodec,
     ProviderFailure,
+    _materialize_json_transport,
     _request_tool_options,
     report_for_request,
     validate_codec_result,
@@ -41,18 +42,11 @@ from .codec import (
 
 
 def _json_copy(value: Any, path: str) -> Any:
-    try:
-        return json.loads(
-            json.dumps(
-                value,
-                ensure_ascii=False,
-                sort_keys=True,
-                separators=(",", ":"),
-                allow_nan=False,
-            )
-        )
-    except (TypeError, ValueError) as exc:
-        raise CodecCapabilityError(f"{path} must be JSON-compatible") from exc
+    return _materialize_json_transport(
+        value,
+        path,
+        error_code="codec_json_value_invalid",
+    )
 
 
 def _digest(value: Any) -> str:
@@ -405,11 +399,15 @@ def execute_provider_request(
                     request=request,
                     report=report,
                 )
-        if transport_options:
+        if transport_options is not None:
             updated_payload = dict(payload)
             options = dict(updated_payload.get("options") or {})
             options.update(
-                _json_copy(dict(transport_options), "transport options")
+                _materialize_json_transport(
+                    transport_options,
+                    "transport_options",
+                    error_code="codec_transport_options_invalid",
+                )
             )
             updated_payload["options"] = options
             payload = updated_payload

@@ -418,6 +418,82 @@ def test_live_workflow_builds_two_child_fan_out_transfers_and_join(
     assert len(set(remaining_limits)) == 3
 
 
+def test_live_workflow_preserves_codec_root_failure_before_pause_or_request(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _module()
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    profile = module.load_profiles(
+        [
+            _config(
+                tmp_path / "agent.yaml",
+                profile="profile",
+                credential="credential",
+                workspace=workspace,
+            )
+        ]
+    )[0]
+    from qitos.config import EnvironmentConfig
+    from qitos.config.builder import build_agent_composition as real_build
+    from qitos.kit.env import HostEnv
+
+    dispatches = 0
+
+    class FakeModel:
+        model = "fake"
+        default_request_kwargs = {"chat_template_kwargs": {"invalid": object()}}
+
+        def call_raw(self, messages: object, **options: object) -> object:
+            nonlocal dispatches
+            _ = messages, options
+            dispatches += 1
+            return "Final Answer: unreachable"
+
+    def fake_build(config: object, **kwargs: object) -> object:
+        unsafe_config = replace(
+            config,
+            runtime=replace(
+                config.runtime,
+                environment=EnvironmentConfig(
+                    type="unsafe_host",
+                    image="",
+                    workspace=str(workspace),
+                    container_workspace="",
+                    network="host",
+                    read_only_root=False,
+                    cap_drop=False,
+                    no_new_privileges=False,
+                    pids_limit=None,
+                    memory_mb=None,
+                    cpus=None,
+                    cleanup_required=False,
+                ),
+            ),
+        )
+        return real_build(
+            unsafe_config,
+            model_override=FakeModel(),
+            env_override=HostEnv(workspace_root=str(workspace)),
+        )
+
+    monkeypatch.setattr("qitos.config.builder.build_agent_composition", fake_build)
+
+    receipt = module._live_restore_workflows(
+        profile,
+        credentials_path=tmp_path / "not-read.yaml",
+    )
+
+    assert receipt["status"] == "failed"
+    assert receipt["error_code"] == "codec_transport_options_invalid"
+    assert receipt["root_error_code"] == "codec_transport_options_invalid"
+    assert receipt["lifecycle_consequence"] == "failed"
+    assert receipt["pause_reached"] is False
+    assert receipt["provider_request_sent"] is False
+    assert receipt["requests"] == 0
+    assert dispatches == 0
+
+
 def test_restore_subprocess_preserves_typed_failure_receipt(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -1,11 +1,29 @@
 # S3 G4-L3 stable config, sandbox truth, and live workflow closure
 
-Status: full offline qualification passed; live primary failed; promotion blocked
-Updated: 2026-09-01
+Status: R1 transport/root-failure repair implemented; committed-byte offline requalification pending
+Updated: 2026-09-02
 Owner: G4 integration owner
 Fixed baseline: `851f7902f15da670e72f4c04d7453cf37201aee7`
 Candidate branch: `codex/v4-s3-g4-convergence`
-Starting candidate: `113af7088943c95e682601b8f40ad84bbc09dd1b`
+Starting candidate: `904df84ff3bd601cef6fae2199d66b3867aeaa1d`
+
+## G4-L3-R1 repair checkpoint
+
+The immutable historical round `s3-g4-l3-71564b10447bf692` remains unchanged.
+R1 removes the deterministic pre-request blocker through one bounded recursive
+JSON materialization owned by the codec/provider execution boundary. It accepts
+JSON scalars, finite floats, mappings, lists, and tuples into fresh dict/list
+ownership, and rejects non-string keys, non-finite numbers, unsupported objects,
+cycles, and depth/node exhaustion without echoing values. The same boundary is
+used for provider payload isolation; builder, Engine, and live runner do not own
+copies of the thaw algorithm.
+
+EngineResult now carries the safe step/phase/root failure fact. Failed Session
+heads persist that fact, and the live receipt records root error, lifecycle
+consequence, pause reachability, and whether dispatch occurred. Focused Python
+3.12.7 config/model/provider/Session/runner tests pass. This checkpoint is not
+offline qualification, live evidence, promotion authority, or an S3 closure;
+those gates must be rerun from committed R1 bytes.
 
 ## Scope and stop gate
 

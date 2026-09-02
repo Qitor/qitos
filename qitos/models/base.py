@@ -161,8 +161,7 @@ class Model(ABC):
         """Dispatch a codec payload without exposing credentials to the codec."""
 
         messages = list(payload.get("messages") or [])
-        options = dict(getattr(self, "default_request_kwargs", {}) or {})
-        options.update(dict(payload.get("options") or {}))
+        options = dict(payload.get("options") or {})
         return self.call_raw(messages, **options)
 
     def qitos_stream_transport(
@@ -174,8 +173,7 @@ class Model(ABC):
         """Aggregate one typed stream for codec response decoding."""
 
         messages = list(payload.get("messages") or [])
-        options = dict(getattr(self, "default_request_kwargs", {}) or {})
-        options.update(dict(payload.get("options") or {}))
+        options = dict(payload.get("options") or {})
         text_parts: List[str] = []
         usage: Optional[Dict[str, Any]] = None
         tool_calls: Optional[List[Dict[str, Any]]] = None
@@ -245,6 +243,7 @@ class Model(ABC):
             continuation_resolver=(
                 continuation_resolver or self.qitos_continuation_resolver
             ),
+            transport_options=getattr(self, "default_request_kwargs", None),
         )
 
     @abstractmethod

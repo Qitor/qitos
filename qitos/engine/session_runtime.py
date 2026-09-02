@@ -2036,6 +2036,7 @@ class Session:
             state_schema=_state_schema_id(type(state)),
             state=state.to_dict(),
         )
+        last_runtime_error = getattr(self._engine, "_last_runtime_error", None)
         progress = {
             "task": _task_payload(task),
             "next_step": int(step_id),
@@ -2046,6 +2047,12 @@ class Session:
             ).to_dict(),
             "pause_safety": (
                 _json_value(asdict(pause_safety)) if pause_safety is not None else None
+            ),
+            "terminal_failure": (
+                _json_value(dict(last_runtime_error))
+                if lifecycle is SessionLifecycle.FAILED
+                and isinstance(last_runtime_error, Mapping)
+                else None
             ),
         }
         budget = {

@@ -11,7 +11,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, Mapping, Optional, Protocol, runtime_checkable
+from typing import Any, Dict, Iterable, Mapping, NoReturn, Optional, Protocol, runtime_checkable
 
 from ..core.diagnostics import redact_diagnostic_value, safe_diagnostic_text
 from ..core.request_view import RequestTarget, RequestView
@@ -89,26 +89,98 @@ class CodecUnavailableError(CodecError):
     code = "codec_unavailable"
 
 
-def _strict_json(value: Any, path: str) -> None:
-    if value is None or isinstance(value, (str, bool, int)):
-        return
-    if isinstance(value, float):
-        import math
+class _JSONMaterializationError(CodecCapabilityError):
+    """Typed, non-echoing failure for the provider JSON boundary."""
 
-        if not math.isfinite(value):
-            raise CodecError(f"{path} contains a non-finite number")
-        return
-    if isinstance(value, list):
-        for index, item in enumerate(value):
-            _strict_json(item, f"{path}[{index}]")
-        return
-    if isinstance(value, dict):
-        for key, item in value.items():
-            if not isinstance(key, str):
-                raise CodecError(f"{path} keys must be strings")
-            _strict_json(item, f"{path}.{key}")
-        return
-    raise CodecError(f"{path} contains non-JSON value {type(value).__name__}")
+    def __init__(self, path: str, category: str, *, code: str) -> None:
+        self.code = code
+        self.field_path = path
+        self.category = category
+        super().__init__(f"{path}: {category}")
+
+
+def _safe_path_child(path: str, key: str) -> str:
+    safe_key = safe_diagnostic_text(key, fallback="[redacted-key]")
+    if (
+        safe_key == key
+        and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.-]{0,63}", key)
+    ):
+        return f"{path}.{key}"
+    return f"{path}.[redacted-key]"
+
+
+def _materialize_json_transport(
+    value: Any,
+    path: str,
+    *,
+    error_code: str,
+    max_depth: int = 64,
+    max_nodes: int = 10000,
+) -> Any:
+    """Create one bounded, ownership-isolated JSON tree for provider transport.
+
+    This is the sole recursive thaw/admission implementation used by the codec
+    and provider boundary. It accepts immutable ``Mapping`` and tuple inputs
+    while rejecting values that JSON cannot faithfully represent.
+    """
+
+    active: set[int] = set()
+    node_count = 0
+
+    def fail(current_path: str, category: str) -> NoReturn:
+        raise _JSONMaterializationError(
+            current_path,
+            category,
+            code=error_code,
+        )
+
+    def visit(item: Any, current_path: str, depth: int) -> Any:
+        nonlocal node_count
+        if depth > max_depth:
+            fail(current_path, "depth_limit_exceeded")
+        node_count += 1
+        if node_count > max_nodes:
+            fail(current_path, "node_limit_exceeded")
+        if item is None or type(item) in {str, bool, int}:
+            return item
+        if type(item) is float:
+            import math
+
+            if not math.isfinite(item):
+                fail(current_path, "non_finite_number")
+            return item
+        if isinstance(item, Mapping):
+            identity = id(item)
+            if identity in active:
+                fail(current_path, "cycle_detected")
+            active.add(identity)
+            try:
+                result: Dict[str, Any] = {}
+                for key, child in item.items():
+                    if type(key) is not str:
+                        fail(current_path, "non_string_key")
+                    child_path = _safe_path_child(current_path, key)
+                    result[key] = visit(child, child_path, depth + 1)
+                return result
+            finally:
+                active.remove(identity)
+        if isinstance(item, (list, tuple)):
+            identity = id(item)
+            if identity in active:
+                fail(current_path, "cycle_detected")
+            active.add(identity)
+            try:
+                return [
+                    visit(child, f"{current_path}[{index}]", depth + 1)
+                    for index, child in enumerate(item)
+                ]
+            finally:
+                active.remove(identity)
+        fail(current_path, "unsupported_type")
+
+    if max_depth < 0 or max_nodes < 1:
+        raise ValueError("JSON materialization limits must be positive")
+    return visit(value, path, 0)
 
 
 def _object(
@@ -635,7 +707,11 @@ class ProviderFailure(Exception):
         object.__setattr__(self, "redacted_details", safe_details)
         object.__setattr__(self, "remediation", remediation)
         object.__setattr__(self, "correlation_digest", correlation_digest)
-        _strict_json(safe_details, "provider_failure.redacted_details")
+        _materialize_json_transport(
+            safe_details,
+            "provider_failure.redacted_details",
+            error_code="provider_failure_details_invalid",
+        )
         Exception.__init__(self, safe_message)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -667,9 +743,12 @@ def validate_codec_result(
 ) -> tuple[Dict[str, Any], CodecReport]:
     """Validate ownership/JSON/loss boundaries shared by every codec."""
 
-    _strict_json(payload, "provider_payload")
     report.assert_acceptable(allow_loss=allow_loss)
-    isolated = json.loads(json.dumps(payload, ensure_ascii=False, allow_nan=False))
+    isolated = _materialize_json_transport(
+        payload,
+        "provider_payload",
+        error_code="codec_payload_invalid",
+    )
     return isolated, CodecReport.from_dict(report.to_dict())
 
 

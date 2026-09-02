@@ -6,6 +6,7 @@ import asyncio
 import inspect
 import logging
 import os
+import re
 import sys
 import time
 import traceback
@@ -36,6 +37,7 @@ from ..core.tool_result import ToolResult
 from ..trace import TraceWriter
 from ..protocols import get_protocol, infer_protocol_from_parser
 from ..models.profile_registry import infer_default_protocol, infer_model_profile
+from ..models.codec import CodecError, ProviderFailure
 from ._action_runtime import _ActionRuntime
 from ._context_runtime import _ContextRuntime
 from ._control_runtime import _ControlRuntime
@@ -179,7 +181,15 @@ class EngineResult(Generic[StateT]):
     run_id: str = ""
     critic_traces: List[CriticTrace] = field(default_factory=list)
     handoff_traces: List[HandoffTrace] = field(default_factory=list)
+    failure: Optional[Dict[str, Any]] = None
     _cancel_token: Optional[CancelToken] = None
+
+    @property
+    def error_code(self) -> Optional[str]:
+        if not isinstance(self.failure, dict):
+            return None
+        value = self.failure.get("error_code")
+        return str(value) if isinstance(value, str) and value else None
 
     def cancel(self, mode: str = "immediate") -> None:
         """Request cancellation of the running Engine.
@@ -271,6 +281,8 @@ class EngineResult(Generic[StateT]):
             "step_summaries": [item.to_dict() for item in self.step_summaries],
             "critic_traces": [ct.to_dict() for ct in self.critic_traces],
             "handoff_traces": [ht.to_dict() for ht in self.handoff_traces],
+            "failure": dict(self.failure) if isinstance(self.failure, dict) else None,
+            "error_code": self.error_code,
             "task_result": task_result_dict,
             "state": self.state.to_dict() if hasattr(self.state, "to_dict") else self.state,
         }
@@ -1608,6 +1620,11 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             run_id=self._active_run_id,
             critic_traces=_critic_traces,
             handoff_traces=_handoff_traces,
+            failure=(
+                dict(self._last_runtime_error)
+                if isinstance(self._last_runtime_error, dict)
+                else None
+            ),
             _cancel_token=self._cancel_token,
         )
         self._notify_run_end(result)
@@ -1829,6 +1846,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         ``unrecoverable_error`` and no useful diagnostics in redirected logs.
         """
         phase_name = getattr(phase, "value", str(phase))
+        safe_fact = self._runtime_failure_fact(phase_name, step_id, exc)
         traceback_text = "".join(
             traceback.format_exception(type(exc), exc, exc.__traceback__)
         )
@@ -1839,15 +1857,18 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             "error_message": str(exc),
             "traceback": traceback_text,
         }
-        self._last_runtime_error: Optional[Dict[str, Any]] = payload
+        self._last_runtime_error: Optional[Dict[str, Any]] = safe_fact
+
+        typed_boundary_failure = isinstance(exc, (CodecError, ProviderFailure))
 
         print(
             f"[QitOS] runtime exception phase={phase_name} step={step_id} "
-            f"type={type(exc).__name__}: {exc}",
+            f"type={type(exc).__name__} code={safe_fact['error_code']}",
             file=sys.stderr,
             flush=True,
         )
-        print(traceback_text, file=sys.stderr, end="", flush=True)
+        if not typed_boundary_failure:
+            print(traceback_text, file=sys.stderr, end="", flush=True)
 
         error_log = os.environ.get("QITOS_ERROR_LOG", "").strip()
         if not error_log:
@@ -1863,7 +1884,13 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                         f"\n{'=' * 60}\nQitOS RUNTIME EXCEPTION "
                         f"phase={phase_name} step={step_id}\n"
                     )
-                    stream.write(traceback_text)
+                    if typed_boundary_failure:
+                        stream.write(
+                            f"error_code={safe_fact['error_code']} "
+                            f"error_category={safe_fact['error_category']}\n"
+                        )
+                    else:
+                        stream.write(traceback_text)
                     stream.flush()
             except Exception as log_exc:
                 _logger.warning("Failed to write QitOS error log %s: %s", error_log, log_exc)
@@ -1874,11 +1901,47 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                     int(step_id),
                     RuntimePhase.RECOVER,
                     ok=False,
-                    payload=payload,
-                    error=str(exc),
+                    payload=safe_fact if typed_boundary_failure else payload,
+                    error=str(safe_fact["error_code"]),
                 )
             except Exception as emit_exc:
                 _logger.warning("Failed to emit QitOS recovery diagnostic: %s", emit_exc)
+
+    def _runtime_failure_fact(
+        self, phase: str, step_id: int, exc: Exception
+    ) -> Dict[str, Any]:
+        if isinstance(exc, ProviderFailure):
+            code = exc.error_code or "provider_transport_failure"
+            category = exc.category
+        elif isinstance(exc, CodecError):
+            declared_code = str(
+                getattr(exc, "code", "codec_error") or "codec_error"
+            )
+            category = str(
+                getattr(exc, "diagnostic_code", "codec_failure")
+                or "codec_failure"
+            )
+            code = (
+                category
+                if declared_code == "codec_capability_mismatch"
+                else declared_code
+            )
+        else:
+            candidate = getattr(exc, "code", None)
+            code = (
+                str(candidate)
+                if isinstance(candidate, str)
+                and re.fullmatch(r"[a-z][a-z0-9_.-]{2,127}", candidate)
+                else "runtime_failure"
+            )
+            category = "runtime_failure"
+        return {
+            "phase": str(phase),
+            "step_id": int(step_id),
+            "error_type": type(exc).__name__,
+            "error_code": code,
+            "error_category": category,
+        }
 
     def _recover(self, state: StateT, phase: RuntimePhase, exc: Exception) -> bool:
         step_id = int(getattr(state, "current_step", len(self.records) - 1) or 0)

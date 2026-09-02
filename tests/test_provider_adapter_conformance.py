@@ -4,6 +4,7 @@ import hashlib
 import json
 from dataclasses import replace
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Dict, Mapping, Optional
 
 import pytest
@@ -31,6 +32,7 @@ from qitos.models.codec import (
     report_for_request,
     validate_codec_result,
 )
+from qitos.config.credentials import SecretValue
 from qitos.models.gemini import GeminiModel
 from qitos.models.litellm import LiteLLMModel
 from qitos.models.local import (
@@ -463,6 +465,103 @@ def test_request_transform_is_replaceable_and_transport_options_are_isolated() -
     assert transaction.codec_report.warnings[-1] == (
         "x.fixture.request_transform/v1"
     )
+
+
+def test_transport_boundary_materializes_nested_immutable_options_and_isolates_ownership() -> None:
+    class CaptureAdapter(AcmeAdapter):
+        def __init__(self) -> None:
+            self.payload: Optional[Mapping[str, Any]] = None
+
+        def qitos_transport(self, payload: Mapping[str, Any]) -> Any:
+            self.payload = payload
+            return {"accepted": True}
+
+    mutable = {"flags": [True, False]}
+    options = MappingProxyType(
+        {
+            "chat_template_kwargs": MappingProxyType(
+                {"enable_thinking": False, "nested": mutable}
+            ),
+            "mixed": (1, [2, MappingProxyType({"value": True})]),
+        }
+    )
+    adapter = CaptureAdapter()
+
+    execute_provider_request(
+        adapter,
+        _request(adapter.qitos_request_target()),
+        transport_options=options,
+    )
+
+    assert adapter.payload is not None
+    projected = adapter.payload["options"]
+    assert type(projected) is dict
+    assert type(projected["chat_template_kwargs"]) is dict
+    assert type(projected["mixed"]) is list
+    assert projected["chat_template_kwargs"]["enable_thinking"] is False
+    mutable["flags"].append(True)
+    assert projected["chat_template_kwargs"]["nested"]["flags"] == [True, False]
+    projected["chat_template_kwargs"]["nested"]["flags"].append(False)
+    assert mutable["flags"] == [True, False, True]
+
+
+@pytest.mark.parametrize(
+    ("invalid", "category"),
+    [
+        ({1: "value"}, "non_string_key"),
+        ({"value": float("nan")}, "non_finite_number"),
+        ({"value": float("inf")}, "non_finite_number"),
+        ({"value": {"item"}}, "unsupported_type"),
+        ({"value": frozenset({"item"})}, "unsupported_type"),
+        ({"value": b"bytes"}, "unsupported_type"),
+        ({"value": object()}, "unsupported_type"),
+        ({"value": lambda: None}, "unsupported_type"),
+        ({"value": SecretValue("private-value")}, "unsupported_type"),
+    ],
+)
+def test_transport_boundary_rejects_non_json_values_without_echo(
+    invalid: Any, category: str
+) -> None:
+    adapter = AcmeAdapter()
+
+    with pytest.raises(CodecCapabilityError) as caught:
+        execute_provider_request(
+            adapter,
+            _request(adapter.qitos_request_target()),
+            transport_options=invalid,
+        )
+
+    assert caught.value.code == "codec_transport_options_invalid"
+    assert category in str(caught.value)
+    assert "private-value" not in str(caught.value)
+    assert "SecretValue" not in str(caught.value)
+
+
+def test_transport_boundary_rejects_cycles_depth_nodes_and_sensitive_paths() -> None:
+    adapter = AcmeAdapter()
+    cycle: list[Any] = []
+    cycle.append(cycle)
+    deep: Any = None
+    for _ in range(66):
+        deep = [deep]
+    oversized = [None] * 10001
+
+    for invalid, category in (
+        ({"cycle": cycle}, "cycle_detected"),
+        ({"deep": deep}, "depth_limit_exceeded"),
+        ({"oversized": oversized}, "node_limit_exceeded"),
+        ({"sk-private-value": object()}, "unsupported_type"),
+    ):
+        with pytest.raises(CodecCapabilityError) as caught:
+            execute_provider_request(
+                adapter,
+                _request(adapter.qitos_request_target()),
+                transport_options=invalid,
+            )
+        rendered = str(caught.value)
+        assert caught.value.code == "codec_transport_options_invalid"
+        assert category in rendered
+        assert "sk-private-value" not in rendered
 
 
 def test_codec_loss_rejects_by_default_and_explicit_acceptance_has_report() -> None:
