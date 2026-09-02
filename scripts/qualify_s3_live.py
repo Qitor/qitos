@@ -377,7 +377,11 @@ def _informational_smoke_profile(
         if request_view is not None
         else ""
     )
-    session_isolated = bool(request_view_json) and sentinel_text not in request_view_json
+    task_isolated = inspection.task == task and sentinel_text not in inspection.task
+    request_view_available = bool(request_view_json)
+    session_isolated = task_isolated and (
+        not request_view_available or sentinel_text not in request_view_json
+    )
     native_request_expressed = bool(
         request_view is not None and request_view.tool_schemas
     )
@@ -442,6 +446,8 @@ def _informational_smoke_profile(
         "root_error_code": root_code,
         "lifecycle_consequence": session.lifecycle.value,
         "session_isolated": session_isolated,
+        "session_task_isolated": task_isolated,
+        "request_view_available": request_view_available,
         "request_view_digest": (
             _sha256_text(request_view_json) if request_view_json else None
         ),
