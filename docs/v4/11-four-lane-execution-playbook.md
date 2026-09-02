@@ -1,30 +1,23 @@
 # v4 four-lane execution playbook
 
 Status: active dispatch specification
-Updated: 2026-09-01
+Updated: 2026-09-02
 Nature: orchestration document, not a fifth architecture or a new public API
-Source tasks: Tasks 02–05 and 08–13
+Source tasks: Tasks 02–05 and 08–15
 Baseline: Task 01 complete; exact current integration status lives in
 [`docs/progress.md`](../progress.md)
 
-Current dispatch state: **S3 deterministic candidate and G4-L2 config/sandbox
-qualification passed; live Agent workflow failed; promotion blocked.** The durable single-agent vertical and clean-process restore were
-qualified, promoted, repeated in the primary checkout, pushed, and verified at
-fixed pre-S3-closure source `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`;
-the previous-wave worktrees were retired without force and their branch refs
-remain. The historical S2 lane baseline `446a347...` and G3 integration source
-`47cd4dc...` remain provenance only. The four S3 lanes must branch from the one
-complete remote SHA published by this S3 dispatch closure, never from either
-historical source. The fixed `851f790...` replay subsequently converged the four
-S3 lanes and passed twenty deterministic process-loss rounds. It remains an
-unpromoted candidate. A single strict `AgentConfig` composition path, local
-credential-reference resolution, executable Docker qualification, and all
-sixteen prerequisite gates passed before live use. The later provider preflight
-proved two native-tool routes and one typed capability loss, but the required
-coding/restore workflows failed and one route exceeded its request cap.
-Trajectory v2 remains
-unfrozen, its candidate reader is not the qita default, and distributed or
-external-effect exactly-once behavior is not claimed.
+Current dispatch state: **S3/G4 is closed; S4 is authorized only from
+`f07b38647cf3b18a5235581224a1153b88fac397`.** The final baseline is present
+locally and remotely with zero divergence, and all five clean S3 worktrees were
+retired without force while their branch refs were retained. Required
+qualification is deterministic framework conformance. Bounded live-model runs
+are an informational capability matrix unless they expose a framework
+invariant violation. The S4 execution contract is
+[`Task 15`](15-public-framework-graduation.md): converge the public authoring
+path, harden the managed sandbox, freeze and roll out Trajectory/qita, qualify
+extensions and packaging, and preserve one `AgentModule + Engine` architecture.
+Historical G1–G4 instructions below remain provenance, not current dispatch.
 
 ---
 
@@ -984,7 +977,7 @@ fifth implementation. Its responsibilities are:
 5. run gate-level verification on the integrated branch;
 6. update task evidence/status and record stop-gate decisions.
 
-### 10.1 Current S3 convergence dashboard
+### 10.1 Final S3 convergence dashboard (closed)
 
 | Lane | Current package | Branch/PR | Lease | Producer/consumer gate | Gate status |
 |---|---|---|---|---|---|
@@ -993,11 +986,12 @@ fifth implementation. Its responsibilities are:
 | C | durable multi-agent scheduler | `codex/v4-s3-c-durable-work-runtime` | WorkGraph/work runtime/tool adapters | real A/B receipts and reconstructable descriptors published to D | qualified candidate |
 | D | work-graph observability and DX | `codex/v4-s3-d-graph-observability` | tracing/qita/evaluate/examples | exact A/B/C facts, two patterns, public-shape example | qualified candidate |
 
-G4 deterministic convergence passed twenty rounds. Three provider/model profiles
-produced real typed preflight outcomes, but bounded Agent execution failed; the
-independent live gate is `workflow_failure` and the request budget is no longer
-clean. The dashboard does not authorize promotion, push, cleanup, or
-default-branch readiness.
+G4 deterministic convergence and R5 framework qualification passed. The
+candidate was fast-forwarded, independently revalidated in the main checkout,
+pushed without force, and its five lane/convergence worktrees were retired
+without deleting refs. The final closure baseline is `f07b386...`. Live model
+behavior remains informational; default-branch and release readiness remain
+false pending S4/G5.
 
 ### 10.1.1 Historical G2 contract-stage dashboard (superseded)
 
@@ -1039,15 +1033,14 @@ worktree as removable. Such a path blocks wave closure until reconciled.
 
 ## 11. Immediate dispatch order
 
-The current instruction is the
-[`S3 durable multi-agent wave`](../internal/plans/s3_durable_multi_agent_wave.md).
-All four lanes receive the same complete remote SHA from the S3 dispatch
-promotion receipt, use independent branches/worktrees, and freeze producers in
-the order A -> B -> C -> D before G4 convergence. A owns Session fork/ownership,
-B owns context/continuation/authority transfer, C consumes their real committed
-types and fixtures to implement the durable scheduler, and D consumes real
-A/B/C runtime facts for exact-source qualification and read-only DX. Copied
-enums/fixtures or consumer simulations do not count as integration.
+The current instruction is
+[`Task 15 — public framework graduation`](15-public-framework-graduation.md).
+All four S4 lanes must use the exact baseline
+`f07b38647cf3b18a5235581224a1153b88fac397` in separate worktrees. Lane A
+freezes the authoring/Session/CLI contract; B and C deliver the model/context
+and tool/sandbox producers; D consumes exact facts for Trajectory/qita,
+documentation, evaluation, and distribution; G5 owns final integration and
+default switches. The S3 wave below is historical and superseded.
 
 The following S2 dispatch instruction is **historical and superseded**. The
 G2-R2 task defined by

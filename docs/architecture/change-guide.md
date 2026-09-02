@@ -41,7 +41,7 @@ Boundary rules behind this table: [module-boundaries.md](module-boundaries.md). 
 ## Agent and kernel
 
 **Add/change declarative Agent launch configuration**
-→ Evolve the single `qitos.config.AgentConfig` and strict `qitos.agent/v1`
+→ Evolve the single `qitos.config.AgentConfig` and strict `qitos.agent`
 loader in place; compose through `build_agent_composition`. Keep `qit run` a
 thin dispatch and reuse `ModelFactory`, `ToolRegistry`, `Env`,
 `RuntimeComposition`, checkpoint stores, `AgentModule`, and `Engine`.

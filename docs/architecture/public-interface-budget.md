@@ -120,9 +120,9 @@ default, and public `V1`, `V2`, `Legacy`, `Next`, or parallel Agent/Session/
 Runtime type tracks are forbidden. The full review contract is in
 [`s3_durable_multi_agent_wave.md`](../internal/plans/s3_durable_multi_agent_wave.md).
 
-## G4 candidate review
+## G4 promoted review
 
-The converged S3 candidate reuses the existing Session façade and module-level
+The promoted S3 baseline reuses the existing Session façade and module-level
 extension protocols. Its executable aggregate budget remains exactly 41 root exports,
 27/24/28/22 reviewed aggregate exports (101 total), and 34
 `Engine.__init__` parameters including `self`. G4-L3 additionally classifies the
@@ -132,4 +132,7 @@ Agent/Session/Runtime type was added. R5 adds durable request-budget state,
 Session inspection facts, bounded model projection, and provider failure stages
 behind those existing contracts. Promotion is controlled by deterministic
 `FRAMEWORK_CONFORMANCE`; live Agent capability is separately informational.
-The candidate Trajectory schema stays unfrozen.
+The candidate Trajectory schema stays unfrozen. S4 public-surface decisions are
+governed by [`Task 15`](../v4/15-public-framework-graduation.md); the fixed
+starting budget remains unchanged until an itemized G5 review approves a
+contraction or narrowly justified addition.

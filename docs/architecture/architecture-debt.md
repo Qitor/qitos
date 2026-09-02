@@ -48,11 +48,20 @@ Legend: **P0** structural risk (blocks refactors / can break imports), **P1** im
 - D1 evidence (2026-08-29): exact consumers and missing receipt joins are listed in the Lane D census. Benchmark/fixture materialization explicitly blocks on Lane C timeout/cancellation, durability, hook-failure, and redaction fixtures rather than inferring their fields.
 - G3 convergence (2026-08-31): the single-agent Session path now records typed provider failure, lifecycle/effect uncertainty, partial-slot durability, required/optional sink delivery, and paused-head persistence. Python-thread/remote cancellation and external effect reconciliation remain capability-owned; generic hook swallowing outside the EventSink bridge remains D12 rather than being relabeled solved.
 
-### D32. Session and multi-agent continuity are fragmented across in-process primitives
+### D32. ~~Session and multi-agent continuity are fragmented across in-process primitives~~ — RESOLVED FOR THE LOCAL DURABLE RUNTIME
 - Where: `Engine.init_session`/`step`, `RunState`, checkpoint v2 `thread_id`, interrupt/resume, qita fork, `_handoff_runtime`, `DelegateTool`, and `FanOutTool` each carry part of session or child-work state.
 - Why P0: a fresh process cannot reconstruct one authoritative execution head with task, concrete state schema, exchanges, partial tool batch, context/artifacts, owner, children, budgets, and trace cursor. Handoff mutates live ownership and delegate/fan-out workers have no durable work graph, so restart can duplicate or orphan work.
-- Exit: Task 12 converges checkpoint v2 into one session-head/immutable-snapshot protocol and proves clean-process resume; Task 13 builds handoff/delegate/fan-out/spawn/fork/join over generation-checked work items. Task 05 does not freeze trajectory v2 before their lineage contracts land.
-- G3 convergence (2026-08-31): the single-agent half is closed through one checkpoint-backed Session head, canonical conversation/tool components, safe pause, and a 20-round fresh-process proof. The multi-agent half remains open: no persistent child scheduler, durable handoff/delegate/fan-out/spawn/join execution, or S3 process-loss drill has landed.
+- Resolution: Tasks 12–13 now provide one checkpoint-backed Session head,
+  immutable snapshots, safe pause/restore/fork, generation/owner fencing,
+  explicit context transfer, reconstructable work descriptors, and one durable
+  local WorkGraph runtime for handoff/delegate/fan-out/spawn/join. G4 qualified
+  deterministic clean-process and process-loss recovery before the result was
+  promoted in the S3 closure baseline.
+- Remaining boundary: this resolution does not claim a distributed scheduler,
+  external-world exactly-once effects, or hard cancellation. S4 owns public DX,
+  sandbox binding, and Trajectory/qita rollout; those are follow-on graduation
+  work rather than evidence that the local continuity architecture remains
+  fragmented.
 
 ## P1 — Important architecture debt
 

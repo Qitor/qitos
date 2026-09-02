@@ -1,12 +1,17 @@
-# Task 05 — trajectory store v2 and observability migration
+# Task 05 — trajectory store and observability migration
 
-Status: S3 deterministic lineage qualified; schema/publication remains blocked
-on live execution evidence and the S4 rollout review
+Status: S3/G4 runtime and lineage producers promoted; S4 schema, canonical
+writer, qita-default, publication, and migration review open
 Depends on: Task 02 exchanges; Task 04 artifacts; Tasks 12–13 lineage
 Milestone: final v4 data-plane migration
 Risk: high — frozen v1 compatibility, replay, and research data fidelity
 
 ---
+
+Naming rule: earlier evidence uses “trace v1” and “trajectory v2” to distinguish
+historical wire formats. The stable S4 public architecture exposes only
+`Trajectory`, its store/reader/exporter protocols, and an internal historical
+trace compatibility reader; it does not expose version-suffixed public classes.
 
 ## G3 qualification split (2026-08-31)
 
@@ -27,19 +32,14 @@ schema-freeze, publication, compression, indexing, deduplication, or performance
 claim is made. G4 durable multi-agent lineage and publication evidence remain
 prerequisites.
 
-The S3 convergence candidate does not promote this plane. Lane D consumes exact work-graph
-facts and add read-only inspection only after real A/B/C producers exist; it may
-not freeze the schema, switch the writer/store/reader defaults, or make qita a
-mutation authority. Those rollout decisions remain S4 work after G4.
-
-The deterministic G4 candidate now proves clean-process work/session/ownership/
-join lineage and read-only qita graph/timeline inspection across twenty
-independent SQLite rounds. That evidence qualifies the runtime input to this
-task, but it does not freeze the candidate schema, enable its writer, change the
-qita default from frozen trace-v1, or authorize publication. Three live-model
-profiles produced typed live preflight outcomes, but no complete tool-using
-Agent workflow or live qita inspection passed. Qualification is therefore
-`workflow_failure`; no trajectory publication is authorized.
+The promoted S3/G4 baseline now supplies exact Session, WorkGraph, ownership,
+join, sandbox, provider, budget, and loss facts plus read-only qita graph and
+timeline inspection. Deterministic process-loss qualification is the authority
+for those framework facts; live-model task completion is informational. This
+closes the runtime-producer dependency but deliberately does not freeze the
+Trajectory schema, enable its writer by default, change qita's default reader,
+or authorize publication. Those decisions remain the S4 Lane D and G5 rollout
+gate defined by [`Task 15`](15-public-framework-graduation.md).
 
 ## 1. Goal
 
@@ -90,11 +90,13 @@ contract ID from caller-supplied version/digest/fixture qualification receipts;
 missing fixture files do not become implicit qualifications, and the repository
 contains no fabricated passing receipt.
 
-Still blocked on Lane B: versioned ExchangeLog, RequestView, CodecReport,
-provider-continuation opaque fields, ArtifactRef, and compaction report. Still
-blocked on Lane C: versioned canonical tool outcome, timeout/cancellation and
-durability receipts, hook failure fields, and trace-safe redaction. Trajectory
-v2 schema is not frozen.
+Historical D1 blocker state: at this point Lane B had not yet supplied
+ExchangeLog, RequestView, CodecReport, continuation, ArtifactRef, or compaction
+facts, and Lane C had not supplied canonical tool outcomes, lifecycle receipts,
+or trace-safe projections. Those producer dependencies are now present in the
+promoted S3/G4 baseline. The remaining blocker is S4 exact consumption,
+publication qualification, migration proof, and the deliberate schema/default
+decision—not missing B/C contract invention.
 
 ## 3. Canonical data model
 

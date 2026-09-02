@@ -1,9 +1,8 @@
 # S3 durable multi-agent wave
 
-Status: deterministic G4 candidate qualified; live profiles configured;
-execution evidence and promotion blocked
-Updated: 2026-09-01
-Owner: G4 integration owner
+Status: closed and promoted; superseded for dispatch by Task 15
+Updated: 2026-09-02
+Owner: historical G4 integration owner
 Source baseline before this documentation closure:
 `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`
 
@@ -383,13 +382,14 @@ cancellation, detachment, budgets, capabilities, privacy, direct/tool parity,
 consumer, example, and qita facts remain coherent.
 
 The frozen public-surface counts remain 41/27/24/28/22/101/34. Candidate
-Trajectory remains unfrozen and off; qita's default remains frozen trace-v1.
-Three OpenAI-compatible live profiles are now registered through external,
-endpoint-specific credential references; no credential value is stored in the
-repository. Capability preflight later completed, but the disposable Agent
-workflows failed and one profile exceeded its request cap, so
-`live_model_qualification=workflow_failure`. Consequently
-the candidate is not promoted or pushed, source worktrees are retained, and no
-S3 release/default-branch readiness claim is authorized. The exact replay ledger
-and deterministic validation receipts live in
-[`s3_g4_convergence_evidence.md`](s3_g4_convergence_evidence.md).
+Trajectory remains unfrozen and off; qita's default remains the historical
+trace compatibility reader. R5 subsequently separated required deterministic
+framework conformance from informational live Agent/model capability, closed
+the remaining isolation/budget/projection/provider-stage defects, and promoted
+the integrated result. The final pushed S4 baseline is
+`f07b38647cf3b18a5235581224a1153b88fac397`; all five clean S3 worktrees were
+removed without force while their branch refs were retained. This does not make
+the default branch or a release ready. Exact convergence history remains in
+[`s3_g4_convergence_evidence.md`](s3_g4_convergence_evidence.md), and final R5
+qualification is recorded in
+[`s3_g4_l3_qualification_evidence.md`](s3_g4_l3_qualification_evidence.md).

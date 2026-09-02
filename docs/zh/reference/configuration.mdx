@@ -23,11 +23,12 @@ canonical `qitos.agent` YAML 根节点固定包含 `schema`、`agent`、`model`�
 失败关闭。仓库提供了
 [`examples/config/agent.yaml`](../../../examples/config/agent.yaml) 这一份供应商无关示例。
 
-`qitos.agent/v1` 只由兼容 reader 接受；canonical writer、示例、CLI receipt
-与文档只输出 `qitos.agent`，也不创建带版本后缀的公共 AgentConfig 类型。
-加载对象深度不可变；canonical JSON 确定且不含已解析 credential、live
-client、本机 source path 或 runtime object。等价配置产生相同 digest，该
-digest 会绑定启动 receipt、Session snapshot/restore 与 Trajectory provenance。
+历史 schema 拼写只由内部兼容 reader 接受；canonical writer、示例、CLI
+receipt 与文档只输出 `qitos.agent`，也不创建带版本后缀的公共 AgentConfig
+类型。加载对象深度不可变；canonical JSON 确定且不含已解析 credential、
+live client、本机 source path 或 runtime object。等价配置产生相同 digest，
+该 digest 会绑定启动 receipt、Session snapshot/restore 与 Trajectory
+provenance。
 
 配置只保存逻辑凭据引用，不保存凭据值：
 

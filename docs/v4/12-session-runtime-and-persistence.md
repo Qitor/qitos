@@ -1,9 +1,7 @@
 # Task 12 — durable session runtime and process-independent resume
 
-Status: 12B–D promoted; S3 fork/ownership deterministic candidate qualified;
-G4-L2 canonical restore composition qualified offline; live workflow failed;
-promotion blocked;
-qita/default migration remains S4
+Status: durable Session, clean-process restore, fork, and ownership promoted;
+S4 public composition/CLI/default migration remains open
 Depends on: Task 01; coordinates with Tasks 02, 03, 04, and 09
 Unblocks: Task 05 schema freeze, Task 13 durable multi-agent work, and the v4
 long-horizon reference flow
@@ -15,7 +13,7 @@ public runtime ergonomics
 ## 1. Goal
 
 G4-L2 now gives fresh-process restore one declarative authority:
-`qitos.agent/v1` is reloaded, the logical `CredentialRef` is re-resolved at the
+`qitos.agent` is reloaded, the logical `CredentialRef` is re-resolved at the
 new composition boundary, and the existing SQLite store and `Engine.restore`
 reconstruct the Session. Neither the secret nor a live resolver/client is
 serialized into the Session snapshot. This is a bounded qualification of the
@@ -363,10 +361,11 @@ The A source branch remains fixed at
 bound at `1025f121d6de7fd3cff9e71558de44df3d36134a`.
 
 Twenty G4 graph process-loss rounds plus twenty declaration/preparation-crash
-rounds exercise these facts through the integrated multi-agent runtime. This is deterministic candidate evidence, not a promoted
-baseline or an exactly-once guarantee for external effects. Live qualification
-is blocked by absent configuration and qita's default-reader migration remains
-S4.
+rounds exercise these facts through the integrated multi-agent runtime. R5 then
+qualified Session isolation and request-budget recovery before the result was
+promoted in the final S3/G4 baseline. This is a promoted local durable-runtime
+fact, not an exactly-once guarantee for external effects. Public composition,
+CLI ergonomics, and qita's default-reader migration remain S4.
 
 ## 15. R5 Session isolation and durable request accounting
 

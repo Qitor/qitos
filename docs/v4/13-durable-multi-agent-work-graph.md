@@ -1,6 +1,7 @@
 # Task 13 — durable multi-agent work graph and ownership transfer
 
-Status: S3 durable runtime deterministic candidate qualified; live promotion blocked
+Status: S3 durable WorkGraph runtime promoted; S4 public DX, sandbox binding,
+and extension graduation remain open
 Depends on: Task 12A–12D; consumes Tasks 02, 03, and 04 contracts
 Feeds: Task 05 lineage/observability, Task 10 convergence, and native multi-agent
 research methods
@@ -338,15 +339,16 @@ unrelated consumer patterns and the compact coding-agent example pass. The
 candidate intentionally makes no distributed scheduler, hard-cancellation, or
 external-effect exactly-once claim.
 
-Live-model qualification is `workflow_failure`: all three profiles produced
-typed preflight outcomes, and one live run exercised distinct child lineage,
-ContextTransfer, join declaration, and fresh-process restore, but no complete
-tool-using Agent workflow passed and one route exceeded its request cap. This
-receipt therefore does not promote or push a baseline and does not authorize
-source-worktree cleanup or a default-branch readiness claim. Candidate
-Trajectory remains unfrozen/off and qita remains on frozen trace-v1. Exact live
-evidence is in
-[`s3_g4_live_qualification_evidence.md`](../internal/plans/s3_g4_live_qualification_evidence.md).
+R5 reclassified bounded live-model behavior as an informational capability
+matrix while retaining framework invariants as deterministic requirements. The
+integrated runtime passed the exact recovery, identity, budget, sandbox,
+privacy, and WorkGraph gates and was promoted in the final S3/G4 baseline. The
+informational GLM smoke ended with typed `malformed_structured_response` after
+two exactly accounted requests and exposed no framework invariant failure.
+Candidate Trajectory remains unfrozen/off and qita remains on the historical
+trace compatibility default; their rollout belongs to S4. Earlier live failures
+remain immutable provenance in
+[`s3_g4_l3_qualification_evidence.md`](../internal/plans/s3_g4_l3_qualification_evidence.md).
 
 ## 16. R5 explicit child transfer and budget authority
 

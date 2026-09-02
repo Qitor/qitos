@@ -2,7 +2,7 @@
 
 Status: active acceptance anchor
 Updated: 2026-08-31
-Scope: Tasks 01–05 and 08–14
+Scope: Tasks 01–05 and 08–15
 
 ---
 
@@ -21,7 +21,7 @@ heuristics, and task-specific renderers remain out of tree.
 ## 2. What success means
 
 G4-L2 adds an admission condition shared by these gates: a complete launch must
-come from the strict, digest-bound `qitos.agent/v1` configuration and resolve
+come from the strict, digest-bound `qitos.agent` configuration and resolve
 credentials only at composition. A sixteen-gate offline round now proves the
 parser, resolvers, native-tool continuation, Session/process restore, real
 Docker qualification, privacy, and reachable success state before any live
@@ -143,6 +143,7 @@ Task 01 baseline ──→ Task 02 model I/O ──→ Task 04 context/artifacts
 Tasks 02–04 + 09 ──→ Task 12 durable sessions ──→ Task 13 multi-agent work graph
              Tasks 12–13 lineage ───────────────→ Task 05 schema freeze/qita
 Tasks 03 + 09 + 12–13 ──→ Task 14 safe sandbox execution ──→ S4/G5 public DX
+Tasks 02–05 + 08–14 ───────────────────────────────────────→ Task 15 graduation
 ```
 
 Task 02 and Task 03 may proceed independently after Task 01. Task 04 depends on
@@ -160,16 +161,16 @@ Task 05 may continue its census, fixture qualification, and benchmark scaffold,
 but it does not freeze trajectory v2 until session/run/work-item/ownership
 lineage from Tasks 12–13 is available.
 
-Current gate truth: S2 is closed and promoted. The S3 convergence candidate now
-contains Session fork, authority transfer, a durable multi-agent scheduler, and
-graph-aware read-only qita consumption, and its deterministic G4 tests pass. It
-is not yet promoted: registered live-model profiles still lack executable
-capability/trajectory/agent receipts. Trajectory remains unfrozen and the
-candidate reader is not the qita default. The executable S3 ownership and G4
-matrix live in
-[`s3_durable_multi_agent_wave.md`](../internal/plans/s3_durable_multi_agent_wave.md).
-Task 14 is now a required S4/G5 architecture because current `DockerEnv` provides
-Docker execution but not a qualified untrusted-code sandbox.
+Current gate truth: S3/G4 is closed and promoted at the final pushed baseline
+`f07b38647cf3b18a5235581224a1153b88fac397`. Deterministic framework
+conformance, Session and WorkGraph recovery, bounded request admission and
+projection, the reference Docker contract, packaging, privacy, and cleanup are
+qualified. Live-model behavior is an informational capability matrix unless it
+reveals a framework invariant violation. Trajectory remains unfrozen and the
+candidate reader is not yet qita's default. S4 is authorized from that one
+baseline by [`Task 15`](15-public-framework-graduation.md); it owns public API
+convergence, complete sandbox hardening, Trajectory/qita rollout, distribution,
+and default-safe developer experience.
 
 The authoritative multi-agent dispatch and merge sequence is
 [`11-four-lane-execution-playbook.md`](11-four-lane-execution-playbook.md). It

@@ -1,7 +1,7 @@
 # Task 14 — sandboxed agent execution
 
-Status: G4-L3 reference contract implemented and under final qualification;
-stronger isolation and the complete managed-sandbox architecture remain planned
+Status: G4-L3 reference contract promoted; S4 task-exclusive staging, stronger
+isolation, independent-backend qualification, and public DX remain planned
 Depends on: Tasks 03, 09, 12, and 13
 Feeds: Task 05 trajectory qualification, S4 developer experience, release gate
 Risk: critical — agents execute model-selected code against files, processes,

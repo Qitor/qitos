@@ -1,6 +1,7 @@
 # G4-L3 stable config, sandbox, and live-workflow evidence
 
-Status: deterministic gates passed; live provider transport blocked at request ceiling
+Status: G4-R5 framework conformance promoted; earlier live failures retained as
+immutable historical evidence
 Updated: 2026-09-02
 Fixed baseline: `851f7902f15da670e72f4c04d7453cf37201aee7`
 Candidate branch: `codex/v4-s3-g4-convergence`

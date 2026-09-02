@@ -17,7 +17,8 @@ S3 convergence source: `851f7902f15da670e72f4c04d7453cf37201aee7`
 Current gate: **S3/G4 CLOSED; S4 READY FROM THE FINAL PUSHED CLOSURE COMMIT;
 LIVE AGENT CAPABILITY REMAINS INFORMATIONAL**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
-Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md),
+Next architecture: [`Task 15 public framework graduation`](v4/15-public-framework-graduation.md),
+building on [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md),
 [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md),
 and [`Task 14 sandboxed agent execution`](v4/14-sandboxed-agent-execution.md)
 
@@ -71,6 +72,49 @@ S3 lane/convergence refs. The docs-only commit containing this closure record
 is the unique S4 dispatch baseline once its second non-force push is verified;
 there is no earlier candidate baseline. `S3_STATUS=closed`, `G4_STATUS=closed`,
 `S4_READY=true`, while `DEFAULT_BRANCH_READY=false` and `RELEASE_READY=false`.
+
+## Independent post-closure audit and S4 disposition (2026-09-02)
+
+The primary checkout was independently verified clean on
+`feat/campaign-absorption` at
+`f07b38647cf3b18a5235581224a1153b88fac397`. Its tracking ref and
+`git ls-remote` result match with divergence `0/0`; only the primary worktree is
+registered, while all five S3 lane/convergence branch refs remain reachable.
+The code qualification head `901e972...` and promoted evidence head
+`1915c299...` are ancestors of the final baseline. The committed live runner's
+SHA-256 is `c673ad3a62276c1a4f6fd7288250a877681b8753374f140d5115a5c6687e5034`,
+matching the redacted R5 receipt.
+
+Source review confirmed that each Session binds and clears reusable Engine
+state, child work is rebased from explicit transfer facts, model-request
+admission advances the durable counter before transport, large canonical tool
+and environment facts use bounded loss-explicit model projections, and provider
+encode/projection/transport/decode failures retain typed non-echoing stages.
+An independent 153-test matrix over configuration/provider transport, model
+projection, provider adapters, ToolResult, live-qualification decisions, and
+durable WorkGraph runtime passed in 10.90 seconds on Python 3.12.7. After the
+documentation corrections, 24 architecture/workflow/path/public-interface
+tests passed, the static ratchet passed with 367 existing findings (345 active,
+22 vendored/generated), the full suite passed with `2436 passed, 50 skipped`,
+and `git diff --check` remained clean.
+
+The R5 live GLM outcome remains correctly classified as informational:
+`malformed_structured_response` ended the Session as failed after two exactly
+accounted requests, while isolation, budget, Trajectory/qita readability,
+sandbox cleanup, and privacy invariants remained true. QitOS is responsible for
+that truthful behavior, not for forcing every model to complete an Agent's
+task.
+
+The audit found documentation-state drift rather than a runtime blocker: the
+playbook, Tasks 12–14, S3 wave, and L3 evidence headings still described
+historical blocked candidates after the final promotion. Their current status
+is corrected while the immutable failure sections remain provenance. The next
+work is now defined by
+[`Task 15`](v4/15-public-framework-graduation.md). S4 must converge the current
+mechanisms into one default-safe authoring path, complete sandbox and extension
+qualification, freeze and roll out Trajectory/qita, and close packaging/docs
+gaps. No S4 implementation lane has started. `DEFAULT_BRANCH_READY=false` and
+`RELEASE_READY=false` remain unchanged.
 
 ## G4-L3 stable config/sandbox/live closure (2026-09-01)
 

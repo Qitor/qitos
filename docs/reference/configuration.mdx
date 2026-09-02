@@ -24,13 +24,14 @@ missing required values, and environment interpolation fail closed. A complete
 provider-neutral example is checked in at
 [`examples/config/agent.yaml`](../../examples/config/agent.yaml).
 
-`qitos.agent/v1` is accepted only by a compatibility reader. Canonical
-serialization, examples, CLI receipts, and documentation always write
-`qitos.agent`; there are no public version-suffixed AgentConfig classes. Loaded
-objects are deeply immutable. Their canonical JSON is deterministic and omits
-resolved credentials, live clients, local source paths, and runtime objects, so
-equivalent configuration produces the same digest. That digest binds launch
-receipts, Session snapshots/restores, and Trajectory provenance.
+Historical schema spellings are accepted only by an internal compatibility
+reader. Canonical serialization, examples, CLI receipts, and documentation
+always write `qitos.agent`; there are no public version-suffixed AgentConfig
+classes. Loaded objects are deeply immutable. Their canonical JSON is
+deterministic and omits resolved credentials, live clients, local source paths,
+and runtime objects, so equivalent configuration produces the same digest. That
+digest binds launch receipts, Session snapshots/restores, and Trajectory
+provenance.
 
 Credentials are logical references, never values:
 
