@@ -135,3 +135,13 @@ omitted the metadata container for the large live trajectory. DSV and Qwen were
 not started and used zero requests. This round is immutable failure evidence,
 not provider qualification or promotion authority; its sanitized receipt is
 `s3_g4_l3_r1_live_failure_receipt.json`.
+
+Round `s3-g4-l3-d6fa110124a7c660` then issued five GLM requests on source
+`c332516b62c30637b6d175bdad7c441418f0561b`. A malformed first response was
+successfully recovered into native tools and a final answer, but the runner's
+literal-step-zero pause policy missed the first successful post-recovery
+boundary, so no restorable pause was recorded. The old runner also reported
+`runtime_failure` and printed a local traceback instead of the typed
+`malformed_structured_response`. DSV and Qwen again remained at zero requests.
+This is immutable lifecycle/diagnostic failure evidence in
+`s3_g4_l3_r2_live_failure_receipt.json`, not a GLM capability failure.

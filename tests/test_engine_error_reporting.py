@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from qitos.core.errors import ErrorCategory, ModelExecutionError, RuntimeErrorInfo
 from qitos.engine.engine import Engine
 from qitos.engine.states import RuntimePhase
 
@@ -68,3 +69,36 @@ def test_report_runtime_exception_silent_without_env_dirs(tmp_path, monkeypatch)
 
     assert not list(tmp_path.iterdir())
     assert engine._last_runtime_error["error_type"] == "RuntimeError"
+
+
+def test_malformed_model_response_is_typed_and_non_echoing(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    error_log = tmp_path / "qitos-errors.log"
+    monkeypatch.setenv("QITOS_ERROR_LOG", str(error_log))
+    engine = object.__new__(Engine)
+    engine._last_runtime_error = None
+    emitted = []
+    engine._emit = lambda *args, **kwargs: emitted.append((args, kwargs))
+    rejected = "sensitive-value /Users/private/launch.yaml"
+    exc = ModelExecutionError(
+        RuntimeErrorInfo(
+            category=ErrorCategory.MODEL,
+            message=rejected,
+            phase="DECIDE",
+            step_id=0,
+            recoverable=True,
+            details={"code": "empty_model_response"},
+        )
+    )
+
+    engine._report_runtime_exception(RuntimePhase.DECIDE, 0, exc)
+
+    rendered = capsys.readouterr().err + error_log.read_text()
+    assert rejected not in rendered
+    assert "/Users/" not in rendered
+    assert "malformed_structured_response" in rendered
+    assert engine._last_runtime_error["error_category"] == "model_failure"
+    assert emitted[0][1]["payload"]["error_code"] == (
+        "malformed_structured_response"
+    )

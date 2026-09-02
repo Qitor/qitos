@@ -1,0 +1,43 @@
+{
+  "schema_version": "qitos.s3.g4_l3_r2_failure_receipt/v1",
+  "qualification_round_id": "s3-g4-l3-d6fa110124a7c660",
+  "source_commit": "c332516b62c30637b6d175bdad7c441418f0561b",
+  "runner_digest": "df642b3c483b521107838e4c17c0967037347aa0395a875a35205255c5a17cb2",
+  "source_receipt_evidence_digest": "782f367df4cb7da21582f0c3c20fd0ea453a764c637ff9c725c7478bc59227ce",
+  "offline_gate": "passed",
+  "docker_attestation": "passed",
+  "privacy_scan": "passed",
+  "profiles": [
+    {
+      "profile_id": "sii-glm-5-2",
+      "model": "GLM-5.2-w4a8c8",
+      "status": "failed",
+      "requests": 5,
+      "provider_request_sent": true,
+      "pause_reached": false,
+      "lifecycle_consequence": "completed",
+      "receipt_error_code": "runtime_failure",
+      "diagnosed_root_error_code": "malformed_structured_response",
+      "recovery_result": "completed_with_native_tools_and_final",
+      "deterministic_lifecycle_blocker": "pause_policy_coupled_to_literal_step_zero"
+    },
+    {
+      "profile_id": "sii-dsv4",
+      "model": "dsv4-flash-0731",
+      "status": "not_started",
+      "requests": 0,
+      "error_code": "primary_dependency_failed"
+    },
+    {
+      "profile_id": "sii-qwen3-8-27b",
+      "model": "Qwen3.8-27B",
+      "status": "not_started",
+      "requests": 0,
+      "error_code": "parity_dependency_failed"
+    }
+  ],
+  "sandbox_cleanup": "passed",
+  "credential_or_endpoint_disclosed": false,
+  "host_path_in_sanitized_receipt": false,
+  "promotion_authorized": false
+}

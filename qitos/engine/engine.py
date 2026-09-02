@@ -25,7 +25,7 @@ from ..checkpoint.durability import DurabilityManager, DurabilityMode
 from ..checkpoint.pending_writes import PendingWriteManager
 from ..core.agent_module import AgentModule
 from ..core.decision import Decision
-from ..core.errors import ErrorCategory, StopReason
+from ..core.errors import ErrorCategory, ModelExecutionError, StopReason
 from ..core.env import Env, EnvObservation, EnvStepResult
 from ..core.history import History, HistoryMessage, HistoryPolicy
 from ..core.conversation import ExchangeLog, ToolResultItem
@@ -1859,7 +1859,9 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         }
         self._last_runtime_error: Optional[Dict[str, Any]] = safe_fact
 
-        typed_boundary_failure = isinstance(exc, (CodecError, ProviderFailure))
+        typed_boundary_failure = isinstance(
+            exc, (CodecError, ProviderFailure, ModelExecutionError)
+        )
 
         print(
             f"[QitOS] runtime exception phase={phase_name} step={step_id} "
@@ -1926,6 +1928,17 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
                 if declared_code == "codec_capability_mismatch"
                 else declared_code
             )
+        elif isinstance(exc, ModelExecutionError):
+            model_declared_code = exc.info.details.get("code")
+            if model_declared_code == "empty_model_response":
+                code = "malformed_structured_response"
+            elif isinstance(model_declared_code, str) and re.fullmatch(
+                r"[a-z][a-z0-9_.-]{2,127}", model_declared_code
+            ):
+                code = model_declared_code
+            else:
+                code = "model_execution_failed"
+            category = "model_failure"
         else:
             candidate = getattr(exc, "code", None)
             code = (

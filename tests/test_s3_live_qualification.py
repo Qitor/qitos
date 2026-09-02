@@ -316,13 +316,25 @@ def test_live_workflow_builds_two_child_fan_out_transfers_and_join(
     from qitos.config.builder import build_agent_composition as real_build
     from qitos.config import EnvironmentConfig
     from qitos.kit.env import HostEnv
+    model_calls = 0
 
     def fake_build(config: object, **kwargs: object) -> object:
         class FakeModel:
             model = "fake"
 
             def call_raw(self, messages: object, **options: object) -> object:
+                nonlocal model_calls
                 _ = messages, options
+                model_calls += 1
+                if model_calls == 1:
+                    return {
+                        "choices": [
+                            {
+                                "finish_reason": "tool_calls",
+                                "message": {"content": None, "tool_calls": []},
+                            }
+                        ]
+                    }
                 return {
                     "choices": [
                         {
@@ -416,6 +428,7 @@ def test_live_workflow_builds_two_child_fan_out_transfers_and_join(
     assert len(seen) == 3
     assert remaining_limits == sorted(remaining_limits, reverse=True)
     assert len(set(remaining_limits)) == 3
+    assert model_calls >= 3
 
 
 def test_live_workflow_preserves_codec_root_failure_before_pause_or_request(
@@ -552,6 +565,34 @@ def test_step_budget_failure_keeps_typed_root_cause() -> None:
         module._engine_result_error_code(Result())
         == "engine_step_budget_exhausted"
     )
+
+
+def test_pause_policy_targets_first_successful_boundary_per_session() -> None:
+    module = _module()
+    policy = module._PauseFirstSuccessfulBoundary()
+
+    class Identity:
+        def __init__(self, value: str) -> None:
+            self.value = value
+
+    class Handle:
+        def __init__(self, value: str) -> None:
+            self.session_id = Identity(value)
+
+    class EngineStub:
+        def __init__(self, value: str) -> None:
+            self._session_handle = Handle(value)
+
+    class Context:
+        def __init__(self, value: str, step_id: int) -> None:
+            self.engine = EngineStub(value)
+            self.step_id = step_id
+
+    recovered = Context("session-recovered", 4)
+    assert policy.should_pause(recovered) is True
+    policy.pause_safety(recovered)
+    assert policy.should_pause(Context("session-recovered", 5)) is False
+    assert policy.should_pause(Context("session-parent", 0)) is True
 
 
 def test_model_request_counter_fails_before_exceeding_limit() -> None:

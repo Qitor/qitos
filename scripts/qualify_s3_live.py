@@ -41,6 +41,32 @@ class QualificationConfigurationError(QualificationError):
     code = "qualification_configuration_invalid"
 
 
+class _PauseFirstSuccessfulBoundary:
+    """Pause once per Session after its first completed model/tool boundary."""
+
+    policy_id = "qitos.qualification.pause_first_successful"
+    supports_pause = True
+
+    def __init__(self) -> None:
+        self._paused_sessions: set[str] = set()
+
+    @staticmethod
+    def _session_key(context: Any) -> str:
+        handle = getattr(context.engine, "_session_handle", None)
+        identity = getattr(handle, "session_id", None)
+        value = getattr(identity, "value", None)
+        return str(value) if value else f"engine:{id(context.engine)}"
+
+    def should_pause(self, context: Any) -> bool:
+        return self._session_key(context) not in self._paused_sessions
+
+    def pause_safety(self, context: Any) -> Any:
+        from qitos.core.session import PauseSafety, SafeBoundaryKind
+
+        self._paused_sessions.add(self._session_key(context))
+        return PauseSafety(boundary=SafeBoundaryKind.AFTER_MODEL_RESULT)
+
+
 @dataclass(frozen=True)
 class LiveProfile:
     config_path: Path
@@ -474,7 +500,6 @@ def _live_restore_workflows(
 ) -> dict[str, Any]:
     from qitos.config import LocalCredentialFileResolver
     from qitos.config.builder import build_agent_composition
-    from qitos.core.session import PauseSafety, SafeBoundaryKind
     from qitos.core.work_graph import WorkDescriptor
     from qitos.engine.work_runtime import DurableWorkRuntime, WorkRuntimePolicy
 
@@ -506,17 +531,6 @@ def _live_restore_workflows(
         def close(self) -> None:
             self.handles.clear()
 
-    class _PauseFirstBoundary:
-        policy_id = "qitos.qualification.pause_first"
-        supports_pause = True
-
-        def should_pause(self, context: Any) -> bool:
-            return context.step_id == 0
-
-        def pause_safety(self, context: Any) -> PauseSafety:
-            _ = context
-            return PauseSafety(boundary=SafeBoundaryKind.AFTER_MODEL_RESULT)
-
     config = profile.config
     if not config.runtime.session.enabled or config.runtime.session.store != "sqlite":
         raise QualificationConfigurationError(
@@ -536,7 +550,11 @@ def _live_restore_workflows(
     request_counter = _count_model_requests(
         composition.model, max_attempts=request_limit
     )
-    setattr(composition.runtime, "lifecycle_policy", _PauseFirstBoundary())
+    setattr(
+        composition.runtime,
+        "lifecycle_policy",
+        _PauseFirstSuccessfulBoundary(),
+    )
     scheduler = _HoldScheduler()
     composition.runtime.work_runtime = DurableWorkRuntime(
         scheduler,

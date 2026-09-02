@@ -44,6 +44,23 @@ metadata, and maps step exhaustion to `engine_step_budget_exhausted`. A new
 round is forbidden until these bytes are committed and every offline gate is
 rerun.
 
+The next immutable round, `s3-g4-l3-d6fa110124a7c660`, bound to
+`c332516b62c30637b6d175bdad7c441418f0561b`, issued five GLM requests. The
+first response declared a tool-call finish without text or tool calls; bounded
+Engine recovery then obtained native tools and a final answer. Qualification
+still failed because the runner's pause policy was coupled to literal step
+zero: the first successful boundary after recovery occurred at step one and
+was not paused. The receipt also collapsed the malformed response to
+`runtime_failure`, and stderr included a local traceback. DSV and Qwen remained
+at zero requests. The immutable sanitized record is
+`s3_g4_l3_r2_live_failure_receipt.json`.
+
+The repair pauses once per Session at its first successful boundary regardless
+of recovery step, maps the empty/tool-call contradiction to
+`malformed_structured_response`, and treats typed model diagnostics like codec
+and provider failures: only safe code/category facts reach stderr, files,
+Trajectory, Session heads, and receipts.
+
 ## Scope and stop gate
 
 This round repairs the existing G4-L2 candidate in place. It does not create a
