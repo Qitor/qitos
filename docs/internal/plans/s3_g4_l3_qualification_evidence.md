@@ -1,6 +1,6 @@
 # G4-L3 stable config, sandbox, and live-workflow evidence
 
-Status: full offline gate passed; scoped fan-out repair awaiting requalification
+Status: deterministic gates passed; live provider transport blocked at request ceiling
 Updated: 2026-09-02
 Fixed baseline: `851f7902f15da670e72f4c04d7453cf37201aee7`
 Candidate branch: `codex/v4-s3-g4-convergence`
@@ -157,3 +157,42 @@ typed `SessionErrorCode` and durable fork records. The repair binds operation
 IDs to the parent Session and centrally projects enum-valued framework codes.
 DSV and Qwen used zero requests. The immutable sanitized receipt is
 `s3_g4_l3_r3_live_failure_receipt.json`.
+
+## R4 bounded live result
+
+Committed source `0f1435c79288e33e71f41fcc96f0cbda5aba1ffd`
+passed the complete fresh repository matrix (`2415 passed, 50 skipped`) and
+all auxiliary quality, package, sandbox, permission, privacy, cleanup, and
+fake-transport gates. Immutable round `s3-g4-l3-739e066ca1e8172a` also passed
+its embedded 16-node offline gate and Docker attestation.
+
+GLM consumed exactly 12/12 requests. Its configured single-agent workflow
+passed source edit, pytest, safe pause, clean-process restore, final,
+Trajectory, qita, privacy, and cleanup. The separate multi-agent parent reached
+a safe pause and produced two context-transfer receipts. The first restored
+child executed real tools but ended after five requests with the typed root
+`provider_transport_failure`; the second child and join did not start because
+no request budget remained. This is provider/transport-class live evidence,
+not a new JSON/config/codec defect. DSV and Qwen remained at zero requests in
+the required dependency order. The verified private receipt is mode `0600`,
+and the sanitized record is `s3_g4_l3_r4_live_failure_receipt.json`.
+
+```text
+CONFIG_ARCHITECTURE=passed
+JSON_TRANSPORT_BOUNDARY=passed
+SANDBOX_TRUTH=passed
+ENGINE_REQUEST_PARITY=passed_for_glm
+OFFLINE_AGENT_RECOVERY=passed
+OFFLINE_MULTI_AGENT=passed
+LIVE_SINGLE_AGENT=passed
+LIVE_RESTORE=passed
+LIVE_PROVIDER_PARITY=not_started
+LIVE_MULTI_AGENT=failed_provider_transport
+LIVE_TRAJECTORY=passed_for_single_agent
+QITA_LIVE_READ=passed_for_single_agent
+G4_LIVE=provider_transport_failure
+S3_STATUS=blocked_live_qualification
+S4_READY=false
+DEFAULT_BRANCH_READY=false
+RELEASE_READY=false
+```

@@ -1,6 +1,6 @@
 # S3 G4-L3 stable config, sandbox truth, and live workflow closure
 
-Status: transport and pause passed live dispatch; scoped fan-out repair pending committed-byte requalification
+Status: deterministic repairs qualified; GLM provider transport failed at the 12-request ceiling
 Updated: 2026-09-02
 Owner: G4 integration owner
 Fixed baseline: `851f7902f15da670e72f4c04d7453cf37201aee7`
@@ -71,6 +71,20 @@ Sessions and rounds. The immutable sanitized record is
 `s3_g4_l3_r3_live_failure_receipt.json`; DSV and Qwen remained unstarted. The
 repair scopes fan-out and join operation identities to the parent Session and
 projects `SessionErrorCode.value` into receipts without echoing exception text.
+
+Committed repair head `0f1435c79288e33e71f41fcc96f0cbda5aba1ffd`
+passed the complete fresh offline matrix (`2415 passed, 50 skipped`), the
+16-node embedded gate, static ratchet, lint, types, build/twine, fake-transport
+projection, Docker isolation/cleanup, credential permissions, and privacy
+scans. Round `s3-g4-l3-739e066ca1e8172a` then consumed exactly 12 GLM
+requests. The canonical coding Session completed edit, tests, clean-process
+restore, final, Trajectory, and qita checks; the multi-agent parent paused and
+created two scoped transfer receipts. The first child later terminated with
+typed `provider_transport_failure` after five requests. The second child and
+join were not started because the profile ledger had reached 12/12. DSV and
+Qwen therefore remained at zero requests. Continuing would exceed the fixed
+budget, so the round is blocked without rerun, promotion, push, or worktree
+removal. Its sanitized receipt is `s3_g4_l3_r4_live_failure_receipt.json`.
 
 ## Scope and stop gate
 

@@ -1,7 +1,7 @@
 # v4 integration progress
 
 Status: active integration ledger
-Updated: 2026-09-01
+Updated: 2026-09-02
 Integration branch: `feat/campaign-absorption`
 Independently reviewed runtime baseline: `5ef8ab657f6452ae48c931beea79106e2cca34c6`
 S1 dispatch baseline: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
@@ -14,8 +14,8 @@ Promoted S2 runtime head:
 `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`
 S3 plan freeze: `52e050d9bc1ee0d4c6dcc78c90a5497c25722648`
 S3 convergence source: `851f7902f15da670e72f4c04d7453cf37201aee7`
-Current gate: **G4-L3 OFFLINE PASSED; NEW LIVE PRIMARY FAILED BEFORE REQUEST;
-PROMOTION BLOCKED**
+Current gate: **G4-L3 DETERMINISTIC GATES PASSED; GLM TRANSPORT FAILED AT
+12/12 REQUESTS; PROMOTION BLOCKED**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md),
 [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md),
@@ -24,7 +24,7 @@ and [`Task 14 sandboxed agent execution`](v4/14-sandboxed-agent-execution.md)
 ## G4-L3 stable config/sandbox/live closure (2026-09-01)
 
 G4-L3 continues in the existing `codex/v4-s3-g4-convergence` worktree from
-starting candidate `113af708...`, whose merge base with the fixed integration
+starting candidate `904df84f...`, whose merge base with the fixed integration
 baseline is exactly `851f790...`. It does not replay A/B/C/D or open a second
 convergence branch.
 
@@ -49,6 +49,18 @@ Session did not reach pause. The exact request ledger is zero; DSV and Qwen were
 not started. Docker attestation/cleanup and privacy passed. Promotion, push,
 and cleanup are blocked, and the immutable L2 failure remains historical. See
 [`s3_g4_l3_qualification_evidence.md`](internal/plans/s3_g4_l3_qualification_evidence.md).
+
+R1 repairs subsequently established one bounded JSON transport materializer,
+non-echoing root failures, terminal failed Sessions, recovered-boundary pause,
+and parent-Session-scoped live fork identities. Committed head `0f1435c...`
+passed a fresh `2415 passed, 50 skipped` full suite and every static, package,
+sandbox, permission, privacy, cleanup, fake-transport, single-process, and
+40-round multi-agent gate. Round `s3-g4-l3-739e066ca1e8172a` proved the GLM
+single-agent edit/test/pause/clean-process-restore/final/Trajectory/qita route,
+then its first multi-agent child ended with `provider_transport_failure`. The
+GLM ledger was exactly 12/12, so the second child, DSV, and Qwen were not
+started. No same-source rerun, promotion, push, or worktree removal is
+authorized; all branch refs and immutable receipts are retained.
 
 ## 0. S3 deterministic convergence candidate (2026-09-01)
 

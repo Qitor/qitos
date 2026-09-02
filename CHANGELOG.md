@@ -88,6 +88,7 @@ How to update:
 
 ### Fixed
 
+- Recorded immutable bounded round `s3-g4-l3-739e066ca1e8172a`: the repaired GLM path completed configured edit/test, safe pause, clean-process restore, final, Trajectory, qita, and cleanup, then a restored multi-agent child ended with typed `provider_transport_failure` at the exact 12/12 profile request ceiling. DSV/Qwen were not started; promotion remains blocked.
 - Scoped G4-L3 live fan-out/join operation identities to their parent Session so repeated qualification rounds cannot collide with the checkpoint store's global fork idempotency key; runner receipts now preserve enum-valued Session error codes without echoing exception text. Immutable round `s3-g4-l3-08e956825bfb8f0f` proved real GLM dispatch and safe pauses before exposing this local `duplicate_fork_operation` setup defect.
 
 - Fixed the G4-L3 immutable-config/provider boundary by replacing shallow request-option thawing with one bounded recursive JSON materialization in the canonical codec/provider executor. Nested mappings and tuples become isolated transport dicts/lists; non-string keys, non-finite numbers, unsupported objects, cycles, and depth/node exhaustion fail with non-echoing typed codes. EngineResult, failed Session snapshots, Trajectory facts, and the live runner now preserve the root transport/provider failure instead of replacing it with a generic missing-pause outcome.

@@ -1,0 +1,59 @@
+{
+  "schema_version": "qitos.s3.g4_l3_r4_failure_receipt/v1",
+  "qualification_round_id": "s3-g4-l3-739e066ca1e8172a",
+  "source_commit": "0f1435c79288e33e71f41fcc96f0cbda5aba1ffd",
+  "runner_digest": "67e3b79ecd6a4431a4d212fe907f5804e3ee96ce151b43a74f60d501bca90609",
+  "source_receipt_evidence_digest": "8a45a0355c72c1b71513ce48e3289996c97f0263a783724a4cb421f0aa518eee",
+  "offline_gate": "passed",
+  "docker_attestation": "passed",
+  "privacy_scan": "passed",
+  "profiles": [
+    {
+      "profile_id": "sii-glm-5-2",
+      "model": "GLM-5.2-w4a8c8",
+      "status": "failed",
+      "requests": 12,
+      "request_budget": 12,
+      "provider_request_sent": true,
+      "pause_reached": true,
+      "root_error_code": "provider_transport_failure",
+      "single_agent": {
+        "status": "passed",
+        "restore_requests": 4,
+        "source_changed": true,
+        "tests_passed": true,
+        "final_reached": true,
+        "trajectory_and_qita_readable": true
+      },
+      "multi_agent": {
+        "parent_paused": true,
+        "context_transfer_receipts": 2,
+        "completed_children": 0,
+        "attempted_children": 1,
+        "first_child_requests": 5,
+        "first_child_error_code": "provider_transport_failure",
+        "second_child_started": false,
+        "join_started": false
+      }
+    },
+    {
+      "profile_id": "sii-dsv4",
+      "model": "dsv4-flash-0731",
+      "status": "not_started",
+      "requests": 0,
+      "error_code": "primary_dependency_failed"
+    },
+    {
+      "profile_id": "sii-qwen3-8-27b",
+      "model": "Qwen3.8-27B",
+      "status": "not_started",
+      "requests": 0,
+      "error_code": "parity_dependency_failed"
+    }
+  ],
+  "sandbox_cleanup": "passed",
+  "credential_or_endpoint_disclosed": false,
+  "host_path_in_sanitized_receipt": false,
+  "promotion_authorized": false,
+  "blocked_reason": "provider_transport_failure_at_profile_request_budget"
+}
