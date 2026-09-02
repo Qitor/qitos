@@ -14,12 +14,37 @@ Promoted S2 runtime head:
 `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`
 S3 plan freeze: `52e050d9bc1ee0d4c6dcc78c90a5497c25722648`
 S3 convergence source: `851f7902f15da670e72f4c04d7453cf37201aee7`
-Current gate: **G4-L3 DETERMINISTIC GATES PASSED; GLM TRANSPORT FAILED AT
-12/12 REQUESTS; PROMOTION BLOCKED**
+Current gate: **G4-R5 FRAMEWORK CONFORMANCE UNDER COMMITTED-BYTES
+QUALIFICATION; LIVE AGENT CAPABILITY IS INFORMATIONAL**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md),
 [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md),
 and [`Task 14 sandboxed agent execution`](v4/14-sandboxed-agent-execution.md)
+
+## G4-R5 framework conformance (2026-09-02)
+
+R5 starts from existing convergence head `0bda057a...` over fixed baseline
+`851f7902...`; it does not replay A/B/C/D or create another convergence branch.
+The promotion definition now follows the
+[framework responsibility boundary](architecture/framework-responsibility-boundary.md):
+QitOS guarantees runtime correctness, but not task success for every
+Agent/model.
+
+The candidate binds and clears the reusable Engine cache for each Session,
+retains direct-fork history only through explicit snapshot lineage, rebases
+fan-out/delegate children to the child task plus accepted context-transfer
+selection, and persists one effective request budget from descriptor through
+restore and pre-dispatch admission. Canonical ToolResult/environment facts stay
+separate from bounded, redacted model projections with loss receipts. Provider
+encode, request projection, transport/status, and decode stages now retain a
+closed safe failure code and accurate request-sent fact.
+
+The required committed-bytes repository, deterministic 100-round isolation,
+40-round process-loss, Docker, privacy, packaging, wheel, and exact-source gates
+remain the authority for promotion. One GLM smoke of at most three requests is
+reported separately as `LIVE_AGENT_CAPABILITY_MATRIX=informational`; a typed
+provider/model outcome does not block promotion unless it exposes a framework
+invariant failure. Historical live receipts remain immutable.
 
 ## G4-L3 stable config/sandbox/live closure (2026-09-01)
 

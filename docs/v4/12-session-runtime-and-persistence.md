@@ -367,3 +367,19 @@ rounds exercise these facts through the integrated multi-agent runtime. This is 
 baseline or an exactly-once guarantee for external effects. Live qualification
 is blocked by absent configuration and qita's default-reader migration remains
 S4.
+
+## 15. R5 Session isolation and durable request accounting
+
+A reusable Engine may cache only the currently bound Session. Binding restores
+that Session's snapshot components; unbinding clears conversation, steering,
+continuation, partial batch, tool satisfaction, last request/codec report,
+environment projection digest, state, task, and work graph. A new Session's
+generation-zero snapshot is therefore independent even when Sessions are
+created before one another, interleaved, paused, restored, or failed.
+
+Direct `Session.fork()` remains the explicit exception: it inherits the source
+snapshot and lineage, then owns independent future writes. Provider request
+consumption and its ceiling are snapshot components and survive clean-process
+restore. Encode/projection rejection consumes zero; an invoked transport,
+including later provider or decode failure, consumes one; exhaustion fails
+before dispatch with `model_request_budget_exhausted`.

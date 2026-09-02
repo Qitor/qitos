@@ -347,3 +347,20 @@ source-worktree cleanup or a default-branch readiness claim. Candidate
 Trajectory remains unfrozen/off and qita remains on frozen trace-v1. Exact live
 evidence is in
 [`s3_g4_live_qualification_evidence.md`](../internal/plans/s3_g4_live_qualification_evidence.md).
+
+## 16. R5 explicit child transfer and budget authority
+
+Delegate and fan-out child Sessions no longer inherit an Engine's residual
+conversation. Their snapshot is rebased to the child task plus only the item,
+steering, continuation, artifact, state, capability, and budget facts selected
+by the accepted `ContextTransferReceipt`. Handoff likewise depends on an
+explicit receipt; missing required transfer fails typed. The effective child
+request ceiling is one intersection of parent remaining budget, transfer,
+child declaration, runtime policy, and configured provider ceiling. The same
+value appears in the descriptor, transfer receipt, child snapshot, restore,
+admission, trajectory, and inspection view. Reservations across siblings share
+the parent remainder rather than independently reusing it.
+
+Live task completion is not this contract's promotion definition. Deterministic
+Session/transfer/budget correctness is required framework conformance; model
+instruction following and provider availability are capability observations.

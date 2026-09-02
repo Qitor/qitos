@@ -1,7 +1,7 @@
 # G2 public-interface budget
 
-Status: G2 baseline preserved; G4-L3 module-level extension growth reviewed
-Updated: 2026-09-01
+Status: G2 baseline preserved; G4-R5 adds no public surface
+Updated: 2026-09-02
 
 G2 adds persistence and migration contracts without expanding the root `qitos`
 API or `Engine.__init__`. The executable source of truth is
@@ -128,6 +128,8 @@ extension protocols. Its executable aggregate budget remains exactly 41 root exp
 `Engine.__init__` parameters including `self`. G4-L3 additionally classifies the
 explicit sandbox and config-error modules described above. No root export,
 aggregate export, Engine constructor parameter, or parallel versioned
-Agent/Session/Runtime type was added. This budget pass does not itself promote
-the branch; live-model qualification and the remaining acceptance gates still
-control promotion. The candidate Trajectory schema stays unfrozen.
+Agent/Session/Runtime type was added. R5 adds durable request-budget state,
+Session inspection facts, bounded model projection, and provider failure stages
+behind those existing contracts. Promotion is controlled by deterministic
+`FRAMEWORK_CONFORMANCE`; live Agent capability is separately informational.
+The candidate Trajectory schema stays unfrozen.

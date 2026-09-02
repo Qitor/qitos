@@ -386,3 +386,19 @@ security qualification claim.
 - [Modal Sandboxes](https://modal.com/docs/guide/sandboxes)
 - [Anthropic Sandbox Runtime](https://github.com/anthropic-experimental/sandbox-runtime)
 - [Codex sandbox implementation notes](https://github.com/openai/codex/blob/main/codex-rs/core/README.md)
+
+## 11. R5 bounded model plane and responsibility boundary
+
+Sandbox receipts and canonical `ToolResult` records remain persistence facts,
+not default model input. Built-in read, grep, list, write, and command tools use
+bounded allowlisted projections; stdout/stderr and file bodies have character
+limits, inventories have count limits, repeated environment observations use a
+digest/delta, and every omission has a loss or selection receipt. Host paths,
+permission internals, owner generations, and complete artifact bodies are
+excluded or redacted. Custom tools may supply their own bounded projection or
+artifact reference; the framework context ceiling truncates or rejects an
+oversized model view according to declared policy.
+
+These mechanism guarantees do not promise that an Agent chose the right tools,
+budget, prompt, or context priorities. The complete boundary is
+[`framework-responsibility-boundary.md`](../architecture/framework-responsibility-boundary.md).

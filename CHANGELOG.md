@@ -19,6 +19,7 @@ How to update:
 
 ### Added
 
+- Added deterministic G4-R5 framework conformance for independent Session caches, explicit child context transfer, durable request-budget admission and restore, bounded ToolResult/environment model projections with loss receipts, and closed non-echoing provider encode/projection/transport/decode failures. Release qualification now separates required framework correctness from informational live Agent/model capability.
 - Added the G4-L3 stable `qitos.agent` configuration path, a structural sandbox backend contract with inspect-backed Docker and explicit `unsafe_host` adapters, configured Trajectory/EventSink wiring, and deterministic single-/multi-process workflow qualification through the existing AgentModule, Engine, Session, WorkGraph, and qita surfaces.
 - Added one strict `qitos.agent/v1` launch configuration and composition root for `ModelFactory`, toolsets, Env, Session/checkpoint, budgets, the existing `AgentModule`, and the existing `Engine`, exposed through `qit run --config` and the same Python API. Added typed credential references with hardened local-file, deterministic fake, and explicit environment-compatibility resolvers; canonical/source/policy digests remain secret-free.
 - Added an executable G4-L2 Docker qualification harness and bounded multi-config live runner. Actual Docker inspect and in-container probes now verify identity, non-root/network/rootfs/capability/resource/tmpfs/mount policy, Env-only read/grep/write/test routes, repository integrity, targeted cleanup, and absence after cleanup. The live runner consumes only canonical configs, binds source/config/runner/evidence digests, records attempted requests, provider usage and latency, and keeps private evidence outside Git.
@@ -87,6 +88,9 @@ How to update:
 - Clarified candidate provenance and lightweight failure taxonomy handling in the CyberGym agent without changing its single-agent runtime architecture.
 
 ### Fixed
+
+- Fixed reusable Engine runtime state leaking conversation, continuation, steering, tool satisfaction, partial batch, and last request facts into independent Sessions; fixed fan-out/delegate children inheriting unselected parent history; and fixed child model-request declarations being advisory instead of a pre-dispatch, restart-stable limit.
+- Fixed provider failures collapsing encode, projection, connection, timeout, authentication, rate-limit, rejection, server, cancellation, and response-decode stages into one transport label, while preserving accurate dispatch accounting and excluding raw exception text.
 
 - Recorded immutable bounded round `s3-g4-l3-739e066ca1e8172a`: the repaired GLM path completed configured edit/test, safe pause, clean-process restore, final, Trajectory, qita, and cleanup, then a restored multi-agent child ended with typed `provider_transport_failure` at the exact 12/12 profile request ceiling. DSV/Qwen were not started; promotion remains blocked.
 - Scoped G4-L3 live fan-out/join operation identities to their parent Session so repeated qualification rounds cannot collide with the checkpoint store's global fork idempotency key; runner receipts now preserve enum-valued Session error codes without echoing exception text. Immutable round `s3-g4-l3-08e956825bfb8f0f` proved real GLM dispatch and safe pauses before exposing this local `duplicate_fork_operation` setup defect.

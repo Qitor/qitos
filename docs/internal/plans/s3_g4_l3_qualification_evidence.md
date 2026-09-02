@@ -122,6 +122,49 @@ DEFAULT_BRANCH_READY=false
 RELEASE_READY=false
 ```
 
+## R5 framework conformance qualification
+
+R5 continues the same convergence branch from starting candidate
+`0bda057a308983d6eaa2fb0465df0ea7911109cb`; its merge base with fixed
+integration baseline `851f7902f15da670e72f4c04d7453cf37201aee7` is exactly
+that baseline. It neither replays A/B/C/D nor creates another convergence
+branch.
+
+The qualification authority is now split deliberately:
+
+- required `FRAMEWORK_CONFORMANCE` proves independent Session state,
+  direct-fork lineage, explicit child context transfer, durable request-budget
+  admission/restore, bounded model projection, provider failure taxonomy,
+  persistence, sandbox truth, deterministic single/multi-agent recovery,
+  privacy, qita/Trajectory, and packaging;
+- informational `LIVE_AGENT_CAPABILITY_MATRIX` records bounded live dispatch,
+  tool expression, provider availability, latency, and model task behavior.
+
+QitOS guarantees runtime correctness. QitOS does not guarantee task success for
+every Agent/model. A correctly typed external or model outcome is informational;
+Session cross-talk, budget overrun, secret disclosure, sandbox fallback, false
+accounting, false success, or incorrect recovery remains a required blocker.
+
+Candidate regressions exercise 100 independent Sessions on one Engine, direct
+fork versus fan-out transfer, a child budget of two with exact pre-dispatch
+third-call rejection across restore, sibling reservation intersection, dispatch
+accounting before and after transport, a 10 MB custom result with a small model
+view, bounded built-in coding output, repeated environment inventory delta,
+provider stage taxonomy/privacy, and the existing 40-round authoritative
+process-loss vertical. Exact committed source identity and final command
+receipts will be recorded after the required gate completes; no live request is
+authorized before then.
+
+```text
+FRAMEWORK_CONFORMANCE=qualification_in_progress
+LIVE_AGENT_CAPABILITY_MATRIX=not_started_informational
+S3_STATUS=open
+G4_STATUS=open
+S4_READY=false
+DEFAULT_BRANCH_READY=false
+RELEASE_READY=false
+```
+
 ## R1 transport round
 
 Round `s3-g4-l3-1f3414e2567ef3f9`, bound to committed source

@@ -1,5 +1,17 @@
 # QitOS Architecture
 
+## Runtime responsibility boundary
+
+QitOS guarantees runtime correctness; it does not guarantee task success for
+every Agent/model. Session isolation, durable budget admission, persistence,
+bounded/redacted model projection, typed provider stages, truthful sandbox
+execution, and observable recovery are framework conformance. Prompts,
+strategies, budget selection, tool output policy, child decomposition, and
+final task correctness belong to the Agent developer. Endpoint availability,
+rate limits, and actual model behavior belong to the provider. The normative
+qualification split is documented in
+[`docs/architecture/framework-responsibility-boundary.md`](docs/architecture/framework-responsibility-boundary.md).
+
 High-level architecture map for the repository. Detailed material lives in `docs/architecture/`:
 
 - [architecture-audit.md](docs/architecture/architecture-audit.md) — how the system actually works today, module by module

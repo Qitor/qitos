@@ -1,5 +1,15 @@
 # Module Boundaries
 
+## Runtime truth versus policy
+
+The layering rules also enforce the
+[framework responsibility boundary](framework-responsibility-boundary.md):
+core defines Session, transfer, request, budget, outcome, and failure facts;
+engine enforces lifecycle, isolation, admission, projection, and recovery;
+models classify provider encode/transport/decode behavior; kit supplies bounded
+mechanisms. Domain prioritization, task strategies, and provider success policy
+must not migrate into those framework layers.
+
 Target dependency structure for the repository, the boundary matrix, and the explicit list of current violations.
 Source of truth for rules enforced (with a legacy allowlist) by `tests/test_architecture_boundaries.py`.
 See [architecture-audit.md](architecture-audit.md) for how the current system works and [architecture-debt.md](architecture-debt.md) for remediation priorities.
