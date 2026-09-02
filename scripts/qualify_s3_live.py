@@ -349,6 +349,7 @@ def _informational_smoke_profile(
     inspection = None
     inspection_error: Optional[BaseException] = None
     close_error: Optional[BaseException] = None
+    projection_error: Optional[BaseException] = None
     cleanup_passed = False
     try:
         composition.engine.session(sentinel_text)
@@ -378,15 +379,19 @@ def _informational_smoke_profile(
     request_view = (
         inspection.last_request_view if inspection is not None else None
     )
-    request_view_json = (
-        json.dumps(
-            request_view.to_dict(),
-            ensure_ascii=False,
-            sort_keys=True,
+    try:
+        request_view_json = (
+            json.dumps(
+                request_view.to_dict(),
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+            if request_view is not None
+            else ""
         )
-        if request_view is not None
-        else ""
-    )
+    except Exception as exc:
+        projection_error = exc
+        request_view_json = ""
     task_isolated = bool(
         inspection is not None
         and inspection.task == task
@@ -429,7 +434,7 @@ def _informational_smoke_profile(
         root_code = _exception_error_code(
             run_error, "informational_smoke_runtime_failed"
         )
-    diagnostic_error = inspection_error or close_error
+    diagnostic_error = inspection_error or close_error or projection_error
     diagnostic_code = (
         _exception_error_code(diagnostic_error, "informational_smoke_runtime_failed")
         if diagnostic_error is not None
@@ -446,6 +451,7 @@ def _informational_smoke_profile(
         or not cleanup_passed
         or inspection_error is not None
         or close_error is not None
+        or projection_error is not None
         or root_code in _INFORMATIONAL_FRAMEWORK_CODES
         or (
             result is None
@@ -461,6 +467,30 @@ def _informational_smoke_profile(
         counter["attempts"] and native_request_expressed
     ):
         outcome = "typed_failure"
+    try:
+        lifecycle_consequence = (
+            session.lifecycle.value if session is not None else "not_created"
+        )
+    except Exception as exc:
+        lifecycle_consequence = "inspection_failed"
+        if diagnostic_code is None:
+            diagnostic_code = _exception_error_code(
+                exc, "informational_smoke_runtime_failed"
+            )
+        framework_invariant_failure = True
+        outcome = "framework_invariant_failure"
+    try:
+        native_tool_calls = (
+            dict(result.tool_calls_by_name) if result is not None else {}
+        )
+    except Exception as exc:
+        native_tool_calls = {}
+        if diagnostic_code is None:
+            diagnostic_code = _exception_error_code(
+                exc, "informational_smoke_runtime_failed"
+            )
+        framework_invariant_failure = True
+        outcome = "framework_invariant_failure"
     return {
         "profile_id": profile.profile_id,
         "role": "informational_smoke",
@@ -473,9 +503,7 @@ def _informational_smoke_profile(
         "provider_request_sent": counter["attempts"] > 0,
         "root_error_code": root_code,
         "diagnostic_error_code": diagnostic_code,
-        "lifecycle_consequence": (
-            session.lifecycle.value if session is not None else "not_created"
-        ),
+        "lifecycle_consequence": lifecycle_consequence,
         "session_isolated": session_isolated,
         "session_task_isolated": task_isolated,
         "request_view_available": request_view_available,
@@ -483,9 +511,7 @@ def _informational_smoke_profile(
             _sha256_text(request_view_json) if request_view_json else None
         ),
         "native_tool_request_expressed": native_request_expressed,
-        "native_tool_calls": (
-            dict(result.tool_calls_by_name) if result is not None else {}
-        ),
+        "native_tool_calls": native_tool_calls,
         "trajectory_readable": trajectory_readable,
         "qita_session_readable": qita_readable,
         "sandbox_cleanup": cleanup_passed,
@@ -1514,6 +1540,7 @@ def qualify(
                 "root_error_code": _exception_error_code(
                     exc, "informational_smoke_runtime_failed"
                 ),
+                "detail_code": type(exc).__name__,
                 "framework_invariant_failure": True,
             }
         base["profiles"] = [receipt]
