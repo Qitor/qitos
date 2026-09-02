@@ -46,6 +46,9 @@ class _EngineProtocol(Protocol):
     _last_context_telemetry: Dict[str, Any]
     _last_env_observation: Any
     _last_env_result: Any
+    _qitos_last_env_projection_digest: Optional[str]
+    _model_requests_consumed: int
+    _model_requests_reserved: int
     _critic_modified_prompt: Optional[str]
     _critic_instruction_patch: Optional[str]
     _tool_loop_detector: Any

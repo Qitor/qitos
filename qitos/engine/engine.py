@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import sys
+import threading
 import time
 import traceback
 from collections.abc import Mapping
@@ -358,6 +359,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             max_steps=self.budget.max_steps,
             max_runtime_seconds=self.budget.max_runtime_seconds,
             max_tokens=self.budget.max_tokens,
+            max_model_requests=self.budget.max_model_requests,
         )
         self.validation_gate = validation_gate or StateValidationGate()
         self.recovery_handler = recovery_handler
@@ -422,7 +424,11 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self._active_task_obj: Optional[Task] = None
         self._last_env_observation: Optional[EnvObservation] = None
         self._last_env_result: Optional[EnvStepResult] = None
+        self._qitos_last_env_projection_digest: Optional[str] = None
         self._token_usage: int = 0
+        self._model_requests_consumed: int = 0
+        self._model_requests_reserved: int = 0
+        self._session_runtime_lock = threading.RLock()
         self._active_run_id: str = ""
         self._session_handle: Any = None
         self._session_run_id: str = ""
@@ -670,7 +676,10 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self._active_run_id = f"run_{uuid4().hex[:12]}"
         self._last_system_prompt = ""
         self._last_prompt_metadata = {}
-        self._token_usage = 0
+        if self._session_handle is None:
+            self._token_usage = 0
+            self._model_requests_consumed = 0
+            self._model_requests_reserved = 0
         self._last_context_telemetry = {}
         self._context_runtime.reset()
         self._resolved_protocol = self.resolve_protocol()
@@ -971,7 +980,10 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self._last_prompt_metadata = {}
         task_obj, task_text = self._normalize_task(task)
         self._apply_task_budget(task_obj)
-        self._token_usage = 0
+        if self._session_handle is None:
+            self._token_usage = 0
+            self._model_requests_consumed = 0
+            self._model_requests_reserved = 0
         self._last_context_telemetry = {}
         self._context_runtime.reset()
         self._resolved_protocol = self.resolve_protocol()
@@ -1636,6 +1648,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         self.budget.max_steps = self._base_budget.max_steps
         self.budget.max_runtime_seconds = self._base_budget.max_runtime_seconds
         self.budget.max_tokens = self._base_budget.max_tokens
+        self.budget.max_model_requests = self._base_budget.max_model_requests
         if task_obj is not None:
             budget = task_obj.budget
             if budget.max_steps is not None:
@@ -1657,6 +1670,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             budget_max_steps=self.budget.max_steps,
             budget_max_runtime_seconds=self.budget.max_runtime_seconds,
             budget_max_tokens=self.budget.max_tokens,
+            budget_max_model_requests=self.budget.max_model_requests,
             critic_names=[type(c).__name__ for c in self.critics],
             stop_criteria_names=[type(s).__name__ for s in self.stop_criteria],
             has_checkpoint_store=self._checkpoint_store is not None,

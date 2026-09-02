@@ -911,7 +911,17 @@ class ToolResult:
 
     def to_model_dict(self, *, max_chars: int = 4000) -> Dict[str, Any]:
         """Return the allowlist view permitted in model messages."""
-        payload, _, _ = self._model_view_with_loss(max_chars)
+        payload, projection_loss, _ = self._model_view_with_loss(max_chars)
+        totals = projection_loss["totals"]
+        payload["projection_loss"] = {
+            "truncated": bool(totals["omitted_characters"]),
+            "omitted_characters": int(totals["omitted_characters"]),
+            "omitted_fields": int(totals["omitted_fields"]),
+            "redacted_values": int(totals["secret_values"]),
+            "redacted_locations": int(totals["host_paths"]),
+            "redacted_non_json_values": int(totals["non_json_values"]),
+        }
+        _require_json(payload, "model_view")
         return payload
 
     def to_trace_safe_dict(self, *, max_chars: int = 4000) -> Dict[str, Any]:

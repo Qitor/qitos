@@ -614,6 +614,8 @@ class ProviderFailure(Exception):
     error_code: Optional[str] = None
     redacted_details: Mapping[str, Any] = field(default_factory=dict)
     codec_report: Optional[CodecReport] = None
+    stage: str = "transport"
+    provider_request_sent: bool = False
     schema_version: str = PROVIDER_FAILURE_SCHEMA_VERSION
     remediation: str = field(init=False)
     correlation_digest: str = field(init=False)
@@ -623,6 +625,8 @@ class ProviderFailure(Exception):
             raise CodecError("unsupported provider failure schema")
         if not isinstance(self.retryable, bool):
             raise CodecError("provider failure retryable must be boolean")
+        if not isinstance(self.provider_request_sent, bool):
+            raise CodecError("provider failure request-sent fact must be boolean")
         if self.status_code is not None and (
             not isinstance(self.status_code, int)
             or isinstance(self.status_code, bool)
@@ -655,6 +659,7 @@ class ProviderFailure(Exception):
             if self.error_code is not None
             else None
         )
+        safe_stage = safe_diagnostic_text(self.stage, fallback="transport")
         safe_details = redact_diagnostic_value(self.redacted_details)
         if not isinstance(safe_details, dict):
             raise CodecError("provider failure details must be an object")
@@ -689,6 +694,8 @@ class ProviderFailure(Exception):
             "codec_report": (
                 self.codec_report.to_dict() if self.codec_report is not None else None
             ),
+            "stage": safe_stage,
+            "provider_request_sent": self.provider_request_sent,
         }
         correlation_digest = hashlib.sha256(
             json.dumps(
@@ -704,6 +711,7 @@ class ProviderFailure(Exception):
         object.__setattr__(self, "provider", safe_provider)
         object.__setattr__(self, "api_mode", safe_api_mode)
         object.__setattr__(self, "error_code", safe_error_code)
+        object.__setattr__(self, "stage", safe_stage)
         object.__setattr__(self, "redacted_details", safe_details)
         object.__setattr__(self, "remediation", remediation)
         object.__setattr__(self, "correlation_digest", correlation_digest)
@@ -724,6 +732,8 @@ class ProviderFailure(Exception):
             "retryable": self.retryable,
             "status_code": self.status_code,
             "error_code": self.error_code,
+            "stage": self.stage,
+            "provider_request_sent": self.provider_request_sent,
             "remediation": self.remediation,
             "correlation_digest": self.correlation_digest,
             "redacted_details": json.loads(

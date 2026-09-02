@@ -565,6 +565,9 @@ def build_agent_composition(
             max_runtime_seconds=(
                 budget_config.max_runtime_seconds if budget_config else 600.0
             ),
+            max_model_requests=(
+                budget_config.max_requests if budget_config else 12
+            ),
         )
         policy = ActionExecutionPolicy(
             mode="parallel",

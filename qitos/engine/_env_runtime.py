@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import logging
+import hashlib
+import json
 import time
 from typing import Any, Dict, Generic, List, Optional, TypeVar
 
 _logger = logging.getLogger("qitos.engine._env_runtime")
 
 from ..core.decision import Decision
+from ..core.diagnostics import redact_diagnostic_value
 from ..core.env import Env, EnvObservation, EnvSpec, EnvStepResult
 from ..core.observation import Observation
 from ..core.state import StateSchema
@@ -21,6 +24,54 @@ from .states import RuntimePhase
 StateT = TypeVar("StateT", bound=StateSchema)
 ObservationT = TypeVar("ObservationT")
 ActionT = TypeVar("ActionT")
+_ENV_MODEL_PROJECTION_LIMIT = 50_000
+
+
+def _bounded_redacted_projection(
+    value: Any,
+    *,
+    limit: int,
+) -> tuple[Any, str, Dict[str, Any]]:
+    try:
+        source_rendered: Optional[str] = json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+    except (TypeError, ValueError):
+        source_rendered = None
+    safe = redact_diagnostic_value(value)
+    rendered = json.dumps(
+        safe,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    digest = hashlib.sha256(rendered.encode("utf-8")).hexdigest()
+    source_chars = len(source_rendered) if source_rendered is not None else None
+    redacted = source_rendered is None or source_rendered != rendered
+    redaction_omissions = (
+        max(0, source_chars - len(rendered))
+        if source_chars is not None
+        else 0
+    )
+    if len(rendered) <= limit:
+        return safe, digest, {
+            "truncated": redaction_omissions > 0,
+            "omitted_characters": redaction_omissions,
+            "input_characters": source_chars,
+            "redacted": redacted,
+        }
+    marker = "...[TRUNCATED]"
+    kept = max(0, limit - len(marker))
+    return rendered[:kept] + marker, digest, {
+        "truncated": True,
+        "omitted_characters": redaction_omissions + len(rendered) - kept,
+        "input_characters": source_chars,
+        "redacted": redacted,
+    }
 
 
 class _EnvRuntime(Generic[StateT, ObservationT, ActionT]):
@@ -460,14 +511,73 @@ class _EnvRuntime(Generic[StateT, ObservationT, ActionT]):
         if engine.env is None:
             return {"enabled": False}
         ident = self.env_identity()
+        observation = self.env_observation_to_dict(engine._last_env_observation)
+        configured_limit = int(
+            getattr(engine.context_config, "tool_result_max_chars", 4000) or 4000
+        )
+        limit = max(256, min(_ENV_MODEL_PROJECTION_LIMIT, configured_limit))
+        safe_observation, digest, loss = _bounded_redacted_projection(
+            observation,
+            limit=limit,
+        )
+        repeated = digest == getattr(
+            engine, "_qitos_last_env_projection_digest", None
+        )
+        engine._qitos_last_env_projection_digest = digest
+        projected_observation = (
+            {
+                "unchanged": True,
+                "projection_digest": digest,
+                "loss_receipt": {
+                    "unchanged_observation_omitted": True,
+                    "omitted_characters": (
+                        loss["input_characters"]
+                        if loss["input_characters"] is not None
+                        else len(
+                            json.dumps(
+                                safe_observation,
+                                ensure_ascii=False,
+                                sort_keys=True,
+                                separators=(",", ":"),
+                            )
+                        )
+                    ),
+                },
+            }
+            if repeated
+            else {
+                "value": safe_observation,
+                "projection_digest": digest,
+                "loss_receipt": loss,
+            }
+        )
+        last_result = engine._last_env_result
+        safe_info, info_digest, info_loss = _bounded_redacted_projection(
+            last_result.info if last_result is not None else None,
+            limit=min(4000, limit),
+        )
+        safe_error, error_digest, error_loss = _bounded_redacted_projection(
+            last_result.error if last_result is not None else None,
+            limit=min(4000, limit),
+        )
         return {
             "enabled": True,
             "name": ident["name"],
             "version": ident["version"],
-            "observation": self.env_observation_to_dict(engine._last_env_observation),
+            "observation": projected_observation,
             "last_result": (
-                self.env_step_result_to_dict(engine._last_env_result)
-                if engine._last_env_result is not None
+                {
+                    "done": last_result.done,
+                    "reward": last_result.reward,
+                    "info": safe_info,
+                    "info_projection_digest": info_digest,
+                    "info_loss_receipt": info_loss,
+                    "error": safe_error,
+                    "error_projection_digest": error_digest,
+                    "error_loss_receipt": error_loss,
+                    "observation_projection_digest": digest,
+                }
+                if last_result is not None
                 else None
             ),
         }

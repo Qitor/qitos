@@ -611,6 +611,43 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             stream_handler.on_delta(text)
 
         try:
+            def admit_request() -> None:
+                limit = self.engine.budget.max_model_requests
+                consumed = int(
+                    getattr(self.engine, "_model_requests_consumed", 0)
+                )
+                reserved = int(
+                    getattr(self.engine, "_model_requests_reserved", 0)
+                )
+                if limit is not None and consumed + reserved >= int(limit):
+                    raise ProviderFailure(
+                        category="unsupported_request",
+                        message="The durable model request budget is exhausted.",
+                        provider=request.target.provider,
+                        api_mode=request.target.api_mode,
+                        retryable=False,
+                        error_code="model_request_budget_exhausted",
+                        redacted_details={
+                            "limit": int(limit),
+                            "consumed": consumed,
+                            "reserved": reserved,
+                        },
+                        stage="admission",
+                        provider_request_sent=False,
+                    )
+                self.engine._model_requests_consumed = consumed + 1
+                self.engine._emit(
+                    record.step_id,
+                    RuntimePhase.DECIDE,
+                    payload={
+                        "stage": "provider_request_admitted",
+                        "provider_request_sent": True,
+                        "model_requests_consumed": consumed + 1,
+                        "model_requests_reserved": reserved,
+                        "model_request_limit": limit,
+                    },
+                )
+
             transaction = execute_provider_request(
                 adapter,
                 request,
@@ -623,6 +660,7 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                 ),
                 transport_options=request_options,
                 request_transform=agent_config.get("request_transform"),
+                request_admission=admit_request,
             )
         except ProviderFailure as failure:
             self.engine._emit(

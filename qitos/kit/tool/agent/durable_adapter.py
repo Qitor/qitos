@@ -19,7 +19,7 @@ def submit_durable_work(
     runtime = context.get("work_runtime")
     session = context.get("session")
     graph = context.get("work_graph")
-    if runtime is None or session is None or graph is None:
+    if runtime is None or session is None:
         return None
     canonical = json.loads(json.dumps(dict(payload), sort_keys=True, allow_nan=False))
     supplied = context.get("idempotency_key") or context.get("slot_id")

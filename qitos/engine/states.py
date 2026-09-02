@@ -39,6 +39,7 @@ class RuntimeBudget:
     max_steps: int = 10  # Default matches Engine's safe step limit
     max_runtime_seconds: Optional[float] = None
     max_tokens: Optional[int] = None
+    max_model_requests: Optional[int] = None
 
 
 @dataclass
@@ -225,6 +226,7 @@ class EngineConfig:
     budget_max_steps: int = 10
     budget_max_runtime_seconds: Optional[float] = None
     budget_max_tokens: Optional[int] = None
+    budget_max_model_requests: Optional[int] = None
     critic_names: List[str] = field(default_factory=list)
     stop_criteria_names: List[str] = field(default_factory=list)
     has_checkpoint_store: bool = False

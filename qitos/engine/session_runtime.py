@@ -6,6 +6,7 @@ import threading
 import hashlib
 import json
 import time
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass, is_dataclass, replace
 from datetime import datetime, timezone
 from enum import Enum
@@ -66,6 +67,7 @@ from ..core.conversation import (
 from ..core.decision import Decision
 from ..core.request_view import (
     ConversationSnapshotComponent,
+    RequestView,
     SteeringReceipt,
     reconcile_steering_receipts,
     submit_steering,
@@ -77,6 +79,7 @@ from ..core.work_graph import (
     JoinPolicy,
     WorkDescriptor,
     WorkGraph,
+    WorkGraphSnapshotComponent,
     WorkItem,
     WorkLifecycle,
     WorkOwner,
@@ -91,6 +94,7 @@ from .runtime import (
     SessionLifecycleEvent,
     resolve_runtime_resources,
 )
+from ._snapshot_components import clear_session_runtime
 
 if TYPE_CHECKING:
     from .engine import Engine, EngineResult
@@ -104,6 +108,11 @@ class SessionInspection:
     lifecycle: SessionLifecycle
     capabilities: tuple[str, ...]
     snapshot_integrity: str
+    budget: Mapping[str, Any]
+    work_graph: Optional[Mapping[str, Any]]
+    last_request_view: Optional[RequestView]
+    task: str
+    tool_batch: Optional[ToolBatchSnapshot]
 
 
 class Session:
@@ -178,6 +187,33 @@ class Session:
     def capabilities(self) -> frozenset[str]:
         return self._runtime.capabilities()
 
+    @contextmanager
+    def _bound_runtime_cache(self) -> Any:
+        """Bind this Session's head to the reusable Engine for one operation."""
+
+        with self._engine._session_runtime_lock:
+            clear_session_runtime(self._engine)
+            try:
+                head = self._require_head()
+                snapshot = self._load_snapshot(head)
+                state, task, step_id = self._restore_core_state(snapshot)
+                self._restore_budget(snapshot)
+                self._restore_runtime_components(
+                    snapshot, state=state, task=task, step_id=step_id
+                )
+                self._engine._session_handle = self
+                self._engine._session_run_id = self._run_id.value
+                self._engine._active_state = state
+                self._engine._active_task_obj = (
+                    task if isinstance(task, Task) else None
+                )
+                self._engine._active_task = (
+                    task.objective if isinstance(task, Task) else str(task)
+                )
+                yield getattr(self._engine, "_qitos_work_graph", None)
+            finally:
+                clear_session_runtime(self._engine)
+
     def inspect(self) -> SessionInspection:
         head = self._require_head()
         record = self._store.get_session_snapshot(head.snapshot_id)
@@ -191,11 +227,63 @@ class Session:
             record.payload,
             component_registry=self._runtime.component_registry,
         )
+        conversation_item = next(
+            (item for item in snapshot.components if item.slot == "conversation"),
+            None,
+        )
+        conversation = (
+            conversation_item.decode(self._runtime.component_registry)
+            if conversation_item is not None
+            else None
+        )
+        work_graph_item = next(
+            (item for item in snapshot.components if item.slot == "work_graph"),
+            None,
+        )
+        tool_batch_item = next(
+            (item for item in snapshot.components if item.slot == "tool_batch"),
+            None,
+        )
+        work_graph_component = (
+            work_graph_item.decode(self._runtime.component_registry)
+            if work_graph_item is not None
+            else None
+        )
+        progress = _component_payload(
+            snapshot, ComponentSlot.ENGINE_PROGRESS.value
+        )
+        inspected_task = _task_from_progress(progress)
         return SessionInspection(
             head=_core_head(head),
             lifecycle=SessionLifecycle(head.lifecycle),
             capabilities=tuple(sorted(self.capabilities())),
             snapshot_integrity=snapshot.integrity.digest,
+            budget=dict(
+                _component_payload(
+                    snapshot, ComponentSlot.BUDGET_CAPABILITY.value
+                )
+            ),
+            work_graph=(
+                dict(work_graph_component.graph)
+                if isinstance(work_graph_component, WorkGraphSnapshotComponent)
+                and work_graph_component.graph is not None
+                else None
+            ),
+            last_request_view=(
+                conversation.last_request_view
+                if isinstance(conversation, ConversationSnapshotComponent)
+                else None
+            ),
+            task=(
+                inspected_task.objective
+                if isinstance(inspected_task, Task)
+                else str(inspected_task)
+            ),
+            tool_batch=(
+                tool_batch_item.decode(self._runtime.component_registry)
+                if tool_batch_item is not None
+                else None
+            ),
         )
 
     def pause(self) -> PauseReceipt:
@@ -234,21 +322,49 @@ class Session:
 
     def steer(self, text: str) -> SteeringReceipt:
         """Durably submit one canonical steering item to this Session."""
-        with self._lock:
-            head = self._require_head()
-            snapshot = self._load_snapshot(head)
-            state = self._engine.current_state
-            task: str | Task = self._engine._active_task_obj or self._engine._active_task
-            if state is None:
-                state, task, step_id = self._restore_core_state(snapshot)
-            else:
-                step_id = int(getattr(state, "current_step", 0))
-            return self._submit_steering(
-                text,
-                state=state,
-                task=task,
-                step_id=step_id,
-            )
+        if self._engine._session_handle is self:
+            with self._lock:
+                state = self._engine.current_state
+                task: str | Task = (
+                    self._engine._active_task_obj or self._engine._active_task
+                )
+                if state is None:
+                    head = self._require_head()
+                    snapshot = self._load_snapshot(head)
+                    state, task, step_id = self._restore_core_state(snapshot)
+                else:
+                    step_id = int(getattr(state, "current_step", 0))
+                return self._submit_steering(
+                    text, state=state, task=task, step_id=step_id
+                )
+        with self._engine._session_runtime_lock:
+            clear_session_runtime(self._engine)
+            try:
+                with self._lock:
+                    head = self._require_head()
+                    snapshot = self._load_snapshot(head)
+                    state, task, step_id = self._restore_core_state(snapshot)
+                    self._restore_budget(snapshot)
+                    self._restore_runtime_components(
+                        snapshot, state=state, task=task, step_id=step_id
+                    )
+                    self._engine._session_handle = self
+                    self._engine._session_run_id = self._run_id.value
+                    self._engine._active_state = state
+                    self._engine._active_task_obj = (
+                        task if isinstance(task, Task) else None
+                    )
+                    self._engine._active_task = (
+                        task.objective if isinstance(task, Task) else str(task)
+                    )
+                    return self._submit_steering(
+                        text,
+                        state=state,
+                        task=task,
+                        step_id=step_id,
+                    )
+            finally:
+                clear_session_runtime(self._engine)
 
     def submit_work(
         self,
@@ -258,6 +374,42 @@ class Session:
         operation_id: str | None = None,
     ) -> Any:
         """Submit one durable logical operation through the composed scheduler."""
+        if self._engine._session_handle is self:
+            return self._submit_work_bound(
+                operation, payload, operation_id=operation_id
+            )
+        with self._engine._session_runtime_lock:
+            clear_session_runtime(self._engine)
+            try:
+                head = self._require_head()
+                snapshot = self._load_snapshot(head)
+                state, task, step_id = self._restore_core_state(snapshot)
+                self._restore_budget(snapshot)
+                self._restore_runtime_components(
+                    snapshot, state=state, task=task, step_id=step_id
+                )
+                self._engine._session_handle = self
+                self._engine._session_run_id = self._run_id.value
+                self._engine._active_state = state
+                self._engine._active_task_obj = (
+                    task if isinstance(task, Task) else None
+                )
+                self._engine._active_task = (
+                    task.objective if isinstance(task, Task) else str(task)
+                )
+                return self._submit_work_bound(
+                    operation, payload, operation_id=operation_id
+                )
+            finally:
+                clear_session_runtime(self._engine)
+
+    def _submit_work_bound(
+        self,
+        operation: str,
+        payload: Mapping[str, Any],
+        *,
+        operation_id: str | None = None,
+    ) -> Any:
         runtime = getattr(self._runtime, "work_runtime", None)
         if runtime is None:
             raise _session_error(
@@ -292,7 +444,7 @@ class Session:
                     operation_id=operation_id,
                     payload=canonical,
                 ),
-                persist=self._commit_work_graph,
+                persist=lambda: self._commit_work_graph_value(graph),
                 generation=self.current_head.generation.value,
             )
             if declaration.state not in {"declared", "dispatchable"}:
@@ -308,7 +460,7 @@ class Session:
                 return runtime.submit(
                     graph=graph,
                     descriptor=descriptor,
-                    persist=self._commit_work_graph,
+                    persist=lambda: self._commit_work_graph_value(graph),
                     generation=self.current_head.generation.value,
                 )
             except Exception:
@@ -337,6 +489,32 @@ class Session:
 
     def recover_work(self) -> tuple[Any, ...]:
         """Resume declared/queued work through this restored Session composition."""
+        if self._engine._session_handle is self:
+            return self._recover_work_bound()
+        with self._engine._session_runtime_lock:
+            clear_session_runtime(self._engine)
+            try:
+                head = self._require_head()
+                snapshot = self._load_snapshot(head)
+                state, task, step_id = self._restore_core_state(snapshot)
+                self._restore_budget(snapshot)
+                self._restore_runtime_components(
+                    snapshot, state=state, task=task, step_id=step_id
+                )
+                self._engine._session_handle = self
+                self._engine._session_run_id = self._run_id.value
+                self._engine._active_state = state
+                self._engine._active_task_obj = (
+                    task if isinstance(task, Task) else None
+                )
+                self._engine._active_task = (
+                    task.objective if isinstance(task, Task) else str(task)
+                )
+                return self._recover_work_bound()
+            finally:
+                clear_session_runtime(self._engine)
+
+    def _recover_work_bound(self) -> tuple[Any, ...]:
         runtime = getattr(self._runtime, "work_runtime", None)
         graph = getattr(self._engine, "_qitos_work_graph", None)
         if runtime is None or graph is None:
@@ -359,7 +537,7 @@ class Session:
 
         return runtime.recover(
             graph,
-            persist=self._commit_work_graph,
+            persist=lambda: self._commit_work_graph_value(graph),
             prepare=prepare,
         )
 
@@ -466,17 +644,31 @@ class Session:
         child_work_ids: list[WorkItemIdentity] = []
         referenced_child_session_ids: list[str] = []
         prepared_children: list[WorkItem] = []
+        parent_request_remaining = (
+            max(
+                0,
+                int(self._engine.budget.max_model_requests)
+                - int(getattr(self._engine, "_model_requests_consumed", 0))
+                - int(getattr(self._engine, "_model_requests_reserved", 0)),
+            )
+            if self._engine.budget.max_model_requests is not None
+            else None
+        )
         for index, child in enumerate(child_sessions):
             spec = specs[index]
             agent_name = str(spec.get("agent") or getattr(self._engine.agent, "name", "agent"))
             agent_ref = _agent_reference(agent_name)
             destination_resolved = _resolver_available(self._runtime, agent_ref)
             target_agent_id = self._agent_id if destination_resolved else AgentIdentity.generate()
+            declared_budget = dict(spec.get("budget") or {})
             budget = BudgetAllocation(
                 allocation_id=f"budget:{operation_id}:{index}",
                 parent_work_item_id=self._work_item_id,
                 child_work_item_id=child.work_item_id,
-                limits=dict(spec.get("budget") or {}),
+                limits=self._effective_child_budget(
+                    declared_budget,
+                    parent_request_remaining=parent_request_remaining,
+                ),
             )
             capabilities = CapabilityAllocation(
                 allocation_id=f"capability:{operation_id}:{index}",
@@ -484,6 +676,10 @@ class Session:
                 child_work_item_id=child.work_item_id,
                 capabilities=list(spec.get("capabilities") or []),
             )
+            if parent_request_remaining is not None:
+                parent_request_remaining -= int(
+                    budget.limits.get("model_requests", 0)
+                )
             receipt = self._execute_child_transfer(
                 operation_id=f"{operation_id}:transfer:{index}",
                 operation=operation,
@@ -502,6 +698,12 @@ class Session:
                     receipt.failure_code or "context transfer was rejected",
                     operation_id=operation_id,
                 )
+            self._rebase_transferred_child(
+                child,
+                task=str(spec.get("task") or ""),
+                receipt=receipt,
+                source_snapshot=self._load_snapshot(self._require_head()),
+            )
             child_item = WorkItem(
                 work_item_id=child.work_item_id,
                 session_ref=child.session_id,
@@ -545,6 +747,14 @@ class Session:
             transfer_receipts.append(receipt.to_dict())
             budget_allocations.append(_allocation_payload(budget))
             capability_allocations.append(_allocation_payload(capabilities))
+
+        allocated_requests = sum(
+            int(item.get("limits", {}).get("model_requests", 0))
+            for item in budget_allocations
+        )
+        self._engine._model_requests_reserved = int(
+            getattr(self._engine, "_model_requests_reserved", 0)
+        ) + allocated_requests
 
         if operation == "fan_out":
             graph.add_fan_out(
@@ -671,6 +881,32 @@ class Session:
             fan_out_width=max(1, len(child_sessions)),
         )
 
+    def _effective_child_budget(
+        self,
+        declared: Mapping[str, Any],
+        *,
+        parent_request_remaining: Optional[int],
+    ) -> dict[str, Any]:
+        """Intersect the one child declaration with every active authority."""
+
+        result = dict(declared)
+        requested = result.get("model_requests")
+        if requested is None:
+            requested = self._engine.budget.max_model_requests
+        if requested is None:
+            return result
+        if not isinstance(requested, int) or isinstance(requested, bool) or requested < 0:
+            raise ValueError("child model_requests budget must be a non-negative integer")
+        ceilings = [requested]
+        if parent_request_remaining is not None:
+            ceilings.append(max(0, int(parent_request_remaining)))
+        policy = self._runtime.work_runtime.policy
+        runtime_ceiling = dict(policy.budget_ceiling or {}).get("model_requests")
+        if runtime_ceiling is not None:
+            ceilings.append(int(runtime_ceiling))
+        result["model_requests"] = min(ceilings)
+        return result
+
     def _execute_child_transfer(
         self,
         *,
@@ -686,10 +922,19 @@ class Session:
         head = self._require_head()
         snapshot = self._load_snapshot(head)
         state, _, _ = self._restore_core_state(snapshot)
-        log = getattr(self._engine, "_qitos_exchange_log", None)
-        if not isinstance(log, ExchangeLog):
-            log = ExchangeLog(log_id=f"transfer_log:{self._session_id.value}")
-        conversation = ConversationSnapshotComponent.from_exchange_log(log)
+        component = next(
+            (item for item in snapshot.components if item.slot == "conversation"),
+            None,
+        )
+        conversation = (
+            component.decode(self._runtime.component_registry)
+            if component is not None
+            else ConversationSnapshotComponent.from_exchange_log(
+                ExchangeLog(log_id=f"transfer_log:{self._session_id.value}")
+            )
+        )
+        if not isinstance(conversation, ConversationSnapshotComponent):
+            raise TypeError("source conversation snapshot is invalid")
         policy_digest = _stable_digest("context.none")
         projector_digest = _stable_digest("projector.none")
         plan = ContextTransferPlan.create(
@@ -760,6 +1005,117 @@ class Session:
         if child is not None and receipt.plan.budget_request.child_work_item_id != child.work_item_id:
             raise RuntimeError("transfer receipt child identity mismatched its fork")
         return receipt
+
+    def _rebase_transferred_child(
+        self,
+        child: "Session",
+        *,
+        task: str,
+        receipt: Any,
+        source_snapshot: SessionSnapshot,
+    ) -> None:
+        """Replace forked parent input with the explicit transfer projection."""
+
+        source_component_item = next(
+            (item for item in source_snapshot.components if item.slot == "conversation"),
+            None,
+        )
+        source_log = (
+            source_component_item.decode(self._runtime.component_registry).exchange_log
+            if source_component_item is not None
+            else ExchangeLog(log_id=f"transfer_source:{self._session_id.value}")
+        )
+        source_payload = source_log.to_persistence_dict()
+        selected_ids = set(receipt.selected_item_ids)
+        queued_ids = {
+            str(item.get("item_id")) for item in receipt.queued_steering
+        }
+        child_log = ExchangeLog.from_dict(
+            {
+                "schema_version": source_payload["schema_version"],
+                "log_id": f"session_log_{child.session_id.value}",
+                "items": [
+                    item
+                    for item in source_payload["items"]
+                    if item.get("item_id") in selected_ids
+                ],
+                "queued_steering": [
+                    item
+                    for item in source_payload["queued_steering"]
+                    if item.get("item_id") in queued_ids
+                ],
+            }
+        )
+        parent_graph = getattr(self._engine, "_qitos_work_graph", None)
+        parent_state, parent_task, parent_step = self._restore_core_state(
+            source_snapshot
+        )
+        try:
+            clear_session_runtime(self._engine)
+            granted = receipt.granted_budget
+            limit = (
+                granted.limits.get("model_requests")
+                if granted is not None
+                else None
+            )
+            self._engine.budget.max_model_requests = (
+                int(limit) if limit is not None else None
+            )
+            self._engine._model_requests_consumed = 0
+            self._engine._model_requests_reserved = 0
+            self._engine._token_usage = 0
+            self._engine._qitos_exchange_log = child_log
+            setattr(
+                self._engine,
+                "_qitos_conversation_component",
+                ConversationSnapshotComponent.from_exchange_log(child_log),
+            )
+            setattr(
+                self._engine,
+                "_qitos_work_graph",
+                WorkGraph(f"work_graph:{child.session_id.value}"),
+            )
+            child_state = self._engine.agent.init_state(task)
+            if not isinstance(child_state, StateSchema):
+                raise TypeError("transferred child requires StateSchema state")
+            child_head = child._require_head()
+            child._commit_snapshot(
+                state=child_state,
+                task=task,
+                lifecycle=SessionLifecycle.PAUSED,
+                step_id=0,
+                expected_head=child_head,
+                expected_owner_run_id=child.run_id.value,
+                pause_safety=PauseSafety(
+                    boundary=SafeBoundaryKind.AFTER_MODEL_RESULT,
+                    completed_slots_recorded=True,
+                    open_slots_recorded=True,
+                    framework_workers_quiesced=True,
+                    unresolved_effect_count=0,
+                ),
+            )
+        finally:
+            clear_session_runtime(self._engine)
+            self._restore_budget(source_snapshot)
+            self._restore_runtime_components(
+                source_snapshot,
+                state=parent_state,
+                task=parent_task,
+                step_id=parent_step,
+            )
+            if isinstance(parent_graph, WorkGraph):
+                setattr(self._engine, "_qitos_work_graph", parent_graph)
+            self._engine._session_handle = self
+            self._engine._session_run_id = self._run_id.value
+            self._engine._active_state = parent_state
+            self._engine._active_task_obj = (
+                parent_task if isinstance(parent_task, Task) else None
+            )
+            self._engine._active_task = (
+                parent_task.objective
+                if isinstance(parent_task, Task)
+                else str(parent_task)
+            )
 
     def delegate(
         self, agent: str, *, task: str, operation_id: str | None = None
@@ -861,6 +1217,19 @@ class Session:
             )
             self._publish_work_graph_facts(graph, committed_head)
 
+    def _commit_work_graph_value(self, graph: WorkGraph) -> None:
+        """Persist a captured logical graph even after its worker was unbound."""
+
+        if (
+            self._engine._session_handle is self
+            and getattr(self._engine, "_qitos_work_graph", None) is graph
+        ):
+            self._commit_work_graph()
+            return
+        with self._bound_runtime_cache():
+            setattr(self._engine, "_qitos_work_graph", graph)
+            self._commit_work_graph()
+
     def _publish_work_graph_facts(self, graph: WorkGraph, head: Any) -> None:
         """Project durable graph state into the canonical trajectory seam."""
         if self._runtime.event_sink is None:
@@ -907,6 +1276,14 @@ class Session:
             )
 
         for item in graph.work_items.values():
+            allocation = next(
+                (
+                    candidate
+                    for candidate in graph.budget_allocations
+                    if candidate.allocation_id == item.budget_allocation_ref
+                ),
+                None,
+            )
             publish(
                 "work_declared",
                 operation_id=f"graph:{graph.graph_id}:generation:{head_generation}",
@@ -921,6 +1298,9 @@ class Session:
                     "lifecycle": item.lifecycle,
                     "owner_id": item.owner.agent_id.value,
                     "detached": item.detached,
+                    "effective_budget": (
+                        dict(allocation.limits) if allocation is not None else {}
+                    ),
                     "authoritative_head": {
                         "snapshot_id": head_snapshot_id,
                         "checkpoint_id": head_checkpoint_id,
@@ -980,6 +1360,12 @@ class Session:
                                 "terminal_disposition"
                             ),
                             "failure_code": transfer.get("failure_code"),
+                            "effective_budget": dict(
+                                (
+                                    transfer.get("granted_budget") or {}
+                                ).get("limits")
+                                or {}
+                            ),
                         },
                     )
         for ownership in graph.transfers:
@@ -1075,88 +1461,95 @@ class Session:
 
     def run(self, *, steering: Optional[str] = None) -> "EngineResult[Any]":
         """Run or resume through the one canonical Engine loop."""
-        with self._lock:
-            head = self._require_head()
-            if head.owner_run_id != self._run_id.value:
-                raise _session_error(
-                    SessionErrorCode.SUPERSEDED_OWNER,
-                    "A superseded Session owner cannot run this head.",
-                    recoverable=False,
-                    metadata={"owner_run_id": self._run_id.value},
-                )
-            lifecycle = SessionLifecycle(head.lifecycle)
-            allowed = lifecycle_allows(lifecycle, SessionOperation.RUN) or (
-                lifecycle is SessionLifecycle.RESTORING
-            )
-            if not allowed:
-                raise _invalid_operation(lifecycle, SessionOperation.RUN)
-            snapshot = self._load_snapshot(head)
-            state, task, next_step = self._restore_core_state(snapshot)
-            self._restore_runtime_components(
-                snapshot, state=state, task=task, step_id=next_step
-            )
-            self._transition(SessionLifecycle.RUNNING)
-            self._commit_snapshot(
-                state=state,
-                task=task,
-                lifecycle=SessionLifecycle.RUNNING,
-                step_id=next_step,
-                expected_head=head,
-            )
-            self._engine._session_handle = self
-            self._engine._session_run_id = self._run_id.value
-            self._engine._active_state = state
-            self._engine._active_task_obj = task if isinstance(task, Task) else None
-            self._engine._active_task = (
-                task.objective if isinstance(task, Task) else str(task)
-            )
+        with self._engine._session_runtime_lock:
+            clear_session_runtime(self._engine)
+            try:
+                with self._lock:
+                    head = self._require_head()
+                    if head.owner_run_id != self._run_id.value:
+                        raise _session_error(
+                            SessionErrorCode.SUPERSEDED_OWNER,
+                            "A superseded Session owner cannot run this head.",
+                            recoverable=False,
+                            metadata={"owner_run_id": self._run_id.value},
+                        )
+                    lifecycle = SessionLifecycle(head.lifecycle)
+                    allowed = lifecycle_allows(lifecycle, SessionOperation.RUN) or (
+                        lifecycle is SessionLifecycle.RESTORING
+                    )
+                    if not allowed:
+                        raise _invalid_operation(lifecycle, SessionOperation.RUN)
+                    snapshot = self._load_snapshot(head)
+                    state, task, next_step = self._restore_core_state(snapshot)
+                    self._restore_budget(snapshot)
+                    self._restore_runtime_components(
+                        snapshot, state=state, task=task, step_id=next_step
+                    )
+                    self._engine._session_handle = self
+                    self._engine._session_run_id = self._run_id.value
+                    self._engine._active_state = state
+                    self._engine._active_task_obj = (
+                        task if isinstance(task, Task) else None
+                    )
+                    self._engine._active_task = (
+                        task.objective if isinstance(task, Task) else str(task)
+                    )
+                    self._transition(SessionLifecycle.RUNNING)
+                    self._commit_snapshot(
+                        state=state,
+                        task=task,
+                        lifecycle=SessionLifecycle.RUNNING,
+                        step_id=next_step,
+                        expected_head=head,
+                    )
 
-        try:
-            next_step = self._recover_tool_batch(
-                state=state,
-                task=task,
-                step_id=next_step,
-            )
-            result = self._engine.run(
-                task,
-                _resume_state=state,
-                _resume_step=next_step,
-                _session_steering=steering,
-            )
-        except Exception:
-            with self._lock:
-                self._transition(SessionLifecycle.FAILED)
-                current = self._require_head()
-                self._commit_snapshot(
-                    state=state,
-                    task=task,
-                    lifecycle=SessionLifecycle.FAILED,
-                    step_id=int(getattr(state, "current_step", next_step)),
-                    expected_head=current,
-                )
-            raise
-        finally:
-            self._engine._session_handle = None
-            self._engine._session_run_id = ""
+                try:
+                    next_step = self._recover_tool_batch(
+                        state=state,
+                        task=task,
+                        step_id=next_step,
+                    )
+                    result = self._engine.run(
+                        task,
+                        _resume_state=state,
+                        _resume_step=next_step,
+                        _session_steering=steering,
+                    )
+                except Exception:
+                    with self._lock:
+                        self._transition(SessionLifecycle.FAILED)
+                        current = self._require_head()
+                        self._commit_snapshot(
+                            state=state,
+                            task=task,
+                            lifecycle=SessionLifecycle.FAILED,
+                            step_id=int(getattr(state, "current_step", next_step)),
+                            expected_head=current,
+                        )
+                    raise
 
-        with self._lock:
-            if (
-                self._pause_receipt is not None
-                and self._pause_receipt.status is PersistenceReceiptStatus.PERSISTED
-            ):
-                return result
-            terminal = _terminal_lifecycle(result)
-            self._transition(terminal)
-            current = self._require_head()
-            self._engine._qitos_tool_batch_snapshot = None
-            self._commit_snapshot(
-                state=result.state,
-                task=task,
-                lifecycle=terminal,
-                step_id=int(getattr(result.state, "current_step", next_step)),
-                expected_head=current,
-            )
-            return result
+                with self._lock:
+                    if not (
+                        self._pause_receipt is not None
+                        and self._pause_receipt.status
+                        is PersistenceReceiptStatus.PERSISTED
+                    ):
+                        terminal = _terminal_lifecycle(result)
+                        self._transition(terminal)
+                        current = self._require_head()
+                        self._engine._qitos_tool_batch_snapshot = None
+                        self._commit_snapshot(
+                            state=result.state,
+                            task=task,
+                            lifecycle=terminal,
+                            step_id=int(
+                                getattr(result.state, "current_step", next_step)
+                            ),
+                            expected_head=current,
+                        )
+                    return result
+            finally:
+                clear_session_runtime(self._engine)
 
     def _fork_or_recover(self, operation_id: str) -> "Session":
         receipt = self._store.get_session_fork(operation_id)
@@ -1673,30 +2066,38 @@ class Session:
         store = runtime.ensure_checkpoint_store()
         if ATOMIC_SESSION_COMMIT not in store.session_capabilities():
             raise CheckpointCapabilityError(ATOMIC_SESSION_COMMIT)
-        task_text = task.objective if isinstance(task, Task) else str(task)
-        state = engine.agent.init_state(task_text)
-        if not isinstance(state, StateSchema):
-            raise TypeError("Session runtime requires StateSchema state")
-        references = runtime.bind_engine_resources(engine)
-        session = cls(
-            engine=engine,
-            session_id=session_id or SessionIdentity.generate(),
-            run_id=RunIdentity.generate(),
-            agent_id=AgentIdentity.generate(),
-            references=references,
-            created_at=_utc_now(),
-            state_type=type(state),
-            work_item_id=WorkItemIdentity.generate(),
-            attempt_id=AttemptIdentity.generate(),
-        )
-        session._commit_snapshot(
-            state=state,
-            task=task,
-            lifecycle=SessionLifecycle.CREATED,
-            step_id=0,
-            expected_head=None,
-        )
-        return session
+        with engine._session_runtime_lock:
+            clear_session_runtime(engine)
+            engine._token_usage = 0
+            engine._model_requests_consumed = 0
+            engine._model_requests_reserved = 0
+            try:
+                task_text = task.objective if isinstance(task, Task) else str(task)
+                state = engine.agent.init_state(task_text)
+                if not isinstance(state, StateSchema):
+                    raise TypeError("Session runtime requires StateSchema state")
+                references = runtime.bind_engine_resources(engine)
+                session = cls(
+                    engine=engine,
+                    session_id=session_id or SessionIdentity.generate(),
+                    run_id=RunIdentity.generate(),
+                    agent_id=AgentIdentity.generate(),
+                    references=references,
+                    created_at=_utc_now(),
+                    state_type=type(state),
+                    work_item_id=WorkItemIdentity.generate(),
+                    attempt_id=AttemptIdentity.generate(),
+                )
+                session._commit_snapshot(
+                    state=state,
+                    task=task,
+                    lifecycle=SessionLifecycle.CREATED,
+                    step_id=0,
+                    expected_head=None,
+                )
+                return session
+            finally:
+                clear_session_runtime(engine)
 
     @classmethod
     def _restore(
@@ -1792,6 +2193,7 @@ class Session:
             max_steps=int(budget_payload.get("max_steps", 10)),
             max_runtime_seconds=budget_payload.get("max_runtime_seconds"),
             max_tokens=budget_payload.get("max_tokens"),
+            max_model_requests=budget_payload.get("max_model_requests"),
         )
         engine = engine_type(
             agent=agent,
@@ -1835,6 +2237,13 @@ class Session:
         )
         session._parent_run_id = trace.run_id
         session._lifecycle = lifecycle
+        engine._token_usage = int(budget_payload.get("token_usage", 0))
+        engine._model_requests_consumed = int(
+            budget_payload.get("model_requests_consumed", 0)
+        )
+        engine._model_requests_reserved = int(
+            budget_payload.get("model_requests_reserved", 0)
+        )
         context = RuntimeSnapshotContext(
             engine=engine,
             state=state,
@@ -1864,6 +2273,7 @@ class Session:
             expected_head=head,
             expected_owner_run_id=head.owner_run_id,
         )
+        clear_session_runtime(engine)
         return session
 
     def _restore_runtime_components(
@@ -1912,6 +2322,20 @@ class Session:
             )
         state = self._state_type.from_dict(dict(component.state))
         return state, task, int(progress.get("next_step", state.current_step))
+
+    def _restore_budget(self, snapshot: SessionSnapshot) -> None:
+        payload = _component_payload(snapshot, ComponentSlot.BUDGET_CAPABILITY.value)
+        self._engine.budget.max_steps = int(payload.get("max_steps", 10))
+        self._engine.budget.max_runtime_seconds = payload.get("max_runtime_seconds")
+        self._engine.budget.max_tokens = payload.get("max_tokens")
+        self._engine.budget.max_model_requests = payload.get("max_model_requests")
+        self._engine._token_usage = int(payload.get("token_usage", 0))
+        self._engine._model_requests_consumed = int(
+            payload.get("model_requests_consumed", 0)
+        )
+        self._engine._model_requests_reserved = int(
+            payload.get("model_requests_reserved", 0)
+        )
 
     def _load_snapshot(self, head: SessionHeadRecord) -> SessionSnapshot:
         record = self._store.get_session_snapshot(head.snapshot_id)
@@ -2060,6 +2484,13 @@ class Session:
             "max_runtime_seconds": self._engine.budget.max_runtime_seconds,
             "max_tokens": self._engine.budget.max_tokens,
             "token_usage": int(getattr(self._engine, "_token_usage", 0)),
+            "max_model_requests": self._engine.budget.max_model_requests,
+            "model_requests_consumed": int(
+                getattr(self._engine, "_model_requests_consumed", 0)
+            ),
+            "model_requests_reserved": int(
+                getattr(self._engine, "_model_requests_reserved", 0)
+            ),
         }
         trace = TraceLineageSnapshotComponent(
             run_id=self._run_id,

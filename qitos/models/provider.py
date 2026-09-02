@@ -11,7 +11,7 @@ import hashlib
 import json
 from datetime import datetime, timezone
 from dataclasses import dataclass, field, replace
-from typing import Any, Dict, List, Mapping, Optional, Protocol, Sequence, runtime_checkable
+from typing import Any, Callable, Dict, List, Mapping, Optional, Protocol, Sequence, runtime_checkable
 
 from ..core.conversation import (
     ArgumentParseStatus,
@@ -309,13 +309,16 @@ def normalize_provider_failure(
         code = "provider_request_cancelled"
     elif any(token in error_name for token in ("connection", "transport")):
         category = "transport"
-        code = "provider_transport_failure"
+        code = "provider_connection_failed"
     elif status in {400, 404, 409, 422}:
         category = "provider_refusal"
         code = "provider_request_rejected"
+    elif status is not None and status >= 500:
+        category = "transport"
+        code = "provider_server_error"
     else:
-        category = "provider_exception"
-        code = "provider_transport_failure"
+        category = "transport"
+        code = "provider_connection_failed"
     return ProviderFailure(
         category=category,
         message="Provider request failed at the sanitized transport boundary.",
@@ -326,6 +329,8 @@ def normalize_provider_failure(
         error_code=code,
         redacted_details={"exception_type": error.__class__.__name__},
         codec_report=report,
+        stage="transport",
+        provider_request_sent=True,
     )
 
 
@@ -338,6 +343,7 @@ def execute_provider_request(
     stream_callback: Any = None,
     transport_options: Optional[Mapping[str, Any]] = None,
     request_transform: Optional[RequestTransform] = None,
+    request_admission: Optional[Callable[[], None]] = None,
 ) -> ProviderTransaction:
     """Execute exactly one RequestView through its declared provider adapter."""
 
@@ -358,6 +364,28 @@ def execute_provider_request(
             transport=request.target,
             allow_loss=allow_loss,
         )
+    except CodecCapabilityError:
+        raise
+    except ProviderFailure as failure:
+        raise replace(
+            failure,
+            stage="encode",
+            provider_request_sent=False,
+        ) from None
+    except BaseException as exc:
+        raise ProviderFailure(
+            category="provider_exception",
+            message="Provider request encoding failed.",
+            provider=request.target.provider,
+            api_mode=request.target.api_mode,
+            error_code="codec_encode_failed",
+            redacted_details={"exception_type": exc.__class__.__name__},
+            codec_report=report,
+            stage="encode",
+            provider_request_sent=False,
+        ) from None
+
+    try:
         if request.continuation is not None:
             resolver = continuation_resolver
             if resolver is None:
@@ -422,6 +450,30 @@ def execute_provider_request(
         payload, report = validate_codec_result(
             payload, report, allow_loss=allow_loss
         )
+    except CodecCapabilityError:
+        raise
+    except ProviderFailure as failure:
+        raise replace(
+            failure,
+            stage="projection",
+            provider_request_sent=False,
+        ) from None
+    except BaseException as exc:
+        raise ProviderFailure(
+            category="unsupported_request",
+            message="Provider request projection failed.",
+            provider=request.target.provider,
+            api_mode=request.target.api_mode,
+            error_code="request_projection_failed",
+            redacted_details={"exception_type": exc.__class__.__name__},
+            codec_report=report,
+            stage="projection",
+            provider_request_sent=False,
+        ) from None
+
+    try:
+        if request_admission is not None:
+            request_admission()
         if (
             stream_callback is not None
             and "streaming" in capabilities.supported_features
@@ -431,11 +483,52 @@ def execute_provider_request(
             )
         else:
             raw_response = adapter.qitos_transport(payload)
-        decoded = codec.decode(raw_response, request=request)
-    except (CodecCapabilityError, ProviderFailure):
-        raise
+    except ProviderFailure as failure:
+        if failure.stage == "admission":
+            raise
+        raise replace(
+            failure,
+            stage="transport",
+            provider_request_sent=True,
+            codec_report=failure.codec_report or report,
+        ) from None
     except BaseException as exc:
-        raise adapter.qitos_normalize_failure(exc, report=report) from None
+        normalized = adapter.qitos_normalize_failure(exc, report=report)
+        if not isinstance(normalized, ProviderFailure):
+            normalized = normalize_provider_failure(
+                exc, target=request.target, report=report
+            )
+        raise replace(
+            normalized,
+            stage="transport",
+            provider_request_sent=True,
+        ) from None
+
+    try:
+        decoded = codec.decode(raw_response, request=request)
+    except ProviderFailure as failure:
+        raise replace(
+            failure,
+            stage="decode",
+            provider_request_sent=True,
+        ) from None
+    except BaseException as exc:
+        malformed = isinstance(exc, (CodecCapabilityError, ValueError, TypeError))
+        raise ProviderFailure(
+            category="malformed_response" if malformed else "provider_exception",
+            message="Provider response could not be decoded safely.",
+            provider=request.target.provider,
+            api_mode=request.target.api_mode,
+            error_code=(
+                "provider_response_malformed"
+                if malformed
+                else "provider_response_decode_failed"
+            ),
+            redacted_details={"exception_type": exc.__class__.__name__},
+            codec_report=report,
+            stage="decode",
+            provider_request_sent=True,
+        ) from None
 
     resolver = continuation_resolver
     refs: tuple[ContinuationRef, ...] = ()

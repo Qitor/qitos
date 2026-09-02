@@ -22,6 +22,33 @@ from ..core.work_graph import (
 from .runtime import RuntimeSnapshotContext
 
 
+def clear_session_runtime(engine: Any) -> None:
+    """Remove one Session's process-local cache from a reusable Engine.
+
+    Durable truth lives in SessionSnapshot components.  These fields are only
+    the currently bound owner view and must never seed another Session.
+    """
+
+    engine._qitos_exchange_log = None
+    engine._qitos_conversation_component = None
+    engine._qitos_steering_receipts = ()
+    engine._qitos_continuation_refs = ()
+    engine._qitos_continuation_ref = None
+    engine._qitos_last_request_view = None
+    engine._qitos_last_codec_report = None
+    engine._qitos_tool_batch_snapshot = None
+    engine._qitos_work_graph = None
+    engine._qitos_restored_conversation_pending = False
+    engine._qitos_tool_use_satisfied = False
+    engine._qitos_last_env_projection_digest = None
+    engine._model_requests_reserved = 0
+    engine._active_state = None
+    engine._active_task = ""
+    engine._active_task_obj = None
+    engine._session_handle = None
+    engine._session_run_id = ""
+
+
 class ConversationRuntimeSnapshotComponent:
     """Capture and restore the model runtime's one canonical conversation."""
 
