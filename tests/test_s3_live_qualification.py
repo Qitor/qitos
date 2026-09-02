@@ -185,6 +185,25 @@ def test_private_evidence_must_be_outside_repository(tmp_path: Path) -> None:
     assert outside.stat().st_mode & 0o777 == 0o700
 
 
+def test_private_round_receipt_is_exclusive_and_immutable(tmp_path: Path) -> None:
+    module = _module()
+    receipt = tmp_path / "s3-g4-l3-round.json"
+    first = {"qualification_round_id": "s3-g4-l3-round", "requests": 0}
+
+    module._write_json(receipt, first, mode=0o600, exclusive=True)
+
+    assert json.loads(receipt.read_text(encoding="utf-8")) == first
+    assert receipt.stat().st_mode & 0o777 == 0o600
+    with pytest.raises(FileExistsError):
+        module._write_json(
+            receipt,
+            {"qualification_round_id": "s3-g4-l3-round", "requests": 1},
+            mode=0o600,
+            exclusive=True,
+        )
+    assert json.loads(receipt.read_text(encoding="utf-8")) == first
+
+
 def test_live_runner_has_no_private_provider_payload_preflight() -> None:
     source = SCRIPT.read_text(encoding="utf-8")
 

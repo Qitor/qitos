@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -346,6 +347,8 @@ def _informational_smoke_profile(
     result = None
     run_error: Optional[BaseException] = None
     inspection = None
+    inspection_error: Optional[BaseException] = None
+    close_error: Optional[BaseException] = None
     cleanup_passed = False
     try:
         composition.engine.session(sentinel_text)
@@ -357,17 +360,24 @@ def _informational_smoke_profile(
             # committed its terminal snapshot.  Preserve that exact code and
             # continue the durable accounting/trajectory/privacy audit.
             run_error = exc
-        inspection = session.inspect()
+        try:
+            inspection = session.inspect()
+        except Exception as exc:
+            inspection_error = exc
     finally:
         try:
-            composition.close()
+            try:
+                composition.close()
+            except Exception as exc:
+                close_error = exc
         finally:
             cleanup_passed = (
                 composition.sandbox_receipt.get("cleanup") == "passed"
             )
 
-    assert session is not None and inspection is not None
-    request_view = inspection.last_request_view
+    request_view = (
+        inspection.last_request_view if inspection is not None else None
+    )
     request_view_json = (
         json.dumps(
             request_view.to_dict(),
@@ -377,7 +387,11 @@ def _informational_smoke_profile(
         if request_view is not None
         else ""
     )
-    task_isolated = inspection.task == task and sentinel_text not in inspection.task
+    task_isolated = bool(
+        inspection is not None
+        and inspection.task == task
+        and sentinel_text not in inspection.task
+    )
     request_view_available = bool(request_view_json)
     session_isolated = task_isolated and (
         not request_view_available or sentinel_text not in request_view_json
@@ -387,11 +401,15 @@ def _informational_smoke_profile(
     )
     durable_requests = int(
         inspection.budget.get("model_requests_consumed", 0)
+        if inspection is not None
+        else 0
     )
     request_accounting_exact = durable_requests == counter["attempts"]
     trajectory_readable = False
     qita_readable = False
     try:
+        if session is None:
+            raise FileNotFoundError
         reader = candidate_file_reader(_trajectory_path(profile.config))
         trajectory = reader.read_session(
             session.session_id.value,
@@ -403,14 +421,22 @@ def _informational_smoke_profile(
             qita.get("trajectory_meta", {}).get("session_id")
             == session.session_id.value
         )
-    except (FileNotFoundError, ValueError, KeyError):
+    except Exception:
         pass
 
-    root_code = (
-        _engine_result_error_code(result)
-        if result is not None
-        else _exception_error_code(run_error, "informational_smoke_runtime_failed")
+    root_code = _engine_result_error_code(result) if result is not None else None
+    if root_code is None and run_error is not None:
+        root_code = _exception_error_code(
+            run_error, "informational_smoke_runtime_failed"
+        )
+    diagnostic_error = inspection_error or close_error
+    diagnostic_code = (
+        _exception_error_code(diagnostic_error, "informational_smoke_runtime_failed")
+        if diagnostic_error is not None
+        else None
     )
+    if root_code is None:
+        root_code = diagnostic_code
     framework_invariant_failure = (
         not session_isolated
         or not request_accounting_exact
@@ -418,6 +444,8 @@ def _informational_smoke_profile(
         or not trajectory_readable
         or not qita_readable
         or not cleanup_passed
+        or inspection_error is not None
+        or close_error is not None
         or root_code in _INFORMATIONAL_FRAMEWORK_CODES
         or (
             result is None
@@ -444,7 +472,10 @@ def _informational_smoke_profile(
         "request_accounting_exact": request_accounting_exact,
         "provider_request_sent": counter["attempts"] > 0,
         "root_error_code": root_code,
-        "lifecycle_consequence": session.lifecycle.value,
+        "diagnostic_error_code": diagnostic_code,
+        "lifecycle_consequence": (
+            session.lifecycle.value if session is not None else "not_created"
+        ),
         "session_isolated": session_isolated,
         "session_task_isolated": task_isolated,
         "request_view_available": request_view_available,
@@ -1656,12 +1687,25 @@ def verify_evidence(
             raise QualificationConfigurationError("config digest mismatch")
 
 
-def _write_json(path: Path, payload: Mapping[str, Any], *, mode: int) -> None:
+def _write_json(
+    path: Path,
+    payload: Mapping[str, Any],
+    *,
+    mode: int,
+    exclusive: bool = False,
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    content = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    if exclusive:
+        descriptor = os.open(
+            path,
+            os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+            mode,
+        )
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            stream.write(content)
+    else:
+        path.write_text(content, encoding="utf-8")
     path.chmod(mode)
 
 
@@ -1711,7 +1755,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
     if args.private_dir:
         private = _validate_private_dir(args.private_dir)
-        _write_json(private / "qualification-receipt.json", result, mode=0o600)
+        round_id = str(result["qualification_round_id"])
+        _write_json(
+            private / f"{round_id}.json",
+            result,
+            mode=0o600,
+            exclusive=True,
+        )
     if args.output:
         _write_json(Path(args.output), result, mode=0o644)
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
