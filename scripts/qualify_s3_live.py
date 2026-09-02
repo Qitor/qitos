@@ -195,6 +195,16 @@ def _engine_result_error_code(result: Any) -> Optional[str]:
     }.get(stop_reason)
 
 
+def _exception_error_code(error: BaseException, fallback: str) -> str:
+    """Project one non-echoing typed code from framework or runner errors."""
+    for attribute in ("error_code", "code"):
+        candidate = getattr(error, attribute, None)
+        candidate = getattr(candidate, "value", candidate)
+        if isinstance(candidate, str) and candidate:
+            return candidate
+    return fallback
+
+
 def _preflight_profile(profile: LiveProfile, resolver: Any) -> dict[str, Any]:
     """Run the provider probe through the canonical composition and Engine."""
     from qitos.config.builder import build_agent_composition
@@ -263,7 +273,7 @@ def _preflight_profile(profile: LiveProfile, resolver: Any) -> dict[str, Any]:
             "credential": composition.credential_receipt,
             "requests": counter["attempts"],
             "status": "failed",
-            "error_code": getattr(exc, "code", type(exc).__name__),
+            "error_code": _exception_error_code(exc, type(exc).__name__),
         }
     finally:
         composition.close()
@@ -401,8 +411,10 @@ def _restore_worker(
                 "requests": request_counter["attempts"],
                 "credential": composition.credential_receipt,
                 "status": "failed",
-                "error_code": getattr(exc, "code", type(exc).__name__),
-                "root_error_code": getattr(exc, "code", type(exc).__name__),
+                "error_code": _exception_error_code(exc, type(exc).__name__),
+                "root_error_code": _exception_error_code(
+                    exc, type(exc).__name__
+                ),
                 "lifecycle_consequence": "failed",
                 "pause_reached": False,
                 "provider_request_sent": request_counter["attempts"] > 0,
@@ -414,7 +426,9 @@ def _restore_worker(
             payload = {
                 **payload,
                 "status": "failed",
-                "error_code": getattr(exc, "code", "sandbox_cleanup_failed"),
+                "error_code": _exception_error_code(
+                    exc, "sandbox_cleanup_failed"
+                ),
             }
     payload["sandbox"] = dict(composition.sandbox_receipt)
     print(json.dumps(payload, sort_keys=True))
@@ -599,6 +613,7 @@ def _live_restore_workflows(
                 "parent session did not reach a dispatch-safe pause",
                 code=parent_first.error_code or "workflow_parent_not_paused",
             )
+        operation_scope = parent.session_id.value
         fan_out = parent.fan_out(
             [
                 {
@@ -614,12 +629,12 @@ def _live_restore_workflows(
                     "budget": {"model_requests": 2},
                 },
             ],
-            operation_id="g4-l3-live-fan-out",
+            operation_id=f"g4-l3-live-fan-out:{operation_scope}",
         )
         joined = parent.join(
             [fan_out.operation_id],
             policy="all",
-            operation_id="g4-l3-live-join",
+            operation_id=f"g4-l3-live-join:{operation_scope}",
         )
         descriptor = WorkDescriptor.from_dict(fan_out.descriptor)
         identities = {
@@ -649,13 +664,13 @@ def _live_restore_workflows(
         except Exception as exc:
             setup_error = setup_error or exc
     if setup_error is not None:
+        setup_code = _exception_error_code(
+            setup_error, type(setup_error).__name__
+        )
         return {
             "status": "failed",
-            "error_code": getattr(
-                setup_error, "code", type(setup_error).__name__
-            ),
-            "root_error_code": root_error_code
-            or getattr(setup_error, "code", type(setup_error).__name__),
+            "error_code": setup_code,
+            "root_error_code": root_error_code or setup_code,
             "lifecycle_consequence": lifecycle_consequence,
             "pause_reached": pause_reached,
             "provider_request_sent": request_counter["attempts"] > 0,
@@ -728,7 +743,7 @@ def _live_restore_workflows(
     except Exception as exc:
         artifact_receipt = {
             "status": "failed",
-            "error_code": getattr(exc, "code", type(exc).__name__),
+            "error_code": _exception_error_code(exc, type(exc).__name__),
         }
     cleanup_passed = (
         identities["sandbox"].get("cleanup") in {"passed", "not_applicable"}
@@ -880,7 +895,7 @@ def _close_live_parent_join(
     except Exception as exc:
         payload = {
             "status": "failed",
-            "error_code": getattr(exc, "code", type(exc).__name__),
+            "error_code": _exception_error_code(exc, type(exc).__name__),
         }
     finally:
         try:
@@ -889,7 +904,9 @@ def _close_live_parent_join(
             payload = {
                 **payload,
                 "status": "failed",
-                "error_code": getattr(exc, "code", "sandbox_cleanup_failed"),
+                "error_code": _exception_error_code(
+                    exc, "sandbox_cleanup_failed"
+                ),
             }
     payload["sandbox_cleanup"] = (
         composition.sandbox_receipt.get("cleanup") == "passed"
@@ -1275,7 +1292,7 @@ def qualify(
                 **workflow,
             }
         except Exception as exc:
-            code = getattr(exc, "code", "workflow_failure")
+            code = _exception_error_code(exc, "workflow_failure")
             return {
                 "profile_id": profile.profile_id,
                 "role": role,
@@ -1317,7 +1334,9 @@ def qualify(
                 "role": "capability_loss",
                 "status": "failed",
                 "requests": 0,
-                "error_code": getattr(exc, "code", "capability_probe_failed"),
+                "error_code": _exception_error_code(
+                    exc, "capability_probe_failed"
+                ),
                 "detail_code": type(exc).__name__,
             }
     else:

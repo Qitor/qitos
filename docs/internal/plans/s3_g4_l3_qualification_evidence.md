@@ -1,10 +1,10 @@
 # G4-L3 stable config, sandbox, and live-workflow evidence
 
-Status: full offline gate passed; new live primary failed; promotion blocked
-Updated: 2026-09-01
+Status: full offline gate passed; scoped fan-out repair awaiting requalification
+Updated: 2026-09-02
 Fixed baseline: `851f7902f15da670e72f4c04d7453cf37201aee7`
 Candidate branch: `codex/v4-s3-g4-convergence`
-Starting candidate: `113af7088943c95e682601b8f40ad84bbc09dd1b`
+Starting candidate: `904df84ff3bd601cef6fae2199d66b3867aeaa1d`
 
 ## Evidence boundary
 
@@ -145,3 +145,15 @@ boundary, so no restorable pause was recorded. The old runner also reported
 `malformed_structured_response`. DSV and Qwen again remained at zero requests.
 This is immutable lifecycle/diagnostic failure evidence in
 `s3_g4_l3_r2_live_failure_receipt.json`, not a GLM capability failure.
+
+Round `s3-g4-l3-08e956825bfb8f0f` issued three GLM requests on source
+`0a18fe4f81c8ec174d1e075c8311fd8d4b88d3f6`. The coding Session and the
+multi-agent parent both reached safe, persisted pauses, proving the recovered
+boundary policy. Fan-out then encountered the deterministic local code
+`duplicate_fork_operation`: its fixed qualification operation ID collided with
+the same global SQLite idempotency key from an earlier Session. The old receipt
+projector exposed only `SessionContractError`; the diagnosis comes from the
+typed `SessionErrorCode` and durable fork records. The repair binds operation
+IDs to the parent Session and centrally projects enum-valued framework codes.
+DSV and Qwen used zero requests. The immutable sanitized receipt is
+`s3_g4_l3_r3_live_failure_receipt.json`.

@@ -418,17 +418,45 @@ def test_live_workflow_builds_two_child_fan_out_transfers_and_join(
     receipt = module._live_restore_workflows(
         profile, credentials_path=tmp_path / "not-read.yaml"
     )
+    repeated = module._live_restore_workflows(
+        profile, credentials_path=tmp_path / "not-read.yaml"
+    )
 
     assert receipt["status"] == "passed"
+    assert repeated["status"] == "passed"
     assert receipt["multi_agent"]["child_count"] == 2
+    assert repeated["multi_agent"]["child_count"] == 2
     assert receipt["multi_agent"]["context_transfer_receipts"] == 2
     assert receipt["multi_agent"]["fan_out_lineage_distinct"] is True
     assert receipt["multi_agent"]["join"]["state"] == "closed"
     assert receipt["multi_agent"]["join"]["generation"] == 2
-    assert len(seen) == 3
-    assert remaining_limits == sorted(remaining_limits, reverse=True)
-    assert len(set(remaining_limits)) == 3
-    assert model_calls >= 3
+    assert len(seen) == 6
+    assert remaining_limits[:3] == sorted(remaining_limits[:3], reverse=True)
+    assert remaining_limits[3:] == sorted(remaining_limits[3:], reverse=True)
+    assert len(set(remaining_limits[:3])) == 3
+    assert len(set(remaining_limits[3:])) == 3
+    assert model_calls >= 5
+
+
+def test_exception_error_projection_preserves_session_code_without_echo() -> None:
+    module = _module()
+    from qitos.core.session import (
+        SessionContractError,
+        SessionErrorCode,
+    )
+
+    error = SessionContractError(
+        SessionErrorCode.DUPLICATE_FORK_OPERATION,
+        "Bearer rejected-secret /Users/private/launch.yaml",
+        recoverable=False,
+        remediation="do not echo",
+    )
+
+    projected = module._exception_error_code(error, "workflow_failure")
+
+    assert projected == "duplicate_fork_operation"
+    assert "rejected-secret" not in projected
+    assert "/Users/" not in projected
 
 
 def test_live_workflow_preserves_codec_root_failure_before_pause_or_request(

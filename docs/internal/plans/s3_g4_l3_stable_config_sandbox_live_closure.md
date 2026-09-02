@@ -1,6 +1,6 @@
 # S3 G4-L3 stable config, sandbox truth, and live workflow closure
 
-Status: R1 transport passed live dispatch; deterministic qualification setup repairs pending committed-byte requalification
+Status: transport and pause passed live dispatch; scoped fan-out repair pending committed-byte requalification
 Updated: 2026-09-02
 Owner: G4 integration owner
 Fixed baseline: `851f7902f15da670e72f4c04d7453cf37201aee7`
@@ -60,6 +60,17 @@ of recovery step, maps the empty/tool-call contradiction to
 `malformed_structured_response`, and treats typed model diagnostics like codec
 and provider failures: only safe code/category facts reach stderr, files,
 Trajectory, Session heads, and receipts.
+
+Round `s3-g4-l3-08e956825bfb8f0f`, bound to
+`0a18fe4f81c8ec174d1e075c8311fd8d4b88d3f6`, then proved that repair: GLM
+issued three requests, both the coding Session and parent reached real safe
+pauses, and malformed-response diagnostics remained code-only. Fan-out then
+failed locally with `duplicate_fork_operation` because the qualification
+runner reused one globally unique fork operation key across different parent
+Sessions and rounds. The immutable sanitized record is
+`s3_g4_l3_r3_live_failure_receipt.json`; DSV and Qwen remained unstarted. The
+repair scopes fan-out and join operation identities to the parent Session and
+projects `SessionErrorCode.value` into receipts without echoing exception text.
 
 ## Scope and stop gate
 

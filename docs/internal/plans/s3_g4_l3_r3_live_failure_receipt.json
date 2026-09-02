@@ -1,0 +1,42 @@
+{
+  "schema_version": "qitos.s3.g4_l3_r3_failure_receipt/v1",
+  "qualification_round_id": "s3-g4-l3-08e956825bfb8f0f",
+  "source_commit": "0a18fe4f81c8ec174d1e075c8311fd8d4b88d3f6",
+  "runner_digest": "e2924afa1173c8283169db404359365121c1d86416250d4404847fa02705f72b",
+  "source_receipt_evidence_digest": "c2a8cfb94d9080cbeb3a2aa39989710551162262ca8981c9a0cc0fd2e5a15417",
+  "offline_gate": "passed",
+  "docker_attestation": "passed",
+  "privacy_scan": "passed",
+  "profiles": [
+    {
+      "profile_id": "sii-glm-5-2",
+      "model": "GLM-5.2-w4a8c8",
+      "status": "failed",
+      "requests": 3,
+      "provider_request_sent": true,
+      "pause_reached": true,
+      "lifecycle_consequence": "paused",
+      "receipt_error_code": "SessionContractError",
+      "diagnosed_root_error_code": "duplicate_fork_operation",
+      "deterministic_setup_blocker": "qualification_operation_id_reused_across_session_scopes"
+    },
+    {
+      "profile_id": "sii-dsv4",
+      "model": "dsv4-flash-0731",
+      "status": "not_started",
+      "requests": 0,
+      "error_code": "primary_dependency_failed"
+    },
+    {
+      "profile_id": "sii-qwen3-8-27b",
+      "model": "Qwen3.8-27B",
+      "status": "not_started",
+      "requests": 0,
+      "error_code": "parity_dependency_failed"
+    }
+  ],
+  "sandbox_cleanup": "passed",
+  "credential_or_endpoint_disclosed": false,
+  "host_path_in_sanitized_receipt": false,
+  "promotion_authorized": false
+}
