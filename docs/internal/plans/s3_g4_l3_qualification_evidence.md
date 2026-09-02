@@ -169,13 +169,27 @@ remains historical. The redacted committed summary is
 `s3_g4_l3_r5_framework_qualification_receipt.json`; private round receipts are
 immutable and are not repository content.
 
+Promotion used a pure fast-forward from
+`851f7902f15da670e72f4c04d7453cf37201aee7` to
+`1915c299ad8cd74314369b6635df63e96099796f`. Main-worktree requalification
+passed the focused 418-test matrix, four dedicated conformance tests, the full
+`2436 passed, 50 skipped` suite, static/lint/type, build/twine,
+privacy/path/diff, and Docker-zero checks. The first non-force push verified
+local, tracking, and remote at `1915c299...` with divergence 0/0.
+
+Cleanup then removed the five clean A/B/C/D/G4 worktrees without force and
+pruned registrations from 6 to 1, releasing 3,384,888 KiB (3.23 GiB). All 33
+local branch refs remain, including the five S3 source/convergence refs. The
+docs-only commit containing this paragraph is the unique S4 dispatch baseline
+after its second non-force push and remote verification.
+
 ```text
 FRAMEWORK_CONFORMANCE=passed
 LIVE_AGENT_CAPABILITY_MATRIX=informational
 GLM_SMOKE=typed_failure
-S3_STATUS=promotion_pending
-G4_STATUS=promotion_pending
-S4_READY=false
+S3_STATUS=closed
+G4_STATUS=closed
+S4_READY=true
 DEFAULT_BRANCH_READY=false
 RELEASE_READY=false
 ```

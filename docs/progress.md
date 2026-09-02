@@ -14,8 +14,8 @@ Promoted S2 runtime head:
 `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`
 S3 plan freeze: `52e050d9bc1ee0d4c6dcc78c90a5497c25722648`
 S3 convergence source: `851f7902f15da670e72f4c04d7453cf37201aee7`
-Current gate: **G4-R5 FRAMEWORK CONFORMANCE PASSED; FAST-FORWARD PROMOTION
-PENDING; LIVE AGENT CAPABILITY IS INFORMATIONAL**
+Current gate: **S3/G4 CLOSED; S4 READY FROM THE FINAL PUSHED CLOSURE COMMIT;
+LIVE AGENT CAPABILITY REMAINS INFORMATIONAL**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md),
 [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md),
@@ -57,7 +57,20 @@ native tools are expressible, and Trajectory/qita/cleanup/privacy all pass.
 The model returned typed `malformed_structured_response`, so the Session
 correctly ended `failed`; this is an informational model outcome with
 `framework_invariant_failure=false`. DSV and Qwen were not re-requested in R5.
-Promotion remains pending remote/base verification.
+The main worktree fast-forwarded from `851f7902f15da670e72f4c04d7453cf37201aee7`
+to qualification/evidence head `1915c299ad8cd74314369b6635df63e96099796f`.
+The post-promotion focused 418-test gate, four dedicated conformance tests,
+full `2436 passed, 50 skipped` suite, static/lint/type, build/twine,
+privacy/path/diff, and Docker-zero checks all passed. The first non-force push
+was verified at that SHA with local/tracking/remote divergence 0/0.
+
+All five clean S3 worktrees were then removed non-forcibly in A/B/C/D/G4
+order and pruned: registered worktrees changed from 6 to 1 and 3,384,888 KiB
+(3.23 GiB) was released. Local branch-ref count stayed 33, including all five
+S3 lane/convergence refs. The docs-only commit containing this closure record
+is the unique S4 dispatch baseline once its second non-force push is verified;
+there is no earlier candidate baseline. `S3_STATUS=closed`, `G4_STATUS=closed`,
+`S4_READY=true`, while `DEFAULT_BRANCH_READY=false` and `RELEASE_READY=false`.
 
 ## G4-L3 stable config/sandbox/live closure (2026-09-01)
 

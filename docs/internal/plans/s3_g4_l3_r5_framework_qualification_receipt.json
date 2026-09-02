@@ -37,6 +37,35 @@
     "framework_invariant_failure": false
   },
   "r5_live_requests": {"sii-glm-5-2": 2, "sii-dsv4": 0, "sii-qwen3-8-27b": 0},
+  "promotion": {
+    "old_sha": "851f7902f15da670e72f4c04d7453cf37201aee7",
+    "qualified_evidence_sha": "1915c299ad8cd74314369b6635df63e96099796f",
+    "mode": "fast_forward_only",
+    "first_push": "verified",
+    "first_push_divergence": "0/0"
+  },
+  "cleanup": {
+    "registered_worktrees_before": 6,
+    "registered_worktrees_after": 1,
+    "released_kib": 3384888,
+    "released_bytes": 3466125312,
+    "force_used": false,
+    "branch_refs_before": 33,
+    "branch_refs_after": 33,
+    "preserved_s3_branch_refs": [
+      "codex/v4-s3-a-session-fork",
+      "codex/v4-s3-b-transfer-authority",
+      "codex/v4-s3-c-durable-work-runtime",
+      "codex/v4-s3-d-graph-observability",
+      "codex/v4-s3-g4-convergence"
+    ]
+  },
+  "closure": {
+    "s3_status": "closed",
+    "g4_status": "closed",
+    "s4_ready": true,
+    "s4_dispatch_baseline": "this_final_pushed_closure_commit"
+  },
   "claims": {
     "default_branch_ready": false,
     "release_ready": false,
