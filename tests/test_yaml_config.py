@@ -318,9 +318,14 @@ def test_one_config_composes_matching_model_tools_env_runtime_and_budget(
         assert composition.engine.budget.max_steps == config.budgets.max_steps
         assert set(composition.tool_registry.list_tools()) == {
             "grep_file",
+            "edit_file",
             "list_files",
+            "poll_process",
             "read_file",
             "run_command",
+            "run_test",
+            "start_process",
+            "terminate_process",
             "write_file",
         }
     finally:
@@ -332,9 +337,14 @@ def test_env_coding_preset_is_the_bounded_runtime_tool_surface() -> None:
     registry = build_tool_registry(config)
     assert set(registry.list_tools()) == {
         "grep_file",
+        "edit_file",
         "list_files",
+        "poll_process",
         "read_file",
         "run_command",
+        "run_test",
+        "start_process",
+        "terminate_process",
         "write_file",
     }
 
