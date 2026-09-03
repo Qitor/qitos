@@ -192,7 +192,7 @@ docker ps -a --filter label=qitos.sandbox.id \
 The adversarial manifest covers every requested case. Controller-level path,
 TOCTOU, protected-data, policy-rejection, privacy, output, generation, late
 worker, recovery, repeated-cleanup, and leak checks pass deterministically.
-Kernel-backed unexpected-mount, endpoint/network, fork/pids, resource-limit,
+Kernel-backed local/private endpoint, fork/pids exhaustion, resource-stress,
 and sibling-isolation probes remain `platform_blocked`; structural inspection
 requirements are evidence contracts, not substitutes for those probes.
 
