@@ -284,19 +284,26 @@ def test_cancellation_does_not_claim_running_fake_stopped() -> None:
     assert receipt.outcome_unknown is True
 
 
-def test_session_direct_and_tool_adapter_share_operation_receipt() -> None:
+@pytest.mark.parametrize(
+    ("operation", "payload"),
+    [
+        ("delegate", {"agent": "parent", "task": "inspect"}),
+        ("spawn", {"agent": "parent", "task": "inspect"}),
+        ("fan_out", {"tasks": [{"agent": "parent", "task": "inspect"}]}),
+        ("handoff", {"target": "parent", "rationale": "continue"}),
+    ],
+)
+def test_session_direct_and_tool_adapter_share_operation_receipt(
+    operation: str, payload: dict[str, Any]
+) -> None:
     scheduler = IndependentSchedulerFake()
     work_runtime = DurableWorkRuntime(scheduler)
     session, _ = _paused_session(work_runtime)
-    direct = session.submit_work(
-        "delegate",
-        {"agent": "parent", "task": "inspect"},
-        operation_id="delegate:slot-1",
-    )
+    direct = session.submit_work(operation, payload, operation_id=f"{operation}:slot-1")
 
     adapted = submit_durable_work(
-        "delegate",
-        {"agent": "parent", "task": "inspect"},
+        operation,
+        payload,
         {
             "work_runtime": work_runtime,
             "session": session,
@@ -304,7 +311,6 @@ def test_session_direct_and_tool_adapter_share_operation_receipt() -> None:
         },
     )
 
-    assert adapted is not None
     assert adapted["operation_id"] == direct.operation_id
     assert adapted["payload_digest"] == direct.payload_digest
     assert len(scheduler.requests) == 1
@@ -326,6 +332,40 @@ def test_session_snapshot_restores_logical_graph_without_live_handle() -> None:
     assert graph.operation_receipts[0].operation_id == "spawn:restore"
     unknown = restored.recover_work()
     assert unknown[0].outcome_unknown is True
+
+
+def test_join_direct_and_tool_adapter_share_operation_receipt() -> None:
+    scheduler = IndependentSchedulerFake()
+    work_runtime = DurableWorkRuntime(scheduler)
+    session, _ = _paused_session(work_runtime)
+    child = session.spawn(
+        "parent", task="background", operation_id="spawn:join-parity"
+    )
+    payload = {
+        "children": [child.operation_id],
+        "policy": "all",
+        "quorum": None,
+        "reducer_ref": None,
+        "reducer_digest": None,
+    }
+    direct = session.submit_work(
+        "join", payload, operation_id="join:join-parity"
+    )
+    adapted = submit_durable_work(
+        "join",
+        payload,
+        {
+            "work_runtime": work_runtime,
+            "session": session,
+            "slot_id": "join-parity",
+        },
+    )
+
+    assert adapted["operation_id"] == direct.operation_id
+    assert adapted["payload_digest"] == direct.payload_digest
+    assert [request.descriptor.operation for request in scheduler.requests] == [
+        "spawn", "join"
+    ]
 
 
 def test_store_failure_after_dispatch_is_typed_unknown_not_replayed() -> None:

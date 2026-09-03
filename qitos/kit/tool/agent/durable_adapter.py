@@ -7,27 +7,41 @@ from typing import Any, Mapping
 from uuid import uuid4
 
 from ....core.tool import BaseTool, ToolSpec
+from ....core.tool_runtime import ToolEffectDeclaration
+
+
+def _work_effect(operation: str):
+    def declare(args: dict[str, Any], context: dict[str, Any]) -> ToolEffectDeclaration:
+        return ToolEffectDeclaration(
+            effect_ref=f"durable-work:{operation}",
+            metadata={"operation": operation},
+        )
+    return declare
 
 
 def submit_durable_work(
     operation: str,
     payload: Mapping[str, Any],
     runtime_context: Mapping[str, Any] | None,
-) -> dict[str, Any] | None:
-    """Submit through the Session/runtime seam, or return None for legacy mode."""
+) -> dict[str, Any]:
+    """Submit only through Session's canonical DurableWorkRuntime seam."""
     context = runtime_context or {}
     runtime = context.get("work_runtime")
     session = context.get("session")
-    graph = context.get("work_graph")
     if runtime is None or session is None:
-        return None
+        return {
+            "status": "error",
+            "error_code": "durable_work_runtime_unavailable",
+            "message": "durable work runtime is unavailable",
+            "outcome_unknown": False,
+        }
     canonical = json.loads(json.dumps(dict(payload), sort_keys=True, allow_nan=False))
     supplied = context.get("idempotency_key") or context.get("slot_id")
     if supplied:
         operation_id = f"{operation}:{supplied}"
     else:
         operation_id = f"{operation}:{uuid4().hex}"
-    del runtime, graph
+    del runtime
     receipt = session.submit_work(
         operation,
         canonical,
@@ -59,6 +73,7 @@ class SpawnTool(BaseTool):
                     "task": {"type": "string"},
                 },
                 required=["agent", "task"],
+                effect=_work_effect("spawn"),
             )
         )
 
@@ -68,10 +83,7 @@ class SpawnTool(BaseTool):
             "task": str(args.get("task", "")),
         }
         durable = submit_durable_work("spawn", payload, runtime_context)
-        return durable or {
-            "status": "error",
-            "message": "durable work runtime is unavailable",
-        }
+        return durable
 
 
 class JoinTool(BaseTool):
@@ -93,6 +105,7 @@ class JoinTool(BaseTool):
                     "reducer_digest": {"type": "string", "nullable": True},
                 },
                 required=["children", "policy"],
+                effect=_work_effect("join"),
             )
         )
 
@@ -105,10 +118,7 @@ class JoinTool(BaseTool):
             "reducer_digest": args.get("reducer_digest"),
         }
         durable = submit_durable_work("join", payload, runtime_context)
-        return durable or {
-            "status": "error",
-            "message": "durable work runtime is unavailable",
-        }
+        return durable
 
 
 __all__ = ["JoinTool", "SpawnTool", "submit_durable_work"]

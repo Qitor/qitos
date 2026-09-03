@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import json
-import os
-import tempfile
 from dataclasses import dataclass, field
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -221,7 +218,7 @@ class TestDelegateTool:
         assert result["status"] == "error"
         assert "task is required" in result["message"]
 
-    def test_execute_depth_guard(self):
+    def test_execute_without_durable_runtime_is_typed_error(self):
         spec = _make_spec()
         registry = AgentRegistry()
         registry.register(spec)
@@ -231,71 +228,7 @@ class TestDelegateTool:
             runtime_context={"delegate_depth": MAX_DELEGATE_DEPTH},
         )
         assert result["status"] == "error"
-        assert "Maximum delegate depth" in result["message"]
-
-
-class TestDelegateToolExecution:
-    """Integration-style tests that actually run a sub-engine."""
-
-    def test_execute_returns_result(self):
-        spec = _make_spec()
-        registry = AgentRegistry()
-        registry.register(spec)
-        tool = registry.get_delegate_tools()[0]
-
-        mock_result = MagicMock()
-        mock_result.state.final_result = "research complete"
-        mock_result.state.stop_reason = "final"
-        mock_result.step_count = 2
-
-        with patch("qitos.engine.engine.Engine") as MockEngine:
-            MockEngine.return_value.run.return_value = mock_result
-            result = tool.execute({"task": "find the bug"})
-
-        assert result["status"] == "success"
-        assert result["agent"] == "worker"
-        assert result["final_result"] == "research complete"
-        assert result["steps"] == 2
-
-    def test_execute_partial_result(self):
-        spec = _make_spec()
-        registry = AgentRegistry()
-        registry.register(spec)
-        tool = registry.get_delegate_tools()[0]
-
-        mock_result = MagicMock()
-        mock_result.state.final_result = "ran out of steps"
-        mock_result.state.stop_reason = "max_steps"
-        mock_result.step_count = 5
-
-        with patch("qitos.engine.engine.Engine") as MockEngine:
-            MockEngine.return_value.run.return_value = mock_result
-            result = tool.execute({"task": "research"})
-
-        assert result["status"] == "partial"
-        assert result["stop_reason"] == "max_steps"
-
-    def test_execute_passes_context_argument_to_sub_engine(self):
-        spec = _make_spec()
-        registry = AgentRegistry()
-        registry.register(spec)
-        tool = registry.get_delegate_tools()[0]
-
-        mock_result = MagicMock()
-        mock_result.state.final_result = "research complete"
-        mock_result.state.stop_reason = "final"
-        mock_result.step_count = 2
-
-        context = {"repo_summary": "src/", "parser_paths": ["src/parser.c"]}
-        with patch("qitos.engine.engine.Engine") as MockEngine:
-            MockEngine.return_value.run.return_value = mock_result
-            result = tool.execute({"task": "find the bug", "context": context})
-
-        assert result["status"] == "success"
-        MockEngine.return_value.run.assert_called_once_with(
-            "find the bug",
-            context=context,
-        )
+        assert result["error_code"] == "durable_work_runtime_unavailable"
 
 
 # ── RuntimePhase extension tests ─────────────────────────────────────────
@@ -325,16 +258,6 @@ class TestActionExecutorContext:
         executor = ActionExecutor(tool_registry=ToolRegistry(), delegate_depth=2)
         ctx = executor._build_runtime_context("some_tool", env=None, state=None)
         assert ctx["delegate_depth"] == 2
-
-    def test_sub_engine_receives_incremented_depth(self):
-        """DelegateTool._build_sub_engine should pass current_depth + 1 to Engine."""
-        from qitos.engine.engine import Engine
-        registry = AgentRegistry()
-        registry.register(_make_spec("worker"))
-        tool = registry.get_delegate_tools()[0]
-        runtime_context = {"env": None, "trace_writer": None}
-        sub_engine = tool._build_sub_engine(runtime_context, current_depth=1)
-        assert sub_engine._delegate_depth == 2
 
     def test_runtime_context_trace_writer_passed_through(self):
         mock_tw = MagicMock()
