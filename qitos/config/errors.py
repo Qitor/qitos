@@ -70,6 +70,23 @@ class CompositionError(ConfigurationError):
     code = "agent_composition_failed"
 
 
+class CompositionClosedError(CompositionError):
+    code = "agent_composition_closed"
+
+
+class CompositionCleanupError(CompositionError):
+    code = "agent_composition_cleanup_failed"
+
+    def __init__(self, message: str, *, failures: list[Dict[str, str]]) -> None:
+        super().__init__(message, field="composition.resources")
+        self.failures = tuple(dict(item) for item in failures)
+
+    def to_dict(self) -> Dict[str, Any]:
+        payload = super().to_dict()
+        payload["failures"] = [dict(item) for item in self.failures]
+        return payload
+
+
 class UnsupportedProtocolError(CompositionError):
     code = "unsupported_protocol"
 
@@ -128,6 +145,8 @@ class SourceBindingError(ConfigurationError):
 
 __all__ = [
     "CompositionError",
+    "CompositionClosedError",
+    "CompositionCleanupError",
     "ConfigDigestMismatchError",
     "ConfigSchemaError",
     "ConfigSourceError",

@@ -142,15 +142,39 @@ class EnvironmentConfig:
 
 @dataclass(frozen=True)
 class SessionConfig:
-    enabled: bool = False
+    mode: str = "durable"
+    enabled: Optional[bool] = None
     store: str = "memory"
     path: str = ""
     session_id: str = ""
     restore: bool = False
 
+    def __post_init__(self) -> None:
+        mode = self.mode
+        if self.enabled is not None:
+            legacy_mode = "durable" if self.enabled else "ephemeral"
+            if mode != "durable" and mode != legacy_mode:
+                raise ConfigSchemaError(
+                    "runtime.session.mode conflicts with legacy enabled",
+                    field="runtime.session",
+                )
+            mode = legacy_mode
+        if mode not in {"durable", "ephemeral"}:
+            raise ConfigSchemaError(
+                "runtime.session.mode must be durable or ephemeral",
+                field="runtime.session.mode",
+            )
+        object.__setattr__(self, "mode", mode)
+        object.__setattr__(self, "enabled", mode == "durable")
+        if mode == "ephemeral" and self.restore:
+            raise ConfigSchemaError(
+                "ephemeral sessions cannot be restored",
+                field="runtime.session.restore",
+            )
+
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "enabled": self.enabled,
+            "mode": self.mode,
             "store": self.store,
             "path": self.path,
             "session_id": self.session_id,
@@ -220,6 +244,10 @@ class AgentConfig:
     seed: int = 0
     metadata: Mapping[str, Any] = field(default_factory=dict)
     context: Mapping[str, Any] = field(default_factory=dict)
+    memory: Mapping[str, Any] = field(default_factory=dict)
+    compaction: Mapping[str, Any] = field(default_factory=dict)
+    lifecycle: Mapping[str, Any] = field(default_factory=dict)
+    failure_policy: Mapping[str, Any] = field(default_factory=dict)
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
     budgets: Optional[BudgetConfig] = None
     schema: str = CANONICAL_SCHEMA
@@ -240,7 +268,17 @@ class AgentConfig:
             )
         object.__setattr__(self, "dataset", tuple(self.dataset))
         object.__setattr__(self, "tools", tuple(self.tools))
-        for name in ("tool_options", "environment", "metadata", "context", "source"):
+        for name in (
+            "tool_options",
+            "environment",
+            "metadata",
+            "context",
+            "memory",
+            "compaction",
+            "lifecycle",
+            "failure_policy",
+            "source",
+        ):
             object.__setattr__(self, name, _deep_freeze(getattr(self, name)))
         object.__setattr__(
             self,
@@ -272,6 +310,12 @@ class AgentConfig:
             "runtime": self.runtime.to_dict(),
             "budgets": budgets.to_dict(),
             "context": _json_safe(self.context, "context"),
+            "memory": _json_safe(self.memory, "memory"),
+            "compaction": _json_safe(self.compaction, "compaction"),
+            "lifecycle": _json_safe(self.lifecycle, "lifecycle"),
+            "failure_policy": _json_safe(
+                self.failure_policy, "failure_policy"
+            ),
             "metadata": _json_safe(self.metadata, "metadata"),
             "dataset": [
                 {
@@ -328,6 +372,7 @@ class AgentConfig:
                 ),
                 "workspace_digest": _stable_digest(environment.workspace),
                 "session": {
+                    "mode": session.mode,
                     "enabled": session.enabled,
                     "store": session.store,
                     "restore": session.restore,
@@ -492,6 +537,17 @@ def load_agent_config(
     schema = raw.get("schema")
     if schema == CANONICAL_SCHEMA:
         config = _parse_canonical_config(raw)
+        runtime_raw = raw.get("runtime")
+        if isinstance(runtime_raw, Mapping):
+            session_raw = runtime_raw.get("session")
+            if isinstance(session_raw, Mapping) and "enabled" in session_raw:
+                receipts.append(
+                    {
+                        "code": "session_enabled_compatibility",
+                        "warning": True,
+                        "replacement": "runtime.session.mode",
+                    }
+                )
     elif schema in COMPATIBLE_SCHEMA_REVISIONS:
         normalized, revision_receipts = _normalize_schema_revision(raw)
         config = _parse_canonical_config(normalized)
@@ -531,7 +587,15 @@ def _parse_canonical_config(raw: Mapping[str, Any]) -> AgentConfig:
     _exact_keys(
         raw,
         required={"schema", "agent", "model", "tools", "runtime", "budgets"},
-        optional={"context", "metadata", "dataset"},
+        optional={
+            "context",
+            "memory",
+            "compaction",
+            "lifecycle",
+            "failure_policy",
+            "metadata",
+            "dataset",
+        },
         field="config",
     )
     agent = _mapping(raw["agent"], "agent")
@@ -571,6 +635,12 @@ def _parse_canonical_config(raw: Mapping[str, Any]) -> AgentConfig:
         seed=_integer(agent.get("seed", 0), "agent.seed", minimum=0),
         metadata=_mapping(raw.get("metadata", {}), "metadata"),
         context=_parse_context(_mapping(raw.get("context", {}), "context")),
+        memory=_extension_slot(raw.get("memory", {}), "memory"),
+        compaction=_extension_slot(raw.get("compaction", {}), "compaction"),
+        lifecycle=_extension_slot(raw.get("lifecycle", {}), "lifecycle"),
+        failure_policy=_extension_slot(
+            raw.get("failure_policy", {}), "failure_policy"
+        ),
         runtime=runtime,
         budgets=budgets,
     )
@@ -663,6 +733,12 @@ def _parse_context(raw: Mapping[str, Any]) -> Dict[str, Any]:
         else:
             output[name] = _integer(value, f"context.{name}", minimum=1)
     return output
+
+
+def _extension_slot(value: Any, field_name: str) -> Dict[str, Any]:
+    """Validate an owner-defined extension slot without interpreting its shape."""
+    mapping = _mapping(value, field_name)
+    return _json_safe(mapping, field_name)
 
 
 def _parse_model(raw: Mapping[str, Any]) -> ModelConfig:
@@ -795,7 +871,7 @@ def _parse_runtime(raw: Mapping[str, Any]) -> RuntimeConfig:
     _exact_keys(
         session,
         required=set(),
-        optional={"enabled", "store", "path", "session_id", "restore"},
+        optional={"mode", "enabled", "store", "path", "session_id", "restore"},
         field="runtime.session",
     )
     trajectory = _mapping(raw.get("trajectory", {}), "runtime.trajectory")
@@ -824,6 +900,51 @@ def _parse_runtime(raw: Mapping[str, Any]) -> RuntimeConfig:
         raise ConfigSchemaError(
             "runtime.trajectory.failure_policy has an unsupported value",
             field="runtime.trajectory.failure_policy",
+        )
+    session_mode = _string(
+        session.get("mode", "durable"),
+        "runtime.session.mode",
+        non_empty=True,
+    )
+    legacy_enabled = (
+        _boolean(session["enabled"], "runtime.session.enabled")
+        if "enabled" in session
+        else None
+    )
+    if "mode" in session and legacy_enabled is not None:
+        legacy_mode = "durable" if legacy_enabled else "ephemeral"
+        if session_mode != legacy_mode:
+            raise ConfigSchemaError(
+                "runtime.session.mode conflicts with legacy enabled",
+                field="runtime.session",
+            )
+    session_store = _string(
+        session.get("store", "memory"),
+        "runtime.session.store",
+        non_empty=True,
+    )
+    session_path = _string(session.get("path", ""), "runtime.session.path")
+    if session_store not in {"memory", "sqlite"}:
+        raise ConfigSchemaError(
+            "runtime.session.store must be memory or sqlite",
+            field="runtime.session.store",
+        )
+    effective_mode = (
+        ("durable" if legacy_enabled else "ephemeral")
+        if legacy_enabled is not None
+        else session_mode
+    )
+    if effective_mode == "durable" and session_store == "sqlite" and not session_path:
+        raise ConfigSchemaError(
+            "durable sqlite Session requires a path",
+            field="runtime.session.path",
+        )
+    if effective_mode == "ephemeral" and (
+        session.get("restore", False) or session.get("session_id", "")
+    ):
+        raise ConfigSchemaError(
+            "ephemeral execution cannot declare restore or a Session identity",
+            field="runtime.session",
         )
     environment_defaults: Dict[str, Any] = (
         {
@@ -916,15 +1037,10 @@ def _parse_runtime(raw: Mapping[str, Any]) -> RuntimeConfig:
             ),
         ),
         session=SessionConfig(
-            enabled=_boolean(
-                session.get("enabled", False), "runtime.session.enabled"
-            ),
-            store=_string(
-                session.get("store", "memory"),
-                "runtime.session.store",
-                non_empty=True,
-            ),
-            path=_string(session.get("path", ""), "runtime.session.path"),
+            mode=session_mode,
+            enabled=legacy_enabled,
+            store=session_store,
+            path=session_path,
             session_id=_string(
                 session.get("session_id", ""), "runtime.session.session_id"
             ),
