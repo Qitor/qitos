@@ -1,7 +1,7 @@
 {
   "schema_version": "qitos.g2_interface_budget/v2",
   "reviewed_policy": {
-    "deliberate_module_exports": 159,
+    "deliberate_module_exports": 161,
     "visible_internal_private_symbols": 3,
     "root_exports": 41,
     "root_export_growth": 0,
@@ -54,7 +54,7 @@
     },
     "qitos.config.errors": {
       "beginner-facing": ["ConfigurationError"],
-      "extension-facing": ["CompositionError", "ConfigDigestMismatchError", "ConfigSchemaError", "ConfigSourceError", "ConfigSyntaxError", "ContinuationUnavailableError", "CredentialError", "CredentialFileSecurityError", "CredentialNotFoundError", "CredentialResolutionError", "LossyFallbackNotAuthorizedError", "MalformedStructuredResponseError", "MissingEnvironmentVariableError", "ProtocolParserMismatchError", "ProviderCapabilityLossError", "SandboxCleanupError", "SandboxError", "SandboxUnavailableError", "SourceBindingError", "ToolCallProjectionLossError", "ToolUsePolicyViolationError", "UnknownConfigFieldError", "UnsafeHostConfigurationError", "UnsupportedProtocolError"],
+      "extension-facing": ["CompositionCleanupError", "CompositionClosedError", "CompositionError", "ConfigDigestMismatchError", "ConfigSchemaError", "ConfigSourceError", "ConfigSyntaxError", "ContinuationUnavailableError", "CredentialError", "CredentialFileSecurityError", "CredentialNotFoundError", "CredentialResolutionError", "LossyFallbackNotAuthorizedError", "MalformedStructuredResponseError", "MissingEnvironmentVariableError", "ProtocolParserMismatchError", "ProviderCapabilityLossError", "SandboxCleanupError", "SandboxError", "SandboxUnavailableError", "SourceBindingError", "ToolCallProjectionLossError", "ToolUsePolicyViolationError", "UnknownConfigFieldError", "UnsafeHostConfigurationError", "UnsupportedProtocolError"],
       "persistence-internal": [],
       "internal-private": []
     },

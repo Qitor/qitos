@@ -217,7 +217,12 @@ def test_composition_close_cleans_backend_when_event_flush_fails() -> None:
         sandbox_backend=backend,
     )
 
-    with pytest.raises(RuntimeError, match="flush failed"):
+    from qitos.config.errors import CompositionCleanupError
+
+    with pytest.raises(CompositionCleanupError) as caught:
         composition.close()
 
     assert cleanup_calls == 1
+    assert caught.value.to_dict()["failures"] == [
+        {"resource": "event_dispatcher", "error_type": "RuntimeError"}
+    ]

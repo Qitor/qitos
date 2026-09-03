@@ -251,6 +251,23 @@ def _session_main(argv: list[str]) -> int:
                         "restore_time_steering": True,
                     }
             else:
+                source_snapshot_id = None
+                if args.operation == "fork":
+                    source_head = composition.runtime.ensure_checkpoint_store().get_session_head(
+                        args.session_id
+                    )
+                    if source_head is None:
+                        raise SessionContractError(
+                            error_code=SessionErrorCode.SESSION_NOT_FOUND,
+                            message="Session head was not found.",
+                            recoverable=True,
+                            remediation="verify the Session identity and store path",
+                        )
+                    # ``restore`` claims the next generation and records a
+                    # RESTORING head.  Fork the immutable source head captured
+                    # before that claim unless the caller selected an older
+                    # snapshot explicitly.
+                    source_snapshot_id = args.snapshot_id or source_head.snapshot_id
                 session = composition.restore(args.session_id)
                 if args.operation == "resume":
                     result = session.run(steering=args.steering)
@@ -265,7 +282,7 @@ def _session_main(argv: list[str]) -> int:
                         ),
                     }
                 else:
-                    child = session.fork(args.snapshot_id)
+                    child = session.fork(source_snapshot_id)
                     payload = {
                         "source_session_id": session.session_id.value,
                         "session_id": child.session_id.value,
