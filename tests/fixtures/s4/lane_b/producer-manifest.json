@@ -1,6 +1,6 @@
 {
   "schema_version": "qitos.s4.lane_b.producer_manifest/v1",
-  "producer_commit": "f77cbf6d80eec8622b613e4406f58702d2ac3828",
+  "producer_commit": "e83fca34dfa362a336fa5b2ff9d1cd659dbe5e8d",
   "baseline_commit": "c4e621d05960a4e2f06cb4864f6a8cb8275ac067",
   "producer": "QitOS S4 Lane B — Provider-neutral Model Transactions, Messages, Context and Extension Conformance",
   "current_writer_authority": {
@@ -22,7 +22,7 @@
     {"path": "qitos/engine/_model_runtime.py", "sha256": "16554b90d27f665a67efe443cc4774bc4be0a4d8ab9d0581d789530f88bf5038"},
     {"path": "qitos/engine/_context_runtime.py", "sha256": "3f9d0db606fe59d24282efa09a8819c3507a1ebb2d7e1f4fd19482100a639ae7"},
     {"path": "tests/models/test_s4_provider_conformance.py", "sha256": "b6a850493cc8156d34975d153eb4c640dcc38dfb4989325c9beae83141854ead"},
-    {"path": "tests/core/test_s4_context_extensions.py", "sha256": "515c18327781cf117a36a8ff553c2bbc8bb4588f82af6a8959f1f2f31ae1b39e"},
+    {"path": "tests/core/test_s4_context_extensions.py", "sha256": "6d685e7de7f3f4c28a84863c5355ddbe4b1186baff6bdcc032035f99b0cdf4ad"},
     {"path": "tests/core/test_context_transfer.py", "sha256": "5e57079ea5eda5efafe5beb80f34d5832ee601bc6202a58035b8cf89c9d67900"},
     {"path": "tests/models/test_s4_lane_b_fixtures.py", "sha256": "f87444230883b7b01cf6756dbc3400a2e5542140ac43709948f1ec33bb929496"},
     {"path": "tests/fixtures/s4/lane_b/a-c-d-handoff.json", "sha256": "21333151f8d56d6e380468aef905307df57101d2776c73cbdc13c35d55f2cfc7"},
@@ -39,7 +39,7 @@
     {"path": "tests/fixtures/s4/lane_b/streaming.json", "sha256": "0e50a3d484dcf0214663b4a6f07be60d4e23888fa7343050a67272a73a04af05"},
     {"path": "tests/fixtures/s4/lane_b/usage-budget.json", "sha256": "f4fbd7cbd9304d450fcb17e8890c3b66d8198873d37296a2bb58cbfa550456ee"},
     {"path": "tests/fixtures/s4/lane_b/config_consumer.py", "sha256": "6712d281edbc77a1219941fe741a5a75b68e753fcc7a355192dcc229062a03b1"},
-    {"path": "tests/fixtures/s4/lane_b/third_party_adapter.py", "sha256": "64b96ac779df046902f2f77ff2a8db1ab3367e326b5fa40eec33e951140fd578"}
+    {"path": "tests/fixtures/s4/lane_b/third_party_adapter.py", "sha256": "5ac9e2ec75716315b24be7430ae1c776c3a0629033fd5bae91e4c92594a16fb4"}
   ],
   "producer_test_node_ids": [
     "tests/models/test_s4_provider_conformance.py::test_standalone_third_party_adapter_passes_reusable_conformance_runner",
