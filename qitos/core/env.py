@@ -7,6 +7,46 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 
+class EnvCapabilityError(RuntimeError):
+    """Typed refusal or failure at an environment capability boundary."""
+
+    def __init__(self, code: str, message: str) -> None:
+        self.code = str(code)
+        super().__init__(f"{self.code}: {message}")
+
+
+@dataclass(frozen=True)
+class FileSnapshot:
+    """Portable file identity used for optimistic, atomic mutation."""
+
+    path: str
+    sha256: str
+    byte_length: int
+    version: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "path": self.path,
+            "sha256": self.sha256,
+            "byte_length": self.byte_length,
+            "version": self.version,
+        }
+
+
+@dataclass(frozen=True)
+class ProcessHandle:
+    """Opaque environment-owned bounded-process reference."""
+
+    process_id: str
+    owner_generation: int = 0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "process_id": self.process_id,
+            "owner_generation": self.owner_generation,
+        }
+
+
 @dataclass
 class EnvSpec:
     """Declarative environment requirement attached to a task."""
@@ -111,6 +151,24 @@ class FileSystemCapability(ABC):
     def exists(self, path: str) -> bool:
         """Check if path exists within capability scope."""
 
+    def snapshot(self, path: str) -> FileSnapshot:
+        """Return a content/version snapshot when the backend supports it."""
+        raise EnvCapabilityError(
+            "unsupported_capability", "file snapshots are not supported"
+        )
+
+    def atomic_write_text(
+        self,
+        path: str,
+        content: str,
+        *,
+        expected_sha256: Optional[str] = None,
+    ) -> FileSnapshot:
+        """Atomically write text, optionally rejecting a stale snapshot."""
+        raise EnvCapabilityError(
+            "unsupported_capability", "atomic file writes are not supported"
+        )
+
 
 class CommandCapability(ABC):
     """Command execution capability contract used by env implementations."""
@@ -118,6 +176,26 @@ class CommandCapability(ABC):
     @abstractmethod
     def run(self, command: str, timeout: int = 30) -> Dict[str, Any]:
         """Run one command and return standardized result payload."""
+
+
+class ProcessControlCapability(ABC):
+    """Bounded control of processes created and owned by one Env."""
+
+    @abstractmethod
+    def start(self, command: str) -> ProcessHandle:
+        """Start one environment-owned process and return an opaque handle."""
+
+    @abstractmethod
+    def poll(self, handle: ProcessHandle) -> Dict[str, Any]:
+        """Return bounded current output and terminal state."""
+
+    @abstractmethod
+    def terminate(self, handle: ProcessHandle, timeout: int = 5) -> Dict[str, Any]:
+        """Request termination of an owned process and report what is proven."""
+
+    def close(self) -> None:
+        """Release all processes owned by this capability."""
+        return None
 
 
 class TerminalCapability(ABC):

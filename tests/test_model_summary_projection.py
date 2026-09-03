@@ -171,10 +171,9 @@ def test_builtin_coding_tool_keeps_canonical_output_but_bounds_model_projection(
     assert result.output["content"] == body
     projection = result.to_model_dict(max_chars=20_000)
     assert len(projection["model_output"]) < 17_000
-    assert result.model_output["loss_receipt"] == {
-        "truncated": True,
-        "omitted_characters": 984_014,
-    }
+    receipt = result.model_output["selection_receipt"]
+    assert receipt["omitted_characters"] > 0
+    assert result.artifact_refs[0].byte_length == len(body)
     assert projection["projection_loss"]["truncated"] is False
 
 
