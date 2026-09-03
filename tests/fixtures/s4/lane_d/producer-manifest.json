@@ -1,0 +1,76 @@
+{
+  "schema_version": "qitos.s4.lane_d.producer-manifest/1",
+  "status": "waiting_on_a_b_c",
+  "source_commit": "c4e621d05960a4e2f06cb4864f6a8cb8275ac067",
+  "lane_d_candidate_authority": "qitos.tracing.trajectory.TrajectoryRecord",
+  "candidate_writer": "qitos.tracing.journal_store.JournalTrajectoryStore",
+  "default_runtime_writer": "qitos.trace.writer.TraceWriter",
+  "default_qita_reader": "qitos.tracing.readers.TraceCompatibilityReader",
+  "exact_s4_producers": {"lane_a": null, "lane_b": null, "lane_c": null},
+  "implementation_commits": [
+    {
+      "commit": "6b8982f7220e00cf282879823de06f7823b91207",
+      "purpose": "candidate trajectory and durable journal store"
+    },
+    {
+      "commit": "4798f39995f7cbd69684585dbfa17d2b80eeca16",
+      "purpose": "read-only qita, evaluation view, and exporters"
+    },
+    {
+      "commit": "0c4d7c39fb8293efd45dd3872c17786064e7be5a",
+      "purpose": "privacy, measurements, packaging, and clean-wheel qualification"
+    }
+  ],
+  "committed_bindings": [
+    {
+      "commit": "6b8982f7220e00cf282879823de06f7823b91207",
+      "path": "qitos/tracing/trajectory.py",
+      "sha256": "7b29a969247ac29f94116524751850b06acb658077b6cc1f79c8269c9e760fcb"
+    },
+    {
+      "commit": "6b8982f7220e00cf282879823de06f7823b91207",
+      "path": "qitos/tracing/journal_store.py",
+      "sha256": "6aa206e9063927495e3dcac79f512ba16d198789b376ad292388319ed5ef7488"
+    },
+    {
+      "commit": "4798f39995f7cbd69684585dbfa17d2b80eeca16",
+      "path": "qitos/qita/inspection.py",
+      "sha256": "0cf8d5c25d53459bf3c5ee8fbdc030249328952c1d1f57a2276f177c4a3f7cf3"
+    },
+    {
+      "commit": "4798f39995f7cbd69684585dbfa17d2b80eeca16",
+      "path": "qitos/evaluate/base.py",
+      "sha256": "67b21f896a2117d1842782a3cb83cb1d94f336570a3bb6730206ccde4fb74888"
+    },
+    {
+      "commit": "4798f39995f7cbd69684585dbfa17d2b80eeca16",
+      "path": "qitos/tracing/exporter.py",
+      "sha256": "ec6a2928348c29daf03f56668c1751ea15e9758d5ba2ad0883891a6b96e4135c"
+    },
+    {
+      "commit": "0c4d7c39fb8293efd45dd3872c17786064e7be5a",
+      "path": "qitos/tracing/publication.py",
+      "sha256": "b8d8a075bca044d9db5c01dd1387bb38ce404ad3fe97ce526e76d8b706b46928"
+    },
+    {
+      "commit": "0c4d7c39fb8293efd45dd3872c17786064e7be5a",
+      "path": "scripts/measure_trajectory_store.py",
+      "sha256": "3ba1d381cb266261bc4b2603ee77a19f1c30d79241cb8ec94f7d1d5a250d4ce0"
+    },
+    {
+      "commit": "0c4d7c39fb8293efd45dd3872c17786064e7be5a",
+      "path": "scripts/qualify_wheel_distribution.py",
+      "sha256": "df38566f2f18e1e34db8bf306e29799c9f6da520445dfb4f330802b1985bd7d7"
+    },
+    {
+      "commit": "0c4d7c39fb8293efd45dd3872c17786064e7be5a",
+      "path": "setup.py",
+      "sha256": "33e6b4d126255456e3b5a4ee3c6dc5343db3f11711b022f6bc08c23b3981e4ff"
+    }
+  ],
+  "schema_frozen": false,
+  "default_writer_enabled": false,
+  "default_reader_switched": false,
+  "publication_ready": false,
+  "claims": []
+}
