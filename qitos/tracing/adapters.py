@@ -48,7 +48,9 @@ def classify_event(
         token in upper for token in ("MODEL_REQUEST", "MODEL_INPUT")
     ):
         return RecordKind.MODEL_REQUEST
-    if stage in {"model_output", "provider_transaction"} or any(
+    if stage == "provider_transaction":
+        return RecordKind.PROVIDER_TRANSACTION
+    if stage == "model_output" or any(
         token in upper for token in ("MODEL_RESPONSE", "MODEL_OUTPUT")
     ):
         return RecordKind.MODEL_RESPONSE
@@ -70,6 +72,10 @@ def classify_event(
         return RecordKind.PAUSE
     if "EFFECT" in upper:
         return RecordKind.EFFECT
+    if "SANDBOX" in upper or stage.startswith("sandbox"):
+        return RecordKind.SANDBOX
+    if "OWNER" in upper or stage.startswith("ownership"):
+        return RecordKind.OWNERSHIP
     if "BUDGET" in upper:
         return RecordKind.BUDGET
     if (
@@ -84,6 +90,8 @@ def classify_event(
         return RecordKind.WORK_GRAPH
     if stage == "tool_batch_snapshot" or "TOOL_BATCH" in upper:
         return RecordKind.TOOL_BATCH
+    if stage == "tool_result":
+        return RecordKind.TOOL_RESULT
     if stage == "tool_slot_terminal" or "TOOL" in upper or upper in {
         "ACT",
         "ACT_ERROR",
@@ -99,6 +107,42 @@ def classify_event(
     if "LOSS" in upper:
         return RecordKind.LOSS
     return RecordKind.LIFECYCLE
+
+
+def _payload_text(payload: Mapping[str, Any], key: str) -> Optional[str]:
+    value = payload.get(key)
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _payload_int(payload: Mapping[str, Any], key: str) -> Optional[int]:
+    value = payload.get(key)
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed >= 0 else None
+
+
+def _explicit_identities(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Copy producer-emitted identities without deriving facts from names."""
+    return {
+        "attempt_id": _payload_text(payload, "attempt_id"),
+        "attempt": _payload_int(payload, "attempt"),
+        "owner_id": _payload_text(payload, "owner_id"),
+        "owner_generation": _payload_int(payload, "owner_generation"),
+        "operation_id": _payload_text(payload, "operation_id"),
+        "lifecycle_state": _payload_text(payload, "lifecycle_state"),
+        "provider_transaction_id": _payload_text(
+            payload, "provider_transaction_id"
+        ),
+        "effect_id": _payload_text(payload, "effect_id"),
+        "sandbox_id": _payload_text(payload, "sandbox_id"),
+    }
 
 
 def _event_name(event: Any, *, prefer_event_type: bool = False) -> str:
@@ -158,6 +202,8 @@ def runtime_event_to_record(
         phase=phase or None,
         agent_id=agent_id,
         occurred_at=str(getattr(event, "ts", "unknown")),
+        monotonic_ns=getattr(event, "monotonic_ns", None),
+        **_explicit_identities(payload),
         payload={"ok": ok, "payload": payload, "error": _json_value(error)},
         loss=LossReport(
             policy_id="qitos.adapter/runtime-event",
@@ -180,7 +226,9 @@ def session_lifecycle_event_to_record(event: Any) -> TrajectoryRecord:
         run_id=str(getattr(event, "run_id")),
         snapshot_id=str(getattr(event, "snapshot_id")),
         checkpoint_ref=str(getattr(event, "checkpoint_id")),
+        owner_id=getattr(event, "owner_id", None),
         owner_generation=int(getattr(event, "generation")),
+        lifecycle_state=lifecycle or None,
         occurred_at=str(getattr(event, "captured_at")),
         payload={
             "lifecycle": lifecycle,
@@ -227,6 +275,7 @@ def runtime_event_to_records(
                         phase=str(getattr(getattr(event, "phase", None), "value", ""))
                         or None,
                         agent_id=agent_id,
+                        **_explicit_identities(payload),
                         payload={key: _json_value(payload[key])},
                     )
                 )
@@ -243,6 +292,7 @@ def runtime_event_to_records(
                 or None,
                 agent_id=agent_id,
                 tool_call_id=str(payload.get("slot_id") or "") or None,
+                **_explicit_identities(payload),
                 payload={"effect": _json_value(payload["effect"])},
             )
         )
@@ -263,6 +313,7 @@ def runtime_event_to_records(
                     or None,
                     agent_id=agent_id,
                     tool_call_id=str(payload.get("slot_id") or "") or None,
+                    **_explicit_identities(payload),
                     artifact_refs=(artifact,),
                     payload={"artifact_id": artifact.artifact_id},
                 )
@@ -294,6 +345,8 @@ def engine_event_to_record(
         phase=event_name or None,
         agent_id=getattr(event, "agent_id", None),
         occurred_at=str(getattr(event, "ts", "unknown")),
+        monotonic_ns=getattr(event, "monotonic_ns", None),
+        **_explicit_identities(payload),
         payload={"ok": ok, "payload": payload, "error": error},
         loss=LossReport(
             policy_id="qitos.adapter/engine-event",

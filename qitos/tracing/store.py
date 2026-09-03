@@ -40,6 +40,10 @@ class StoreIntegrityError(TrajectoryStoreError):
     """Stored data failed integrity validation."""
 
 
+class StoreIOError(TrajectoryStoreError):
+    """A durable store operation failed without echoing host details."""
+
+
 @dataclass(frozen=True)
 class StoreCapabilities:
     store_id: str
@@ -49,6 +53,10 @@ class StoreCapabilities:
     replay: bool = True
     integrity_validation: bool = True
     artifact_references: bool = True
+    concurrent_writer_policy: str = "single_process_serialized"
+    max_query_records: int = 10_000
+    partial_tail_recovery: bool = False
+    index_rebuild: bool = False
 
 
 @dataclass(frozen=True)
@@ -59,6 +67,18 @@ class StoreIntegrityReport:
     duplicate_record_ids: Tuple[str, ...] = ()
     sequence_gaps: Tuple[int, ...] = ()
     store_digest_valid: Optional[bool] = None
+    recovered_tail_bytes: int = 0
+
+
+@dataclass(frozen=True)
+class IndexRebuildReport:
+    """Result for rebuilding a derived, disposable query index."""
+
+    record_count: int
+    run_count: int
+    session_count: int
+    work_item_count: int
+    persisted: bool = False
 
 
 @dataclass(frozen=True)
@@ -105,6 +125,9 @@ class TrajectoryStore(Protocol):
     def validate_integrity(self) -> StoreIntegrityReport:
         ...
 
+    def rebuild_index(self) -> IndexRebuildReport:
+        ...
+
     def measure_storage(self) -> StorageMeasurement:
         ...
 
@@ -128,6 +151,21 @@ class MemoryTrajectoryStore:
         self._record_ids: set[str] = set()
         self._closed = False
         self._lock = threading.RLock()
+
+    @classmethod
+    def from_records(
+        cls,
+        records: Iterable[TrajectoryRecord],
+        *,
+        store_id: str = "qitos.memory_trajectory_snapshot",
+    ) -> "MemoryTrajectoryStore":
+        """Build an exact in-memory snapshot without resequencing records."""
+        store = cls(store_id=store_id)
+        store._restore(records)
+        report = store.validate_integrity()
+        if not report.valid:
+            raise StoreIntegrityError("snapshot_integrity_mismatch")
+        return store
 
     @property
     def capabilities(self) -> StoreCapabilities:
@@ -243,6 +281,24 @@ class MemoryTrajectoryStore:
                 sequence_gaps=gaps,
             )
 
+    def rebuild_index(self) -> IndexRebuildReport:
+        with self._lock:
+            self._ensure_open()
+            return IndexRebuildReport(
+                record_count=len(self._records),
+                run_count=len({record.run_id for record in self._records if record.run_id}),
+                session_count=len(
+                    {record.session_id for record in self._records if record.session_id}
+                ),
+                work_item_count=len(
+                    {
+                        record.work_item_id
+                        for record in self._records
+                        if record.work_item_id
+                    }
+                ),
+            )
+
     def measure_storage(self) -> StorageMeasurement:
         with self._lock:
             payload = {
@@ -303,6 +359,8 @@ class JsonTrajectoryStore:
             store_id="qitos.json_trajectory_store",
             atomic_batch=True,
             durable=True,
+            partial_tail_recovery=False,
+            index_rebuild=True,
         )
 
     def _ensure_open(self) -> None:
@@ -461,6 +519,9 @@ class JsonTrajectoryStore:
                 store_digest_valid=digest_valid,
             )
 
+    def rebuild_index(self) -> IndexRebuildReport:
+        return self._memory.rebuild_index()
+
     def measure_storage(self) -> StorageMeasurement:
         with self._lock:
             return StorageMeasurement(
@@ -493,12 +554,14 @@ class JsonTrajectoryStore:
 
 __all__ = [
     "JsonTrajectoryStore",
+    "IndexRebuildReport",
     "MemoryTrajectoryStore",
     "StorageMeasurement",
     "StoreCapabilities",
     "StoreConflictError",
     "StoreIntegrityError",
     "StoreIntegrityReport",
+    "StoreIOError",
     "TrajectoryStore",
     "TrajectoryStoreError",
 ]
