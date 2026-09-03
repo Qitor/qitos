@@ -1,8 +1,4 @@
-"""Executable, inspect-backed Docker qualification for declarative launches.
-
-This is a bounded G4 qualification harness around :class:`DockerEnv`; it does
-not claim the complete sandbox runtime described by Task 14.
-"""
+"""Executable, inspect-backed qualification for the Docker reference sandbox."""
 
 from __future__ import annotations
 
@@ -15,6 +11,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
+
+from .sandbox import SandboxIdentity
 
 
 class SandboxQualificationError(RuntimeError):
@@ -57,27 +55,11 @@ def workspace_digest(root: str | Path) -> str:
     return digest.hexdigest()
 
 
-@dataclass(frozen=True)
-class SandboxIdentity:
-    session_id: str
-    run_id: str
-    work_item_id: str
-    environment_id: str
-
-    def to_dict(self) -> Dict[str, str]:
-        return {
-            "session_id": self.session_id,
-            "run_id": self.run_id,
-            "work_item_id": self.work_item_id,
-            "environment_id": self.environment_id,
-        }
-
-
 @dataclass
 class SandboxQualificationReceipt:
     schema: str
     created_at: str
-    identity: Dict[str, str]
+    identity: Dict[str, Any]
     container_id: str
     image_id: str
     config_digest: str
@@ -225,9 +207,8 @@ def qualify_docker_environment(
         security_options = [str(value) for value in list(host.get("SecurityOpt") or [])]
         cap_drop = [str(value).upper() for value in list(host.get("CapDrop") or [])]
         tmpfs = dict(host.get("Tmpfs") or {})
-        expected_mounts = {env_config.container_workspace}
         actual_mounts = {str(mount.get("Destination") or "") for mount in mounts}
-        receipt.unexpected_mounts = sorted(actual_mounts - expected_mounts)
+        receipt.unexpected_mounts = sorted(actual_mounts)
         receipt.probes.update(
             {
                 "inspect_network_none": host.get("NetworkMode") == "none",
@@ -252,11 +233,10 @@ def qualify_docker_environment(
                     token in str(tmpfs.get("/tmp", ""))
                     for token in ("size=256m", "size=268435456")
                 ),
-                "inspect_workspace_mount": any(
-                    mount.get("Destination") == env_config.container_workspace
-                    and mount.get("RW") is True
-                    and mount.get("Type") == "bind"
-                    for mount in mounts
+                "inspect_private_workspace": (
+                    not mounts
+                    and env_config.container_workspace in tmpfs
+                    and "/results" in tmpfs
                 ),
                 "inspect_no_unexpected_mount": not receipt.unexpected_mounts,
                 "inspect_config_label": labels.get("qitos.config.digest")
