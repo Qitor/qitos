@@ -7,7 +7,7 @@
     "symlink_escape": {"evidence": "test_symlink_escape_is_rejected_at_capability_boundary", "result": "passed"},
     "toctou_stale_write": {"evidence": "test_atomic_edit_rejects_stale_snapshot_without_mutation", "result": "passed"},
     "vcs_and_credentials": {"evidence": "protected-path policy and private-staging exclusions", "result": "passed"},
-    "unexpected_mount": {"evidence": "inspect-backed required mount set", "result": "platform_blocked"},
+    "unexpected_mount": {"evidence": "real inspect-backed required mount set", "result": "passed"},
     "docker_socket": {"evidence": "no host mounts and explicit policy argument check", "result": "passed"},
     "device_namespace_privileged": {"evidence": "test_unsafe_sandbox_policy_is_typed_rejected", "result": "passed"},
     "host_network": {"evidence": "typed network policy and inspect requirement", "result": "passed"},
