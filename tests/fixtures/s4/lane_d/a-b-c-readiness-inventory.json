@@ -1,0 +1,38 @@
+{
+  "schema_version": "qitos.s4.lane_d.readiness/1",
+  "dispatch_baseline": "c4e621d05960a4e2f06cb4864f6a8cb8275ac067",
+  "status": "waiting_on_a_b_c",
+  "lanes": {
+    "A": null,
+    "B": null,
+    "C": null
+  },
+  "required": {
+    "A": [
+      "public_composition",
+      "session_default",
+      "cli_programmatic_equivalence",
+      "cleanup_ownership",
+      "config_extension_slots"
+    ],
+    "B": [
+      "provider_transaction",
+      "message_ordering",
+      "reasoning_continuation",
+      "context_compaction_artifact",
+      "usage_loss_failure"
+    ],
+    "C": [
+      "tool_result_aci",
+      "sandbox_attestation",
+      "effect_lifecycle",
+      "mcp",
+      "work_graph_operations",
+      "cleanup_unknown"
+    ]
+  },
+  "schema_frozen": false,
+  "default_writer_enabled": false,
+  "default_reader_switched": false,
+  "publication_ready": false
+}

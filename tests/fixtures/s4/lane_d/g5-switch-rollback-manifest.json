@@ -1,0 +1,34 @@
+{
+  "schema_version": "qitos.s4.g5.switch_rollback/1",
+  "preconditions": [
+    "validate_exact_s4_a_b_c_producers",
+    "regenerate_lane_d_receipts",
+    "reader_parity_passed",
+    "producer_owned_event_snapshot_wiring_passed",
+    "single_trajectory_contract_reviewed",
+    "storage_measurements_repeated",
+    "clean_wheel_matrix_passed",
+    "bilingual_docs_patch_applied"
+  ],
+  "switch": [
+    "enable_canonical_writer_for_declarative_golden_path",
+    "enable_canonical_writer_for_programmatic_golden_path",
+    "select_trajectory_reader_as_qita_default",
+    "retain_bounded_historical_trace_reader",
+    "rerun_full_g5_gate"
+  ],
+  "rollback": [
+    "restore_frozen_trace_compatibility_as_qita_default",
+    "disable_candidate_writer_default_without_deleting_candidate_data",
+    "retain_trajectory_reader_for_explicit_inspection",
+    "verify_historical_trace_read_replay_export",
+    "record_typed_rollback_receipt"
+  ],
+  "independent_lane_state": {
+    "status": "waiting_on_a_b_c",
+    "schema_frozen": false,
+    "default_writer_enabled": false,
+    "default_reader_switched": false,
+    "publication_ready": false
+  }
+}
