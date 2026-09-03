@@ -17,6 +17,7 @@ from ..core.tool_result import ToolResult
 from ..core.tool_runtime import (
     TOOL_LIFECYCLE_MATRIX,
     TerminalDisposition,
+    ToolBatchExecution,
     ToolBatchSnapshot,
     ToolEffectDeclaration,
     ToolEffectPolicy,
@@ -86,6 +87,22 @@ class ReferenceEffectPolicy(ToolEffectPolicy):
                 declaration=declaration,
                 state="unknown" if declaration is not None else "no_effect_declared",
                 retry_disposition="blocked_worker_running",
+                reconciliation_required=declaration is not None,
+                outcome_unknown=declaration is not None,
+            )
+        if bool(result.metadata.get("timeout_outcome_unknown", False)):
+            return ToolEffectReceipt(
+                declaration=declaration,
+                state=(
+                    "reconciliation_required"
+                    if declaration is not None
+                    else "no_effect_declared"
+                ),
+                retry_disposition=(
+                    "requires_reconciliation"
+                    if declaration is not None
+                    else "non_retryable"
+                ),
                 reconciliation_required=declaration is not None,
                 outcome_unknown=declaration is not None,
             )
@@ -447,10 +464,74 @@ def _action_snapshot_payload(action: Action) -> Dict[str, Any]:
     return decoded
 
 
+def run_tool_executor_conformance(
+    executor: Any,
+    actions: Sequence[Action],
+    *,
+    env: Any = None,
+) -> Dict[str, Any]:
+    """Exercise a third-party executor through only the public runtime seam."""
+    if not callable(getattr(executor, "execute_one", None)) or not callable(
+        getattr(executor, "execute_batch", None)
+    ):
+        raise TypeError("executor must implement ToolExecutorProtocol operations")
+    declared = list(actions)
+    if not declared:
+        raise ValueError("conformance requires at least one action")
+    execution = executor.execute_batch(
+        declared,
+        env=env,
+        batch_id="batch:external-conformance",
+        owner_generation=0,
+    )
+    if not isinstance(execution, ToolBatchExecution):
+        raise TypeError("execute_batch must return ToolBatchExecution")
+    if not execution.snapshot.closed:
+        raise ValueError("conformance batch did not close")
+    if len(execution.results_in_declaration_order) != len(declared):
+        raise ValueError("conformance batch lost a declared action")
+    json.dumps(execution.snapshot.to_dict(), sort_keys=True, allow_nan=False)
+    return {
+        "status": "passed",
+        "declared": len(declared),
+        "terminal": len(execution.results_in_declaration_order),
+        "completion_order": list(execution.snapshot.completion_order),
+        "declaration_order": [slot.slot_id for slot in execution.snapshot.slots],
+    }
+
+
+def assert_tool_effect_policy_conformance(
+    policy: Any,
+    action: Action,
+    tool: Optional[BaseTool],
+    runtime_context: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Validate an external effect policy without Engine or store internals."""
+    if not callable(getattr(policy, "declare", None)) or not callable(
+        getattr(policy, "finalize", None)
+    ):
+        raise TypeError("policy must implement ToolEffectPolicy operations")
+    declaration = policy.declare(action, tool, dict(runtime_context or {}))
+    if declaration is not None and not isinstance(declaration, ToolEffectDeclaration):
+        raise TypeError("policy declaration must be ToolEffectDeclaration or None")
+    receipt = policy.finalize(declaration, ToolResult(output="ok"), dispatched=True)
+    if not isinstance(receipt, ToolEffectReceipt):
+        raise TypeError("policy finalize must return ToolEffectReceipt")
+    json.dumps(receipt.to_dict(), sort_keys=True, allow_nan=False)
+    return {
+        "status": "passed",
+        "effect_ref": receipt.effect_ref,
+        "effect_state": receipt.state,
+        "retry_disposition": receipt.retry_disposition,
+    }
+
+
 __all__ = [
     "ReferenceEffectPolicy",
     "ToolBatchLedger",
+    "assert_tool_effect_policy_conformance",
     "apply_effect_receipt",
     "lifecycle_receipt_for",
     "lifecycle_spec_for",
+    "run_tool_executor_conformance",
 ]

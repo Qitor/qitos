@@ -14,14 +14,11 @@ Covers:
 
 from __future__ import annotations
 
-import asyncio
-import json
 from typing import Any, Dict, List, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from qitos.core.tool import FunctionTool, ToolSpec
+from qitos.core.tool import FunctionTool
 from qitos.mcp import (
     MCPServer,
     MCPToolInfo,
@@ -370,10 +367,13 @@ class TestSchemaConvert:
         spec = convert_mcp_schema_to_tool_spec(tool)
         assert spec.input_schema.get("additionalProperties") is False
 
-    def test_read_only_default(self) -> None:
+    def test_unknown_mcp_effect_is_conservative_by_default(self) -> None:
         tool = MCPToolInfo(name="ro_tool", input_schema={"type": "object"})
         spec = convert_mcp_schema_to_tool_spec(tool)
-        assert spec.read_only is True
+        assert spec.read_only is False
+        assert spec.needs_approval is True
+        assert spec.permissions.network is True
+        assert spec.effect is not None
 
 
 # --------------------------------------------------------------------------- #

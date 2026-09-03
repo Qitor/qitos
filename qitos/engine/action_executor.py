@@ -69,9 +69,16 @@ class _ConcurrencyTracker:
 class ToolWorkerTimeout(TimeoutError):
     """Deadline observation with an honest underlying-worker capability fact."""
 
-    def __init__(self, message: str, *, worker_still_running: bool):
+    def __init__(
+        self,
+        message: str,
+        *,
+        worker_still_running: bool,
+        outcome_unknown: bool = False,
+    ):
         super().__init__(message)
         self.worker_still_running = bool(worker_still_running)
+        self.outcome_unknown = bool(outcome_unknown)
 
 
 class ToolBatchRecoveryError(RuntimeError):
@@ -842,16 +849,21 @@ class ActionExecutor:
             running_loop = True
 
         if running_loop is not None:
-            # We are inside a live event loop on this thread, so we cannot
-            # drive the coroutine here without deadlocking. Close it rather
-            # than leaking an un-awaited coroutine, and report honestly.
-            close = getattr(value, "close", None)
-            if callable(close):
-                close()
-            raise RuntimeError(
-                "async tool handler cannot be awaited from a synchronous "
-                "executor running inside an active event loop"
-            )
+            # The synchronous executor cannot nest an event loop.  The
+            # canonical runtime owns one helper thread for the coroutine; MCP
+            # and other async tools do not grow a separate executor path.
+            pool = ThreadPoolExecutor(max_workers=1)
+            future = pool.submit(asyncio.run, value)
+            try:
+                return future.result(timeout=timeout_s)
+            except FuturesTimeoutError as exc:
+                raise ToolWorkerTimeout(
+                    "async action timed out while its worker may still run",
+                    worker_still_running=True,
+                    outcome_unknown=True,
+                ) from exc
+            finally:
+                pool.shutdown(wait=False)
 
         async def _driver() -> Any:
             if timeout_s is not None:
@@ -862,7 +874,9 @@ class ActionExecutor:
             return asyncio.run(_driver())
         except asyncio.TimeoutError as exc:
             raise ToolWorkerTimeout(
-                "async action timed out", worker_still_running=False
+                "async action timed out",
+                worker_still_running=False,
+                outcome_unknown=True,
             ) from exc
 
     def _call_tool_with_timeout(
@@ -1385,6 +1399,7 @@ class ActionExecutor:
                         **ordering_meta,
                         "error_category": "timeout",
                         "worker_still_running": exc.worker_still_running,
+                        "timeout_outcome_unknown": exc.outcome_unknown,
                         "executed": True,
                         "ended_at": time.time(),
                     },
