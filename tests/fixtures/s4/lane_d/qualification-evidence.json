@@ -7,7 +7,7 @@
     {"id": "static-quality-ratchet", "status": "passed", "detail": "367 baselined findings; 345 active and 22 vendored/generated"},
     {"id": "stable-flake8", "status": "passed", "detail": "qitos/core qitos/engine qitos/models qitos/trace"},
     {"id": "stable-mypy", "status": "passed", "detail": "93 source files"},
-    {"id": "tests-tracing", "status": "passed", "detail": "109 passed"},
+    {"id": "tests-tracing", "status": "passed", "detail": "110 passed"},
     {"id": "tests-qita", "status": "passed", "detail": "7 passed"},
     {"id": "lane-d-conformance", "status": "passed", "detail": "52 passed"},
     {"id": "full-pytest-initial", "status": "environment_gap", "detail": "2456 passed, 50 skipped; one Docker sandbox-unavailable failure remains after three regressions were repaired"},
