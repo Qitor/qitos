@@ -210,6 +210,9 @@ requirements are evidence contracts, not substitutes for those probes.
   Docker process-restore preflight, one Docker ACI command probe, and the S3
   Lane C immutable-manifest test whose old hashes intentionally cover the two
   Lane C files changed here.
+- A later 228-test adjacent sweep passed 227 tests (two Docker tests deselected)
+  and observed one additional Docker-backed S3 preflight fail before its mocked
+  provider was called; label-scoped inventory again found no leaked sandbox.
 - `scripts/static_quality.py check` reports nine resolved baseline findings.
   Its own ratchet requires shrinking `quality/static_baseline.json`, but that
   file is explicitly outside this lane's lease; no baseline was edited and no
