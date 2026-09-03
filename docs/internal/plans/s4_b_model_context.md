@@ -1,6 +1,6 @@
 # S4 Lane B — provider-neutral model transactions and context
 
-Status: offline producer complete; final evidence audit in progress
+Status: offline producer complete; host-resource exceptions recorded
 Owner: Lane B
 Fixed baseline and merge-base: `c4e621d05960a4e2f06cb4864f6a8cb8275ac067`
 Branch: `codex/v4-s4-b-model-context`
@@ -230,8 +230,11 @@ Navigation/index owner:
 - Full `pytest -q`: 2457 passed, 50 skipped, 2 host-resource failures. Both
   were outside Lane B: a Docker backend temporarily unavailable and a
   20-round clean-process child exceeding its fixed 20-second timeout while
-  several full pytest jobs shared the host. Docker qualification nodes had
-  passed serially earlier; no assertion failure implicated Lane B semantics.
+  several full pytest jobs shared the host. Both failed nodes passed on final
+  serial recheck: Docker process recovery in 53.40 seconds and 20-round
+  clean-process loss recovery in 386.17 seconds. No assertion failure
+  implicated Lane B semantics.
+- Twenty-round fresh-process continuation continuity: passed in 33.54 seconds.
 - 10 MiB, cyclic, and depth-bound projections: passed.
 - Independent adapter conformance and privacy/non-echoing checks: passed.
 - Producer manifests: passed and bound to committed source/fixture bytes.

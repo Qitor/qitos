@@ -7,6 +7,18 @@ import runpy
 import subprocess
 from pathlib import Path
 
+from qitos.models.anthropic import AnthropicModel
+from qitos.models.codec import ProviderCapabilities
+from qitos.models.gemini import GeminiModel
+from qitos.models.litellm import LiteLLMModel
+from qitos.models.local import (
+    LMStudioModel,
+    OllamaGenerateModel,
+    OllamaModel,
+    VLLMModel,
+)
+from qitos.models.openai import OpenAIModel
+
 
 REPOSITORY_ROOT = Path(__file__).parents[2]
 FIXTURES = REPOSITORY_ROOT / "tests" / "fixtures" / "s4" / "lane_b"
@@ -41,6 +53,54 @@ def test_lane_a_config_consumer_uses_only_public_structural_contracts() -> None:
     assert consumed["logical_profile_id"] == "fixture.semantic"
     assert consumed["target"]["api_mode"] == "semantic"
     assert consumed["capabilities"]["supports_continuation"] is True
+
+
+def test_capability_matrix_is_an_exact_projection_of_builtin_declarations() -> None:
+    types = {
+        model_type.__name__: model_type
+        for model_type in (
+            OpenAIModel,
+            AnthropicModel,
+            GeminiModel,
+            LiteLLMModel,
+            OllamaModel,
+            OllamaGenerateModel,
+            LMStudioModel,
+            VLLMModel,
+        )
+    }
+    aliases = {
+        "tool_calls": "supports_native_tool_calls",
+        "parallel_tools": "supports_parallel_tool_calls",
+        "tool_choice": "supports_tool_choice",
+        "multimodal_input": "supports_multimodal_input",
+        "reasoning_input": "supports_reasoning_input",
+        "reasoning_output": "supports_reasoning_output",
+        "continuation": "supports_continuation",
+        "stateless_replay": "supports_stateless_replay",
+        "streaming": "supports_streaming",
+        "usage": "supports_usage",
+        "cancellation": "supports_cancellation",
+        "structured_output": "supports_structured_output",
+    }
+    matrix = json.loads(
+        (FIXTURES / "provider-capability-matrix.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    for row in matrix["modes"]:
+        model = object.__new__(types[row["adapter"]])
+        model.model = "fixture-model"
+        model.api_mode = row["api_mode"]
+        model.context_window = 32_768
+        model.max_tokens = 10_240
+        capabilities = ProviderCapabilities.from_model(model)
+        assert capabilities.target.provider == row["provider"]
+        assert capabilities.target.api_mode == row["api_mode"]
+        assert capabilities.api_style == row["api_style"]
+        for fixture_name, field_name in aliases.items():
+            assert getattr(capabilities, field_name) is row[fixture_name]
 
 
 def test_lane_b_producer_manifest_binds_current_bytes_and_test_nodes() -> None:
