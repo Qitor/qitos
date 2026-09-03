@@ -1,0 +1,28 @@
+{
+  "schema_version": "qitos.s4.lane_d.reader-qita-cases/1",
+  "cases": [
+    "historical-default-reader",
+    "candidate-explicit-reader",
+    "exact-record-round-trip",
+    "board",
+    "session",
+    "graph",
+    "timeline",
+    "item",
+    "attempts",
+    "ownership",
+    "budgets",
+    "sandbox",
+    "losses",
+    "replay",
+    "export",
+    "poll"
+  ],
+  "test_nodes": [
+    "tests/qita/test_reader_parity.py",
+    "tests/qita/test_s4_read_only_inspection.py",
+    "tests/test_config_trajectory_integration.py"
+  ],
+  "default_reader_switched": false,
+  "claims": []
+}

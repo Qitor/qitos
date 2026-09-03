@@ -1,0 +1,16 @@
+{
+  "schema_version": "qitos.s4.lane_d.durability-cases/1",
+  "store": "qitos.journal_trajectory_store",
+  "cases": [
+    {"id": "abrupt-process-exit", "expected": "committed_batch_reopens"},
+    {"id": "partial-final-frame", "expected": "tail_truncated_and_reported"},
+    {"id": "complete-corrupt-frame", "expected": "typed_integrity_failure"},
+    {"id": "two-writer-handles", "expected": "serialized_no_loss"},
+    {"id": "io-failure", "expected": "atomic_memory_rollback_and_typed_error"},
+    {"id": "index-delete-rebuild", "expected": "derived_index_rebuilt"},
+    {"id": "bounded-query", "expected": "limit_enforced"},
+    {"id": "record-digest-corruption", "expected": "typed_integrity_failure"}
+  ],
+  "test_node": "tests/tracing/test_s4_journal_store.py",
+  "claims": []
+}

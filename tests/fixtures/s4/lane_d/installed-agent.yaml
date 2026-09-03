@@ -1,0 +1,37 @@
+schema: qitos.agent
+agent:
+  name: installed-offline-agent
+  protocol: react_text_v1
+  parser: auto
+model:
+  provider: openai_compatible
+  model: offline-model
+  base_url: https://example.invalid/v1
+  credential:
+    ref: offline-credential
+  api_mode: chat_completions
+  request:
+    temperature: 0
+    max_tokens: 256
+    timeout_seconds: 10
+    retries: 0
+tools:
+  preset: none
+  include: []
+  options: {}
+  policy: disabled
+runtime:
+  environment:
+    type: unsafe_host
+    workspace: .
+  session:
+    enabled: true
+    store: memory
+  trajectory:
+    enabled: false
+    output: ./runs
+    privacy: private
+budgets:
+  max_steps: 2
+  max_runtime_seconds: 30
+  max_requests: 2

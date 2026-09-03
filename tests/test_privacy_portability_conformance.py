@@ -19,10 +19,17 @@ from qitos.tracing.trajectory import PrivacyView
         ("/home/example/private.json", "host_path"),
         ("/opt/qitos/private.json", "host_path"),
         (r"C:\Users\example\private.json", "host_path"),
+        (r"\\server\private\run.json", "host_path"),
         ("file:///private/run.json", "host_path"),
+        ("~/private/run.json", "host_path"),
         ("http://localhost:9000/private", "local_endpoint"),
+        ("http://192.168.1.20:9000/private", "local_endpoint"),
         ("Bearer private-token-value", "secret_value"),
+        ("Authorization: private-token-value", "secret_value"),
+        ("Cookie: session=private-cookie-value", "secret_value"),
+        ("api_key=private-api-key-value", "secret_value"),
         ("sk-proj-privatecredential", "secret_value"),
+        ("abcdefgh.ijklmnop.qrstuvwx", "secret_value"),
         ("-----BEGIN PRIVATE KEY-----", "secret_value"),
     ],
 )
@@ -67,6 +74,16 @@ def test_sensitive_key_and_provider_raw_policy() -> None:
     assert "authorization" not in json.dumps(
         [finding.to_dict() for finding in public.findings]
     )
+
+
+def test_public_projection_omits_artifact_body_without_mutating_raw() -> None:
+    private = {"artifact_body": "synthetic artifact contents"}
+
+    projected = project_data(private, view=PrivacyView.REDACTED_PUBLIC)
+
+    assert projected.data["artifact_body"] == "__omitted__"
+    assert "artifact_body" in {finding.code for finding in projected.findings}
+    assert private["artifact_body"] == "synthetic artifact contents"
 
 
 def test_safe_diagnostic_projection_is_bounded_and_reports_loss() -> None:

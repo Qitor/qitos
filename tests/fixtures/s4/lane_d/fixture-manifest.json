@@ -1,0 +1,20 @@
+{
+  "schema_version": "qitos.s4.lane_d.fixture-manifest/1",
+  "status": "candidate_unfrozen",
+  "categories": {
+    "candidate_records": "storage-measurement-manifest.json",
+    "crash_reopen_and_integrity": "durability-cases.json",
+    "reader_parity_and_qita": "reader-qita-cases.json",
+    "evaluator_and_exporter": "evaluator-exporter-cases.json",
+    "privacy_and_publication": "privacy-publication-cases.json",
+    "storage_measurement": "storage-measurement-manifest.json",
+    "a_b_c_readiness": "a-b-c-readiness-inventory.json",
+    "producer_manifest": "producer-manifest.json",
+    "qualification_evidence": "qualification-evidence.json",
+    "g5_switch_and_rollback": "g5-switch-rollback-manifest.json",
+    "packaging_matrix": "packaging-matrix.json"
+  },
+  "claims": [],
+  "schema_frozen": false,
+  "publication_ready": false
+}
