@@ -130,4 +130,3 @@ def test_context_budget_intersects_provider_input_and_output_capabilities() -> N
             declared_max_output_units=4_000,
             reserved_output_units=4_001,
         )
-
