@@ -1,6 +1,6 @@
 # S4 Lane D — Trajectory, qita, evaluation, export, and distribution
 
-Status: in progress; independent lane, waiting on the exact S4 A/B/C producers
+Status: Lane D candidate qualified; waiting on the exact S4 A/B/C producers
 Source: `c4e621d05960a4e2f06cb4864f6a8cb8275ac067`
 Branch: `codex/v4-s4-d-trajectory-release`
 Worktree: recorded in the dispatch handoff, never serialized into public evidence
@@ -65,10 +65,10 @@ Engine events, and snapshot producers remain untouched per dispatch.
       emit typed not-ready rather than empty success when sources are not qualified.
 - [x] Audit extras and run build/twine plus fresh-wheel base/optional and two offline
       consumer smokes using installed stable/extension APIs only.
-- [ ] Commit S4 Lane D fixtures, producer/readiness/qualification manifests and digests.
+- [x] Commit S4 Lane D fixtures, producer/readiness/qualification manifests and digests.
 - [x] Publish exact G5 regeneration, switch, parity, rollback, and documentation patch
       steps while retaining the independent-lane waiting state.
-- [ ] Run targeted, full, static, packaging and diff validation and review the diff.
+- [x] Run targeted, full, static, packaging and diff validation and review the diff.
 
 ## Source census and ADR
 
@@ -238,10 +238,12 @@ offline installed-consumer programs. Those programs use public framework APIs
 and documented extension modules only; they contain no `qitos._*`/test imports,
 do not call a live model, and do not use the repository source path.
 
-Wheel digest observed before final source commits:
-`cd36d45eec4d4a7509d53f91d40763258204068d57a49d1405175ebf396a6c3b`.
-Because later documentation/evidence commits change the sdist inputs, G5 must
-rebuild and record a final digest rather than reuse this value.
+Final qualified wheel digest:
+`4d9e06daca887c56daaa433edd1412634d3aece5dc200c95d93347bcc4bea09a`.
+The sdist digest is
+`c9a408cb0e2c8dd36c334258ad077653cff95098818b6ec14dd89df14236ac38`.
+G5 must rebuild and record new digests after merging A/B/C rather than reuse
+either Lane D artifact.
 
 ## G5 exact handoff
 
@@ -357,6 +359,10 @@ top of this plan remains `waiting_on_a_b_c`.
 - Full pytest first pass: 2,456 passed, 50 skipped; three discovered regressions
   were repaired. The remaining failure is the pre-existing Docker-qualified S3
   E2E because the configured sandbox backend is unavailable on this host.
+- Post-fix pytest with that configured-Docker recovery file excluded: 2,470
+  passed, 50 skipped. The only two failures were also Docker-host conditions: a
+  real sandbox write probe failure and a later Docker inspect timeout reported as
+  sandbox unavailable. All tests outside those Docker probes completed.
 - Build, twine, wheel content, 20-profile fresh installs, both installed consumers,
   and repeated storage measurements: passed as described above.
-- Final post-fix full non-Docker suite and exact commit/digest ledger: pending.
+- Exact commit/digest ledger: passed. Final readiness remains waiting on A/B/C.
