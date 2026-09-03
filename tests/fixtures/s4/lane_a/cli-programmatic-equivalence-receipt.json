@@ -1,0 +1,30 @@
+{
+  "schema": "qitos.s4.lane_a.equivalence/v1",
+  "status": "qualified",
+  "source_commit": "65718ee782065e7dccc3b3d0a5e7ea9a318b5411",
+  "test_nodes": [
+    "tests/test_s4_lane_a_public_authoring.py::test_cli_and_programmatic_golden_paths_share_runtime_contract",
+    "tests/test_s4_lane_a_public_authoring.py::test_declarative_runner_is_session_first_and_ephemeral_is_explicit",
+    "tests/test_s4_lane_a_public_authoring.py::test_cli_resumes_sqlite_session_with_restore_time_steering",
+    "tests/test_s4_lane_a_public_authoring.py::test_cli_forks_a_persisted_sqlite_session"
+  ],
+  "shared_facts": [
+    "AgentConfig.digest",
+    "ConfiguredAgent",
+    "Engine",
+    "Session",
+    "RuntimeComposition",
+    "checkpoint Session head",
+    "tool execution policy seam",
+    "sandbox receipt seam",
+    "event sink seam",
+    "AgentComposition cleanup contract"
+  ],
+  "unsupported": [
+    "live cross-process pause",
+    "live cross-process steering",
+    "provider parity",
+    "production sandbox qualification",
+    "Trajectory default/freeze"
+  ]
+}

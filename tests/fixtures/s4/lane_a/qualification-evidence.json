@@ -1,0 +1,41 @@
+{
+  "schema": "qitos.s4.lane_a.qualification/v1",
+  "source_commit": "65718ee782065e7dccc3b3d0a5e7ea9a318b5411",
+  "merge_base": "c4e621d05960a4e2f06cb4864f6a8cb8275ac067",
+  "status": "lane-a-qualified-repository-external-gate-recorded",
+  "test_nodes": [
+    "tests/test_s4_lane_a_public_authoring.py",
+    "tests/test_yaml_config.py",
+    "tests/test_agent_config_cli.py",
+    "tests/test_cli_new.py",
+    "tests/engine/test_session_runtime.py",
+    "tests/engine/test_session_fork.py",
+    "tests/checkpoint",
+    "tests/test_public_surface.py",
+    "tests/test_architecture_boundaries.py"
+  ],
+  "claims": {
+    "session_default": true,
+    "explicit_ephemeral": true,
+    "typed_cleanup": true,
+    "caller_owned_resources_preserved": true,
+    "sqlite_clean_restore": true,
+    "live_daemon_control": false,
+    "s4_complete": false,
+    "g5_complete": false,
+    "release_ready": false
+  },
+  "validation": {
+    "lane_a_matrix": "108 passed after the final CLI, lifecycle, scaffold, config, checkpoint, public-surface, and architecture changes",
+    "static_quality": "passed: 367 findings baselined (345 active, 22 vendored/generated)",
+    "flake8": "passed for qitos/core qitos/engine qitos/models qitos/trace",
+    "mypy": "passed: no issues found in 93 source files",
+    "initial_full_pytest": "2449 passed, 50 skipped, 4 failed; two Lane A assertion/budget regressions were fixed, while process-loss and Docker qualifications were host-resource failures",
+    "post_fix_full_pytest": "2455 passed, 50 skipped, 2 failed; one process fixture exceeded its fixed 20-second timeout under host load and one manifest assertion observed an intentional in-flight fixture update",
+    "final_stable_full_pytest": "2455 passed, 50 skipped, 2 failed in 588.00 seconds; both failures were Docker operations timing out under unrelated host container saturation (one docker rm at 30 seconds and one docker inspect at 20 seconds)",
+    "external_follow_up": "the 20-round clean-process qualification passed independently; a paired Docker qualification later failed because docker inspect exceeded 20 seconds while unrelated containers saturated the host",
+    "package_build": "qitos wheel and sdist built; twine check passed",
+    "wheel_installed_scaffold": "fresh venv installed the qitos wheel, qit new generated an installable project with no HostEnv/direct-run usage, and source-install plus generated-wheel tests each passed"
+  },
+  "final_validation": "Lane A targeted, static, typing, packaging, and wheel-installed scaffold gates passed. Repository-wide external Docker/process-loss gates remain host-load-sensitive and are not represented as product success."
+}

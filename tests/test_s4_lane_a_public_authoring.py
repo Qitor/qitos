@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -142,6 +143,26 @@ def test_owned_cleanup_failure_is_typed_and_repeatable(
     assert "private detail" not in str(first.value.to_dict())
 
 
+def test_context_manager_closes_owned_resources_after_body_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class ClosingModel(_FinalModel):
+        closed = False
+
+        def close(self) -> None:
+            self.closed = True
+
+    model = ClosingModel()
+    monkeypatch.setattr(builder, "build_model", lambda *args, **kwargs: model)
+    composition = build_agent_composition(_config(tmp_path))
+
+    with pytest.raises(RuntimeError, match="body failure"):
+        with composition:
+            raise RuntimeError("body failure")
+    assert model.closed is True
+    assert composition.close()["status"] == "closed"
+
+
 def test_partial_build_failure_closes_already_owned_model(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -195,6 +216,80 @@ def test_declarative_runner_is_session_first_and_ephemeral_is_explicit(
         "restore",
         "steer",
         "fork",
+    }
+
+
+def test_cli_and_programmatic_golden_paths_share_runtime_contract(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    import qitos.config
+
+    config = _config(tmp_path)
+
+    def make_composition() -> Any:
+        return build_agent_composition(
+            config,
+            model_override=_FinalModel(),
+            env_override=HostEnv(workspace_root=str(tmp_path)),
+        )
+
+    with make_composition() as programmatic:
+        session = programmatic.session("same contract")
+        programmatic_result = session.run()
+        programmatic_facts = {
+            "agent": type(programmatic.agent),
+            "engine": type(programmatic.engine),
+            "runtime": type(programmatic.runtime),
+            "config_digest": programmatic.runtime.launch_metadata["config_digest"],
+            "tool_policy": programmatic.runtime.launch_metadata["tool_use_policy"],
+            "sandbox": programmatic.runtime.launch_metadata["sandbox"],
+            "event_sink": type(programmatic.runtime.event_sink),
+            "checkpoint": session.current_head.checkpoint_id.value,
+        }
+
+    cli_facts: dict[str, Any] = {}
+
+    def cli_composition(*args: Any, **kwargs: Any) -> Any:
+        _ = args, kwargs
+        composition = make_composition()
+        original_session = composition.session
+
+        def capture_session(*session_args: Any, **session_kwargs: Any) -> Any:
+            created = original_session(*session_args, **session_kwargs)
+            cli_facts.update(
+                {
+                    "agent": type(composition.agent),
+                    "engine": type(composition.engine),
+                    "runtime": type(composition.runtime),
+                    "config_digest": composition.runtime.launch_metadata[
+                        "config_digest"
+                    ],
+                    "tool_policy": composition.runtime.launch_metadata[
+                        "tool_use_policy"
+                    ],
+                    "sandbox": composition.runtime.launch_metadata["sandbox"],
+                    "event_sink": type(composition.runtime.event_sink),
+                }
+            )
+            return created
+
+        composition.session = capture_session
+        return composition
+
+    monkeypatch.setattr(qitos.config, "load_agent_config", lambda path: config)
+    monkeypatch.setattr(builder, "build_agent_composition", cli_composition)
+    assert qit_main(
+        ["run", "--config", "logical-agent.yaml", "--task", "same contract"]
+    ) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+
+    assert programmatic_result.state.final_result == cli_payload["final_result"]
+    assert cli_payload["execution_mode"] == "durable_session"
+    assert cli_payload["session"]["checkpoint_id"].startswith("checkpoint_")
+    assert cli_facts == {
+        key: value for key, value in programmatic_facts.items() if key != "checkpoint"
     }
 
 
@@ -343,3 +438,132 @@ def test_cli_inspects_terminal_session_without_claiming_live_control(
     assert payload["lifecycle"] == "completed"
     assert payload["config_digest"] == config.digest()
     assert "session.restore" in payload["capabilities"]
+
+
+def test_cli_resumes_sqlite_session_with_restore_time_steering(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    import qitos.config
+
+    config = replace(
+        _config(tmp_path),
+        runtime=replace(
+            _config(tmp_path).runtime,
+            session=SessionConfig(
+                mode="durable",
+                store="sqlite",
+                path=str(tmp_path / "cli-resume.sqlite3"),
+            ),
+        ),
+    )
+    with build_agent_composition(
+        config,
+        model_override=_ActionModel(),
+        env_override=HostEnv(workspace_root=str(tmp_path)),
+    ) as first:
+        first.runtime.lifecycle_policy = _PauseAfterFirstStep()
+        paused = first.session("pause for CLI resume")
+        paused.run()
+        session_id = paused.session_id.value
+
+    resumed = build_agent_composition(
+        config,
+        model_override=_FinalModel(),
+        env_override=HostEnv(workspace_root=str(tmp_path)),
+    )
+    monkeypatch.setattr(qitos.config, "load_agent_config", lambda path: config)
+    monkeypatch.setattr(
+        qitos.config, "build_agent_composition", lambda *args, **kwargs: resumed
+    )
+    assert qit_main(
+        [
+            "session",
+            "resume",
+            "--config",
+            "logical-agent.yaml",
+            "--session-id",
+            session_id,
+            "--steering",
+            "finish now",
+        ]
+    ) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["session_id"] == session_id
+    assert payload["lifecycle"] == "completed"
+    assert payload["steering_mode"] == "restore_time"
+
+
+def test_cli_forks_a_persisted_sqlite_session(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    import qitos.config
+
+    config = replace(
+        _config(tmp_path),
+        runtime=replace(
+            _config(tmp_path).runtime,
+            session=SessionConfig(
+                mode="durable",
+                store="sqlite",
+                path=str(tmp_path / "cli-fork.sqlite3"),
+            ),
+        ),
+    )
+    with build_agent_composition(
+        config,
+        model_override=_ActionModel(),
+        env_override=HostEnv(workspace_root=str(tmp_path)),
+    ) as first:
+        first.runtime.lifecycle_policy = _PauseAfterFirstStep()
+        parent = first.session("pause for CLI fork")
+        parent.run()
+        session_id = parent.session_id.value
+
+    restored = build_agent_composition(
+        config,
+        model_override=_FinalModel(),
+        env_override=HostEnv(workspace_root=str(tmp_path)),
+    )
+    monkeypatch.setattr(qitos.config, "load_agent_config", lambda path: config)
+    monkeypatch.setattr(
+        qitos.config, "build_agent_composition", lambda *args, **kwargs: restored
+    )
+    assert qit_main(
+        [
+            "session",
+            "fork",
+            "--config",
+            "logical-agent.yaml",
+            "--session-id",
+            session_id,
+        ]
+    ) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["source_session_id"] == session_id
+    assert payload["session_id"] != session_id
+    assert payload["checkpoint_id"].startswith("checkpoint_")
+
+
+def test_lane_a_manifest_binds_committed_paths_and_digests() -> None:
+    root = Path(__file__).resolve().parents[1]
+    fixture_root = root / "tests" / "fixtures" / "s4" / "lane_a"
+    manifest = json.loads((fixture_root / "producer-manifest.json").read_text())
+    assert manifest["source_commit"] == "65718ee782065e7dccc3b3d0a5e7ea9a318b5411"
+    for artifact in manifest["artifacts"]:
+        path = root / artifact["path"]
+        assert path.is_file()
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == artifact["sha256"]
+
+    rendered = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in fixture_root.iterdir()
+        if path.is_file()
+    )
+    assert "/Users/" not in rendered
+    assert "HostEnv" not in (
+        fixture_root / "programmatic-golden-path.py"
+    ).read_text(encoding="utf-8")
