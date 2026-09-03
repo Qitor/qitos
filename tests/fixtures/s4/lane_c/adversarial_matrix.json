@@ -1,0 +1,28 @@
+{
+  "schema": "qitos.s4.lane_c.adversarial_matrix/v1",
+  "finding_echoes_sensitive_values": false,
+  "cases": {
+    "relative_traversal": {"evidence": "test_native_paths_fail_closed_without_echoing_sensitive_values", "result": "passed"},
+    "absolute_path_escape": {"evidence": "test_native_paths_fail_closed_without_echoing_sensitive_values", "result": "passed"},
+    "symlink_escape": {"evidence": "test_symlink_escape_is_rejected_at_capability_boundary", "result": "passed"},
+    "toctou_stale_write": {"evidence": "test_atomic_edit_rejects_stale_snapshot_without_mutation", "result": "passed"},
+    "vcs_and_credentials": {"evidence": "protected-path policy and private-staging exclusions", "result": "passed"},
+    "unexpected_mount": {"evidence": "inspect-backed required mount set", "result": "platform_blocked"},
+    "docker_socket": {"evidence": "no host mounts and explicit policy argument check", "result": "passed"},
+    "device_namespace_privileged": {"evidence": "test_unsafe_sandbox_policy_is_typed_rejected", "result": "passed"},
+    "host_network": {"evidence": "typed network policy and inspect requirement", "result": "passed"},
+    "local_private_endpoint": {"evidence": "network-none probe", "result": "platform_blocked"},
+    "dns_egress_change": {"evidence": "allowlist rejected until controlled resolver exists", "result": "passed"},
+    "secret_surfaces": {"evidence": "no container secret injection plus trace redaction test", "result": "passed"},
+    "oversized_output": {"evidence": "test_large_output_retains_canonical_value_and_publishes_artifact", "result": "passed"},
+    "fork_bomb": {"evidence": "pids limit inspect and no owned-host execution claim", "result": "platform_blocked"},
+    "pids_exhaustion": {"evidence": "pids limit inspect", "result": "platform_blocked"},
+    "cpu_memory_time_bounds": {"evidence": "typed policy plus Docker inspect/probe", "result": "platform_blocked"},
+    "sibling_session_contamination": {"evidence": "no mounts, unique identity, private tmpfs", "result": "platform_blocked"},
+    "stale_owner_lease": {"evidence": "generation-fenced process and sandbox handles", "result": "passed"},
+    "late_worker": {"evidence": "ToolRuntime terminal-ledger tests", "result": "passed"},
+    "repeated_cleanup": {"evidence": "idempotent exact-identity cleanup receipt", "result": "passed"},
+    "process_client_loss": {"evidence": "Memory and SQLite DurableWorkRuntime recovery tests", "result": "passed"},
+    "leaked_resource_detection": {"evidence": "label-scoped container inventory", "result": "passed"}
+  }
+}

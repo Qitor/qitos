@@ -1,0 +1,12 @@
+{
+  "schema": "qitos.s4.lane_c.qualification_evidence/v1",
+  "platform": "local-docker-desktop",
+  "image": "openclaw:staged",
+  "image_digest": "430c1255a732f53a93dbfb02dc407b6e5e1782a96fe66b91c04e35d447a2546e",
+  "status": "blocked",
+  "error_code": "sandbox_qualification_failed",
+  "finding": "create, private staging, inspect, and cleanup completed; the grep exec probe missed its deadline while the shared Docker control plane was saturated",
+  "label_scoped_leaked_containers_observed": 0,
+  "skip_counted_as_pass": false,
+  "reproduction": "/opt/anaconda3/bin/python -m pytest -q tests/test_docker_qualification.py::test_real_docker_qualification_is_inspect_and_probe_backed -s"
+}

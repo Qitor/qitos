@@ -1,0 +1,11 @@
+{
+  "schema": "qitos.s4.lane_c.work_graph_operations/v1",
+  "operations": ["delegate", "spawn", "fan_out", "handoff", "join"],
+  "direct_entry": "Session.submit_work",
+  "tool_entry": "submit_durable_work->Session.submit_work",
+  "runtime": "DurableWorkRuntime",
+  "same_descriptor": true,
+  "same_admission": true,
+  "nested_engine_fallback": false,
+  "independent_thread_pool_fallback": false
+}

@@ -1,0 +1,10 @@
+{
+  "schema": "qitos.s4.lane_c.cleanup_receipt/v1",
+  "sandbox_id": "sandbox:fixture",
+  "status": "cleaned",
+  "container_absent": true,
+  "staging_absent": true,
+  "repeated": true,
+  "scope": "exact-owned-identity",
+  "global_prune": false
+}

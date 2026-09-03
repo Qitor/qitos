@@ -1,0 +1,13 @@
+{
+  "schema": "qitos.s4.lane_c.mcp_parity/v1",
+  "registry": "ToolRegistry",
+  "schema_validation": "ToolSpec.input_schema",
+  "permission": "conservative-approval-required",
+  "runtime": "ActionExecutor",
+  "result": "ToolResult/v2",
+  "lifecycle": "mcp_request",
+  "effect": "declared-remote-effect",
+  "special_executor": false,
+  "transport_owner_cleanup": true,
+  "session_cleanup_wiring": "handoff-required"
+}
