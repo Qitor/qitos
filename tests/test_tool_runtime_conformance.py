@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import threading
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, Sequence
 
 import pytest
 
@@ -143,7 +143,9 @@ class _FakeMCPServer(MCPServer):
 async def test_mcp_bridge_uses_the_canonical_executor_boundary() -> None:
     bridged = await mcp_server_to_function_tools(_FakeMCPServer())
     receipts = []
-    result = ActionExecutor(ToolRegistry().register(bridged[0])).execute_one(
+    result = ActionExecutor(
+        ToolRegistry().register(bridged[0]), auto_approve=True
+    ).execute_one(
         Action("remote_echo", {"value": "mcp-ok"}),
         terminal_callback=receipts.append,
     )

@@ -22,15 +22,17 @@ Usage::
 
 from __future__ import annotations
 
-import asyncio
-import inspect
-from typing import Any, Dict, List, Optional
+import hashlib
+import json
+from typing import Any, List, Optional
 
+from ..core.artifact import ArtifactRef
 from ..core.tool import FunctionTool, ToolMeta, ToolSpec
+from ..core.tool_result import ToolResult
 from ..core.tool_runtime import ToolResourceKind
 from .filter import ToolFilter
 from .schema_convert import convert_mcp_schema_to_tool_spec
-from .server import MCPServer, MCPToolInfo
+from .server import MCPServer
 
 
 async def mcp_server_to_function_tools(
@@ -76,8 +78,9 @@ def _make_function_tool(
 
     The function wrapped by FunctionTool must accept keyword arguments
     matching the spec parameters, plus optional ``runtime_context``.
-    Since the actual MCP call is async but FunctionTool.execute is
-    synchronous, we use ``asyncio.run`` or the running loop to bridge.
+    The wrapper remains async.  ActionExecutor owns awaiting, timeout,
+    lifecycle, effect, and terminal publication for MCP exactly as for other
+    tool resource kinds.
     """
     # Build a callable with the right parameter signature for FunctionTool.
     # FunctionTool inspects the function signature to build its own spec,
@@ -86,59 +89,61 @@ def _make_function_tool(
 
     async def _mcp_caller(**kwargs: Any) -> Any:
         """Call the MCP tool via the server transport."""
-        runtime_context = kwargs.pop("runtime_context", None)
-        env = kwargs.pop("env", None)
-        ops = kwargs.pop("ops", None)
-        # Strip other QitOS-injected kwargs that MCP does not need.
-        kwargs.pop("file_ops", None)
-        kwargs.pop("process_ops", None)
-
         result = await server.call_tool(original_name, kwargs)
-        return result
-
-    def _sync_wrapper(**kwargs: Any) -> Any:
-        """Synchronous wrapper that runs the async MCP call."""
-        runtime_context = kwargs.get("runtime_context")
-        env = kwargs.get("env")
-        ops = kwargs.get("ops")
-        # Remove QitOS-injected kwargs before passing to MCP
-        call_kwargs = {
-            k: v for k, v in kwargs.items()
-            if k not in ("runtime_context", "env", "ops", "file_ops", "process_ops")
-        }
-        if runtime_context is not None:
-            call_kwargs["runtime_context"] = runtime_context
-        if env is not None:
-            call_kwargs["env"] = env
-        if ops is not None:
-            call_kwargs["ops"] = ops
-
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-
-        if loop is not None and loop.is_running():
-            # We're inside an already-running event loop (e.g. Engine is async).
-            # Create a Future and schedule the coroutine.
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                future = pool.submit(asyncio.run, _mcp_caller(**call_kwargs))
-                return future.result()
+        encoded = json.dumps(
+            result, sort_keys=True, ensure_ascii=False, default=str
+        ).encode("utf-8")
+        if len(encoded) <= 16_000:
+            model_output: Any = result
+            artifacts: tuple[ArtifactRef, ...] = ()
+            truncated = False
+            omitted: dict[str, int] = {}
         else:
-            return asyncio.run(_mcp_caller(**call_kwargs))
+            digest = hashlib.sha256(encoded).hexdigest()
+            model_output = {
+                "status": "success",
+                "summary": "MCP result retained as a canonical artifact reference",
+                "byte_length": len(encoded),
+            }
+            artifacts = (
+                ArtifactRef(
+                    artifact_id=f"sha256:{digest}",
+                    resolver_key="tool-result-output",
+                    sha256=digest,
+                    media_type="application/json",
+                    byte_length=len(encoded),
+                    encoding="utf-8",
+                    sensitivity="internal",
+                    model_summary="Full MCP result retained outside the bounded model projection",
+                ),
+            )
+            truncated = True
+            omitted = {"model_output_characters": max(0, len(encoded) - 16_000)}
+        return ToolResult(
+            output=result,
+            model_output=model_output,
+            tool_name=spec.name,
+            artifact_refs=artifacts,
+            truncated=truncated,
+            complete=True,
+            omitted=omitted,
+            provenance={"transport": "mcp", "server_digest": hashlib.sha256(server.name.encode()).hexdigest()},
+        )
 
     # Attach metadata so FunctionTool uses our spec fields.
     meta = ToolMeta(
         name=spec.name,
         description=spec.description,
         input_schema=spec.input_schema,
+        permissions=spec.permissions,
         read_only=spec.read_only,
         concurrency_safe=spec.concurrency_safe,
+        needs_approval=spec.needs_approval,
         lifecycle=ToolResourceKind.MCP_REQUEST,
+        effect=spec.effect,
     )
 
-    tool = FunctionTool(_sync_wrapper, meta=meta)
+    tool = FunctionTool(_mcp_caller, meta=meta)
     # Override the spec with our MCP-derived spec (preserving all fields)
     spec.lifecycle = ToolResourceKind.MCP_REQUEST
     tool.spec = spec

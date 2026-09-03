@@ -99,7 +99,12 @@ class MCPServerStdio(MCPServer):
 
     async def connect(self) -> None:
         """Launch the subprocess and complete the MCP initialization handshake."""
-        env = dict(os.environ)
+        # Do not leak the controller's complete environment to an MCP child.
+        env = {
+            key: os.environ[key]
+            for key in ("PATH", "LANG", "LC_ALL", "SYSTEMROOT", "TMPDIR")
+            if key in os.environ
+        }
         if self._env:
             env.update(self._env)
 

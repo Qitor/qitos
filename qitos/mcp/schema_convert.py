@@ -17,9 +17,10 @@ Key conversion rules:
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
-from ..core.tool import ToolSpec
+from ..core.tool import ToolPermission, ToolSpec
+from ..core.tool_runtime import ToolEffectDeclaration
 from .server import MCPToolInfo
 
 
@@ -78,7 +79,21 @@ def convert_mcp_schema_to_tool_spec(
         parameters=parameters,
         required=required_list,
         input_schema=input_schema,
-        read_only=True,  # MCP tools are treated as read-only by default
+        # MCP 2024-11-05 schemas do not reliably declare effects.  Unknown
+        # remote authority is conservative: policy must explicitly admit it.
+        permissions=ToolPermission(
+            filesystem_read=True,
+            filesystem_write=True,
+            network=True,
+            command=True,
+        ),
+        read_only=False,
+        concurrency_safe=False,
+        needs_approval=True,
+        effect=ToolEffectDeclaration(
+            effect_ref=f"mcp:{tool_name}",
+            metadata={"kind": "remote_mcp_request"},
+        ),
     )
 
 
