@@ -1,0 +1,94 @@
+{
+  "schema_version": "qitos.s4.lane_d.qualification-evidence/1",
+  "status": "waiting_on_a_b_c",
+  "lane_d_qualification": "passed_with_docker_environment_gap",
+  "source_commit": "c4e621d05960a4e2f06cb4864f6a8cb8275ac067",
+  "commands": [
+    {"id": "static-quality-ratchet", "status": "passed", "detail": "367 baselined findings; 345 active and 22 vendored/generated"},
+    {"id": "stable-flake8", "status": "passed", "detail": "qitos/core qitos/engine qitos/models qitos/trace"},
+    {"id": "stable-mypy", "status": "passed", "detail": "93 source files"},
+    {"id": "tests-tracing", "status": "passed", "detail": "109 passed"},
+    {"id": "tests-qita", "status": "passed", "detail": "7 passed"},
+    {"id": "lane-d-conformance", "status": "passed", "detail": "52 passed"},
+    {"id": "full-pytest-initial", "status": "environment_gap", "detail": "2456 passed, 50 skipped; one Docker sandbox-unavailable failure remains after three regressions were repaired"},
+    {"id": "full-pytest-post-fix", "status": "environment_gap", "detail": "2470 passed, 50 skipped; two failures were real Docker qualification/write and Docker inspect timeout/unavailable"},
+    {"id": "build", "status": "passed", "detail": "wheel and sdist"},
+    {"id": "twine-check", "status": "passed", "detail": "wheel and sdist"},
+    {"id": "fresh-wheel-matrix", "status": "passed", "detail": "20 of 20 profiles"},
+    {"id": "installed-consumers", "status": "passed", "detail": "offline coding/tool and research/tool"},
+    {"id": "measurement-dry-run", "status": "passed", "detail": "two qualified measurement-only sources; no measurements or claims"},
+    {"id": "measurement-real", "status": "measured_not_release_qualified", "detail": "three repetitions; no claims"},
+    {"id": "measurement-missing-source", "status": "not_ready", "detail": "typed measurement_fixture_unavailable; no measurements or claims"}
+  ],
+  "wheel": {
+    "path": "dist/qitos-0.6.0-py3-none-any.whl",
+    "sha256": "4d9e06daca887c56daaa433edd1412634d3aece5dc200c95d93347bcc4bea09a",
+    "profiles_passed": [
+      "base", "openai", "anthropic", "gemini", "litellm", "local", "models",
+      "qita", "docker", "mcp", "evaluation", "yaml", "benchmarks", "wandb",
+      "mlflow", "cookiecutter", "hf", "web", "dev", "all"
+    ]
+  },
+  "sdist": {
+    "path": "dist/qitos-0.6.0.tar.gz",
+    "sha256": "c9a408cb0e2c8dd36c334258ad077653cff95098818b6ec14dd89df14236ac38"
+  },
+  "measurements": {
+    "repetitions": 3,
+    "environment": {
+      "python": "3.12.7",
+      "implementation": "CPython",
+      "platform": "macOS-15.7.3-arm64-arm-64bit",
+      "machine": "arm64",
+      "zstandard": "0.23.0",
+      "tracemalloc_peak_bytes": 9060901,
+      "process_peak_rss_platform_units": 105218048
+    },
+    "sources": [
+      {
+        "id": "coding-tool-agent",
+        "records": 300,
+        "canonical_bytes": 400161,
+        "gzip_bytes": 16985,
+        "zstd_bytes": 14425,
+        "journal_bytes": 402562,
+        "index_bytes": 3656,
+        "artifact_reference_count": 100,
+        "artifact_unique_count": 1,
+        "median_ns": {
+          "memory_append": 79610541,
+          "journal_append": 302344625,
+          "reopen": 248629209,
+          "query": 316026166,
+          "replay": 350334083,
+          "index_rebuild": 310419292
+        }
+      },
+      {
+        "id": "research-tool-agent",
+        "records": 400,
+        "canonical_bytes": 504151,
+        "gzip_bytes": 22111,
+        "zstd_bytes": 18698,
+        "journal_bytes": 507252,
+        "index_bytes": 4862,
+        "artifact_reference_count": 0,
+        "artifact_unique_count": 0,
+        "median_ns": {
+          "memory_append": 92749625,
+          "journal_append": 328332917,
+          "reopen": 348419167,
+          "query": 407636875,
+          "replay": 405725667,
+          "index_rebuild": 348754625
+        }
+      }
+    ],
+    "performance_or_compression_claim": false
+  },
+  "schema_frozen": false,
+  "default_writer_enabled": false,
+  "default_reader_switched": false,
+  "publication_ready": false,
+  "claims": []
+}
