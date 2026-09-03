@@ -230,4 +230,3 @@ class ExampleSemanticAdapter:
 
 def example_response() -> Mapping[str, Any]:
     return {"kind": "semantic", "receipt": "logical-example-receipt"}
-
