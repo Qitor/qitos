@@ -175,10 +175,10 @@ The real Docker run was attempted using local image digest
 `430c1255a732f53a93dbfb02dc407b6e5e1782a96fe66b91c04e35d447a2546e`.
 After replacing `docker cp` staging (which cannot write through a read-only
 rootfs) with a controller-validated tar stream written as the policy UID/GID,
-the run reached create, private staging, inspect, file write/readback, and exact
-cleanup. The shared Docker control plane then missed the grep `docker exec`
-deadline while unrelated containers were active. This remains a typed
-`sandbox_qualification_failed` platform blocker, not a pass or skip. A second
+the real qualification test passed during the exact full-suite run: create,
+private staging, inspect, probes, exact cleanup, and container absence were all
+asserted. An earlier isolated run missed the grep `docker exec` deadline and
+later Docker-backed workflows timed out under shared-control-plane saturation; a
 full-suite route also timed out in a later command probe. Label-scoped inventory
 found zero QitOS sandbox containers afterward. Reproduce with:
 

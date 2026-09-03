@@ -32,11 +32,12 @@ def test_policy_and_snapshot_fixtures_use_runtime_contracts() -> None:
     assert SandboxSnapshotComponent.from_dict(snapshot).to_dict() == snapshot
 
 
-def test_qualification_fixture_never_converts_blocker_into_pass() -> None:
+def test_qualification_fixture_records_real_run_without_counting_a_skip() -> None:
     evidence = json.loads(
         (FIXTURES / "qualification_evidence.json").read_text(encoding="utf-8")
     )
-    assert evidence["status"] == "blocked"
+    assert evidence["status"] == "passed"
+    assert evidence["real_create_inspect_probe_cleanup"] is True
     assert evidence["skip_counted_as_pass"] is False
     assert evidence["label_scoped_leaked_containers_observed"] == 0
 
