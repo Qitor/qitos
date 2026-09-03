@@ -1,0 +1,16 @@
+{
+  "schema_version": "qitos.s4.lane_d.evaluator-exporter-cases/1",
+  "evaluation_selections": ["run", "session", "work_item"],
+  "exporters": [
+    {"id": "canonical-json", "fidelity": "exact_reimportable"},
+    {"id": "redacted-public", "fidelity": "projection_loss_declared"},
+    {"id": "event-summary", "fidelity": "deliberately_lossy_all_omissions_declared"}
+  ],
+  "third_party_extensions": ["evaluator", "exporter", "store"],
+  "test_nodes": [
+    "tests/test_evaluator_conformance.py",
+    "tests/test_trajectory_exporter_conformance.py",
+    "tests/test_trajectory_store_conformance.py"
+  ],
+  "claims": []
+}

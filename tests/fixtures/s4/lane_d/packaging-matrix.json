@@ -1,0 +1,16 @@
+{
+  "schema_version": "qitos.s4.lane_d.packaging-matrix/1",
+  "profiles": [
+    "base", "openai", "anthropic", "gemini", "litellm", "local", "models",
+    "qita", "docker", "mcp", "evaluation", "yaml", "benchmarks", "wandb",
+    "mlflow", "cookiecutter", "hf", "web", "dev", "all"
+  ],
+  "base_checks": [
+    "imports", "qit_help", "qita_help", "canonical_config_load",
+    "coding_consumer", "research_consumer"
+  ],
+  "network_calls_in_consumers": false,
+  "private_imports_in_consumers": false,
+  "publication_ready": false,
+  "claims": []
+}

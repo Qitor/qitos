@@ -1,0 +1,29 @@
+{
+  "schema_version": "qitos.s4.lane_d.privacy-publication-cases/1",
+  "views": ["raw_private", "redacted_public", "safe_diagnostic"],
+  "privacy_cases": [
+    "nested-secret",
+    "path",
+    "local-endpoint",
+    "cyclic-object",
+    "depth-limit",
+    "oversized-container"
+  ],
+  "publication_requirements": [
+    "qualified-license",
+    "deterministic-transform-receipt",
+    "source-and-output-digests",
+    "secret-scan",
+    "path-scan",
+    "endpoint-scan",
+    "privacy-view",
+    "valid-record-digests",
+    "portable-artifact-body"
+  ],
+  "test_nodes": [
+    "tests/tracing/test_s4_publication.py",
+    "tests/test_trajectory_exporter_conformance.py"
+  ],
+  "publication_ready": false,
+  "claims": []
+}
