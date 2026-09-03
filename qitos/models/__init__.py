@@ -50,6 +50,14 @@ from .openai import (
 )
 from .local import OllamaModel, OllamaGenerateModel, LMStudioModel, VLLMModel
 from .codec import CodecReport, ProviderCapabilities, ProviderFailure, ProviderCodec
+from .conformance import (
+    ProviderConformanceCase,
+    ProviderConformanceError,
+    ProviderConformanceReport,
+    run_provider_conformance,
+    run_provider_failure_conformance,
+)
+from .provider import ProviderAdapter
 
 __all__ = [
     # 基类
@@ -83,4 +91,10 @@ __all__ = [
     "ProviderCapabilities",
     "ProviderFailure",
     "ProviderCodec",
+    "ProviderAdapter",
+    "ProviderConformanceCase",
+    "ProviderConformanceError",
+    "ProviderConformanceReport",
+    "run_provider_conformance",
+    "run_provider_failure_conformance",
 ]

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+import hashlib
 import re
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, Mapping, Optional, Protocol, runtime_checkable
 
 from .diagnostics import diagnostic_string_is_sensitive
 
@@ -43,6 +44,37 @@ def _safe_token(value: Any, field: str) -> str:
 
 
 @dataclass(frozen=True)
+class ResolvedArtifact:
+    """Ephemeral verified artifact body; never a snapshot representation."""
+
+    reference: "ArtifactRef"
+    body: bytes = field(repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.reference, ArtifactRef):
+            raise _fail("invalid_artifact_resolution", "artifact reference is invalid")
+        if not isinstance(self.body, bytes):
+            raise _fail("invalid_artifact_resolution", "artifact body must be bytes")
+        if len(self.body) != self.reference.byte_length:
+            raise _fail("artifact_integrity_mismatch", "artifact length does not match")
+        if hashlib.sha256(self.body).hexdigest() != self.reference.sha256:
+            raise _fail("artifact_integrity_mismatch", "artifact digest does not match")
+
+
+@runtime_checkable
+class ArtifactResolver(Protocol):
+    """Injected content resolver with no host-path or global-registry contract."""
+
+    resolver_key: str
+
+    def probe(self, reference: "ArtifactRef") -> bool:
+        """Return whether the exact content-addressed reference is available."""
+
+    def resolve(self, reference: "ArtifactRef") -> ResolvedArtifact:
+        """Return a verified ephemeral body for an explicitly requested ref."""
+
+
+@dataclass(frozen=True)
 class ArtifactRef:
     """Portable content-addressed pointer; never an artifact body or host path."""
 
@@ -61,8 +93,12 @@ class ArtifactRef:
     def __post_init__(self) -> None:
         if self.schema_version != ARTIFACT_REF_SCHEMA_VERSION:
             raise _fail("unsupported_artifact_schema", "artifact schema is unsupported")
-        for field in ("artifact_id", "resolver_key", "media_type", "encoding"):
-            object.__setattr__(self, field, _safe_token(getattr(self, field), field))
+        for field_name in ("artifact_id", "resolver_key", "media_type", "encoding"):
+            object.__setattr__(
+                self,
+                field_name,
+                _safe_token(getattr(self, field_name), field_name),
+            )
         if not isinstance(self.sha256, str) or _SHA256.fullmatch(self.sha256) is None:
             raise _fail("invalid_artifact_digest", "artifact digest must be lowercase SHA-256")
         if (
@@ -139,4 +175,47 @@ class ArtifactRef:
         return cls(**dict(value))
 
 
-__all__ = ["ARTIFACT_REF_SCHEMA_VERSION", "ArtifactContractError", "ArtifactRef"]
+def require_artifact(
+    reference: ArtifactRef,
+    resolver: Optional[ArtifactResolver],
+) -> None:
+    """Fail closed for required references without loading artifact bodies."""
+
+    if resolver is None or not isinstance(resolver, ArtifactResolver):
+        if reference.required:
+            raise _fail(
+                "missing_required_artifact",
+                "required artifact resolver is unavailable",
+            )
+        return
+    if resolver.resolver_key != reference.resolver_key:
+        if reference.required:
+            raise _fail(
+                "missing_required_artifact",
+                "required artifact resolver identity does not match",
+            )
+        return
+    try:
+        available = resolver.probe(reference)
+    except Exception as exc:
+        raise _fail(
+            "artifact_resolution_failed",
+            "artifact availability could not be checked safely",
+        ) from exc
+    if not isinstance(available, bool):
+        raise _fail(
+            "invalid_artifact_resolution",
+            "artifact resolver probe must return boolean",
+        )
+    if reference.required and not available:
+        raise _fail("missing_required_artifact", "required artifact is unavailable")
+
+
+__all__ = [
+    "ARTIFACT_REF_SCHEMA_VERSION",
+    "ArtifactContractError",
+    "ArtifactResolver",
+    "ResolvedArtifact",
+    "ArtifactRef",
+    "require_artifact",
+]

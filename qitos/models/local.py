@@ -102,14 +102,26 @@ def _local_openai_transport(
         return json.loads(response.read().decode("utf-8"))
 
 
-_LOCAL_TEXT_CAPABILITIES = {
-    "supported_features": ("text",),
-    "reasoning_modes": ("drop",),
-    "multimodal_types": ("text",),
-    "supports_parallel_tool_calls": False,
-    "supports_tool_schemas": False,
-    "supports_continuation": False,
-}
+def _local_text_capabilities(api_style: str) -> Dict[str, Any]:
+    return {
+        "api_style": api_style,
+        "supported_features": ("text",),
+        "reasoning_modes": ("drop",),
+        "multimodal_types": ("text",),
+        "supports_native_tool_calls": False,
+        "supports_parallel_tool_calls": False,
+        "supports_tool_schemas": False,
+        "supports_tool_choice": False,
+        "supports_multimodal_input": False,
+        "supports_reasoning_input": False,
+        "supports_reasoning_output": False,
+        "supports_continuation": False,
+        "supports_stateless_replay": True,
+        "supports_streaming": False,
+        "supports_usage": True,
+        "supports_cancellation": False,
+        "supports_structured_output": False,
+    }
 
 
 class OllamaModel(Model):
@@ -135,7 +147,9 @@ class OllamaModel(Model):
     qitos_provider_id = "ollama"
     qitos_transport_id = "ollama"
     qitos_api_mode = "chat"
-    qitos_capabilities_by_api_mode = {"chat": _LOCAL_TEXT_CAPABILITIES}
+    qitos_capabilities_by_api_mode = {
+        "chat": _local_text_capabilities("chat_completions")
+    }
 
     def qitos_provider_codec(self) -> OllamaChatCodec:
         return OllamaChatCodec()
@@ -343,7 +357,9 @@ class OllamaGenerateModel(Model):
     qitos_provider_id = "ollama"
     qitos_transport_id = "ollama"
     qitos_api_mode = "generate"
-    qitos_capabilities_by_api_mode = {"generate": _LOCAL_TEXT_CAPABILITIES}
+    qitos_capabilities_by_api_mode = {
+        "generate": _local_text_capabilities("generate")
+    }
 
     def qitos_provider_codec(self) -> OllamaGenerateCodec:
         return OllamaGenerateCodec()
@@ -498,7 +514,7 @@ class LMStudioModel(Model):
     qitos_transport_id = "openai"
     qitos_api_mode = "chat_completions"
     qitos_capabilities_by_api_mode = {
-        "chat_completions": _LOCAL_TEXT_CAPABILITIES
+        "chat_completions": _local_text_capabilities("chat_completions")
     }
 
     def qitos_provider_codec(self) -> OpenAIChatCodec:
@@ -661,7 +677,7 @@ class VLLMModel(Model):
     qitos_transport_id = "openai"
     qitos_api_mode = "chat_completions"
     qitos_capabilities_by_api_mode = {
-        "chat_completions": _LOCAL_TEXT_CAPABILITIES
+        "chat_completions": _local_text_capabilities("chat_completions")
     }
 
     def qitos_provider_codec(self) -> OpenAIChatCodec:

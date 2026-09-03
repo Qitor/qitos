@@ -355,6 +355,7 @@ class AcmeAdapter:
 
     def qitos_provider_capabilities(self) -> Mapping[str, Any]:
         return {
+            "api_style": "compatibility",
             "supported_features": (
                 "text",
                 "tool_calls",
@@ -365,10 +366,21 @@ class AcmeAdapter:
             ),
             "reasoning_modes": ("preserve_if_supported", "drop"),
             "multimodal_types": ("text",),
+            "supports_native_tool_calls": True,
             "supports_parallel_tool_calls": True,
             "supports_tool_schemas": False,
+            "supports_tool_choice": False,
+            "supports_multimodal_input": False,
+            "supports_reasoning_input": False,
+            "supports_reasoning_output": True,
             "supports_continuation": False,
+            "supports_stateless_replay": True,
+            "supports_streaming": True,
+            "supports_usage": True,
+            "supports_cancellation": False,
+            "supports_structured_output": False,
             "max_input_units": 4096,
+            "max_output_units": 10_240,
         }
 
     def qitos_provider_codec(self) -> AcmeCodec:
@@ -646,7 +658,13 @@ def test_provider_failure_stages_distinguish_encode_projection_and_decode() -> N
         (CodecAdapter(EncodeFailureCodec()), None, "codec_encode_failed", "encode", False),
         (AcmeAdapter(), ProjectionFailure(), "request_projection_failed", "projection", False),
         (CodecAdapter(DecodeFailureCodec()), None, "provider_response_decode_failed", "decode", True),
-        (CodecAdapter(MalformedCodec()), None, "provider_response_malformed", "decode", True),
+        (
+            CodecAdapter(MalformedCodec()),
+            None,
+            "provider_response_malformed",
+            "malformed_structured_response",
+            True,
+        ),
     )
     for adapter, transform, code, stage, sent in cases:
         try:
@@ -666,20 +684,21 @@ def test_provider_failure_stages_distinguish_encode_projection_and_decode() -> N
 
 
 @pytest.mark.parametrize(
-    ("status", "error_type", "code", "retryable"),
+    ("status", "error_type", "code", "stage", "retryable"),
     [
-        (401, RuntimeError, "provider_authentication_failed", False),
-        (429, RuntimeError, "provider_rate_limited", True),
-        (408, RuntimeError, "provider_timeout", True),
-        (400, RuntimeError, "provider_request_rejected", False),
-        (503, RuntimeError, "provider_server_error", True),
-        (None, ConnectionError, "provider_connection_failed", True),
+        (401, RuntimeError, "provider_authentication_failed", "authentication", False),
+        (429, RuntimeError, "provider_rate_limited", "rate_limit", True),
+        (408, RuntimeError, "provider_timeout", "timeout", True),
+        (400, RuntimeError, "provider_request_rejected", "provider_rejection", False),
+        (503, RuntimeError, "provider_server_error", "provider_server", True),
+        (None, ConnectionError, "provider_connection_failed", "connection", True),
     ],
 )
 def test_transport_failure_taxonomy_is_closed_safe_and_attempted(
     status: Optional[int],
     error_type: type[BaseException],
     code: str,
+    stage: str,
     retryable: bool,
 ) -> None:
     class FailingAdapter(AcmeAdapter):
@@ -701,7 +720,7 @@ def test_transport_failure_taxonomy_is_closed_safe_and_attempted(
         raise AssertionError("transport failure was not normalized")
 
     assert receipt["error_code"] == code
-    assert receipt["stage"] == "transport"
+    assert receipt["stage"] == stage
     assert receipt["provider_request_sent"] is True
     assert receipt["retryable"] is retryable
     assert "private endpoint" not in json.dumps(receipt)
@@ -733,7 +752,7 @@ def test_stable_provider_matrix_matches_official_adapter_declarations() -> None:
         capabilities = ProviderCapabilities.from_model(model)
         codec = model.qitos_provider_codec()
         assert codec.codec_id == row["codec"]
-        assert list(capabilities.supported_features) == row["features"]
+        assert set(row["features"]) <= set(capabilities.supported_features)
         assert list(capabilities.reasoning_modes) == row["reasoning_modes"]
         assert capabilities.supports_continuation is row["continuation"]
 

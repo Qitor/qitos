@@ -72,41 +72,87 @@ _HOST_PATH = re.compile(
     r"(?:^|[\s=])(?:/Users/|/home/|/var/folders/|[A-Za-z]:\\)", re.IGNORECASE
 )
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
+_MAX_JSON_DEPTH = 64
+_MAX_JSON_NODES = 100_000
+_MAX_JSON_BYTES = 8 * 1024 * 1024
 
 
 def _strict_json(value: Any, path: str) -> None:
-    if value is None or isinstance(value, (str, bool, int)):
-        return
-    if isinstance(value, float):
-        import math
+    """Validate one bounded JSON tree without reflecting caller values.
 
-        if not math.isfinite(value):
-            raise RequestContractError(f"{path} must contain only finite numbers")
-        return
-    if isinstance(value, list):
-        for index, item in enumerate(value):
-            _strict_json(item, f"{path}[{index}]")
-        return
-    if isinstance(value, dict):
-        for key, item in value.items():
-            if not isinstance(key, str):
-                raise RequestContractError(f"{path} keys must be strings")
-            _strict_json(item, f"{path}.{key}")
-        return
-    raise RequestContractError(
-        f"{path} contains non-JSON value {type(value).__name__}"
-    )
+    Request projection is an untrusted extension boundary.  A recursive walk
+    must therefore reject cycles and excessive depth/nodes deterministically
+    instead of leaking a ``RecursionError`` or spending unbounded work before
+    provider admission.
+    """
+
+    active: set[int] = set()
+    nodes = 0
+
+    def visit(item: Any, current_path: str, depth: int) -> None:
+        nonlocal nodes
+        if depth > _MAX_JSON_DEPTH:
+            raise RequestContractError(
+                f"{current_path} exceeds the JSON depth limit"
+            )
+        nodes += 1
+        if nodes > _MAX_JSON_NODES:
+            raise RequestContractError(f"{path} exceeds the JSON node limit")
+        if item is None or type(item) in {str, bool, int}:
+            return
+        if type(item) is float:
+            import math
+
+            if not math.isfinite(item):
+                raise RequestContractError(
+                    f"{current_path} must contain only finite numbers"
+                )
+            return
+        if isinstance(item, (list, tuple)):
+            identity = id(item)
+            if identity in active:
+                raise RequestContractError(f"{current_path} contains a JSON cycle")
+            active.add(identity)
+            try:
+                for index, child in enumerate(item):
+                    visit(child, f"{current_path}[{index}]", depth + 1)
+            finally:
+                active.remove(identity)
+            return
+        if isinstance(item, Mapping):
+            identity = id(item)
+            if identity in active:
+                raise RequestContractError(f"{current_path} contains a JSON cycle")
+            active.add(identity)
+            try:
+                for key, child in item.items():
+                    if type(key) is not str:
+                        raise RequestContractError(
+                            f"{current_path} keys must be strings"
+                        )
+                    visit(child, f"{current_path}.[field]", depth + 1)
+            finally:
+                active.remove(identity)
+            return
+        raise RequestContractError(
+            f"{current_path} contains a non-JSON value"
+        )
+
+    visit(value, path, 0)
 
 
 def _json_text(value: Any, path: str) -> str:
     _strict_json(value, path)
-    return json.dumps(
+    encoded = json.dumps(
         value,
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
         allow_nan=False,
     )
+    if len(encoded.encode("utf-8")) > _MAX_JSON_BYTES:
+        raise RequestContractError(f"{path} exceeds the JSON byte limit")
+    return encoded
 
 
 def _json_value(value: str) -> Any:
@@ -206,6 +252,8 @@ class ReasoningPolicy:
         }
         if self.mode not in allowed:
             raise RequestContractError(f"unsupported reasoning policy: {self.mode!r}")
+        if not isinstance(self.allow_loss, bool):
+            raise RequestContractError("reasoning allow_loss must be boolean")
 
     def to_dict(self) -> Dict[str, Any]:
         return {"mode": self.mode, "allow_loss": self.allow_loss}
@@ -219,14 +267,28 @@ class ContextBudget:
     protected_recent_exchanges: int = 1
 
     def __post_init__(self) -> None:
-        if self.max_input_units <= 0:
+        if (
+            not isinstance(self.max_input_units, int)
+            or isinstance(self.max_input_units, bool)
+            or self.max_input_units <= 0
+        ):
             raise RequestContractError("max_input_units must be positive")
-        if self.reserved_output_units < 0:
+        if (
+            not isinstance(self.reserved_output_units, int)
+            or isinstance(self.reserved_output_units, bool)
+            or self.reserved_output_units < 0
+        ):
             raise RequestContractError("reserved_output_units cannot be negative")
         if self.reserved_output_units >= self.max_input_units:
             raise RequestContractError("reserved_output_units must be below max_input_units")
-        if self.protected_recent_exchanges < 0:
+        if (
+            not isinstance(self.protected_recent_exchanges, int)
+            or isinstance(self.protected_recent_exchanges, bool)
+            or self.protected_recent_exchanges < 0
+        ):
             raise RequestContractError("protected_recent_exchanges cannot be negative")
+        if self.unit not in {"characters", "tokens"}:
+            raise RequestContractError("context budget unit is unsupported")
 
     @property
     def available_input_units(self) -> int:
@@ -252,6 +314,7 @@ class ContinuationRef:
     attachment_id: Optional[str] = None
     payload_digest: Optional[str] = None
     expires_at: Optional[str] = None
+    capability: str = "continuation"
 
     def __post_init__(self) -> None:
         if not isinstance(self.reference_id, ContinuationIdentity):
@@ -261,6 +324,11 @@ class ContinuationRef:
         object.__setattr__(self, "resolver_key", _logical_reference(self.resolver_key, "resolver_key"))
         for name in ("provider", "model", "api_mode"):
             object.__setattr__(self, name, _non_empty(getattr(self, name), name))
+        object.__setattr__(
+            self,
+            "capability",
+            _logical_reference(self.capability, "capability"),
+        )
         if self.payload_digest is not None and not _SHA256.fullmatch(self.payload_digest):
             raise RequestContractError("payload_digest must be a lowercase SHA-256 digest")
         if self.expires_at is not None:
@@ -297,6 +365,7 @@ class ContinuationRef:
             "attachment_id": self.attachment_id,
             "payload_digest": self.payload_digest,
             "expires_at": self.expires_at,
+            "capability": self.capability,
         }
 
     @classmethod
@@ -311,9 +380,17 @@ class ContinuationRef:
                 "attachment_id",
                 "payload_digest",
                 "expires_at",
+                "capability",
             }
         )
-        data = _strict_object(value, path="continuation", fields=fields)
+        historical_fields = fields - frozenset({"capability"})
+        data = _strict_object(
+            value,
+            path="continuation",
+            fields=fields,
+            required=historical_fields,
+        )
+        data.setdefault("capability", "continuation")
         data["reference_id"] = ContinuationIdentity.from_dict(data["reference_id"])
         return cls(**data)
 
@@ -337,6 +414,44 @@ class ContextContribution:
     def __post_init__(self) -> None:
         object.__setattr__(self, "contribution_id", _non_empty(self.contribution_id, "contribution_id"))
         object.__setattr__(self, "source", _non_empty(self.source, "source"))
+        if not isinstance(self.priority, int) or isinstance(self.priority, bool):
+            raise RequestContractError("context priority must be an integer")
+        if self.requested_placement not in {
+            "system",
+            "developer",
+            "user",
+            "after_tool",
+        }:
+            raise RequestContractError("context placement is unsupported")
+        if self.persistence_horizon not in {
+            "request",
+            "session",
+            "until_changed",
+        }:
+            raise RequestContractError("context persistence horizon is unsupported")
+        if self.sensitivity not in {
+            "public",
+            "internal",
+            "confidential",
+            "restricted",
+        }:
+            raise RequestContractError("context sensitivity is unsupported")
+        if not isinstance(self.model_visible, bool):
+            raise RequestContractError("context model_visible must be boolean")
+        if self.runtime_context_visibility not in {
+            "model",
+            "diagnostic",
+            "none",
+        }:
+            raise RequestContractError(
+                "context runtime visibility is unsupported"
+            )
+        if not isinstance(self.required, bool):
+            raise RequestContractError("context required must be boolean")
+        if self.revision is not None and (
+            not isinstance(self.revision, str) or not self.revision.strip()
+        ):
+            raise RequestContractError("context revision must be a non-empty string")
         content_json = _json_text(self.content, "context.content")
         object.__setattr__(self, "_content_json", content_json)
         object.__setattr__(self, "content", None)

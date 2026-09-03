@@ -1,0 +1,7 @@
+{
+  "schema_version": "qitos.s4.reasoning_continuation_fixture/v1",
+  "ordered_part_kinds": ["reasoning_block", "content", "tool_call"],
+  "persistence": {"reasoning_as_ordinary_text": false, "opaque_payload_persisted": false, "continuation_ref_persisted": true},
+  "continuation_identity": ["provider", "exact_model", "api_mode", "reference_id", "digest", "expiry", "capability"],
+  "fallback": "explicit_stateless_reconstruction_or_typed_rejection"
+}

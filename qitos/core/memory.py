@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Protocol, Sequence, runtime_checkable
+
+from .request_view import ContextContribution
 
 
 @dataclass
@@ -46,4 +48,14 @@ class Memory(ABC):
         """Reset memory runtime state for a new run."""
 
 
-__all__ = ["MemoryRecord", "Memory"]
+@runtime_checkable
+class MemorySource(Protocol):
+    """Request-scoped semantic recall extension used by context assembly."""
+
+    contributor_id: str
+
+    def contribute(self, request: Any) -> Sequence[ContextContribution]:
+        """Return deterministic, receipt-producing context contributions."""
+
+
+__all__ = ["MemoryRecord", "Memory", "MemorySource"]

@@ -1,0 +1,8 @@
+{
+  "schema_version": "qitos.s4.streaming_fixture/v1",
+  "events": ["text_delta", "tool_call_delta", "usage", "completed"],
+  "assembly": "provider_codec_owned",
+  "terminal_decode": "typed_provider_decoded_response",
+  "stream_failure_stage": "stream",
+  "hidden_retry": 0
+}

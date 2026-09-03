@@ -339,6 +339,7 @@ class GeminiModel(Model):
     qitos_api_mode = "generate_content"
     qitos_capabilities_by_api_mode = {
         "generate_content": {
+            "api_style": "generate_content",
             "supported_features": (
                 "text",
                 "multimodal",
@@ -357,9 +358,19 @@ class GeminiModel(Model):
                 "drop",
             ),
             "multimodal_types": ("text", "image_url", "image_base64"),
+            "supports_native_tool_calls": True,
             "supports_parallel_tool_calls": True,
             "supports_tool_schemas": True,
+            "supports_tool_choice": False,
+            "supports_multimodal_input": True,
+            "supports_reasoning_input": True,
+            "supports_reasoning_output": True,
             "supports_continuation": True,
+            "supports_stateless_replay": True,
+            "supports_streaming": False,
+            "supports_usage": True,
+            "supports_cancellation": False,
+            "supports_structured_output": False,
         }
     }
 

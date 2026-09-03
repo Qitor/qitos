@@ -463,7 +463,7 @@ def test_configured_session_persists_terminal_root_failure_and_trajectory(
             "error_category": (
                 "provider_capability_loss"
                 if failure_kind == "codec"
-                else "transport"
+                else "provider_server"
             ),
         }
         assert requests == expected_requests

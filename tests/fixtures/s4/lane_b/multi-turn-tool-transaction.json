@@ -1,0 +1,6 @@
+{
+  "schema_version": "qitos.s4.transaction_fixture/v1",
+  "flow": ["user", "assistant_tool_declaration", "tool_result", "user", "assistant"],
+  "canonical_spine": ["ExchangeLog", "RequestView", "ProviderCodec.encode", "transport", "typed_decode", "ExchangeLog"],
+  "invariants": ["one_canonical_log", "request_target_exact", "tool_result_correlated", "decoded_parts_ordered"]
+}

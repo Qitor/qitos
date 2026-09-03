@@ -34,12 +34,23 @@ class LiteLLMModel(Model):
     qitos_api_mode = "chat_completions"
     qitos_capabilities_by_api_mode = {
         "chat_completions": {
+            "api_style": "chat_completions",
             "supported_features": ("text",),
             "reasoning_modes": ("drop",),
             "multimodal_types": ("text",),
+            "supports_native_tool_calls": False,
             "supports_parallel_tool_calls": False,
             "supports_tool_schemas": False,
+            "supports_tool_choice": False,
+            "supports_multimodal_input": False,
+            "supports_reasoning_input": False,
+            "supports_reasoning_output": False,
             "supports_continuation": False,
+            "supports_stateless_replay": True,
+            "supports_streaming": False,
+            "supports_usage": True,
+            "supports_cancellation": False,
+            "supports_structured_output": False,
         }
     }
 

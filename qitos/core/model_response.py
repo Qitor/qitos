@@ -3,8 +3,19 @@
 from __future__ import annotations
 
 import dataclasses
+import math
+import re
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, Mapping, Optional, cast
+
+from .diagnostics import redact_diagnostic_value
+
+
+_SECRET_USAGE_KEY = re.compile(
+    r"(?:authorization|api[_-]?key|credential|password|secret|cookie|headers?|"
+    r"access[_-]?token|refresh[_-]?token|private[_-]?key)",
+    re.IGNORECASE,
+)
 
 
 def _sanitize(value: Any) -> Any:
@@ -13,13 +24,33 @@ def _sanitize(value: Any) -> Any:
             str(k): _sanitize(v)
             for k, v in asdict(cast(Any, value)).items()
         }
-    if isinstance(value, dict):
-        return {str(k): _sanitize(v) for k, v in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_sanitize(item) for item in value]
-    if isinstance(value, (str, int, float, bool)) or value is None:
+    return redact_diagnostic_value(value)
+
+
+def _sanitize_usage(value: Any, *, depth: int = 0) -> Any:
+    """Preserve numeric usage facts without treating ``*_tokens`` as secrets."""
+
+    if depth > 8:
+        return "[redacted]"
+    if value is None or isinstance(value, (bool, int)):
         return value
-    return repr(value)
+    if isinstance(value, float):
+        return value if math.isfinite(value) else "[redacted]"
+    if isinstance(value, str):
+        return redact_diagnostic_value(value)
+    if isinstance(value, Mapping):
+        result: Dict[str, Any] = {}
+        for raw_key, nested in list(value.items())[:64]:
+            if not isinstance(raw_key, str):
+                continue
+            if _SECRET_USAGE_KEY.search(raw_key):
+                result[f"[redacted_key_{len(result) + 1}]"] = "[redacted]"
+                continue
+            result[raw_key[:64]] = _sanitize_usage(nested, depth=depth + 1)
+        return result
+    if isinstance(value, (list, tuple)):
+        return [_sanitize_usage(item, depth=depth + 1) for item in value[:64]]
+    return "[redacted]"
 
 
 def _sanitize_native_item(value: Any) -> Any:
@@ -27,10 +58,35 @@ def _sanitize_native_item(value: Any) -> Any:
     if value is not None and dataclasses.is_dataclass(value):
         value = asdict(cast(Any, value))
     if isinstance(value, dict):
+        if value.get("type") in {"reasoning", "thinking"}:
+            safe = {
+                key: value[key]
+                for key in ("type", "id", "status")
+                if key in value
+            }
+            safe["reasoning_payload_present"] = any(
+                value.get(key) not in (None, "", [], {})
+                for key in (
+                    "content",
+                    "encrypted_content",
+                    "reasoning",
+                    "signature",
+                    "summary",
+                    "text",
+                    "thinking",
+                    "thought_signature",
+                )
+            )
+            return redact_diagnostic_value(safe)
         return {
             str(key): _sanitize_native_item(item)
             for key, item in value.items()
-            if str(key) != "encrypted_content"
+            if str(key)
+            not in {
+                "encrypted_content",
+                "signature",
+                "thought_signature",
+            }
         }
     if isinstance(value, (list, tuple)):
         return [_sanitize_native_item(item) for item in value]
@@ -58,7 +114,9 @@ class ModelResponse:
     def to_summary_dict(self) -> Dict[str, Any]:
         d: Dict[str, Any] = {
             "text": str(self.text or ""),
-            "usage": _sanitize(self.usage) if isinstance(self.usage, dict) else None,
+            "usage": (
+                _sanitize_usage(self.usage) if isinstance(self.usage, dict) else None
+            ),
             "finish_reason": (
                 str(self.finish_reason) if self.finish_reason is not None else None
             ),
@@ -78,16 +136,20 @@ class ModelResponse:
                 else None
             ),
         }
-        if self.reasoning_content:
-            d["reasoning_content"] = self.reasoning_content
-        if self.reasoning_fields:
-            d["reasoning_fields"] = {
-                str(key): str(value)
-                for key, value in self.reasoning_fields.items()
-                if isinstance(value, str) and value.strip()
+        if self.reasoning_content or self.reasoning_fields:
+            d["reasoning"] = {
+                "present": True,
+                "source": (
+                    str(self.reasoning_source)
+                    if self.reasoning_source is not None
+                    else None
+                ),
+                "field_names": sorted(
+                    str(key)
+                    for key, value in self.reasoning_fields.items()
+                    if isinstance(value, str) and value.strip()
+                ),
             }
-        if self.reasoning_source:
-            d["reasoning_source"] = str(self.reasoning_source)
         return d
 
 

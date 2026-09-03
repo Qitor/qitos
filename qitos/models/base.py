@@ -143,6 +143,13 @@ class Model(ABC):
             if isinstance(self.context_window, int) and self.context_window > 0
             else None
         )
+        result["max_output_units"] = (
+            int(getattr(self, "max_tokens", 0))
+            if isinstance(getattr(self, "max_tokens", None), int)
+            and not isinstance(getattr(self, "max_tokens", None), bool)
+            and getattr(self, "max_tokens", 0) > 0
+            else None
+        )
         return result
 
     def qitos_provider_codec(self) -> Any:

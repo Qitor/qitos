@@ -458,6 +458,7 @@ class OpenAIModel(Model):
     qitos_api_mode = "chat_completions"
     qitos_capabilities_by_api_mode = {
         "chat_completions": {
+            "api_style": "chat_completions",
             "supported_features": (
                 "text", "multimodal", "tool_calls", "tool_results", "tool_schemas",
                 "parallel_tool_calls", "artifact_references",
@@ -465,11 +466,22 @@ class OpenAIModel(Model):
             ),
             "reasoning_modes": ("drop",),
             "multimodal_types": ("text", "image_url", "image_base64", "image_file"),
+            "supports_native_tool_calls": True,
             "supports_parallel_tool_calls": True,
             "supports_tool_schemas": True,
+            "supports_tool_choice": True,
+            "supports_multimodal_input": True,
+            "supports_reasoning_input": False,
+            "supports_reasoning_output": False,
             "supports_continuation": False,
+            "supports_stateless_replay": True,
+            "supports_streaming": True,
+            "supports_usage": True,
+            "supports_cancellation": False,
+            "supports_structured_output": True,
         },
         "responses": {
+            "api_style": "responses",
             "supported_features": (
                 "text", "multimodal", "tool_calls", "tool_results", "tool_schemas",
                 "parallel_tool_calls", "artifact_references", "reasoning", "continuation",
@@ -477,9 +489,19 @@ class OpenAIModel(Model):
             ),
             "reasoning_modes": ("preserve_if_supported", "native_item_continuation", "drop"),
             "multimodal_types": ("text", "image_url", "image_base64", "image_file"),
+            "supports_native_tool_calls": True,
             "supports_parallel_tool_calls": True,
             "supports_tool_schemas": True,
+            "supports_tool_choice": True,
+            "supports_multimodal_input": True,
+            "supports_reasoning_input": True,
+            "supports_reasoning_output": True,
             "supports_continuation": True,
+            "supports_stateless_replay": True,
+            "supports_streaming": True,
+            "supports_usage": True,
+            "supports_cancellation": False,
+            "supports_structured_output": True,
         },
     }
 

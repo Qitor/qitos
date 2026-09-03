@@ -26,6 +26,7 @@ from ..core.conversation import (
 )
 from ..core.model_response import ModelResponse
 from ..core.multimodal import ContentBlock
+from ..core.diagnostics import redact_diagnostic_value
 from ..core.request_view import ContinuationRef, RequestTarget, RequestView
 from ..core.session import ContinuationIdentity
 from .codec import (
@@ -58,6 +59,43 @@ def _digest(value: Any) -> str:
         allow_nan=False,
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _usage_facts(value: Optional[Mapping[str, Any]]) -> Optional[Dict[str, int]]:
+    if value is None:
+        return None
+    aliases = {
+        "prompt_tokens": ("prompt_tokens", "input_tokens"),
+        "completion_tokens": ("completion_tokens", "output_tokens"),
+        "total_tokens": ("total_tokens",),
+    }
+    result: Dict[str, int] = {}
+    for canonical, names in aliases.items():
+        present = [value[name] for name in names if name in value]
+        if not present:
+            continue
+        selected = present[0]
+        if (
+            not isinstance(selected, int)
+            or isinstance(selected, bool)
+            or selected < 0
+        ):
+            raise CodecCapabilityError("provider usage facts are invalid")
+        result[canonical] = selected
+    if "total_tokens" not in result and {
+        "prompt_tokens",
+        "completion_tokens",
+    } <= set(result):
+        result["total_tokens"] = (
+            result["prompt_tokens"] + result["completion_tokens"]
+        )
+    if "total_tokens" in result:
+        known_parts = result.get("prompt_tokens", 0) + result.get(
+            "completion_tokens", 0
+        )
+        if known_parts and result["total_tokens"] < known_parts:
+            raise CodecCapabilityError("provider usage total is inconsistent")
+    return result or None
 
 
 @dataclass(frozen=True)
@@ -174,14 +212,13 @@ class ProviderDecodedResponse:
     continuation_attachment_id: Optional[str] = None
 
     def __post_init__(self) -> None:
-        safe_usage = (
-            _json_copy(dict(self.usage), "provider usage")
-            if isinstance(self.usage, Mapping)
-            else None
-        )
-        safe_metadata = _json_copy(
-            dict(self.provider_metadata), "provider metadata"
-        )
+        if self.usage is not None and not isinstance(self.usage, Mapping):
+            raise CodecCapabilityError("provider usage must be an object")
+        safe_usage = _usage_facts(self.usage)
+        safe_metadata = redact_diagnostic_value(dict(self.provider_metadata))
+        if not isinstance(safe_metadata, dict):
+            raise CodecCapabilityError("provider metadata must be an object")
+        safe_metadata = _json_copy(safe_metadata, "provider metadata")
         object.__setattr__(self, "usage", safe_usage)
         object.__setattr__(self, "provider_metadata", safe_metadata)
         if self.continuation_payload is not None:
@@ -298,27 +335,35 @@ def normalize_provider_failure(
     if status in {401, 403} or "auth" in error_name:
         category = "authentication"
         code = "provider_authentication_failed"
+        stage = "authentication"
     elif status == 429 or "ratelimit" in error_name or "rate_limit" in error_name:
         category = "rate_limit"
         code = "provider_rate_limited"
+        stage = "rate_limit"
     elif status == 408 or "timeout" in error_name:
         category = "timeout"
         code = "provider_timeout"
+        stage = "timeout"
     elif "cancel" in error_name:
-        category = "cancelled"
+        category = "cancellation"
         code = "provider_request_cancelled"
+        stage = "cancellation"
     elif any(token in error_name for token in ("connection", "transport")):
-        category = "transport"
+        category = "connection"
         code = "provider_connection_failed"
+        stage = "connection"
     elif status in {400, 404, 409, 422}:
-        category = "provider_refusal"
+        category = "provider_rejection"
         code = "provider_request_rejected"
+        stage = "provider_rejection"
     elif status is not None and status >= 500:
-        category = "transport"
+        category = "provider_server"
         code = "provider_server_error"
+        stage = "provider_server"
     else:
         category = "transport"
         code = "provider_connection_failed"
+        stage = "transport"
     return ProviderFailure(
         category=category,
         message="Provider request failed at the sanitized transport boundary.",
@@ -329,7 +374,7 @@ def normalize_provider_failure(
         error_code=code,
         redacted_details={"exception_type": error.__class__.__name__},
         codec_report=report,
-        stage="transport",
+        stage=stage,
         provider_request_sent=True,
     )
 
@@ -344,6 +389,7 @@ def execute_provider_request(
     transport_options: Optional[Mapping[str, Any]] = None,
     request_transform: Optional[RequestTransform] = None,
     request_admission: Optional[Callable[[], None]] = None,
+    cancellation_check: Optional[Callable[[], bool]] = None,
 ) -> ProviderTransaction:
     """Execute exactly one RequestView through its declared provider adapter."""
 
@@ -471,24 +517,89 @@ def execute_provider_request(
             provider_request_sent=False,
         ) from None
 
-    try:
-        if request_admission is not None:
+    use_stream = stream_callback is not None
+    if use_stream and not capabilities.supports_streaming:
+        raise CodecCapabilityError(
+            "provider adapter does not declare streaming support",
+            report=report,
+        )
+
+    def assert_not_cancelled() -> None:
+        if cancellation_check is None:
+            return
+        try:
+            cancelled = cancellation_check()
+        except BaseException as exc:
+            raise ProviderFailure(
+                category="cancellation",
+                message="Cancellation state could not be inspected safely.",
+                provider=request.target.provider,
+                api_mode=request.target.api_mode,
+                error_code="provider_cancellation_check_failed",
+                redacted_details={"exception_type": exc.__class__.__name__},
+                codec_report=report,
+                stage="cancellation",
+                provider_request_sent=False,
+            ) from None
+        if not isinstance(cancelled, bool):
+            raise ProviderFailure(
+                category="cancellation",
+                message="Cancellation state must be boolean.",
+                provider=request.target.provider,
+                api_mode=request.target.api_mode,
+                error_code="provider_cancellation_state_invalid",
+                codec_report=report,
+                stage="cancellation",
+                provider_request_sent=False,
+            )
+        if cancelled:
+            raise ProviderFailure(
+                category="cancellation",
+                message="Provider request was cancelled before transport.",
+                provider=request.target.provider,
+                api_mode=request.target.api_mode,
+                error_code="provider_request_cancelled",
+                codec_report=report,
+                stage="cancellation",
+                provider_request_sent=False,
+            )
+
+    assert_not_cancelled()
+    if request_admission is not None:
+        try:
             request_admission()
-        if (
-            stream_callback is not None
-            and "streaming" in capabilities.supported_features
-        ):
+        except ProviderFailure as failure:
+            raise replace(
+                failure,
+                stage="admission",
+                provider_request_sent=False,
+                codec_report=failure.codec_report or report,
+            ) from None
+        except BaseException as exc:
+            raise ProviderFailure(
+                category="admission",
+                message="Provider request admission failed.",
+                provider=request.target.provider,
+                api_mode=request.target.api_mode,
+                error_code="provider_request_admission_failed",
+                redacted_details={"exception_type": exc.__class__.__name__},
+                codec_report=report,
+                stage="admission",
+                provider_request_sent=False,
+            ) from None
+    assert_not_cancelled()
+
+    try:
+        if use_stream:
             raw_response = adapter.qitos_stream_transport(
                 payload, on_delta=stream_callback
             )
         else:
             raw_response = adapter.qitos_transport(payload)
     except ProviderFailure as failure:
-        if failure.stage == "admission":
-            raise
         raise replace(
             failure,
-            stage="transport",
+            stage="stream" if use_stream else failure.stage,
             provider_request_sent=True,
             codec_report=failure.codec_report or report,
         ) from None
@@ -500,12 +611,14 @@ def execute_provider_request(
             )
         raise replace(
             normalized,
-            stage="transport",
+            stage="stream" if use_stream else normalized.stage,
             provider_request_sent=True,
         ) from None
 
     try:
         decoded = codec.decode(raw_response, request=request)
+        if not isinstance(decoded, ProviderDecodedResponse):
+            raise TypeError("codec decode result is not ProviderDecodedResponse")
     except ProviderFailure as failure:
         raise replace(
             failure,
@@ -515,7 +628,11 @@ def execute_provider_request(
     except BaseException as exc:
         malformed = isinstance(exc, (CodecCapabilityError, ValueError, TypeError))
         raise ProviderFailure(
-            category="malformed_response" if malformed else "provider_exception",
+            category=(
+                "malformed_structured_response"
+                if malformed
+                else "provider_exception"
+            ),
             message="Provider response could not be decoded safely.",
             provider=request.target.provider,
             api_mode=request.target.api_mode,
@@ -526,7 +643,7 @@ def execute_provider_request(
             ),
             redacted_details={"exception_type": exc.__class__.__name__},
             codec_report=report,
-            stage="decode",
+            stage="malformed_structured_response" if malformed else "decode",
             provider_request_sent=True,
         ) from None
 
@@ -548,11 +665,31 @@ def execute_provider_request(
                 error_code="continuation_capture_unavailable",
                 codec_report=report,
             )
-        reference = resolver.capture(
-            target=request.target,
-            payload=decoded.continuation_payload,
-            attachment_id=attachment_id,
-        )
+        try:
+            reference = resolver.capture(
+                target=request.target,
+                payload=decoded.continuation_payload,
+                attachment_id=attachment_id,
+            )
+        except ProviderFailure as failure:
+            raise replace(
+                failure,
+                stage="decode",
+                provider_request_sent=True,
+                codec_report=failure.codec_report or report,
+            ) from None
+        except BaseException as exc:
+            raise ProviderFailure(
+                category="decode",
+                message="Provider continuation could not be captured safely.",
+                provider=request.target.provider,
+                api_mode=request.target.api_mode,
+                error_code="continuation_capture_failed",
+                redacted_details={"exception_type": exc.__class__.__name__},
+                codec_report=report,
+                stage="decode",
+                provider_request_sent=True,
+            ) from None
         refs = (reference,)
         attachments.append(
             OpaqueContinuationAttachment(
@@ -852,6 +989,7 @@ class LegacyMessageCodec:
 def legacy_capabilities(target: RequestTarget) -> ProviderCapabilities:
     return ProviderCapabilities(
         target=target,
+        api_style="messages",
         supported_features=(
             "text",
             "multimodal",
@@ -865,9 +1003,19 @@ def legacy_capabilities(target: RequestTarget) -> ProviderCapabilities:
         ),
         reasoning_modes=("preserve_if_supported", "drop"),
         multimodal_types=("text", "image_url", "image_base64", "image_file"),
+        supports_native_tool_calls=True,
         supports_parallel_tool_calls=True,
         supports_tool_schemas=True,
+        supports_tool_choice=True,
+        supports_multimodal_input=True,
+        supports_reasoning_input=True,
+        supports_reasoning_output=True,
         supports_continuation=False,
+        supports_stateless_replay=True,
+        supports_streaming=False,
+        supports_usage=True,
+        supports_cancellation=False,
+        supports_structured_output=False,
     )
 
 
@@ -898,6 +1046,7 @@ class LegacyCallableAdapter:
             result["supported_features"] = tuple(
                 list(result["supported_features"]) + ["streaming"]
             )
+            result["supports_streaming"] = True
         return result
 
     def qitos_provider_codec(self) -> LegacyMessageCodec:

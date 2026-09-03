@@ -1,0 +1,9 @@
+{
+  "schema_version": "qitos.s4.lane_b.config_handoff/v1",
+  "provider": {"adapter_import": "tests.fixtures.s4.lane_b.third_party_adapter:ExampleSemanticAdapter", "logical_profile_id": "fixture.semantic", "api_mode": "semantic", "codec_id": "x.example.semantic"},
+  "context": {"contributors": ["fixture.static_context"], "memory_sources": ["fixture.semantic_memory"], "selector": "fixture.exchange_selector", "compactor": "fixture.exchange_compactor", "artifact_resolver": "fixture.content_addressed_resolver"},
+  "policy": {"required_capabilities": ["native_tool_calls", "parallel_tool_calls", "multimodal_input", "reasoning_output", "continuation", "streaming", "usage"], "allow_loss": false},
+  "budgets": {"max_tokens": 10240, "per_request_timeout_seconds": 60, "per_profile_request_ceiling": 4, "total_request_ceiling": 12, "total_token_ceiling": 122880, "wall_clock_seconds": 600, "hidden_retries": 0},
+  "continuation_resolver": "fixture.in_memory_continuation_resolver",
+  "secret_material": "external_credential_mapping_only"
+}

@@ -1,0 +1,7 @@
+{
+  "schema_version": "qitos.s4.multimodal_fixture/v1",
+  "ordered_blocks": ["text", "image_base64", "text"],
+  "conversion_must_be_reported": true,
+  "unsupported_policy": "typed_rejection_or_approved_loss",
+  "artifact_body_is_durable_message": false
+}
