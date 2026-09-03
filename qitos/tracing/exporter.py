@@ -187,6 +187,10 @@ class EventSummaryExporter:
 
     @staticmethod
     def _loss(trajectory: Trajectory) -> LossReport:
+        by_kind = {
+            kind: sum(record.kind == kind for record in trajectory.records)
+            for kind in RecordKind
+        }
         return trajectory.loss.merged(
             LossReport(
                 policy_id="qitos.export/event-summary",
@@ -205,6 +209,60 @@ class EventSummaryExporter:
                             for record in trajectory.records
                         ),
                         consequence="artifact_resolution_unavailable",
+                    ),
+                    LossEntry(
+                        code="reasoning_omitted",
+                        scope="records.reasoning",
+                        count=by_kind[RecordKind.REASONING],
+                        consequence="reasoning_replay_unavailable",
+                    ),
+                    LossEntry(
+                        code="continuation_omitted",
+                        scope="records.continuation",
+                        count=by_kind[RecordKind.CONTINUATION],
+                        consequence="provider_continuation_unavailable",
+                    ),
+                    LossEntry(
+                        code="tool_batch_order_omitted",
+                        scope="records.tool_batch",
+                        count=by_kind[RecordKind.TOOL_BATCH],
+                        consequence="batch_replay_unavailable",
+                    ),
+                    LossEntry(
+                        code="effect_detail_omitted",
+                        scope="records.effect",
+                        count=by_kind[RecordKind.EFFECT],
+                        consequence="effect_reconciliation_unavailable",
+                    ),
+                    LossEntry(
+                        code="sandbox_detail_omitted",
+                        scope="records.sandbox",
+                        count=by_kind[RecordKind.SANDBOX],
+                        consequence="sandbox_attestation_unavailable",
+                    ),
+                    LossEntry(
+                        code="owner_generation_omitted",
+                        scope="records.owner_generation",
+                        count=sum(
+                            record.owner_generation is not None
+                            for record in trajectory.records
+                        ),
+                        consequence="ownership_replay_unavailable",
+                    ),
+                    LossEntry(
+                        code="work_graph_detail_omitted",
+                        scope="records.work_graph",
+                        count=by_kind[RecordKind.WORK_GRAPH],
+                        consequence="graph_replay_unavailable",
+                    ),
+                    LossEntry(
+                        code="uncertainty_detail_omitted",
+                        scope="records.loss",
+                        count=sum(
+                            not record.loss.is_lossless
+                            for record in trajectory.records
+                        ),
+                        consequence="uncertainty_replay_unavailable",
                     ),
                 ),
             )

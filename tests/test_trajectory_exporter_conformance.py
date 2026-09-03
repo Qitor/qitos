@@ -7,6 +7,7 @@ import pytest
 from qitos.tracing.exporter import (
     CanonicalTrajectoryExporter,
     EventSummaryExporter,
+    TrajectoryExporter,
 )
 from qitos.tracing.exporter import TrajectoryExportError
 from qitos.tracing.trajectory import (
@@ -91,7 +92,43 @@ def test_lossy_export_reimports_declared_invariants_only() -> None:
     assert [record.sequence for record in restored.records] == [0, 1]
     assert all(record.payload == {} for record in restored.records)
     codes = {entry.code for entry in restored.loss.entries}
-    assert "record_payload_omitted" in codes
+    assert {
+        "record_payload_omitted",
+        "artifact_detail_omitted",
+        "reasoning_omitted",
+        "continuation_omitted",
+        "tool_batch_order_omitted",
+        "effect_detail_omitted",
+        "sandbox_detail_omitted",
+        "owner_generation_omitted",
+        "work_graph_detail_omitted",
+        "uncertainty_detail_omitted",
+    } <= codes
+
+
+class _ThirdPartyExporter:
+    """Structural extension with no inheritance or store access."""
+
+    def __init__(self) -> None:
+        self._delegate = CanonicalTrajectoryExporter()
+
+    @property
+    def capabilities(self):
+        return self._delegate.capabilities
+
+    def export(self, trajectory, *, view=PrivacyView.REDACTED_PUBLIC):
+        return self._delegate.export(trajectory, view=view)
+
+    def reimport(self, artifact):
+        return self._delegate.reimport(artifact)
+
+
+def test_independent_exporter_structurally_conforms_without_store_access() -> None:
+    exporter = _ThirdPartyExporter()
+    assert isinstance(exporter, TrajectoryExporter)
+    trajectory = _trajectory()
+    artifact = exporter.export(trajectory, view=PrivacyView.RAW_PRIVATE)
+    assert exporter.reimport(artifact).to_dict() == trajectory.to_dict()
 
 
 def test_export_digest_corruption_is_rejected() -> None:

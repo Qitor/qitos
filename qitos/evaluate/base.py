@@ -2,26 +2,115 @@
 
 from __future__ import annotations
 
+import copy
 import json
+import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Protocol, runtime_checkable
+from typing import Any, Dict, Iterable, List, Optional, Protocol, Tuple, runtime_checkable
 
 from qitos.core.task import Task
 
 
 EVALUATION_SCHEMA_VERSION = "qitos.evaluation/1"
+EVALUATOR_VIEW_SCHEMA_VERSION = "qitos.evaluator-view/1"
 
 
 @runtime_checkable
 class DeclarativeRunView(Protocol):
     """Structural evaluator input; evaluators never depend on a store."""
 
-    schema_version: str
-    records: Any
+    @property
+    def schema_version(self) -> str:
+        ...
+
+    @property
+    def records(self) -> Any:
+        ...
+
+    @property
+    def provenance(self) -> Dict[str, Any]:
+        ...
+
+    @property
+    def loss(self) -> Any:
+        ...
+
+
+@dataclass(frozen=True)
+class EvaluationSelection:
+    """Exactly one explicit run, Session, or work-item selection."""
+
+    run_id: Optional[str] = None
+    session_id: Optional[str] = None
+    work_item_id: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        values = (self.run_id, self.session_id, self.work_item_id)
+        if sum(value is not None and bool(str(value).strip()) for value in values) != 1:
+            raise ValueError("exactly one evaluation selection is required")
+
+    def to_dict(self) -> Dict[str, Optional[str]]:
+        return {
+            "run_id": self.run_id,
+            "session_id": self.session_id,
+            "work_item_id": self.work_item_id,
+        }
+
+
+@dataclass(frozen=True)
+class EvaluationLossView:
+    """Store-independent fidelity envelope passed to evaluators."""
+
+    policy_id: str
+    entries: Tuple[Dict[str, Any], ...] = ()
+
+    @property
+    def is_lossless(self) -> bool:
+        return not self.entries
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "policy_id": self.policy_id,
+            "is_lossless": self.is_lossless,
+            "entries": copy.deepcopy(list(self.entries)),
+        }
+
+    @classmethod
+    def from_dict(cls, value: Dict[str, Any]) -> "EvaluationLossView":
+        raw_entries = value.get("entries")
+        entries = (
+            tuple(copy.deepcopy(item) for item in raw_entries if isinstance(item, dict))
+            if isinstance(raw_entries, list)
+            else ()
+        )
+        return cls(
+            policy_id=str(value.get("policy_id", "qitos.loss/unknown")),
+            entries=entries,
+        )
+
+
+@dataclass(frozen=True)
+class EvaluationView:
+    """Stable, store-independent evaluator input."""
+
+    records: Tuple[Any, ...]
+    selection: EvaluationSelection
+    source_schema: str
     provenance: Dict[str, Any]
-    loss: Any
+    loss: EvaluationLossView
+    schema_version: str = EVALUATOR_VIEW_SCHEMA_VERSION
+
+
+@dataclass(frozen=True)
+class _ReaderQuery:
+    session_id: Optional[str] = None
+    run_id: Optional[str] = None
+    work_item_id: Optional[str] = None
+    kinds: Tuple[Any, ...] = ()
+    after_sequence: Optional[int] = None
+    limit: Optional[int] = None
 
 
 @dataclass
@@ -159,6 +248,12 @@ class EvaluatorRegistry:
         result = self.get(name).evaluate(context)
         if result.schema_version != EVALUATION_SCHEMA_VERSION:
             raise ValueError("unsupported evaluation result schema")
+        if result.name != name:
+            raise ValueError("evaluation result name mismatch")
+        if not isinstance(result.success, bool):
+            raise ValueError("evaluation success must be boolean")
+        if not math.isfinite(float(result.score)):
+            raise ValueError("evaluation score must be finite")
         return result
 
     @property
@@ -190,11 +285,81 @@ def context_from_reader(
     extras: Optional[Dict[str, Any]] = None,
 ) -> EvaluationContext:
     """Build an evaluator context from any structural trajectory reader."""
-    view = reader.read_run(run_id)
+    view = evaluation_view_from_reader(
+        reader,
+        selection=EvaluationSelection(run_id=run_id),
+    )
     return EvaluationContext(
         task=task,
         view=view,
         extras=dict(extras or {}),
+    )
+
+
+def evaluation_view_from_reader(
+    reader: Any,
+    *,
+    selection: EvaluationSelection,
+    view: Any = None,
+    limit: int = 10_000,
+) -> EvaluationView:
+    """Read one bounded selection without coupling evaluators to a store."""
+    if limit <= 0:
+        raise ValueError("evaluation view limit must be positive")
+    if selection.run_id is not None:
+        source = (
+            reader.read_run(selection.run_id)
+            if view is None
+            else reader.read_run(selection.run_id, view=view)
+        )
+        records = tuple(source.records[:limit])
+        source_schema = str(source.schema_version)
+        provenance = copy.deepcopy(dict(source.provenance))
+        loss_value = source.loss.to_dict()
+    elif selection.session_id is not None:
+        if not bool(getattr(reader.capabilities, "session_query", False)):
+            raise LookupError("session_query_unavailable")
+        source = (
+            reader.read_session(selection.session_id)
+            if view is None
+            else reader.read_session(selection.session_id, view=view)
+        )
+        records = tuple(source.records[:limit])
+        source_schema = str(source.schema_version)
+        provenance = copy.deepcopy(dict(source.provenance))
+        loss_value = source.loss.to_dict()
+    else:
+        query = _ReaderQuery(work_item_id=selection.work_item_id, limit=limit)
+        records = tuple(
+            reader.replay(query) if view is None else reader.replay(query, view=view)
+        )
+        source_schema = str(
+            getattr(reader.capabilities, "source_kind", "unknown_source")
+        )
+        provenance = {
+            "reader_id": str(getattr(reader.capabilities, "reader_id", "unknown")),
+            "source_kind": source_schema,
+        }
+        loss_value = {
+            "policy_id": "qitos.loss/unknown",
+            "is_lossless": False,
+            "entries": [
+                {
+                    "code": "selection_level_loss_unknown",
+                    "scope": "work_item",
+                    "count": 1,
+                    "consequence": "reader_did_not_return_trajectory_envelope",
+                }
+            ],
+        }
+    provenance["selection"] = selection.to_dict()
+    provenance["source_schema"] = source_schema
+    return EvaluationView(
+        records=tuple(copy.deepcopy(records)),
+        selection=selection,
+        source_schema=source_schema,
+        provenance=provenance,
+        loss=EvaluationLossView.from_dict(copy.deepcopy(dict(loss_value))),
     )
 
 
