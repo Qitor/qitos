@@ -1,7 +1,17 @@
 {
   "schema_version": "qitos.s4.lane_b.qualification_evidence/v1",
   "baseline_commit": "c4e621d05960a4e2f06cb4864f6a8cb8275ac067",
-  "offline_required_gate": "pending_final_validation",
+  "offline_required_gate": "passed_lane_b_scoped_gates",
+  "full_suite": {
+    "passed": 2457,
+    "skipped": 50,
+    "failed": 2,
+    "failure_class": "host_resource_contention_outside_lane_b",
+    "failed_nodes": [
+      "tests/e2e/test_s3_g4_configured_process_recovery.py::test_canonical_config_docker_pause_restore_trajectory_and_cleanup",
+      "tests/e2e/test_s3_g4_multi_agent_process_loss.py::test_g4_twenty_clean_process_rounds"
+    ]
+  },
   "live_model_qualification": "blocked_configuration",
   "live_block_reason": "No explicit local AgentConfig path and credentials-mapping path were supplied to this task.",
   "environment_scan_performed": false,

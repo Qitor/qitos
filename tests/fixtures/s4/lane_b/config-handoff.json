@@ -5,5 +5,5 @@
   "policy": {"required_capabilities": ["native_tool_calls", "parallel_tool_calls", "multimodal_input", "reasoning_output", "continuation", "streaming", "usage"], "allow_loss": false},
   "budgets": {"max_tokens": 10240, "per_request_timeout_seconds": 60, "per_profile_request_ceiling": 4, "total_request_ceiling": 12, "total_token_ceiling": 122880, "wall_clock_seconds": 600, "hidden_retries": 0},
   "continuation_resolver": "fixture.in_memory_continuation_resolver",
-  "secret_material": "external_credential_mapping_only"
+  "credential_resolution": "external_mapping_required"
 }
