@@ -1,8 +1,9 @@
 # Task 15 — public framework graduation
 
-Status: S4 authorized from the fixed baseline below; implementation not started
-Updated: 2026-09-02
-Fixed S4 dispatch baseline: `f07b38647cf3b18a5235581224a1153b88fac397`
+Status: S4 four-lane implementation planned; dispatch awaits remote baseline verification
+Updated: 2026-09-03
+Promoted S3/G4 runtime baseline: `f07b38647cf3b18a5235581224a1153b88fac397`
+Fixed S4 implementation ancestry: `c4e621d05960a4e2f06cb4864f6a8cb8275ac067`
 Depends on: Tasks 02–05 and 08–14; S3/G4 framework conformance
 Milestone: G5 default-safe framework and release-candidate review
 Risk: critical — public API coherence, safe defaults, migration truth, and
@@ -115,9 +116,12 @@ At G5, a framework user can:
 
 ## 6. Four S4 lanes
 
-All lanes start from the exact fixed baseline above in separate branches and
-worktrees. Shared README, CHANGELOG, progress, navigation, and default-switch
-edits are leased to the G5 integration owner.
+All lanes start from the exact fixed implementation ancestry above in separate
+branches and worktrees, after it is pushed and verified. Shared README,
+CHANGELOG, progress, navigation, and default-switch edits are leased to the G5
+integration owner. The complete copyable instructions, file leases, branch
+names, dependency model, evidence rules, and G5 entry gate are in
+[Task 16](16-s4-parallel-wave-instructions.md).
 
 ### Lane A — Authoring, Session, CLI, and configuration
 

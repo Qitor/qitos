@@ -18,7 +18,8 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 
 ## 最新进展
 
-- **S3/G4 框架基线已提升，S4 可启动**：代码头 `901e972...` 通过 2436 项测试，以及确定性 Session 隔离、持久请求预算恢复、有界 10 MB 投影、40 轮多智能体进程丢失恢复、Docker、隐私、打包与接口门禁。Informational GLM round `s3-g4-l3-a1146482fb3295ff` 发出两次精确计数的请求，未发现框架不变量失败；`malformed_structured_response` 属于模型能力证据，而不是框架发布阻断。功能分支已纯 fast-forward 并完成远端核验，五个 clean S3 worktree 在保留 refs 的前提下完成清理；最后一笔已推送 closure commit 是唯一 S4 dispatch baseline。
+- **S4 已拆分为四条面向用户能力的产线**：[可直接派发的执行计划](docs/v4/16-s4-parallel-wave-instructions.md)将公共开发入口/Session/配置、模型事务/上下文/provider、安全工具/sandbox/MCP/工作图，以及 Trajectory/qita/评测/发行分配给互不重叠的分支。质量和证据是每条线的共同门禁；只有后续 G5 融合才能冻结默认值或声明新的框架基线。
+- **S3/G4 框架基线已提升，S4 可启动**：代码头 `901e972...` 通过 2436 项测试，以及确定性 Session 隔离、持久请求预算恢复、有界 10 MB 投影、40 轮多智能体进程丢失恢复、Docker、隐私、打包与接口门禁。Informational GLM round `s3-g4-l3-a1146482fb3295ff` 发出两次精确计数的请求，未发现框架不变量失败；`malformed_structured_response` 属于模型能力证据，而不是框架发布阻断。功能分支已纯 fast-forward 并完成远端核验，五个 clean S3 worktree 在保留 refs 的前提下完成清理；`f07b386...` 仍是 S4 规划 successor 之下已经提升的 runtime baseline。
 - **框架正确性与 Agent 能力正式分离**：QitOS 的 required gate 覆盖 Session 隔离、显式 fork/transfer、持久 child 请求准入、有界模型投影、类型化 provider 阶段、真实 sandbox、持久化、隐私与确定性恢复。真实模型是否完成固定任务属于 informational capability matrix；QitOS 保证 runtime correctness，但不保证每个 Agent/model 都能成功完成任务。详见[责任边界](docs/architecture/framework-responsibility-boundary.md)。
 - **S4 公共框架成熟化已经定义**：[Task 15](docs/v4/15-public-framework-graduation.md) 将易用性和安全默认值设为下一优先级：唯一声明式/程序化 Session 路径、稳定的 provider/context 与 tool/sandbox 扩展套件、原生持久多智能体控制、由 qita 读取的冻结 Trajectory、clean-wheel 示例，以及明确的 G5 默认分支/发布门禁；禁止再造带版本后缀的平行公共架构。
 - **稳定的声明式 Agent 启动**：canonical `schema: qitos.agent` 文件现在通过 `qit run --config agent.yaml` 或 `run_agent_config("agent.yaml")` 驱动现有 `AgentModule + Engine` 路径。加载后的配置深度不可变，并生成确定、无 secret 的 digest；该 digest 进入启动、Session restore 与 Trajectory provenance。历史 schema 拼写仅是 reader 兼容细节，不形成公共 AgentConfig 类型。protocol 统一决定 parser 与 codec，配置化 tool-use policy 还能要求真实工具结果后才允许 final。详见[配置文档](docs/zh/reference/configuration.mdx)。

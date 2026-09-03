@@ -1,7 +1,7 @@
 # v4 integration progress
 
 Status: active integration ledger
-Updated: 2026-09-02
+Updated: 2026-09-03
 Integration branch: `feat/campaign-absorption`
 Independently reviewed runtime baseline: `5ef8ab657f6452ae48c931beea79106e2cca34c6`
 S1 dispatch baseline: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
@@ -14,13 +14,48 @@ Promoted S2 runtime head:
 `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`
 S3 plan freeze: `52e050d9bc1ee0d4c6dcc78c90a5497c25722648`
 S3 convergence source: `851f7902f15da670e72f4c04d7453cf37201aee7`
-Current gate: **S3/G4 CLOSED; S4 READY FROM THE FINAL PUSHED CLOSURE COMMIT;
-LIVE AGENT CAPABILITY REMAINS INFORMATIONAL**
+Current gate: **S3/G4 CLOSED; S4 FOUR-LANE PLAN COMPLETE; IMPLEMENTATION
+DISPATCH AWAITS REMOTE VERIFICATION OF THE PLANNING ANCESTRY; LIVE AGENT
+CAPABILITY REMAINS INFORMATIONAL**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 15 public framework graduation`](v4/15-public-framework-graduation.md),
 building on [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md),
 [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md),
 and [`Task 14 sandboxed agent execution`](v4/14-sandboxed-agent-execution.md)
+
+## S4 four-lane implementation planning (2026-09-03)
+
+The independent post-closure audit and Task 15 planning commit
+`c4e621d05960a4e2f06cb4864f6a8cb8275ac067` is now the fixed S4 implementation
+ancestry. The already promoted `f07b386...` remains the S3/G4 runtime baseline;
+the successor adds planning truth only. S4 dispatch must wait until the formal
+remote branch contains `c4e621d...` and local/tracking/remote identities are
+verified. No implementation worktree has been created and no S4 code has been
+merged.
+
+[Task 16](v4/16-s4-parallel-wave-instructions.md) defines four non-overlapping,
+capability-oriented lanes:
+
+- A owns the public authoring path, Session-by-default composition, config,
+  CLI, scaffolding, lifecycle ownership, and public-surface budget;
+- B owns the canonical model transaction, modern message/reasoning/tool rounds,
+  context/memory/compaction/artifacts, provider conformance, and optional
+  bounded live capability evidence;
+- C owns Env-only native ACI, ToolRuntime, task-exclusive Docker sandboxing,
+  lifecycle/effects, MCP parity, and durable multi-agent execution adapters;
+- D owns the single Trajectory candidate, crash-safe store/reader/exporter,
+  read-only qita, evaluation, privacy, measurements, extras, and clean-wheel
+  consumer qualification.
+
+Quality, documentation, privacy, receipts, and packaging are mandatory gates in
+every lane rather than a fifth engineering-only line. A publishes the beginner
+API shape; B and C publish independent producers; D prepares strict readiness
+but must remain `waiting_on_a_b_c` until G5 consumes exact same-wave bytes. The
+planned integration order is A -> B -> C -> D, followed by one G5 repair and
+qualification pass. Only G5 may freeze/switch Trajectory defaults, update shared
+documentation, promote a baseline, push, or retire the new clean worktrees.
+
+`DEFAULT_BRANCH_READY=false` and `RELEASE_READY=false` remain unchanged.
 
 ## G4-R5 framework conformance (2026-09-02)
 

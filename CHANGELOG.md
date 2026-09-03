@@ -19,6 +19,7 @@ How to update:
 
 ### Added
 
+- Added the S4 four-lane implementation plan: public authoring/Session/config, model transaction/context/provider extensibility, safe ACI/sandbox/MCP/durable work execution, and Trajectory/qita/evaluation/distribution now have non-overlapping worktree leases, exact producer/consumer gates, copyable Agent instructions, and one later G5 convergence/default-switch boundary.
 - Added the S4 public-framework graduation contract at fixed baseline `f07b38647cf3b18a5235581224a1153b88fac397`: four lanes now converge authoring/Session/CLI, model/context/provider, tools/sandbox/multi-agent, and Trajectory/qita/distribution into one default-safe architecture, with an explicit G5 gate and no public version-suffixed parallel APIs.
 - Closed S3/G4 after a pure fast-forward promotion, independent main-worktree requalification, two verified non-force pushes, and non-forced retirement of five clean worktrees while preserving every branch ref; the final closure commit is the sole S4 dispatch baseline.
 - Qualified the committed G4-R5 framework head with 2436 passing tests, deterministic Session/budget/projection/process-loss conformance, and an informational two-request GLM smoke whose typed malformed response exposed no framework invariant failure.
