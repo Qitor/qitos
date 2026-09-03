@@ -80,10 +80,12 @@ def test_real_docker_qualification_is_inspect_and_probe_backed(
     receipt = qualify_docker_environment(
         config,
         identity=SandboxIdentity(
+            sandbox_id="sandbox-test",
             session_id="session-test",
             run_id="run-test",
             work_item_id="work-test",
-            environment_id="environment-test",
+            attempt_id="attempt-test",
+            owner_generation=0,
         ),
     )
 

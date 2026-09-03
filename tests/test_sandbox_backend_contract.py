@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any, Mapping
 
@@ -14,6 +15,7 @@ from qitos.kit.env.sandbox import (
     SandboxUnavailable,
     UnsafeHostBackend,
     assert_sandbox_backend_conformance,
+    run_sandbox_backend_conformance,
 )
 
 
@@ -33,6 +35,10 @@ def _safe_capabilities(backend_id: str = "third-party") -> SandboxCapabilities:
         credentials_injected=False,
         provider_requests_host_side=True,
         cleanup_required=True,
+        disk_bounded=True,
+        output_bounded=True,
+        time_bounded=True,
+        private_workspace=True,
     )
 
 
@@ -63,7 +69,7 @@ class ThirdPartyBackend:
         return {"status": "requested"}
 
     def cleanup(self) -> SandboxReceipt:
-        return self.receipt
+        return replace(self.receipt, status="cleaned", cleanup="passed")
 
     def durability_receipt(self) -> Mapping[str, Any]:
         return self.receipt.to_dict()
@@ -76,6 +82,18 @@ def test_third_party_backend_conforms_without_subclassing_docker() -> None:
 
     assert capabilities.safe_for_executable_tools is True
     assert backend.execute("true")["returncode"] == 0
+
+
+def test_third_party_backend_public_lifecycle_runner_is_structural_only() -> None:
+    report = run_sandbox_backend_conformance(ThirdPartyBackend())
+
+    assert report == {
+        "status": "passed",
+        "backend_id": "third-party",
+        "structural_only": True,
+        "safe_for_executable_tools": True,
+        "cleanup": "passed",
+    }
 
 
 class _FakeHostEnv:
