@@ -1,0 +1,7 @@
+{
+  "schema_version": "qitos.s4.lane_b.handoff/v1",
+  "current_writer_authority": {"lane": "B", "branch": "codex/v4-s4-b-model-context", "owned_paths": ["qitos/models/**", "qitos/core/conversation.py", "qitos/core/request_view.py", "qitos/core/context.py", "qitos/core/memory.py", "qitos/core/artifact.py", "qitos/core/context_transfer.py", "qitos/engine/_model_runtime.py", "qitos/engine/_context_runtime.py", "tests/models/**", "tests/core/**", "tests/fixtures/s4/lane_b/**", "docs/internal/plans/s4_b_model_context.md"]},
+  "lane_a": ["compose adapter and exact API mode", "register contributor, memory, compactor, artifact and continuation resolvers", "keep credential mapping external", "enforce declared budgets and allow_loss"],
+  "lane_c": ["consume ProviderTransaction and ContextTransferReceipt", "persist admission before transport", "preserve partial tool batches and request counts across restore"],
+  "lane_d": ["consume diagnostic projections only", "render typed failure stage and request_sent facts", "never render raw reasoning, headers, credentials, opaque continuation or host paths"]
+}

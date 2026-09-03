@@ -1,0 +1,8 @@
+{
+  "schema_version": "qitos.s4.parallel_tool_fixture/v1",
+  "declaration_order": ["call.first", "call.second"],
+  "completion_order": ["call.second", "call.first"],
+  "persist_after_each_completion": true,
+  "restore_rule": "execute_only_missing_slots",
+  "derived_view_rule": "declaration_order_is_not_completion_order"
+}

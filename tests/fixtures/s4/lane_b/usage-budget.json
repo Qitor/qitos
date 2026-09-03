@@ -1,0 +1,8 @@
+{
+  "schema_version": "qitos.s4.usage_budget_fixture/v1",
+  "usage": {"prompt_tokens": 7, "completion_tokens": 5, "total_tokens": 12},
+  "context_budget": {"declared_input": 16000, "reserved_output": 4000, "available_input": 12000},
+  "provider_output_ceiling": 4000,
+  "request_sent_is_explicit": true,
+  "retry_count": 0
+}

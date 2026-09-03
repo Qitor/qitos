@@ -1,0 +1,10 @@
+{
+  "schema_version": "qitos.s4.lane_b.qualification_evidence/v1",
+  "baseline_commit": "c4e621d05960a4e2f06cb4864f6a8cb8275ac067",
+  "offline_required_gate": "pending_final_validation",
+  "live_model_qualification": "blocked_configuration",
+  "live_block_reason": "No explicit local AgentConfig path and credentials-mapping path were supplied to this task.",
+  "environment_scan_performed": false,
+  "credential_material_recorded": false,
+  "informational_model_outcomes": []
+}

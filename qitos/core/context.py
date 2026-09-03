@@ -20,6 +20,7 @@ from .request_view import (
     ContextContributor,
     RequestContractError,
     RequestTarget,
+    _json_text,
 )
 
 
@@ -53,9 +54,10 @@ class ContextRequest:
         if not str(self.request_key or "").strip():
             raise ContextPolicyError("context request_key must be non-empty")
         try:
-            json.dumps(dict(self.metadata), ensure_ascii=False, allow_nan=False)
-        except (TypeError, ValueError) as exc:
-            raise ContextPolicyError("context request metadata must be JSON") from exc
+            isolated = json.loads(_json_text(dict(self.metadata), "context.metadata"))
+        except (TypeError, ValueError, RequestContractError) as exc:
+            raise ContextPolicyError("context request metadata must be bounded JSON") from exc
+        object.__setattr__(self, "metadata", isolated)
 
 
 UnitCounter = Callable[[Any, str], int]
@@ -64,13 +66,10 @@ UnitCounter = Callable[[Any, str], int]
 def default_unit_counter(value: Any, unit: str) -> int:
     """Deterministic fallback counter used when no model tokenizer is injected."""
 
-    text = json.dumps(
-        value,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-        allow_nan=False,
-    )
+    try:
+        text = _json_text(value, "context.counter")
+    except RequestContractError as exc:
+        raise ContextPolicyError("context value is not bounded JSON") from exc
     if unit == "characters":
         return len(text)
     if unit == "tokens":
@@ -179,6 +178,7 @@ class ContextBudgetPolicy(Protocol):
         target: RequestTarget,
         declared_max_input_units: Optional[int],
         reserved_output_units: int,
+        declared_max_output_units: Optional[int] = None,
     ) -> ContextBudget:
         ...
 
@@ -192,21 +192,60 @@ class DeclaredContextBudgetPolicy:
     protected_recent_exchanges: int = 1
     policy_id: str = "qitos.context.declared_budget/v1"
 
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.default_max_input_units, int)
+            or isinstance(self.default_max_input_units, bool)
+            or self.default_max_input_units <= 0
+        ):
+            raise ContextPolicyError("default context budget must be positive")
+        if self.unit not in {"characters", "tokens"}:
+            raise ContextPolicyError("context budget unit is unsupported")
+        if (
+            not isinstance(self.protected_recent_exchanges, int)
+            or isinstance(self.protected_recent_exchanges, bool)
+            or self.protected_recent_exchanges < 0
+        ):
+            raise ContextPolicyError(
+                "protected recent exchange count must be non-negative"
+            )
+
     def budget_for(
         self,
         *,
         target: RequestTarget,
         declared_max_input_units: Optional[int],
         reserved_output_units: int,
+        declared_max_output_units: Optional[int] = None,
     ) -> ContextBudget:
         _ = target
-        maximum = (
-            int(declared_max_input_units)
-            if isinstance(declared_max_input_units, int)
-            and declared_max_input_units > 0
-            else int(self.default_max_input_units)
-        )
-        reserve = max(0, int(reserved_output_units))
+        if declared_max_input_units is not None and (
+            not isinstance(declared_max_input_units, int)
+            or isinstance(declared_max_input_units, bool)
+            or declared_max_input_units <= 0
+        ):
+            raise ContextPolicyError("declared input budget must be positive")
+        maximum = declared_max_input_units or self.default_max_input_units
+        if (
+            not isinstance(reserved_output_units, int)
+            or isinstance(reserved_output_units, bool)
+            or reserved_output_units < 0
+        ):
+            raise ContextPolicyError("reserved output budget must be non-negative")
+        if declared_max_output_units is not None and (
+            not isinstance(declared_max_output_units, int)
+            or isinstance(declared_max_output_units, bool)
+            or declared_max_output_units <= 0
+        ):
+            raise ContextPolicyError("declared output budget must be positive")
+        reserve = reserved_output_units
+        if (
+            declared_max_output_units is not None
+            and reserve > declared_max_output_units
+        ):
+            raise ContextPolicyError(
+                "requested output budget exceeds provider capability"
+            )
         if reserve >= maximum:
             raise ContextPolicyError(
                 "reserved output units must be below declared input capacity"
@@ -337,14 +376,7 @@ class ArtifactRefContributor:
     def contribute(self, request: ContextRequest) -> Sequence[ContextContribution]:
         _ = request
         visible = [
-            {
-                "artifact_id": item.artifact_id,
-                "sha256": item.sha256,
-                "media_type": item.media_type,
-                "byte_length": item.byte_length,
-                "model_summary": item.model_summary,
-                "resolver_key": item.resolver_key,
-            }
+            item.to_model_projection()
             for item in self.artifact_refs
         ]
         return (
@@ -386,6 +418,8 @@ def collect_context_contributions(
                 if len(signature.parameters) == 0
                 else contribute(request)
             )
+        except ContextPolicyError:
+            raise
         except (TypeError, ValueError) as exc:
             raise ContextPolicyError(
                 "context contributor invocation failed"

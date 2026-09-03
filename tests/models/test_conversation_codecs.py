@@ -67,30 +67,53 @@ def _request(*, continuation: bool = False) -> RequestView:
 
 
 def _capabilities(*, continuation: bool = True) -> ProviderCapabilities:
-    features = ["text"]
+    features = ["text", "tool_calls", "tool_schemas", "parallel_tool_calls"]
     if continuation:
         features.append("continuation")
     return ProviderCapabilities(
         target=RequestTarget("openai", "fixture-model", "openai", "responses"),
+        api_style="responses",
         supported_features=tuple(features),
         reasoning_modes=("preserve_if_supported", "native_item_continuation", "drop"),
         multimodal_types=("text", "image_url"),
+        supports_native_tool_calls=True,
         supports_parallel_tool_calls=True,
         supports_tool_schemas=True,
+        supports_tool_choice=True,
+        supports_multimodal_input=False,
+        supports_reasoning_input=False,
+        supports_reasoning_output=False,
         supports_continuation=continuation,
+        supports_stateless_replay=True,
+        supports_streaming=False,
+        supports_usage=True,
+        supports_cancellation=False,
+        supports_structured_output=False,
     )
 
 
 def _capability_constructor_fields() -> dict[str, Any]:
     return {
         "target": RequestTarget("fixture", "model", "transport", "api"),
+        "api_style": "compatibility",
         "supported_features": ("text",),
         "reasoning_modes": ("drop",),
         "multimodal_types": ("text",),
+        "supports_native_tool_calls": False,
         "supports_parallel_tool_calls": False,
         "supports_tool_schemas": False,
+        "supports_tool_choice": False,
+        "supports_multimodal_input": False,
+        "supports_reasoning_input": False,
+        "supports_reasoning_output": False,
         "supports_continuation": False,
+        "supports_stateless_replay": True,
+        "supports_streaming": False,
+        "supports_usage": True,
+        "supports_cancellation": False,
+        "supports_structured_output": False,
         "max_input_units": 4096,
+        "max_output_units": 8192,
     }
 
 

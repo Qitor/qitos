@@ -147,9 +147,11 @@ class _ContextRuntime:
         budget = budget_policy.budget_for(
             target=target,
             declared_max_input_units=capabilities.max_input_units,
+            declared_max_output_units=capabilities.max_output_units,
             reserved_output_units=max(0, int(getattr(llm, "max_tokens", 0) or 0)),
         )
         contributors = list(agent_config.get("context_contributors") or [])
+        contributors.extend(list(agent_config.get("memory_sources") or []))
         instructions = tuple(
             str(value).strip()
             for value in runtime_instructions

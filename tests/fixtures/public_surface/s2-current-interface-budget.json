@@ -4,7 +4,7 @@
     "root_exports": 41,
     "engine_init_parameters_including_self": 34,
     "engine_runtime_parameter_approved": true,
-    "aggregate_exports": 101
+    "aggregate_exports": 107
   },
   "modules": {
     "qitos.engine": {
@@ -21,7 +21,7 @@
     },
     "qitos.models": {
       "beginner-facing": ["Model", "ModelFactory", "OpenAIModel", "OpenAICompatibleModel", "AzureOpenAIModel", "AnthropicModel", "GeminiModel", "LiteLLMModel", "OllamaModel", "OllamaGenerateModel", "LMStudioModel", "VLLMModel"],
-      "extension-facing": ["AsyncModel", "ModelStreamChunk", "infer_context_window", "ModelProfile", "infer_model_profile", "infer_default_protocol", "known_model_profiles", "OpenAICompatibleAdapter", "adapter_for_kind", "build_model_for_preset", "AsyncOpenAIModel", "AsyncOpenAICompatibleModel", "CodecReport", "ProviderCapabilities", "ProviderFailure", "ProviderCodec"],
+      "extension-facing": ["AsyncModel", "ModelStreamChunk", "infer_context_window", "ModelProfile", "infer_model_profile", "infer_default_protocol", "known_model_profiles", "OpenAICompatibleAdapter", "adapter_for_kind", "build_model_for_preset", "AsyncOpenAIModel", "AsyncOpenAICompatibleModel", "CodecReport", "ProviderCapabilities", "ProviderFailure", "ProviderCodec", "ProviderAdapter", "ProviderConformanceCase", "ProviderConformanceError", "ProviderConformanceReport", "run_provider_conformance", "run_provider_failure_conformance"],
       "persistence-internal": [],
       "internal-private": []
     },

@@ -65,6 +65,9 @@ _SECRET_KEY = re.compile(
     r"secret|cookie|headers?|private[_-]?key|provider[_-]?payload)(?:$|[_-])",
     re.IGNORECASE,
 )
+_MAX_TRANSFER_DEPTH = 64
+_MAX_TRANSFER_NODES = 100_000
+_MAX_TRANSFER_BYTES = 8 * 1024 * 1024
 
 
 class ContextTransferError(ValueError):
@@ -79,8 +82,24 @@ def _fail(code: str, message: str) -> ContextTransferError:
     return ContextTransferError(code, message)
 
 
-def _strict_json(value: Any, path: str, *, portable: bool = True) -> Any:
+def _strict_json(
+    value: Any,
+    path: str,
+    *,
+    portable: bool = True,
+    _active: Optional[set[int]] = None,
+    _counter: Optional[list[int]] = None,
+    _depth: int = 0,
+) -> Any:
     """Clone strict JSON and reject process-local or sensitive strings."""
+
+    active = _active if _active is not None else set()
+    counter = _counter if _counter is not None else [0]
+    if _depth > _MAX_TRANSFER_DEPTH:
+        raise _fail("contract_too_deep", f"{path} exceeds the depth bound")
+    counter[0] += 1
+    if counter[0] > _MAX_TRANSFER_NODES:
+        raise _fail("contract_too_large", f"{path} exceeds the node bound")
 
     if value is None or isinstance(value, (bool, int)):
         return value
@@ -93,31 +112,65 @@ def _strict_json(value: Any, path: str, *, portable: bool = True) -> Any:
             raise _fail("unsafe_persisted_value", f"{path} is not portable")
         return value
     if isinstance(value, (list, tuple)):
-        return [
-            _strict_json(item, f"{path}[{index}]", portable=portable)
-            for index, item in enumerate(value)
-        ]
+        identity = id(value)
+        if identity in active:
+            raise _fail("cyclic_contract", f"{path} contains a cycle")
+        active.add(identity)
+        try:
+            return [
+                _strict_json(
+                    item,
+                    f"{path}[{index}]",
+                    portable=portable,
+                    _active=active,
+                    _counter=counter,
+                    _depth=_depth + 1,
+                )
+                for index, item in enumerate(value)
+            ]
+        finally:
+            active.remove(identity)
     if isinstance(value, Mapping):
+        identity = id(value)
+        if identity in active:
+            raise _fail("cyclic_contract", f"{path} contains a cycle")
+        active.add(identity)
         result: Dict[str, Any] = {}
-        for key, item in value.items():
-            if not isinstance(key, str):
-                raise _fail("non_json_value", f"{path} keys must be strings")
-            if _SECRET_KEY.search(key):
-                raise _fail("unsafe_persisted_value", f"{path} contains a sensitive key")
-            result[key] = _strict_json(item, f"{path}.{key}", portable=portable)
-        return result
+        try:
+            for key, item in value.items():
+                if not isinstance(key, str):
+                    raise _fail("non_json_value", f"{path} keys must be strings")
+                if _SECRET_KEY.search(key):
+                    raise _fail(
+                        "unsafe_persisted_value",
+                        f"{path} contains a sensitive key",
+                    )
+                result[key] = _strict_json(
+                    item,
+                    f"{path}.[field]",
+                    portable=portable,
+                    _active=active,
+                    _counter=counter,
+                    _depth=_depth + 1,
+                )
+            return result
+        finally:
+            active.remove(identity)
     raise _fail("non_json_value", f"{path} contains a process-local value")
 
 
 def _canonical_json(value: Any, path: str, *, portable: bool = True) -> str:
     cloned = _strict_json(value, path, portable=portable)
-    return json.dumps(
+    encoded = json.dumps(
         cloned,
         ensure_ascii=False,
         allow_nan=False,
         sort_keys=True,
         separators=(",", ":"),
     )
+    if len(encoded.encode("utf-8")) > _MAX_TRANSFER_BYTES:
+        raise _fail("contract_too_large", f"{path} exceeds the byte bound")
+    return encoded
 
 
 def _digest(value: Any) -> str:
@@ -894,6 +947,40 @@ def _rejected(
     )
 
 
+def _required_codec_capabilities(
+    selected_items: Sequence[Mapping[str, Any]],
+) -> frozenset[str]:
+    """Derive semantic replay requirements from the selected canonical items."""
+
+    required = {"stateless_replay"} if selected_items else set()
+    for item in selected_items:
+        if item.get("kind") == "tool_result":
+            required.add("native_tool_calls")
+        content = item.get("content")
+        if isinstance(content, list) and any(
+            isinstance(block, Mapping) and block.get("type") != "text"
+            for block in content
+        ):
+            required.add("multimodal_input")
+        parts = item.get("parts")
+        if not isinstance(parts, list):
+            continue
+        for part in parts:
+            if not isinstance(part, Mapping):
+                continue
+            if part.get("kind") == "tool_call":
+                required.add("native_tool_calls")
+            if part.get("kind") in {"reasoning_block", "reasoning_reference"}:
+                required.add("reasoning_input")
+            block = part.get("block")
+            if (
+                isinstance(block, Mapping)
+                and block.get("type") != "text"
+            ):
+                required.add("multimodal_input")
+    return frozenset(required)
+
+
 def execute_context_transfer(
     plan: ContextTransferPlan,
     *,
@@ -966,6 +1053,16 @@ def execute_context_transfer(
     selected_set = set(selected_exchange_ids)
     model_items = log.to_model_dict()["items"]
     selected_raw = [item for item in model_items if item["exchange_id"] in selected_set]
+    codec_capabilities = set(destination_codec_capabilities)
+    missing_codec_capabilities = (
+        _required_codec_capabilities(selected_raw) - codec_capabilities
+    )
+    if missing_codec_capabilities:
+        return _rejected(
+            plan,
+            "provider_context_capability_mismatch",
+            rejected_capabilities=missing_codec_capabilities,
+        )
     if any(item.get("metadata") for item in selected_raw):
         omitted.append("conversation.metadata")
     if any(item.get("continuation_attachments") for item in selected_raw):
@@ -1076,7 +1173,7 @@ def execute_context_transfer(
             continuation.provider == plan.destination_provider
             and continuation.model == plan.destination_model
             and continuation.api_mode == plan.destination_api_mode
-            and "continuation" in set(destination_codec_capabilities)
+            and "continuation" in codec_capabilities
             and continuation_resolved
         )
         try:

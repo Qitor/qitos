@@ -1,0 +1,7 @@
+{
+  "schema_version": "qitos.s4.steering_recovery_fixture/v1",
+  "open_batch_policy": "queue_steering_durably",
+  "boundary_policy": "apply_after_batch_closure",
+  "request_accounting": {"admission_before_transport": true, "restore_never_decrements": true, "hidden_retries": 0},
+  "crash_recovery": ["load_exchange_log", "load_partial_batch", "execute_missing_slots", "apply_queued_steering"]
+}

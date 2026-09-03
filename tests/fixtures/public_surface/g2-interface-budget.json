@@ -1,7 +1,7 @@
 {
   "schema_version": "qitos.g2_interface_budget/v2",
   "reviewed_policy": {
-    "deliberate_module_exports": 161,
+    "deliberate_module_exports": 164,
     "visible_internal_private_symbols": 3,
     "root_exports": 41,
     "root_export_growth": 0,
@@ -12,7 +12,7 @@
   "modules": {
     "qitos.core.artifact": {
       "beginner-facing": ["ArtifactRef"],
-      "extension-facing": ["ArtifactContractError"],
+      "extension-facing": ["ArtifactContractError", "ArtifactResolver", "ResolvedArtifact", "require_artifact"],
       "persistence-internal": ["ARTIFACT_REF_SCHEMA_VERSION"],
       "internal-private": []
     },

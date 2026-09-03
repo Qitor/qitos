@@ -18,7 +18,7 @@ CATEGORIES = {
 }
 DELIBERATE_CATEGORIES = CATEGORIES - {"internal-private"}
 REVIEWED_POLICY = {
-    "deliberate_module_exports": 161,
+    "deliberate_module_exports": 164,
     "visible_internal_private_symbols": 3,
     "root_exports": 41,
     "root_export_growth": 0,

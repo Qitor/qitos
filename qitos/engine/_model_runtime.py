@@ -475,9 +475,7 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             payload={
                 "stage": "model_output",
                 "raw_output": response.text,
-                "reasoning_content": response.reasoning_content,
-                "reasoning_fields": dict(response.reasoning_fields or {}),
-                "reasoning_source": response.reasoning_source,
+                "reasoning": dict(record.model_response.get("reasoning") or {}),
                 "model_response": dict(record.model_response),
                 "context": dict(record.context),
                 "prompt": prompt_metadata,

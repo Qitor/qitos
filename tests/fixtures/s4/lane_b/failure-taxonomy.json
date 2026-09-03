@@ -1,0 +1,6 @@
+{
+  "schema_version": "qitos.s4.provider_failure_taxonomy/v1",
+  "stages": ["encode", "projection", "admission", "connection", "transport", "timeout", "authentication", "rate_limit", "provider_rejection", "provider_server", "cancellation", "stream", "decode", "malformed_structured_response", "capability_loss"],
+  "required_facts": ["code", "category", "stage", "retryable", "provider_request_sent", "retry_count", "remediation"],
+  "forbidden_diagnostics": ["exception_text", "url", "header", "token", "cookie", "host_path", "credential", "provider_raw_body"]
+}

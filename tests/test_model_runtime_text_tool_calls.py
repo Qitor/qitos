@@ -757,8 +757,13 @@ def test_reasoning_content_takes_priority_while_both_native_fields_are_preserved
         "reasoning": "Provider alias reasoning.",
     }
     summary = response.to_summary_dict()
-    assert summary["reasoning_source"] == "reasoning_content"
-    assert summary["reasoning_fields"] == response.reasoning_fields
+    assert summary["reasoning"] == {
+        "present": True,
+        "source": "reasoning_content",
+        "field_names": ["reasoning", "reasoning_content"],
+    }
+    assert "Canonical provider reasoning." not in repr(summary)
+    assert "Provider alias reasoning." not in repr(summary)
 
 
 def test_agent_thought_text_is_not_native_reasoning():

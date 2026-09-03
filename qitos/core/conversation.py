@@ -1275,22 +1275,62 @@ def _strict_string(value: Any, path: str, *, optional: bool = False) -> None:
         raise InvalidExchangeItemError(f"{path} must be a string")
 
 
-def _strict_json(value: Any, path: str) -> None:
+def _strict_json(
+    value: Any,
+    path: str,
+    *,
+    _active: Optional[set[int]] = None,
+    _counter: Optional[list[int]] = None,
+    _depth: int = 0,
+) -> None:
+    active = _active if _active is not None else set()
+    counter = _counter if _counter is not None else [0]
+    if _depth > 64:
+        raise InvalidExchangeItemError(f"{path} exceeds the JSON depth limit")
+    counter[0] += 1
+    if counter[0] > 100_000:
+        raise InvalidExchangeItemError(f"{path} exceeds the JSON node limit")
     if value is None or isinstance(value, (str, bool, int)):
         return
     if isinstance(value, float):
         if not math.isfinite(value):
             raise InvalidExchangeItemError(f"{path} must be finite")
         return
-    if isinstance(value, list):
-        for index, item in enumerate(value):
-            _strict_json(item, f"{path}[{index}]")
+    if isinstance(value, (list, tuple)):
+        identity = id(value)
+        if identity in active:
+            raise InvalidExchangeItemError(f"{path} contains a JSON cycle")
+        active.add(identity)
+        try:
+            for index, item in enumerate(value):
+                _strict_json(
+                    item,
+                    f"{path}[{index}]",
+                    _active=active,
+                    _counter=counter,
+                    _depth=_depth + 1,
+                )
+        finally:
+            active.remove(identity)
         return
-    if isinstance(value, dict):
-        for key, item in value.items():
-            if not isinstance(key, str):
-                raise InvalidExchangeItemError(f"{path} keys must be strings")
-            _strict_json(item, f"{path}.{key}")
+    if isinstance(value, Mapping):
+        identity = id(value)
+        if identity in active:
+            raise InvalidExchangeItemError(f"{path} contains a JSON cycle")
+        active.add(identity)
+        try:
+            for key, item in value.items():
+                if not isinstance(key, str):
+                    raise InvalidExchangeItemError(f"{path} keys must be strings")
+                _strict_json(
+                    item,
+                    f"{path}.[field]",
+                    _active=active,
+                    _counter=counter,
+                    _depth=_depth + 1,
+                )
+        finally:
+            active.remove(identity)
         return
     raise InvalidExchangeItemError(
         f"{path} contains non-JSON value {type(value).__name__}"

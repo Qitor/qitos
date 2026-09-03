@@ -77,9 +77,11 @@ def test_model_response_summary_redacts_opaque_native_reasoning_state() -> None:
             "type": "reasoning",
             "id": "rs_1",
             "status": "completed",
-            "summary": [{"type": "summary_text", "text": "Need a tool."}],
+            "reasoning_payload_present": True,
         }
     ]
+    assert "Need a tool." not in repr(summary)
+    assert "opaque-private-state" not in repr(summary)
 
 
 def test_responses_input_replays_native_items_and_tool_outputs() -> None:

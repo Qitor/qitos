@@ -284,7 +284,13 @@ def _execute(plan: ContextTransferPlan, **overrides: Any) -> ContextTransferRece
         "projector": Projector(),
         "capability_authorities": caps,
         "budget_authorities": budgets,
-        "destination_codec_capabilities": {"continuation"},
+        "destination_codec_capabilities": {
+            "continuation",
+            "multimodal_input",
+            "native_tool_calls",
+            "reasoning_input",
+            "stateless_replay",
+        },
         "available_continuation_refs": (
             {plan.continuation.reference_id.value} if plan.continuation else set()
         ),
@@ -336,6 +342,20 @@ def test_multimodal_parallel_batch_and_nested_input_are_immutable():
     assert receipt.plan.budget_request.limits["steps"] == 2
     assert component.exchange_log.to_persistence_dict() == before
     assert receipt.selected_items[0]["content"][1]["type"] == "image_url"
+
+
+def test_context_transfer_intersects_selected_semantics_with_provider_capability():
+    receipt = _execute(
+        _plan(),
+        destination_codec_capabilities={"continuation", "stateless_replay"},
+    )
+
+    assert receipt.terminal_disposition == "rejected"
+    assert receipt.failure_code == "provider_context_capability_mismatch"
+    assert receipt.rejected_capabilities == (
+        "multimodal_input",
+        "native_tool_calls",
+    )
 
 
 def test_queued_steering_stays_a_durable_queue_and_is_not_model_input():
@@ -391,9 +411,38 @@ def test_continuation_preserved_only_on_exact_compatible_unexpired_codec():
 @pytest.mark.parametrize(
     ("continuation", "codec", "code"),
     [
-        (_continuation(model="other.model"), {"continuation"}, "continuation_incompatible"),
-        (_continuation(expiry="2026-08-30T00:00:00+00:00"), {"continuation"}, "continuation_expired"),
-        (_continuation(), set(), "continuation_incompatible"),
+        (
+            _continuation(model="other.model"),
+            {
+                "continuation",
+                "multimodal_input",
+                "native_tool_calls",
+                "reasoning_input",
+                "stateless_replay",
+            },
+            "continuation_incompatible",
+        ),
+        (
+            _continuation(expiry="2026-08-30T00:00:00+00:00"),
+            {
+                "continuation",
+                "multimodal_input",
+                "native_tool_calls",
+                "reasoning_input",
+                "stateless_replay",
+            },
+            "continuation_expired",
+        ),
+        (
+            _continuation(),
+            {
+                "multimodal_input",
+                "native_tool_calls",
+                "reasoning_input",
+                "stateless_replay",
+            },
+            "continuation_incompatible",
+        ),
     ],
 )
 def test_continuation_rejects_incompatible_expired_or_unsupported(continuation, codec, code):

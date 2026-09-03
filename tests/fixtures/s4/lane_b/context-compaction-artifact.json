@@ -1,0 +1,8 @@
+{
+  "schema_version": "qitos.s4.context_fixture/v1",
+  "canonical_history": "ExchangeLog",
+  "extensions": ["ContextContributor", "MemorySource", "ContextSelector", "ContextBudgetPolicy", "ContextCompactor", "ArtifactResolver"],
+  "selection": {"deterministic": true, "receipt_backed": true, "whole_exchanges": true},
+  "artifact": {"identity": "content_addressed", "host_path_persisted": false, "body_repeated_per_turn": false, "required_missing_code": "missing_required_artifact"},
+  "bounds": {"max_depth": 64, "max_nodes": 100000, "max_projection_bytes": 8388608}
+}

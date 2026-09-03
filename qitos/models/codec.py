@@ -19,7 +19,8 @@ from ..core.request_view import RequestTarget, RequestView
 
 CODEC_REPORT_SCHEMA_VERSION = "qitos.codec_report/v2"
 _HISTORICAL_CODEC_REPORT_SCHEMA_VERSION = "qitos.codec_report/v1"
-PROVIDER_CAPABILITIES_SCHEMA_VERSION = "qitos.provider_capabilities/v1"
+PROVIDER_CAPABILITIES_SCHEMA_VERSION = "qitos.provider_capabilities/v2"
+_HISTORICAL_PROVIDER_CAPABILITIES_SCHEMA_VERSION = "qitos.provider_capabilities/v1"
 PROVIDER_FAILURE_SCHEMA_VERSION = "qitos.provider_failure/v1"
 
 _SUPPORTED_FEATURE_VALUES = frozenset(
@@ -51,18 +52,56 @@ _REASONING_MODE_VALUES = frozenset(
 _MULTIMODAL_TYPE_VALUES = frozenset(
     {"text", "image_url", "image_base64", "image_file"}
 )
+_API_STYLE_VALUES = frozenset(
+    {
+        "chat_completions",
+        "responses",
+        "messages",
+        "generate_content",
+        "generate",
+        "compatibility",
+    }
+)
 _MISSING_CAPABILITY_FIELD = object()
 _PROVIDER_FAILURE_CATEGORIES = frozenset(
     {
         "provider_refusal",
+        "provider_rejection",
+        "provider_server",
         "provider_exception",
         "malformed_response",
+        "malformed_structured_response",
         "unsupported_request",
+        "capability_loss",
+        "admission",
+        "connection",
         "authentication",
         "rate_limit",
         "timeout",
         "transport",
+        "stream",
+        "decode",
+        "cancellation",
         "cancelled",
+    }
+)
+_PROVIDER_FAILURE_STAGES = frozenset(
+    {
+        "encode",
+        "projection",
+        "admission",
+        "connection",
+        "transport",
+        "timeout",
+        "authentication",
+        "rate_limit",
+        "provider_rejection",
+        "provider_server",
+        "cancellation",
+        "stream",
+        "decode",
+        "malformed_structured_response",
+        "capability_loss",
     }
 )
 
@@ -236,47 +275,93 @@ def _capability_bool(value: Any, *, field_name: str) -> bool:
     return value
 
 
-def _max_input_units(value: Any) -> Optional[int]:
+def _optional_positive_int(value: Any, *, field_name: str) -> Optional[int]:
     if value is None:
         return None
     if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
-        raise CodecError("max_input_units must be a positive integer or null")
+        raise CodecError(f"{field_name} must be a positive integer or null")
     return value
+
+
+def _api_style_from_mode(api_mode: str) -> str:
+    aliases = {
+        "chat": "chat_completions",
+        "semantic": "compatibility",
+    }
+    style = aliases.get(api_mode, api_mode)
+    if style not in _API_STYLE_VALUES:
+        return "compatibility"
+    return style
 
 
 @dataclass(frozen=True, init=False)
 class ProviderCapabilities:
     target: RequestTarget
+    api_style: str
     supported_features: tuple[str, ...]
     reasoning_modes: tuple[str, ...]
     multimodal_types: tuple[str, ...]
+    supports_native_tool_calls: bool
     supports_parallel_tool_calls: bool
     supports_tool_schemas: bool
+    supports_tool_choice: bool
+    supports_multimodal_input: bool
+    supports_reasoning_input: bool
+    supports_reasoning_output: bool
     supports_continuation: bool
+    supports_stateless_replay: bool
+    supports_streaming: bool
+    supports_usage: bool
+    supports_cancellation: bool
+    supports_structured_output: bool
     max_input_units: Optional[int] = None
+    max_output_units: Optional[int] = None
     schema_version: str = PROVIDER_CAPABILITIES_SCHEMA_VERSION
 
     def __init__(
         self,
         target: Any = _MISSING_CAPABILITY_FIELD,
+        api_style: Any = _MISSING_CAPABILITY_FIELD,
         supported_features: Any = _MISSING_CAPABILITY_FIELD,
         reasoning_modes: Any = _MISSING_CAPABILITY_FIELD,
         multimodal_types: Any = _MISSING_CAPABILITY_FIELD,
+        supports_native_tool_calls: Any = _MISSING_CAPABILITY_FIELD,
         supports_parallel_tool_calls: Any = _MISSING_CAPABILITY_FIELD,
         supports_tool_schemas: Any = _MISSING_CAPABILITY_FIELD,
+        supports_tool_choice: Any = _MISSING_CAPABILITY_FIELD,
+        supports_multimodal_input: Any = _MISSING_CAPABILITY_FIELD,
+        supports_reasoning_input: Any = _MISSING_CAPABILITY_FIELD,
+        supports_reasoning_output: Any = _MISSING_CAPABILITY_FIELD,
         supports_continuation: Any = _MISSING_CAPABILITY_FIELD,
+        supports_stateless_replay: Any = _MISSING_CAPABILITY_FIELD,
+        supports_streaming: Any = _MISSING_CAPABILITY_FIELD,
+        supports_usage: Any = _MISSING_CAPABILITY_FIELD,
+        supports_cancellation: Any = _MISSING_CAPABILITY_FIELD,
+        supports_structured_output: Any = _MISSING_CAPABILITY_FIELD,
         max_input_units: Any = None,
+        max_output_units: Any = None,
         schema_version: Any = PROVIDER_CAPABILITIES_SCHEMA_VERSION,
         **unexpected: Any,
     ) -> None:
         required = (
             target,
+            api_style,
             supported_features,
             reasoning_modes,
             multimodal_types,
+            supports_native_tool_calls,
             supports_parallel_tool_calls,
             supports_tool_schemas,
+            supports_tool_choice,
+            supports_multimodal_input,
+            supports_reasoning_input,
+            supports_reasoning_output,
             supports_continuation,
+            supports_stateless_replay,
+            supports_streaming,
+            supports_usage,
+            supports_cancellation,
+            supports_structured_output,
         )
         if unexpected:
             raise CodecError("provider capabilities constructor has unexpected fields")
@@ -284,13 +369,25 @@ class ProviderCapabilities:
             raise CodecError("provider capabilities constructor is missing required fields")
         for field_name, value in (
             ("target", target),
+            ("api_style", api_style),
             ("supported_features", supported_features),
             ("reasoning_modes", reasoning_modes),
             ("multimodal_types", multimodal_types),
+            ("supports_native_tool_calls", supports_native_tool_calls),
             ("supports_parallel_tool_calls", supports_parallel_tool_calls),
             ("supports_tool_schemas", supports_tool_schemas),
+            ("supports_tool_choice", supports_tool_choice),
+            ("supports_multimodal_input", supports_multimodal_input),
+            ("supports_reasoning_input", supports_reasoning_input),
+            ("supports_reasoning_output", supports_reasoning_output),
             ("supports_continuation", supports_continuation),
+            ("supports_stateless_replay", supports_stateless_replay),
+            ("supports_streaming", supports_streaming),
+            ("supports_usage", supports_usage),
+            ("supports_cancellation", supports_cancellation),
+            ("supports_structured_output", supports_structured_output),
             ("max_input_units", max_input_units),
+            ("max_output_units", max_output_units),
             ("schema_version", schema_version),
         ):
             object.__setattr__(self, field_name, value)
@@ -301,6 +398,12 @@ class ProviderCapabilities:
             raise CodecError("unsupported provider capabilities schema")
         if not isinstance(self.target, RequestTarget):
             raise CodecError("provider capabilities target must be RequestTarget")
+        if self.api_style not in _API_STYLE_VALUES:
+            raise CodecError("provider capabilities api_style is unsupported")
+        if self.api_style != _api_style_from_mode(self.target.api_mode):
+            raise CodecError(
+                "provider capabilities api_style does not match the declared API mode"
+            )
         object.__setattr__(
             self,
             "supported_features",
@@ -330,16 +433,56 @@ class ProviderCapabilities:
             ),
         )
         for field_name in (
+            "supports_native_tool_calls",
             "supports_parallel_tool_calls",
             "supports_tool_schemas",
+            "supports_tool_choice",
+            "supports_multimodal_input",
+            "supports_reasoning_input",
+            "supports_reasoning_output",
             "supports_continuation",
+            "supports_stateless_replay",
+            "supports_streaming",
+            "supports_usage",
+            "supports_cancellation",
+            "supports_structured_output",
         ):
             object.__setattr__(
                 self,
                 field_name,
                 _capability_bool(getattr(self, field_name), field_name=field_name),
             )
-        object.__setattr__(self, "max_input_units", _max_input_units(self.max_input_units))
+        object.__setattr__(
+            self,
+            "max_input_units",
+            _optional_positive_int(self.max_input_units, field_name="max_input_units"),
+        )
+        object.__setattr__(
+            self,
+            "max_output_units",
+            _optional_positive_int(self.max_output_units, field_name="max_output_units"),
+        )
+        features = set(self.supported_features)
+        consistency = {
+            "tool_calls": self.supports_native_tool_calls,
+            "parallel_tool_calls": self.supports_parallel_tool_calls,
+            "tool_schemas": self.supports_tool_schemas,
+            "multimodal": self.supports_multimodal_input,
+            "reasoning": self.supports_reasoning_output,
+            "continuation": self.supports_continuation,
+            "streaming": self.supports_streaming,
+        }
+        for feature, supported in consistency.items():
+            if (feature in features) is not supported:
+                raise CodecError(
+                    f"provider capability {feature!r} conflicts with its boolean fact"
+                )
+        if self.supports_parallel_tool_calls and not self.supports_native_tool_calls:
+            raise CodecError("parallel tool calls require native tool calls")
+        if self.supports_tool_choice and not self.supports_native_tool_calls:
+            raise CodecError("tool choice requires native tool calls")
+        if self.supports_reasoning_input and "reasoning" not in features:
+            raise CodecError("reasoning input requires reasoning support")
 
     @classmethod
     def from_model(cls, model: Any) -> "ProviderCapabilities":
@@ -376,20 +519,66 @@ class ProviderCapabilities:
         if not isinstance(declared, Mapping):
             raise CodecCapabilityError("provider capability declaration must be an object")
         fields = {
+            "api_style",
             "supported_features",
             "reasoning_modes",
             "multimodal_types",
+            "supports_native_tool_calls",
             "supports_parallel_tool_calls",
             "supports_tool_schemas",
+            "supports_tool_choice",
+            "supports_multimodal_input",
+            "supports_reasoning_input",
+            "supports_reasoning_output",
             "supports_continuation",
+            "supports_stateless_replay",
+            "supports_streaming",
+            "supports_usage",
+            "supports_cancellation",
+            "supports_structured_output",
             "max_input_units",
+            "max_output_units",
         }
         try:
-            data = _object(
-                declared,
-                path="provider_capability_declaration",
-                fields=frozenset(fields),
+            legacy_fields = frozenset(
+                {
+                    "supported_features",
+                    "reasoning_modes",
+                    "multimodal_types",
+                    "supports_parallel_tool_calls",
+                    "supports_tool_schemas",
+                    "supports_continuation",
+                    "max_input_units",
+                }
             )
+            if set(declared) == legacy_fields:
+                legacy = _object(
+                    declared,
+                    path="provider_capability_declaration",
+                    fields=legacy_fields,
+                )
+                features = set(legacy["supported_features"])
+                data = {
+                    **legacy,
+                    "api_style": _api_style_from_mode(target.api_mode),
+                    "supports_native_tool_calls": "tool_calls" in features,
+                    "supports_tool_choice": "tool_calls" in features,
+                    "supports_multimodal_input": "multimodal" in features,
+                    "supports_reasoning_input": "reasoning" in features,
+                    "supports_reasoning_output": "reasoning" in features,
+                    "supports_stateless_replay": True,
+                    "supports_streaming": "streaming" in features,
+                    "supports_usage": False,
+                    "supports_cancellation": False,
+                    "supports_structured_output": False,
+                    "max_output_units": None,
+                }
+            else:
+                data = _object(
+                    declared,
+                    path="provider_capability_declaration",
+                    fields=frozenset(fields),
+                )
             return cls(target=target, **data)
         except CodecError as exc:
             raise CodecCapabilityError(
@@ -404,13 +593,25 @@ class ProviderCapabilities:
         return {
             "schema_version": self.schema_version,
             "target": self.target.to_dict(),
+            "api_style": self.api_style,
             "supported_features": list(self.supported_features),
             "reasoning_modes": list(self.reasoning_modes),
             "multimodal_types": list(self.multimodal_types),
+            "supports_native_tool_calls": self.supports_native_tool_calls,
             "supports_parallel_tool_calls": self.supports_parallel_tool_calls,
             "supports_tool_schemas": self.supports_tool_schemas,
+            "supports_tool_choice": self.supports_tool_choice,
+            "supports_multimodal_input": self.supports_multimodal_input,
+            "supports_reasoning_input": self.supports_reasoning_input,
+            "supports_reasoning_output": self.supports_reasoning_output,
             "supports_continuation": self.supports_continuation,
+            "supports_stateless_replay": self.supports_stateless_replay,
+            "supports_streaming": self.supports_streaming,
+            "supports_usage": self.supports_usage,
+            "supports_cancellation": self.supports_cancellation,
+            "supports_structured_output": self.supports_structured_output,
             "max_input_units": self.max_input_units,
+            "max_output_units": self.max_output_units,
         }
 
     @classmethod
@@ -419,18 +620,73 @@ class ProviderCapabilities:
             {
                 "schema_version",
                 "target",
+                "api_style",
                 "supported_features",
                 "reasoning_modes",
                 "multimodal_types",
+                "supports_native_tool_calls",
                 "supports_parallel_tool_calls",
                 "supports_tool_schemas",
+                "supports_tool_choice",
+                "supports_multimodal_input",
+                "supports_reasoning_input",
+                "supports_reasoning_output",
                 "supports_continuation",
+                "supports_stateless_replay",
+                "supports_streaming",
+                "supports_usage",
+                "supports_cancellation",
+                "supports_structured_output",
                 "max_input_units",
+                "max_output_units",
             }
         )
         try:
-            data = _object(value, path="provider_capabilities", fields=fields)
-            data["target"] = RequestTarget.from_dict(data["target"])
+            if not isinstance(value, Mapping):
+                raise CodecError("provider_capabilities must be an object")
+            version = value.get("schema_version")
+            if version == _HISTORICAL_PROVIDER_CAPABILITIES_SCHEMA_VERSION:
+                legacy_fields = frozenset(
+                    {
+                        "schema_version",
+                        "target",
+                        "supported_features",
+                        "reasoning_modes",
+                        "multimodal_types",
+                        "supports_parallel_tool_calls",
+                        "supports_tool_schemas",
+                        "supports_continuation",
+                        "max_input_units",
+                    }
+                )
+                legacy = _object(
+                    value,
+                    path="provider_capabilities",
+                    fields=legacy_fields,
+                )
+                features = set(legacy["supported_features"])
+                target = RequestTarget.from_dict(legacy["target"])
+                data = {
+                    **legacy,
+                    "schema_version": PROVIDER_CAPABILITIES_SCHEMA_VERSION,
+                    "target": target,
+                    "api_style": _api_style_from_mode(target.api_mode),
+                    "supports_native_tool_calls": "tool_calls" in features,
+                    "supports_tool_choice": "tool_calls" in features,
+                    "supports_multimodal_input": "multimodal" in features,
+                    "supports_reasoning_input": "reasoning" in features,
+                    "supports_reasoning_output": "reasoning" in features,
+                    "supports_stateless_replay": True,
+                    "supports_streaming": "streaming" in features,
+                    "supports_usage": True,
+                    "supports_cancellation": False,
+                    "supports_structured_output": False,
+                    "max_output_units": None,
+                }
+            else:
+                data = _object(value, path="provider_capabilities", fields=fields)
+            if not isinstance(data["target"], RequestTarget):
+                data["target"] = RequestTarget.from_dict(data["target"])
             return cls(**data)
         except CodecError:
             raise
@@ -660,11 +916,15 @@ class ProviderFailure(Exception):
             else None
         )
         safe_stage = safe_diagnostic_text(self.stage, fallback="transport")
+        if safe_stage not in _PROVIDER_FAILURE_STAGES:
+            raise CodecError("provider failure stage is unsupported")
         safe_details = redact_diagnostic_value(self.redacted_details)
         if not isinstance(safe_details, dict):
             raise CodecError("provider failure details must be an object")
         remediation_by_category = {
             "provider_refusal": "Review the request against the provider policy.",
+            "provider_rejection": "Review the request against the provider contract.",
+            "provider_server": "Retry only when retryable or inspect provider health.",
             "provider_exception": "Retry only when retryable or inspect provider health.",
             "malformed_response": "Inspect provider codec compatibility.",
             "unsupported_request": "Change the request policy or configured provider capabilities.",
@@ -672,6 +932,13 @@ class ProviderFailure(Exception):
             "rate_limit": "Retry according to the provider retry guidance.",
             "timeout": "Retry only when the operation is safe and retryable.",
             "transport": "Inspect provider health and network reachability.",
+            "connection": "Inspect provider health and network reachability.",
+            "stream": "Inspect stream compatibility before retrying.",
+            "decode": "Inspect provider codec compatibility.",
+            "malformed_structured_response": "Inspect structured response compatibility.",
+            "capability_loss": "Change the request policy or explicitly authorize loss.",
+            "admission": "Increase the explicit budget or stop issuing requests.",
+            "cancellation": "Start a new request only if the session is still running.",
             "cancelled": "Start a new request only if the session is still running.",
         }
         remediation = (
@@ -781,10 +1048,28 @@ def capability_mismatches(
     if request.tool_schemas and not capabilities.supports_tool_schemas:
         missing.add("tool_schemas")
     if (
+        request.tool_use_policy
+        in {"required_for_next_decision", "required_before_final"}
+        and not request.tool_use_satisfied
+        and not capabilities.supports_tool_choice
+    ):
+        missing.add("tool_choice")
+    if (
         "reasoning" in request.capability_requirements
         and request.reasoning_policy.mode not in capabilities.reasoning_modes
     ):
         missing.add(f"reasoning:{request.reasoning_policy.mode}")
+    if (
+        capabilities.max_input_units is not None
+        and request.selection.selected_units > capabilities.max_input_units
+    ):
+        missing.add("context_window")
+    if (
+        capabilities.max_output_units is not None
+        and request.context_budget.reserved_output_units
+        > capabilities.max_output_units
+    ):
+        missing.add("output_budget")
     return tuple(sorted(missing))
 
 
