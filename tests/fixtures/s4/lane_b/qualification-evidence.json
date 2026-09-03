@@ -10,6 +10,11 @@
     "failed_nodes": [
       "tests/e2e/test_s3_g4_configured_process_recovery.py::test_canonical_config_docker_pause_restore_trajectory_and_cleanup",
       "tests/e2e/test_s3_g4_multi_agent_process_loss.py::test_g4_twenty_clean_process_rounds"
+    ],
+    "serial_recheck": "passed",
+    "serial_recheck_results": [
+      "configured_process_recovery: 1 passed in 53.40s",
+      "g4_twenty_clean_process_rounds: 1 passed in 386.17s"
     ]
   },
   "live_model_qualification": "blocked_configuration",
