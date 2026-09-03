@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from qitos.engine.events import EngineEvent, EngineEventType
 from qitos.engine.states import RuntimeEvent, RuntimePhase, StepRecord
 from qitos.render.events import RenderEvent
@@ -22,10 +24,15 @@ def test_event_vocabulary_covers_required_runtime_facts() -> None:
         RecordKind.RUN: ("run_start", {}),
         RecordKind.MODEL_REQUEST: ("decide", {"stage": "model_input"}),
         RecordKind.MODEL_RESPONSE: ("decide", {"stage": "model_output"}),
+        RecordKind.PROVIDER_TRANSACTION: (
+            "decide",
+            {"stage": "provider_transaction"},
+        ),
         RecordKind.REASONING: ("reasoning", {}),
         RecordKind.CONTINUATION: ("continuation", {}),
         RecordKind.TOOL_BATCH: ("tool_batch_start", {}),
         RecordKind.TOOL_SLOT: ("tool_slot_end", {}),
+        RecordKind.TOOL_RESULT: ("act", {"stage": "tool_result"}),
         RecordKind.LIFECYCLE: ("phase_start", {}),
         RecordKind.EFFECT: ("effect_committed", {}),
         RecordKind.CONTEXT: ("context_history", {}),
@@ -39,6 +46,8 @@ def test_event_vocabulary_covers_required_runtime_facts() -> None:
         RecordKind.ERROR: ("decide", {}, False, "boom"),
         RecordKind.LOSS: ("loss", {}),
         RecordKind.ARTIFACT: ("artifact", {}),
+        RecordKind.SANDBOX: ("sandbox_attested", {}),
+        RecordKind.OWNERSHIP: ("ownership_transferred", {}),
         RecordKind.WORK_GRAPH: ("join_committed", {}),
     }
     for expected, values in cases.items():
@@ -70,6 +79,43 @@ def test_runtime_event_adapter_preserves_authority_and_reports_embedded_loss() -
     assert record.role == RecordRole.CANONICAL_RUNTIME_FACT
     assert record.step_id == 2
     assert not record.loss.is_lossless
+
+
+def test_runtime_adapter_copies_only_explicit_producer_identities() -> None:
+    event = SimpleNamespace(
+        step_id=4,
+        phase=RuntimePhase.DECIDE,
+        payload={
+            "stage": "provider_transaction",
+            "attempt_id": "attempt-explicit",
+            "attempt": 2,
+            "owner_id": "agent-explicit",
+            "owner_generation": 7,
+            "operation_id": "operation-explicit",
+            "lifecycle_state": "committed",
+            "provider_transaction_id": "transaction-explicit",
+            "effect_id": "effect-explicit",
+            "sandbox_id": "sandbox-explicit",
+        },
+        error=None,
+        ok=True,
+        ts="2026-09-04T00:00:00+00:00",
+        monotonic_ns=42,
+    )
+
+    record = runtime_event_to_record(event, run_id="run-1")
+
+    assert record.kind == RecordKind.PROVIDER_TRANSACTION
+    assert record.monotonic_ns == 42
+    assert record.attempt_id == "attempt-explicit"
+    assert record.attempt == 2
+    assert record.owner_id == "agent-explicit"
+    assert record.owner_generation == 7
+    assert record.operation_id == "operation-explicit"
+    assert record.lifecycle_state == "committed"
+    assert record.provider_transaction_id == "transaction-explicit"
+    assert record.effect_id == "effect-explicit"
+    assert record.sandbox_id == "sandbox-explicit"
 
 
 def test_step_and_render_adapters_are_declared_derived_views() -> None:

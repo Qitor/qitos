@@ -11,6 +11,7 @@ from qitos.tracing.sinks import (
     SinkCapabilities,
 )
 from qitos.tracing.store import (
+    IndexRebuildReport,
     StorageMeasurement,
     StoreCapabilities,
     StoreConflictError,
@@ -157,6 +158,18 @@ class ThirdPartyStore:
             record_count=len(self.items),
             invalid_record_ids=invalid,
             sequence_gaps=gaps,
+        )
+
+    def rebuild_index(self) -> IndexRebuildReport:
+        return IndexRebuildReport(
+            record_count=len(self.items),
+            run_count=len({item.run_id for item in self.items if item.run_id}),
+            session_count=len(
+                {item.session_id for item in self.items if item.session_id}
+            ),
+            work_item_count=len(
+                {item.work_item_id for item in self.items if item.work_item_id}
+            ),
         )
 
     def measure_storage(self) -> StorageMeasurement:

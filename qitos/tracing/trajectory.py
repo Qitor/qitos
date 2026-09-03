@@ -53,10 +53,12 @@ class RecordKind(str, Enum):
     RUN = "run"
     MODEL_REQUEST = "model_request"
     MODEL_RESPONSE = "model_response"
+    PROVIDER_TRANSACTION = "provider_transaction"
     REASONING = "reasoning"
     CONTINUATION = "continuation"
     TOOL_BATCH = "tool_batch"
     TOOL_SLOT = "tool_slot"
+    TOOL_RESULT = "tool_result"
     LIFECYCLE = "lifecycle"
     EFFECT = "effect"
     CONTEXT = "context"
@@ -70,6 +72,8 @@ class RecordKind(str, Enum):
     ERROR = "error"
     LOSS = "loss"
     ARTIFACT = "artifact"
+    SANDBOX = "sandbox"
+    OWNERSHIP = "ownership"
     WORK_GRAPH = "work_graph"
     STEP = "step"
 
@@ -181,6 +185,7 @@ class TrajectoryRecord:
     sequence: Optional[int] = None
     occurred_at: str = field(default_factory=utc_now)
     recorded_at: str = field(default_factory=utc_now)
+    monotonic_ns: Optional[int] = None
     session_id: Optional[str] = None
     run_id: Optional[str] = None
     work_item_id: Optional[str] = None
@@ -192,8 +197,14 @@ class TrajectoryRecord:
     exchange_id: Optional[str] = None
     tool_call_id: Optional[str] = None
     attempt_id: Optional[str] = None
+    attempt: Optional[int] = None
+    owner_id: Optional[str] = None
     owner_generation: Optional[int] = None
     operation_id: Optional[str] = None
+    lifecycle_state: Optional[str] = None
+    provider_transaction_id: Optional[str] = None
+    effect_id: Optional[str] = None
+    sandbox_id: Optional[str] = None
     source_session_id: Optional[str] = None
     source_work_item_id: Optional[str] = None
     producer_authority: Optional[str] = None
@@ -214,6 +225,10 @@ class TrajectoryRecord:
             raise ValueError("sequence must be non-negative")
         if self.step_id is not None and self.step_id < 0:
             raise ValueError("step_id must be non-negative")
+        if self.monotonic_ns is not None and self.monotonic_ns < 0:
+            raise ValueError("monotonic_ns must be non-negative")
+        if self.attempt is not None and self.attempt < 0:
+            raise ValueError("attempt must be non-negative")
         if self.owner_generation is not None and self.owner_generation < 0:
             raise ValueError("owner_generation must be non-negative")
 
@@ -260,6 +275,7 @@ class TrajectoryRecord:
             "role": self.role.value,
             "occurred_at": self.occurred_at,
             "recorded_at": self.recorded_at,
+            "monotonic_ns": self.monotonic_ns,
             "session_id": self.session_id,
             "run_id": self.run_id,
             "work_item_id": self.work_item_id,
@@ -271,8 +287,14 @@ class TrajectoryRecord:
             "exchange_id": self.exchange_id,
             "tool_call_id": self.tool_call_id,
             "attempt_id": self.attempt_id,
+            "attempt": self.attempt,
+            "owner_id": self.owner_id,
             "owner_generation": self.owner_generation,
             "operation_id": self.operation_id,
+            "lifecycle_state": self.lifecycle_state,
+            "provider_transaction_id": self.provider_transaction_id,
+            "effect_id": self.effect_id,
+            "sandbox_id": self.sandbox_id,
             "source_session_id": self.source_session_id,
             "source_work_item_id": self.source_work_item_id,
             "producer_authority": self.producer_authority,
@@ -319,6 +341,11 @@ class TrajectoryRecord:
             role=RecordRole(str(value["role"])),
             occurred_at=str(value["occurred_at"]),
             recorded_at=str(value["recorded_at"]),
+            monotonic_ns=(
+                int(value["monotonic_ns"])
+                if value.get("monotonic_ns") is not None
+                else None
+            ),
             session_id=_optional_text(value.get("session_id")),
             run_id=_optional_text(value.get("run_id")),
             work_item_id=_optional_text(value.get("work_item_id")),
@@ -334,12 +361,24 @@ class TrajectoryRecord:
             exchange_id=_optional_text(value.get("exchange_id")),
             tool_call_id=_optional_text(value.get("tool_call_id")),
             attempt_id=_optional_text(value.get("attempt_id")),
+            attempt=(
+                int(value["attempt"])
+                if value.get("attempt") is not None
+                else None
+            ),
+            owner_id=_optional_text(value.get("owner_id")),
             owner_generation=(
                 int(value["owner_generation"])
                 if value.get("owner_generation") is not None
                 else None
             ),
             operation_id=_optional_text(value.get("operation_id")),
+            lifecycle_state=_optional_text(value.get("lifecycle_state")),
+            provider_transaction_id=_optional_text(
+                value.get("provider_transaction_id")
+            ),
+            effect_id=_optional_text(value.get("effect_id")),
+            sandbox_id=_optional_text(value.get("sandbox_id")),
             source_session_id=_optional_text(value.get("source_session_id")),
             source_work_item_id=_optional_text(
                 value.get("source_work_item_id")
