@@ -201,7 +201,6 @@ from pathlib import Path
 
 from qitos.config import EnvironmentConfig, FakeCredentialResolver, load_agent_config
 from qitos.config import build_agent_composition
-from qitos.kit.env import HostEnv
 
 from {agent_name}.fake_provider import DeterministicFakeModel
 
@@ -242,7 +241,6 @@ def test_generated_agent_uses_the_session_path(tmp_path: Path) -> None:
             {{"{agent_name}-provider": "not-a-real-secret"}}
         ),
         model_override=DeterministicFakeModel(),
-        env_override=HostEnv(workspace_root=str(tmp_path)),
     ) as composition:
         session = composition.session("finish through Session")
         result = session.run()
