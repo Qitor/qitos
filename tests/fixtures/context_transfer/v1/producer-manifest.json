@@ -1,6 +1,6 @@
 {
   "schema_version": "qitos.context_transfer.producer_manifest/v1",
-  "producer_commit": "b229e0b80a55a1add64fdb88fbe5b632f8d15ad8",
+  "producer_commit": "5930b38d2c12532d9183ac8a375669fccd71c6d5",
   "dispatch_source": "851f7902f15da670e72f4c04d7453cf37201aee7",
   "producer": "S3 Lane B — Context, Continuation and Authority Transfer",
   "contract_schemas": [
@@ -12,11 +12,11 @@
   "producer_files": [
     {
       "path": "qitos/core/context_transfer.py",
-      "sha256": "24c3041fece7886735dfeb7142c0b94286812ccc12e4cdbe26135f6b36fd0a7a"
+      "sha256": "8ef4407fc3ec6cb8b7a99db1c74e812db42c44b5011223ed403188905afaa2ff"
     },
     {
       "path": "tests/core/test_context_transfer.py",
-      "sha256": "821324b5589cef948add705ba47edd0a66545f84552e9690624b8412c4359361"
+      "sha256": "5e57079ea5eda5efafe5beb80f34d5832ee601bc6202a58035b8cf89c9d67900"
     },
     {
       "path": "tests/fixtures/context_transfer/v1/semantic_fixtures.json",
