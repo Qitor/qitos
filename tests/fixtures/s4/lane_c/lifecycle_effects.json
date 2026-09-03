@@ -1,0 +1,8 @@
+{
+  "schema": "qitos.s4.lane_c.lifecycle_effects/v1",
+  "committed": {"replay": false, "retry_disposition": "non_retryable"},
+  "unknown": {"guess_terminal": false, "retry_disposition": "requires_reconciliation"},
+  "thread_timeout": {"hard_cancel": false, "worker_still_running": true},
+  "remote_timeout": {"remote_cancel_proven": false, "outcome_unknown": true},
+  "duplicate_committed_effects": 0
+}

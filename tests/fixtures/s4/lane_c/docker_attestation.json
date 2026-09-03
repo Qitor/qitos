@@ -1,0 +1,21 @@
+{
+  "schema": "qitos.s4.lane_c.docker_attestation/v1",
+  "evidence_kind": "required-inspect-shape",
+  "backend": "docker",
+  "required": {
+    "mounts": [],
+    "tmpfs": ["/tmp", "/workspace", "/results"],
+    "network": "none",
+    "read_only_root": true,
+    "non_root": true,
+    "cap_drop": ["ALL"],
+    "no_new_privileges": true,
+    "privileged": false,
+    "host_pid": false,
+    "host_ipc": false,
+    "devices": 0,
+    "credential_environment_entries": 0,
+    "ownership_labels": ["qitos.sandbox.id", "qitos.sandbox.owner-generation"]
+  },
+  "isolation_claim": "container-policy-not-vm"
+}

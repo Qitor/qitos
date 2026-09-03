@@ -1,0 +1,20 @@
+{
+  "schema_version": "qitos.sandbox.snapshot_component/v1",
+  "logical_identity": {
+    "sandbox_id": "sandbox:fixture",
+    "session_id": "session:fixture",
+    "run_id": "run:fixture",
+    "work_item_id": "work:child",
+    "attempt_id": "attempt:fixture",
+    "owner_generation": 2
+  },
+  "backend_type": "docker",
+  "policy_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "image_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "capability_set": ["filesystem.read", "filesystem.write", "process.bounded"],
+  "lease": {"lease_id": "lease:fixture", "owner_generation": 2, "state": "active"},
+  "workspace_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "input_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "quiescence": "processes_terminal",
+  "cleanup_state": "pending"
+}

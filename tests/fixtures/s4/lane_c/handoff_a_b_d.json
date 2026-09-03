@@ -1,0 +1,19 @@
+{
+  "schema": "qitos.s4.lane_c.handoff/v1",
+  "lane_a": {
+    "need": "register optional sandbox snapshot component and resolve/attest it during restore",
+    "files": ["qitos/engine/session_runtime.py", "qitos/engine/_snapshot_components.py"]
+  },
+  "lane_b": {
+    "need": "extend declarative tool parallel allowlist for poll_process if desired",
+    "files": ["qitos/config/builder.py"]
+  },
+  "lane_d": {
+    "need": "publish user-facing ACI and sandbox limitations after integration",
+    "files": ["README.md", "CHANGELOG.md", "docs/v4/14-sandboxed-agent-execution.md"]
+  },
+  "g5": {
+    "need": "allocate one SandboxHandle per child descriptor and fence handoff owner generation",
+    "integration_contract": "SandboxAllocation.to_dict"
+  }
+}

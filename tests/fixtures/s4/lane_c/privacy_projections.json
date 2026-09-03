@@ -1,0 +1,9 @@
+{
+  "schema": "qitos.s4.lane_c.privacy_projections/v1",
+  "canonical_output_retained": true,
+  "model_output_bounded": true,
+  "trace_output_redacted": true,
+  "artifact_body_in_model_projection": false,
+  "host_path_in_trace_projection": false,
+  "secret_value_in_finding": false
+}

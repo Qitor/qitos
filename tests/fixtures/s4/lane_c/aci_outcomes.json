@@ -1,0 +1,19 @@
+{
+  "schema": "qitos.s4.lane_c.aci_outcomes/v1",
+  "tools": [
+    "read_file",
+    "list_files",
+    "grep_file",
+    "write_file",
+    "edit_file",
+    "run_command",
+    "run_test",
+    "start_process",
+    "poll_process",
+    "terminate_process"
+  ],
+  "canonical_output": "lossless-or-artifact-referenced",
+  "model_projection": "bounded-with-loss-receipt",
+  "path_scope": "workspace-relative",
+  "host_fallback": false
+}

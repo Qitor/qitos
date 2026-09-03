@@ -1,0 +1,8 @@
+{
+  "schema": "qitos.s4.lane_c.parallel_completion/v1",
+  "batch_id": "batch:lane-c",
+  "declaration_order": ["call:first", "call:second"],
+  "completion_order": ["call:second", "call:first"],
+  "closed": true,
+  "ordering_mechanism": "terminal-callback-events"
+}
