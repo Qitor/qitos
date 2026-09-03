@@ -37,8 +37,9 @@ runtime:
     cpus: 2.0
     cleanup_required: true
   session:
-    enabled: false
-    store: memory
+    mode: durable
+    store: sqlite
+    path: ./.qitos/example-sessions.sqlite3
   trajectory:
     enabled: true
     output: ./runs
@@ -49,6 +50,13 @@ budgets:
   max_runtime_seconds: 600
   max_requests: 12
 context: {}
+memory: {}
+compaction: {}
+lifecycle:
+  policy: cooperative
+failure_policy:
+  provider: typed
+  tools: fail_closed
 metadata:
   purpose: provider-neutral-launch-example
 dataset:

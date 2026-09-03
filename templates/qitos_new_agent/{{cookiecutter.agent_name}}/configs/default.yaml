@@ -1,5 +1,62 @@
-# {{cookiecutter.agent_name}} default configuration
-
-model: {{cookiecutter.default_model}}
-max_steps: {{cookiecutter.max_steps}}
-temperature: 0.0
+schema: qitos.agent
+agent:
+  name: {{cookiecutter.agent_name}}
+  protocol: react_text_v1
+  parser: auto
+  seed: 0
+model:
+  provider: openai_compatible
+  model: {{cookiecutter.default_model}}
+  credential:
+    ref: {{cookiecutter.agent_name}}-provider
+  api_mode: chat_completions
+  request:
+    temperature: 0.0
+    max_tokens: 2048
+    timeout_seconds: 180
+    retries: 0
+    extra_body: {}
+tools:
+  preset: env_coding
+  include: []
+  options: {}
+  policy: auto
+runtime:
+  environment:
+    type: docker
+    image: python:3.12-slim
+    workspace: .
+    container_workspace: /workspace
+    network: none
+    read_only_root: true
+    cap_drop: true
+    no_new_privileges: true
+    pids_limit: 256
+    memory_mb: 2048
+    cpus: 2.0
+    cleanup_required: true
+  session:
+    mode: durable
+    store: sqlite
+    path: ./.qitos/sessions.sqlite3
+  trajectory:
+    enabled: true
+    output: ./.qitos/trajectory.json
+    privacy: private
+    failure_policy: required
+budgets:
+  max_steps: {{cookiecutter.max_steps}}
+  max_runtime_seconds: 600
+  max_requests: 12
+context: {}
+memory: {}
+compaction: {}
+lifecycle:
+  policy: cooperative
+failure_policy:
+  provider: typed
+  tools: fail_closed
+metadata:
+  starter: qitos-session-first
+dataset:
+  - task: Inspect the workspace and report one verified fact.

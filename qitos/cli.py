@@ -38,6 +38,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         subparsers = parser.add_subparsers(dest="command")
         subparsers.add_parser("run", help="Run an agent from canonical agent.yaml")
+        subparsers.add_parser("session", help="Inspect and resume durable Sessions")
         subparsers.add_parser("demo", help="Run packaged demos and quickstarts")
         subparsers.add_parser("skill", help="Manage third-party skills")
         subparsers.add_parser("bench", help="Unified benchmark CLI")
@@ -54,6 +55,8 @@ def main(argv: list[str] | None = None) -> int:
         remaining = args[1:]
         if command == "run":
             return _run_main(remaining)
+        if command == "session":
+            return _session_main(remaining)
         if command == "demo":
             return _demo_main(remaining)
         if command == "skill":
@@ -77,6 +80,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     subparsers = parser.add_subparsers(dest="command")
     subparsers.add_parser("run", help="Run an agent from canonical agent.yaml")
+    subparsers.add_parser("session", help="Inspect and resume durable Sessions")
     subparsers.add_parser("demo", help="Run packaged demos and quickstarts")
     subparsers.add_parser("skill", help="Manage third-party skills")
     subparsers.add_parser("bench", help="Unified benchmark CLI")
@@ -102,6 +106,11 @@ def _run_main(argv: list[str]) -> int:
         help="Hardened local credential mapping (default: ~/.config/qitos/credentials.yaml)",
     )
     parser.add_argument("--task", help="Override the first configured dataset task")
+    parser.add_argument(
+        "--ephemeral",
+        action="store_true",
+        help="Run without durable Session pause/restore/fork capabilities",
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -134,16 +143,144 @@ def _run_main(argv: list[str]) -> int:
             args.credentials,
             repository_root=Path(__file__).resolve().parent.parent,
         )
-        result = run_agent_config(
-            config,
-            credential_resolver=resolver,
-            task=str(args.task) if args.task else None,
-        )
+        if args.ephemeral:
+            result = run_agent_config(
+                config,
+                credential_resolver=resolver,
+                task=str(args.task) if args.task else None,
+                ephemeral=True,
+            )
+        else:
+            result = run_agent_config(
+                config,
+                credential_resolver=resolver,
+                task=str(args.task) if args.task else None,
+            )
         print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
         return 0
     except ConfigurationError as exc:
         print(json.dumps(exc.to_dict(), ensure_ascii=False, sort_keys=True), file=sys.stderr)
         return 2
+
+
+def _session_main(argv: list[str]) -> int:
+    """Thin CLI over the existing Session and composition contracts."""
+    parser = argparse.ArgumentParser(
+        prog="qit session", description="Inspect or resume one durable Session"
+    )
+    sub = parser.add_subparsers(dest="operation", required=True)
+    for name in ("inspect", "capabilities", "resume", "fork", "pause", "steer"):
+        command = sub.add_parser(name)
+        command.add_argument("--config", required=True)
+        command.add_argument("--session-id", required=True)
+        command.add_argument(
+            "--credentials", default="~/.config/qitos/credentials.yaml"
+        )
+        if name == "resume":
+            command.add_argument(
+                "--steering",
+                help="Input consumed once while restoring; not live-process steering",
+            )
+        if name == "fork":
+            command.add_argument("--snapshot-id")
+        if name == "steer":
+            command.add_argument("--text", required=True)
+    args = parser.parse_args(argv)
+
+    if args.operation in {"pause", "steer"}:
+        print(
+            json.dumps(
+                {
+                    "error_code": "live_session_control_unsupported",
+                    "operation": args.operation,
+                    "message": (
+                        "qit has no daemon channel to a running process; use the "
+                        "in-process Session API, or 'qit session resume --steering' "
+                        "for restore-time steering"
+                    ),
+                    "recoverable": True,
+                },
+                sort_keys=True,
+            ),
+            file=sys.stderr,
+        )
+        return 3
+
+    from qitos.config import (
+        LocalCredentialFileResolver,
+        build_agent_composition,
+        load_agent_config,
+    )
+    from qitos.config.errors import ConfigurationError
+    from qitos.core.session import SessionContractError, SessionErrorCode
+
+    try:
+        config = load_agent_config(args.config)
+        resolver = LocalCredentialFileResolver(
+            args.credentials,
+            repository_root=Path(__file__).resolve().parent.parent,
+        )
+        with build_agent_composition(
+            config, credential_resolver=resolver
+        ) as composition:
+            if args.operation in {"inspect", "capabilities"}:
+                store = composition.runtime.ensure_checkpoint_store()
+                head = store.get_session_head(args.session_id)
+                if head is None:
+                    raise SessionContractError(
+                        error_code=SessionErrorCode.SESSION_NOT_FOUND,
+                        message="Session head was not found.",
+                        recoverable=True,
+                        remediation="verify the Session identity and store path",
+                    )
+                payload = {
+                    "session_id": head.session_id,
+                    "lifecycle": head.lifecycle,
+                    "checkpoint_id": head.checkpoint_id,
+                    "snapshot_id": head.snapshot_id,
+                    "generation": head.generation,
+                    "capabilities": sorted(composition.runtime.capabilities()),
+                    "config_digest": config.digest(),
+                }
+                if args.operation == "capabilities":
+                    payload = {
+                        "session_id": head.session_id,
+                        "lifecycle": head.lifecycle,
+                        "capabilities": payload["capabilities"],
+                        "live_process_control": False,
+                        "restore_time_steering": True,
+                    }
+            else:
+                session = composition.restore(args.session_id)
+                if args.operation == "resume":
+                    result = session.run(steering=args.steering)
+                    payload = {
+                        "session_id": session.session_id.value,
+                        "run_id": session.run_id.value,
+                        "lifecycle": session.lifecycle.value,
+                        "checkpoint_id": session.current_head.checkpoint_id.value,
+                        "stop_reason": result.state.stop_reason,
+                        "steering_mode": (
+                            "restore_time" if args.steering else "none"
+                        ),
+                    }
+                else:
+                    child = session.fork(args.snapshot_id)
+                    payload = {
+                        "source_session_id": session.session_id.value,
+                        "session_id": child.session_id.value,
+                        "run_id": child.run_id.value,
+                        "checkpoint_id": child.current_head.checkpoint_id.value,
+                        "lifecycle": child.lifecycle.value,
+                    }
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    except ConfigurationError as exc:
+        print(json.dumps(exc.to_dict(), sort_keys=True), file=sys.stderr)
+        return 2
+    except SessionContractError as exc:
+        print(json.dumps(exc.to_dict(), sort_keys=True), file=sys.stderr)
+        return 4
 
 
 def _demo_main(argv: list[str]) -> int:
@@ -558,8 +695,7 @@ def _new_main(argv: list[str]) -> int:
 
     args = parser.parse_args(argv)
 
-    template_dir = _TEMPLATES_DIR / args.template
-    if not template_dir.is_dir():
+    if args.template not in _SCAFFOLD_TEMPLATES and args.template not in _METHOD_TEMPLATES:
         print(
             f"Error: Template '{args.template}' not found. "
             f"Run 'qit list-templates' to see available templates.",
@@ -567,8 +703,7 @@ def _new_main(argv: list[str]) -> int:
         )
         return 1
 
-    # Check for cookiecutter.json to confirm it's a scaffold template
-    if not (template_dir / "cookiecutter.json").exists():
+    if args.template in _METHOD_TEMPLATES:
         print(
             f"Error: Template '{args.template}' is not a scaffold template "
             f"(no cookiecutter.json). Method templates are reference-only.",
@@ -577,34 +712,15 @@ def _new_main(argv: list[str]) -> int:
         return 1
 
     try:
-        from cookiecutter.main import cookiecutter
-    except ImportError:
-        print(
-            "Error: cookiecutter is required for 'qit new'. "
-            "Install it with: pip install cookiecutter",
-            file=sys.stderr,
-        )
-        return 1
+        from qitos.config.scaffold import create_agent_project
 
-    # Build extra_context from CLI args
-    extra_context: dict[str, str] = {}
-    if args.agent_name:
-        extra_context["agent_name"] = args.agent_name
-    if args.agent_description:
-        extra_context["agent_description"] = args.agent_description
-    if args.author:
-        extra_context["author"] = args.author
-    if args.default_model:
-        extra_context["default_model"] = args.default_model
-    if args.max_steps is not None:
-        extra_context["max_steps"] = str(args.max_steps)
-
-    try:
-        result_dir = cookiecutter(
-            str(template_dir),
-            output_dir=args.output_dir,
-            no_input=args.no_input or bool(extra_context),
-            extra_context=extra_context or None,
+        result_dir = create_agent_project(
+            args.output_dir,
+            agent_name=args.agent_name or "my_agent",
+            description=args.agent_description or "A new QitOS agent",
+            author=args.author or "contributor",
+            default_model=args.default_model or "qwen-plus",
+            max_steps=args.max_steps if args.max_steps is not None else 50,
         )
         print(f"Created agent project at: {result_dir}")
         return 0

@@ -98,6 +98,49 @@ def test_load_canonical_config_and_source_identity(tmp_path: Path) -> None:
     assert config.dataset[0].task == "verify fixture"
     assert config.source["name"] == "agent.yaml"
     assert len(config.source["sha256"]) == 64
+    assert config.runtime.session.mode == "ephemeral"
+    assert any(
+        item["code"] == "session_enabled_compatibility"
+        for item in config.compatibility
+    )
+
+
+def test_session_defaults_to_durable_and_ephemeral_is_named(tmp_path: Path) -> None:
+    durable = CANONICAL.replace(
+        "enabled: false\n    store: memory", "mode: durable\n    store: memory"
+    )
+    config = load_agent_config(_write(tmp_path / "durable.yaml", durable))
+    assert config.runtime.session.mode == "durable"
+    assert config.runtime.session.enabled is True
+    assert not any(
+        item["code"] == "session_enabled_compatibility"
+        for item in config.compatibility
+    )
+
+    ephemeral = durable.replace("mode: durable", "mode: ephemeral")
+    config = load_agent_config(_write(tmp_path / "ephemeral.yaml", ephemeral))
+    assert config.runtime.session.mode == "ephemeral"
+    assert config.runtime.session.enabled is False
+
+
+@pytest.mark.parametrize(
+    "session_text",
+    [
+        "mode: unknown\n    store: memory",
+        "mode: durable\n    store: sqlite",
+        "mode: ephemeral\n    store: memory\n    restore: true",
+        "mode: ephemeral\n    store: memory\n    session_id: session_bad",
+        "mode: durable\n    enabled: false\n    store: memory",
+    ],
+)
+def test_session_configuration_fails_closed(
+    tmp_path: Path, session_text: str
+) -> None:
+    invalid = CANONICAL.replace(
+        "enabled: false\n    store: memory", session_text
+    )
+    with pytest.raises(ConfigSchemaError):
+        load_agent_config(_write(tmp_path / "invalid-session.yaml", invalid))
 
 
 def test_canonical_serialization_is_stable_json_safe_and_secret_free(

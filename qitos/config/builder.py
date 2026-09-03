@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import os
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
@@ -36,6 +37,8 @@ from ..models.profile_registry import infer_default_protocol
 from ..protocols import get_protocol, list_protocols
 from .credentials import CredentialResolution, CredentialResolver
 from .errors import (
+    CompositionCleanupError,
+    CompositionClosedError,
     CompositionError,
     ProtocolParserMismatchError,
     SandboxCleanupError,
@@ -128,7 +131,7 @@ class ConfiguredAgent(AgentModule[ConfiguredAgentState, Dict[str, Any], Action])
 
 @dataclass
 class AgentComposition:
-    """Process-local objects composed from one canonical config."""
+    """Resource-owning composition root for the existing Engine and Session."""
 
     config: AgentConfig
     model: Any
@@ -141,53 +144,133 @@ class AgentComposition:
     sandbox_backend: Any = None
     sandbox_receipt: Dict[str, Any] = field(default_factory=dict)
     trajectory_path: Optional[Path] = None
+    _owns_model: bool = field(default=True, repr=False)
+    _owns_environment: bool = field(default=True, repr=False)
+    _closed: bool = field(default=False, init=False, repr=False)
+    _close_receipt: Dict[str, Any] = field(default_factory=dict, init=False, repr=False)
+    _close_error: Optional[CompositionCleanupError] = field(
+        default=None, init=False, repr=False
+    )
+    _close_lock: Any = field(
+        default_factory=threading.RLock, init=False, repr=False
+    )
 
-    def close(self) -> None:
-        failure: Optional[Exception] = None
-        try:
-            self.runtime.flush_events()
-        except Exception as exc:
-            failure = exc
-        sink = self.runtime.event_sink
-        close_sink = getattr(sink, "close", None)
-        if callable(close_sink):
-            try:
-                close_sink()
-            except Exception as exc:
-                failure = failure or exc
-        sink_store = getattr(sink, "_store", None)
-        close_trajectory_store = getattr(sink_store, "close", None)
-        if callable(close_trajectory_store):
-            try:
-                close_trajectory_store()
-            except Exception as exc:
-                failure = failure or exc
-        if self.sandbox_backend is not None:
-            try:
-                cleanup = self.sandbox_backend.cleanup()
-                self.sandbox_receipt = cleanup.to_dict()
-            except SandboxCleanupFailure as exc:
-                failure = SandboxCleanupError(
-                    "configured sandbox cleanup failed",
-                    field="runtime.environment",
+    def __enter__(self) -> "AgentComposition":
+        with self._close_lock:
+            if self._closed:
+                raise CompositionClosedError(
+                    "agent composition is already closed",
+                    field="composition",
                 )
-                failure.__cause__ = exc
-        else:
-            close_env = getattr(self.env, "close", None)
-            if callable(close_env):
-                try:
-                    close_env()
-                except Exception as exc:
-                    failure = failure or exc
-        store = self.runtime.checkpoint_store
-        close_store = getattr(store, "close", None)
-        if callable(close_store):
-            try:
-                close_store()
-            except Exception as exc:
-                failure = failure or exc
-        if failure is not None:
-            raise failure
+        return self
+
+    def __exit__(self, exc_type: Any, exc: Any, traceback: Any) -> None:
+        _ = exc_type, exc, traceback
+        self.close()
+
+    def session(self, task: Optional[str] = None, *, session_id: Any = None) -> Any:
+        """Create the existing durable Session from this composition."""
+        self._require_open()
+        if self.config.runtime.session.mode != "durable":
+            raise CompositionError(
+                "ephemeral composition does not provide durable Session controls",
+                field="runtime.session.mode",
+            )
+        objective = str(
+            task or (self.config.dataset[0].task if self.config.dataset else "")
+        ).strip()
+        if not objective:
+            raise CompositionError("a launch task is required", field="dataset")
+        configured_id = self.config.runtime.session.session_id or None
+        return self.engine.session(objective, session_id=session_id or configured_id)
+
+    def restore(self, session_id: Any = None) -> Any:
+        """Restore with this composition's resolver registry and canonical Engine."""
+        self._require_open()
+        if self.config.runtime.session.mode != "durable":
+            raise CompositionError(
+                "ephemeral execution cannot be restored",
+                field="runtime.session.mode",
+            )
+        identity = session_id or self.config.runtime.session.session_id
+        if not identity:
+            raise CompositionError(
+                "restore requires a Session identity",
+                field="runtime.session.session_id",
+            )
+        self.runtime.bind_engine_resources(self.engine)
+        return Engine.restore(identity, runtime=self.runtime)
+
+    def _require_open(self) -> None:
+        if self._closed:
+            raise CompositionClosedError(
+                "agent composition is closed", field="composition"
+            )
+
+    def close(self) -> Dict[str, Any]:
+        """Close every framework-owned resource once and return a stable receipt."""
+        with self._close_lock:
+            if self._closed:
+                if self._close_error is not None:
+                    raise self._close_error
+                return dict(self._close_receipt)
+            receipt, failures = _cleanup_composed_resources(
+                runtime=self.runtime,
+                sandbox_backend=(
+                    self.sandbox_backend if self._owns_environment else None
+                ),
+                model=self.model if self._owns_model else None,
+            )
+            if receipt.get("sandbox"):
+                self.sandbox_receipt = dict(receipt["sandbox"])
+            self._closed = True
+            self._close_receipt = receipt
+            if failures:
+                self._close_error = CompositionCleanupError(
+                    "one or more agent composition resources failed to close",
+                    failures=failures,
+                )
+                raise self._close_error
+            return dict(receipt)
+
+
+def _cleanup_composed_resources(
+    *, runtime: Optional[RuntimeComposition], sandbox_backend: Any, model: Any
+) -> tuple[Dict[str, Any], list[Dict[str, str]]]:
+    receipt: Dict[str, Any] = {"status": "closed", "closed": []}
+    failures: list[Dict[str, str]] = []
+
+    def invoke(name: str, resource: Any, method_name: str = "close") -> Any:
+        if resource is None:
+            return None
+        method = getattr(resource, method_name, None)
+        if not callable(method):
+            return None
+        try:
+            value = method()
+            receipt["closed"].append(name)
+            return value
+        except Exception as exc:
+            failures.append(
+                {"resource": name, "error_type": type(exc).__name__}
+            )
+            return None
+
+    if runtime is not None:
+        invoke("event_dispatcher", runtime, "flush_events")
+        sink = runtime.event_sink
+        invoke("event_sink", sink)
+        invoke("trajectory_store", getattr(sink, "_store", None))
+        invoke("checkpoint_store", runtime.checkpoint_store)
+    if sandbox_backend is not None:
+        cleanup = invoke("sandbox", sandbox_backend, "cleanup")
+        if cleanup is not None and hasattr(cleanup, "to_dict"):
+            receipt["sandbox"] = cleanup.to_dict()
+    invoke("model_transport", model)
+    if failures:
+        receipt["status"] = "cleanup_failed"
+        receipt["failures"] = list(failures)
+    return receipt, failures
 
 
 def _runtime_base_url(value: str) -> str:
@@ -444,6 +527,12 @@ def build_runtime(
             ),
             "trajectory_enabled": config.runtime.trajectory.enabled,
             "sandbox": dict(sandbox_receipt or {}),
+            "extension_slots": {
+                "memory": dict(config.memory),
+                "compaction": dict(config.compaction),
+                "lifecycle": dict(config.lifecycle),
+                "failure_policy": dict(config.failure_policy),
+            },
         },
     )
     setattr(runtime, "trajectory_path", trajectory_path)
@@ -502,50 +591,58 @@ def build_agent_composition(
     env_override: Any = None,
 ) -> AgentComposition:
     """Compose the existing model/tools/Env/runtime/AgentModule/Engine stack."""
-    model = (
-        model_override
-        if model_override is not None
-        else build_model(config.model, credential_resolver=credential_resolver)
-    )
-    receipt = dict(getattr(model, "qitos_credential_receipt", {}) or {})
-    protocol, parser = _resolve_protocol_and_parser(config, model)
-    tools = build_tool_registry(config)
-    if config.tool_use_policy != "auto" and config.tool_use_policy != "disabled" and not tools:
-        raise CompositionError(
-            "required tool-use policy needs at least one declared tool",
-            field="tools.policy",
+    model: Any = None
+    runtime: Optional[RuntimeComposition] = None
+    sandbox_backend: Any = None
+    owns_model = model_override is None
+    owns_environment = env_override is None
+    try:
+        model = (
+            model_override
+            if model_override is not None
+            else build_model(config.model, credential_resolver=credential_resolver)
         )
-    sandbox_backend: SandboxBackend
-    if env_override is not None:
-        env = env_override
-        if config.runtime.environment.type == "unsafe_host":
-            sandbox_backend = UnsafeHostBackend(
-                env, config_digest=config.digest()
-            )
-        elif isinstance(env, DockerEnv):
-            sandbox_backend = DockerSandboxBackend(
-                env, config_digest=config.digest()
-            )
-        else:
-            raise CompositionError(
-                "an executable launch cannot replace its sandbox with an unattested Env",
-                field="runtime.environment.type",
-                remediation="inject a conforming sandbox Env or select unsafe_host explicitly",
-            )
-        sandbox_receipt = sandbox_backend.prepare().to_dict()
-        capabilities = assert_sandbox_backend_conformance(sandbox_backend)
+        receipt = dict(getattr(model, "qitos_credential_receipt", {}) or {})
+        protocol, parser = _resolve_protocol_and_parser(config, model)
+        tools = build_tool_registry(config)
         if (
-            config.runtime.environment.type != "unsafe_host"
-            and not capabilities.safe_for_executable_tools
+            config.tool_use_policy not in {"auto", "disabled"}
+            and not tools
         ):
             raise CompositionError(
-                "injected sandbox did not attest required capabilities",
-                field="runtime.environment",
+                "required tool-use policy needs at least one declared tool",
+                field="tools.policy",
             )
-    else:
-        env, sandbox_backend, sandbox_receipt = _build_environment_with_receipt(config)
-    runtime = None
-    try:
+        if env_override is not None:
+            env = env_override
+            if config.runtime.environment.type == "unsafe_host":
+                sandbox_backend = UnsafeHostBackend(
+                    env, config_digest=config.digest()
+                )
+            elif isinstance(env, DockerEnv):
+                sandbox_backend = DockerSandboxBackend(
+                    env, config_digest=config.digest()
+                )
+            else:
+                raise CompositionError(
+                    "an executable launch cannot replace its sandbox with an unattested Env",
+                    field="runtime.environment.type",
+                    remediation="inject a conforming sandbox Env or select unsafe_host explicitly",
+                )
+            sandbox_receipt = sandbox_backend.prepare().to_dict()
+            capabilities = assert_sandbox_backend_conformance(sandbox_backend)
+            if (
+                config.runtime.environment.type != "unsafe_host"
+                and not capabilities.safe_for_executable_tools
+            ):
+                raise CompositionError(
+                    "injected sandbox did not attest required capabilities",
+                    field="runtime.environment",
+                )
+        else:
+            env, sandbox_backend, sandbox_receipt = _build_environment_with_receipt(
+                config
+            )
         runtime = build_runtime(config, sandbox_receipt=sandbox_receipt)
         agent = ConfiguredAgent(
             name=config.name,
@@ -588,27 +685,17 @@ def build_agent_composition(
             parser=parser,
             protocol=protocol,
         )
-    except Exception:
-        if runtime is not None:
-            sink = runtime.event_sink
-            close_sink = getattr(sink, "close", None)
-            if callable(close_sink):
-                close_sink()
-            sink_store = getattr(sink, "_store", None)
-            close_sink_store = getattr(sink_store, "close", None)
-            if callable(close_sink_store):
-                close_sink_store()
-            store = runtime.checkpoint_store
-            close_store = getattr(store, "close", None)
-            if callable(close_store):
-                close_store()
-        try:
-            sandbox_backend.cleanup()
-        except SandboxCleanupFailure as exc:
-            raise SandboxCleanupError(
-                "configured sandbox cleanup failed after composition error",
-                field="runtime.environment",
-            ) from exc
+    except Exception as build_error:
+        _, failures = _cleanup_composed_resources(
+            runtime=runtime,
+            sandbox_backend=sandbox_backend if owns_environment else None,
+            model=model if owns_model else None,
+        )
+        if failures:
+            raise CompositionCleanupError(
+                "agent composition failed and owned resources did not cleanly close",
+                failures=failures,
+            ) from build_error
         raise
     return AgentComposition(
         config=config,
@@ -622,6 +709,8 @@ def build_agent_composition(
         sandbox_backend=sandbox_backend,
         sandbox_receipt=sandbox_receipt,
         trajectory_path=getattr(runtime, "trajectory_path", None),
+        _owns_model=owns_model,
+        _owns_environment=owns_environment,
     )
 
 
@@ -630,8 +719,9 @@ def run_agent_config(
     *,
     credential_resolver: Optional[CredentialResolver] = None,
     task: Optional[str] = None,
+    ephemeral: Optional[bool] = None,
 ) -> Dict[str, Any]:
-    """Execute the canonical config through its composed AgentModule + Engine."""
+    """Execute one config through Session, or an explicitly ephemeral Engine."""
     if not isinstance(config, AgentConfig):
         from .credentials import LocalCredentialFileResolver
         from .loader import load_agent_config
@@ -650,14 +740,28 @@ def run_agent_config(
     objective = str(task or (config.dataset[0].task if config.dataset else "")).strip()
     if not objective:
         raise CompositionError("a launch task is required", field="dataset")
-    composition = build_agent_composition(
+    configured_ephemeral = config.runtime.session.mode == "ephemeral"
+    use_ephemeral = configured_ephemeral if ephemeral is None else bool(ephemeral)
+    with build_agent_composition(
         config, credential_resolver=credential_resolver
-    )
-    try:
-        result = composition.engine.run(objective)
+    ) as composition:
+        session = None
+        if use_ephemeral:
+            result = composition.engine.run(objective)
+        else:
+            session_config = config.runtime.session
+            session = (
+                composition.restore(session_config.session_id)
+                if session_config.restore
+                else composition.session(
+                    objective, session_id=session_config.session_id or None
+                )
+            )
+            result = session.run()
         payload = {
             "schema": config.schema,
             "config_digest": config.digest(),
+            "execution_mode": "ephemeral" if use_ephemeral else "durable_session",
             "run_id": result.run_id,
             "stop_reason": result.state.stop_reason,
             "final_result": result.state.final_result,
@@ -671,8 +775,25 @@ def run_agent_config(
                 "config_digest": config.digest(),
             },
         }
-    finally:
-        composition.close()
+        if session is not None:
+            head = session.current_head
+            payload["session"] = {
+                "session_id": session.session_id.value,
+                "run_id": session.run_id.value,
+                "work_item_id": session.work_item_id.value,
+                "lifecycle": session.lifecycle.value,
+                "checkpoint_id": head.checkpoint_id.value,
+                "snapshot_id": head.snapshot_id.value,
+                "generation": head.generation.value,
+                "capabilities": sorted(session.capabilities()),
+                "config_digest": config.digest(),
+            }
+        else:
+            payload["session"] = {
+                "durable": False,
+                "capabilities": [],
+                "unsupported": ["pause", "restore", "steer", "fork"],
+            }
     payload["sandbox"] = dict(composition.sandbox_receipt)
     return payload
 

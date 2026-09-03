@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -52,7 +50,9 @@ class TestNewCommand:
         out = capsys.readouterr().err
         assert "not a scaffold template" in out
 
-    def test_new_without_cookiecutter_installed(self, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_new_does_not_require_cookiecutter(
+        self, capsys: pytest.CaptureFixture[str], tmp_path: Path
+    ) -> None:
         import sys
         saved = {}
         for key in list(sys.modules):
@@ -62,67 +62,61 @@ class TestNewCommand:
             # Ensure cookiecutter.main is not importable
             sys.modules["cookiecutter"] = None
             sys.modules["cookiecutter.main"] = None
-            rc = qit_main(["new", "--agent-name", "test_agent"])
-            assert rc == 1
-            out = capsys.readouterr().err
-            assert "cookiecutter is required" in out
+            rc = qit_main(
+                [
+                    "new",
+                    "--agent-name",
+                    "test_agent",
+                    "--output-dir",
+                    str(tmp_path),
+                ]
+            )
+            assert rc == 0
+            assert (tmp_path / "test_agent" / "agent.yaml").is_file()
+            assert "Created agent project" in capsys.readouterr().out
         finally:
             sys.modules.update(saved)
             for key in list(sys.modules):
                 if key.startswith("cookiecutter") and key not in saved:
                     del sys.modules[key]
 
-    def test_new_calls_cookiecutter(self, tmp_path: Path) -> None:
-        mock_cc = MagicMock(return_value="/tmp/test_agent")
-        with patch("qitos.cli.cookiecutter", mock_cc, create=True):
-            with patch.dict("sys.modules", {"cookiecutter": MagicMock(main=MagicMock(cookiecutter=mock_cc))}):
-                with patch("cookiecutter.main.cookiecutter", mock_cc):
-                    rc = qit_main([
-                        "new",
-                        "--agent-name", "my_cool_agent",
-                        "--agent-description", "A cool agent",
-                        "--output-dir", str(tmp_path),
-                    ])
-                    # The command should succeed if cookiecutter is available
-                    # Since we're mocking, check that we got past the import check
+    def test_new_creates_installable_source_layout(self, tmp_path: Path) -> None:
+        rc = qit_main([
+            "new",
+            "--agent-name", "my_cool_agent",
+            "--agent-description", "A cool agent",
+            "--output-dir", str(tmp_path),
+        ])
+        assert rc == 0
+        root = tmp_path / "my_cool_agent"
+        assert (root / "pyproject.toml").is_file()
+        assert (root / "src" / "my_cool_agent" / "app.py").is_file()
+        assert "mode: durable" in (root / "agent.yaml").read_text()
+        assert "store: sqlite" in (root / "agent.yaml").read_text()
 
     def test_new_passes_extra_context(self, tmp_path: Path) -> None:
-        mock_cc = MagicMock(return_value=str(tmp_path / "my_agent"))
-        with patch("cookiecutter.main.cookiecutter", mock_cc):
-            rc = qit_main([
-                "new",
-                "--agent-name", "my_agent",
-                "--agent-description", "My test agent",
-                "--author", "tester",
-                "--default-model", "qwen-plus",
-                "--max-steps", "20",
-                "--output-dir", str(tmp_path),
-            ])
-            assert rc == 0
-            mock_cc.assert_called_once()
-            call_kwargs = mock_cc.call_args
-            # Check extra_context was passed
-            extra = call_kwargs[1].get("extra_context") or call_kwargs[0][1] if len(call_kwargs[0]) > 1 else call_kwargs[1].get("extra_context")
-            if extra is None and "extra_context" in call_kwargs[1]:
-                extra = call_kwargs[1]["extra_context"]
-            assert extra is not None
-            assert extra["agent_name"] == "my_agent"
-            assert extra["agent_description"] == "My test agent"
-            assert extra["author"] == "tester"
-            assert extra["default_model"] == "qwen-plus"
-            assert extra["max_steps"] == "20"
+        rc = qit_main([
+            "new",
+            "--agent-name", "my_agent",
+            "--agent-description", "My test agent",
+            "--author", "tester",
+            "--default-model", "qwen-plus",
+            "--max-steps", "20",
+            "--output-dir", str(tmp_path),
+        ])
+        assert rc == 0
+        root = tmp_path / "my_agent"
+        assert "My test agent" in (root / "README.md").read_text()
+        assert "max_steps: 20" in (root / "agent.yaml").read_text()
 
     def test_new_no_input_flag(self, tmp_path: Path) -> None:
-        mock_cc = MagicMock(return_value=str(tmp_path / "my_agent"))
-        with patch("cookiecutter.main.cookiecutter", mock_cc):
-            rc = qit_main([
-                "new",
-                "--no-input",
-                "--output-dir", str(tmp_path),
-            ])
-            assert rc == 0
-            call_kwargs = mock_cc.call_args
-            assert call_kwargs[1].get("no_input") is True
+        rc = qit_main([
+            "new",
+            "--no-input",
+            "--output-dir", str(tmp_path),
+        ])
+        assert rc == 0
+        assert (tmp_path / "my_agent" / "agent.yaml").is_file()
 
 
 class TestMainHelp:
