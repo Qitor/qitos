@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, List
-from unittest.mock import MagicMock
+from typing import Any
 
 from qitos.core.agent_module import AgentModule
-from qitos.core.decision import Decision
 from qitos.core.state import StateSchema
 from qitos.core.tool_registry import ToolRegistry
 from qitos.engine._handoff_runtime import compact_handoff_history
@@ -40,18 +38,21 @@ class TestHandoffTool:
         assert "researcher" in tool.spec.description
         assert "Deep research analysis" in tool.spec.description
 
-    def test_tool_read_only(self):
+    def test_tool_declares_durable_effect(self):
         tool = HandoffTool("researcher")
-        assert tool.spec.read_only is True
+        assert tool.spec.read_only is False
+        assert tool.spec.effect is not None
 
-    def test_execute_returns_handoff_signal(self):
+    def test_execute_without_runtime_returns_typed_error(self):
         tool = HandoffTool("researcher")
         result = tool.execute({"rationale": "Need deep research"})
-        assert result["handoff_target"] == "researcher"
-        assert result["status"] == "pending"
+        assert result["status"] == "error"
+        assert result["error_code"] == "durable_work_runtime_unavailable"
 
     def test_input_filter_stored(self):
-        my_filter = lambda history: history[-5:]
+        def my_filter(history):
+            return history[-5:]
+
         tool = HandoffTool("researcher", input_filter=my_filter)
         assert tool.input_filter is my_filter
 
@@ -81,7 +82,7 @@ class TestHandoffToolRegistration:
         # Need a tool registry that can register
         registry = ToolRegistry()
         agent.tool_registry = registry
-        engine = Engine(agent)
+        Engine(agent)
 
         # Check that handoff tools were registered
         tool_names = registry.list_tools()

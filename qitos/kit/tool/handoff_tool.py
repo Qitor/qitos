@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any, Callable, Dict, List
 
 from ...core.tool import BaseTool, ToolSpec
-from .agent.durable_adapter import submit_durable_work
+from .agent.durable_adapter import _work_effect, submit_durable_work
 
 
 class HandoffTool(BaseTool):
@@ -40,31 +40,22 @@ class HandoffTool(BaseTool):
                 },
             },
             required=[],
-            read_only=True,  # No side effects — just signals intent
+            read_only=False,
+            effect=_work_effect("handoff"),
         )
         super().__init__(spec)
         # Override BaseTool's auto-description from execute() docstring
         self.spec.description = _description
 
     def execute(self, args: Any, runtime_context: Any = None) -> Dict[str, Any]:
-        """Return a handoff signal.
-
-        Note: In practice, the Engine intercepts this tool call before
-        execution reaches this method. This is a fallback.
-        """
+        """Declare a durable handoff through the canonical work runtime."""
         rationale = args.get("rationale", "") if isinstance(args, dict) else ""
         durable = submit_durable_work(
             "handoff",
             {"target": self.target_name, "rationale": rationale},
             runtime_context,
         )
-        if durable is not None:
-            return durable
-        return {
-            "handoff_target": self.target_name,
-            "status": "pending",
-            "rationale": rationale,
-        }
+        return durable
 
     @property
     def input_filter(self) -> Callable[[List[Any]], List[Any]] | None:
