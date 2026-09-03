@@ -4,7 +4,7 @@
   "baseline": "c4e621d05960a4e2f06cb4864f6a8cb8275ac067",
   "hash": "sha256",
   "artifacts": {
-    "adversarial_matrix.json": "8fa4bfc529e5ff33e78fad252e37ddd53ac232ec4cc49ffbce2854c176b80d6d",
+    "adversarial_matrix.json": "8fa4bfc529e5ff33e78fad252e37ddd53ac232ec4cc52ffbce2854c176b80d6d",
     "aci_outcomes.json": "865b0d9a8f02a05768fa770ec577b6563a26e3f9a0ee073d2a066dd74e18b92f",
     "cleanup_receipt.json": "8f59528f472092566279965eb244e3fbc18fb7f902df2b96daf9fbcd14f0fdb9",
     "docker_attestation.json": "94668d36aba691998cd37029a1249aa86e24ee0c3fe385641a7088dd64b5d088",
