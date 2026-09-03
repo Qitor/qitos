@@ -55,12 +55,29 @@ class Metric(ABC):
 
 class MetricRegistry:
     def __init__(self, metrics: Optional[Iterable[Metric]] = None):
-        self.metrics = list(metrics or [])
+        self.metrics: List[Metric] = []
+        for metric in metrics or ():
+            self.register(metric)
 
     def register(self, metric: Metric) -> "MetricRegistry":
+        name = str(getattr(metric, "name", "")).strip()
+        if not name:
+            raise ValueError("metric name must not be empty")
+        if any(existing.name == name for existing in self.metrics):
+            raise ValueError(f"metric already registered: {name}")
         self.metrics.append(metric)
         return self
 
     def compute_all(self, rows: Iterable[MetricInput]) -> List[MetricReport]:
         cached = list(rows)
-        return [m.compute(cached) for m in self.metrics]
+        reports = [metric.compute(cached) for metric in self.metrics]
+        names = []
+        for report in reports:
+            if not str(report.name).strip():
+                raise ValueError("metric report name must not be empty")
+            if report.schema_version != "qitos.metric-report/1":
+                raise ValueError("unsupported metric report schema")
+            names.append(report.name)
+        if len(names) != len(set(names)):
+            raise ValueError("duplicate metric report name")
+        return reports

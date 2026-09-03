@@ -175,6 +175,34 @@ def test_configured_session_writes_one_qita_and_graph_readable_trajectory(
     assert graph.timeline
 
 
+def test_candidate_file_reader_preserves_exact_record_bytes(tmp_path: Path) -> None:
+    from qitos.tracing.store import JsonTrajectoryStore
+    from qitos.tracing.trajectory import (
+        PrivacyView,
+        TrajectoryQuery,
+        TrajectoryRecord,
+    )
+
+    source = tmp_path / "exact.json"
+    store = JsonTrajectoryStore(source)
+    store.append(
+        TrajectoryRecord.create(
+            RecordKind.RUN,
+            run_id="run-exact",
+            occurred_at="2026-09-04T00:00:00+00:00",
+            recorded_at="2026-09-04T00:00:01+00:00",
+            payload={"status": "complete"},
+        )
+    )
+    expected = store.query(TrajectoryQuery(run_id="run-exact"))[0]
+    store.close()
+
+    observed = candidate_file_reader(source).read_run(
+        "run-exact", view=PrivacyView.RAW_PRIVATE
+    ).records[0]
+    assert observed.to_dict() == expected.to_dict()
+
+
 def test_configured_multi_agent_facts_use_the_real_trajectory_sink(
     tmp_path: Path,
 ) -> None:

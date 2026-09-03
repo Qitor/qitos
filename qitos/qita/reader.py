@@ -35,8 +35,10 @@ def candidate_file_reader(path: str | Path) -> Any:
     )
     if len(records) != len(value["records"]):
         raise ValueError("candidate_store_invalid")
-    store = MemoryTrajectoryStore(store_id="qitos.qita.read_only_candidate")
-    store.append_batch(records)
+    store = MemoryTrajectoryStore.from_records(
+        records,
+        store_id="qitos.qita.read_only_candidate",
+    )
     return StoreTrajectoryReader(store)
 
 
