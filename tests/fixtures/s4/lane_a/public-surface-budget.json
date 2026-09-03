@@ -1,0 +1,25 @@
+{
+  "schema": "qitos.s4.lane_a.interface_budget/v1",
+  "source_commit": "65718ee782065e7dccc3b3d0a5e7ea9a318b5411",
+  "before": {
+    "root_exports": 41,
+    "core_aggregate_exports": 81,
+    "engine_aggregate_exports": 27,
+    "config_exports": 27,
+    "config_error_exports": 25,
+    "engine_init_parameters_excluding_self": 34,
+    "cli_top_level_families": 10,
+    "leased_surface_deprecation_markers": 3
+  },
+  "after": {
+    "root_exports": 41,
+    "core_aggregate_exports": 81,
+    "engine_aggregate_exports": 27,
+    "config_exports": 27,
+    "config_error_exports": 27,
+    "engine_init_parameters_excluding_self": 34,
+    "cli_top_level_families": 11,
+    "leased_surface_deprecation_markers": 3
+  },
+  "decision": "No root, core, engine, config-aggregate, or Engine-constructor growth; two typed cleanup failures and one coherent qit session command family added."
+}

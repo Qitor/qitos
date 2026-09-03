@@ -1,6 +1,6 @@
 # S4 Lane A — public authoring, Session-first runtime, configuration, and CLI
 
-Status: active implementation plan
+Status: implementation complete; qualification recorded below
 Source: `c4e621d05960a4e2f06cb4864f6a8cb8275ac067`
 Branch: `codex/v4-s4-a-public-authoring`
 Worktree: `/Users/morinop/Desktop/WhitzardOS-s4-a`
@@ -43,6 +43,24 @@ resource owner. It is not a runner. Its `session(task)` returns the existing
 `qitos.engine.Session`; its restore method delegates to `Engine.restore()` using
 the composition's runtime/resolvers. Declarative execution uses the same methods.
 
+### Source inventory behind the census
+
+- Canonical config path: `qitos/config/{loader,builder,credentials}.py`,
+  `qitos/cli.py`, `examples/config/agent.yaml`, and the generated `qit new`
+  project produced by `qitos/config/scaffold.py`.
+- Existing durable truth: `qitos/engine/engine.py::{session,restore}` and
+  `qitos/engine/session_runtime.py::Session`; atomic heads/forks are supplied by
+  `qitos/checkpoint/{store,memory_store,sqlite_store}.py`.
+- Compatibility consumers: `qitos/core/agent_module.py::run`, legacy
+  checkpoint tests/experiments, and qualification code under
+  `scripts/qualify_s3_live.py` that still invokes direct Engine methods.
+- Stable advanced/teaching consumers: `examples/s3_coding_agent_acceptance.py`,
+  direct Engine examples under `examples/zh/`, and engine/session integration
+  tests. These remain valid and were not mechanically rewritten.
+- Shared-doc migration debt (G5-owned): the Session-first wording in
+  `README.md`, `README.zh.md`, `CHANGELOG.md`, and configuration/quickstart docs;
+  the exact patch-ready wording is provided below. No shared file was changed.
+
 ## Migration table
 
 | Old spelling | Replacement | Compatibility |
@@ -66,12 +84,12 @@ the composition's runtime/resolvers. Declarative execution uses the same methods
    programmatic test.
 6. Publish producer fixtures and exact validation evidence.
 
-## Interface budget (before)
+## Interface budget
 
-- root exports: 39; no Lane-A additions permitted.
-- `qitos.core` aggregate exports: 78; no Lane-A additions permitted.
+- root exports: 41; no Lane-A additions permitted.
+- `qitos.core` aggregate exports: 81; no Lane-A additions permitted.
 - `qitos.engine` aggregate exports: 27; no Lane-A additions permitted.
-- `qitos.config` public exports: 24.
+- `qitos.config` public exports: 27; `qitos.config.errors` exports: 25.
 - `Engine.__init__`: 34 parameters after `self`.
 - CLI top-level families: 10 (`run`, `demo`, `skill`, `bench`, `experiment`,
   `new`, `list-templates`, `leaderboard`, `push`, `pull`).
@@ -81,6 +99,13 @@ the composition's runtime/resolvers. Declarative execution uses the same methods
 Budget: root/core/engine aggregate exports stay flat; config growth is limited to
 typed cleanup/launch receipts if necessary; Engine constructor does not grow;
 one coherent top-level `session` family may be added.
+
+After: root 41, core aggregate 81, engine aggregate 27, config aggregate 27,
+`Engine.__init__` 34 parameters after `self`, and leased-surface deprecation
+markers 3 — all unchanged. `qitos.config.errors` grows from 25 to 27 for
+`CompositionClosedError` and `CompositionCleanupError`; CLI top-level families
+grow from 10 to 11 for the single `session` family. No receipt, snapshot,
+envelope, CAS, or generation type was added to root exports.
 
 ## B/C/D configuration handoff
 
@@ -118,5 +143,29 @@ or release readiness.”
 
 ## Validation ledger
 
-Pending implementation. Record exact commands, counts, wheel/fresh-venv result,
-fixture digests, final HEAD, and clean status here before handoff.
+- `/opt/anaconda3/bin/python scripts/static_quality.py check`: passed; 367
+  findings baselined (345 active, 22 vendored/generated).
+- `/opt/anaconda3/bin/flake8 qitos/core qitos/engine qitos/models qitos/trace`:
+  passed.
+- `/opt/anaconda3/bin/mypy qitos/core qitos/engine qitos/models qitos/trace`:
+  passed; no issues in 93 source files.
+- Lane A matrix (config/CLI/scaffold/session/fork/checkpoint/public-surface/
+  architecture): 108 passed in 4.22 seconds.
+- Initial full pytest: 2449 passed, 50 skipped, 4 failed. Two Lane A
+  assertion/budget regressions were corrected; the other failures were
+  host-resource-sensitive process/Docker qualifications.
+- Final stable-tree full pytest: 2455 passed, 50 skipped, 2 failed in 588.00
+  seconds. Both failures were Docker control operations timing out while
+  unrelated OpenClaw containers saturated the host: one `docker rm -f` at 30
+  seconds and one `docker inspect` at 20 seconds. This is recorded as a
+  repository-wide external gate failure, not a Lane A pass or a skip.
+- Independent follow-up: the 20-round clean-process qualification passed; in
+  the paired run, Docker inspect later timed out under the same host load.
+- `/opt/anaconda3/bin/python -m build`: wheel and sdist built.
+- `/opt/anaconda3/bin/python -m twine check dist/*`: passed.
+- Fresh venv from the built QitOS wheel: installed `qit`, generated the project,
+  verified no `HostEnv`, `AgentModule.run()`, or direct `engine.run()` in the
+  generated source, built the generated wheel, and observed `1 passed` both
+  before and after generated-wheel reinstall.
+- Producer paths/digests are bound by
+  `tests/fixtures/s4/lane_a/producer-manifest.json` and its executable test.

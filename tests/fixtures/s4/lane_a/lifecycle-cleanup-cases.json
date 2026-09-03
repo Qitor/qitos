@@ -1,0 +1,18 @@
+{
+  "schema": "qitos.s4.lane_a.cleanup/v1",
+  "source_commit": "65718ee782065e7dccc3b3d0a5e7ea9a318b5411",
+  "test_nodes": [
+    "tests/test_s4_lane_a_public_authoring.py::test_composition_is_context_manager_and_close_is_idempotent",
+    "tests/test_s4_lane_a_public_authoring.py::test_context_manager_closes_owned_resources_after_body_failure",
+    "tests/test_s4_lane_a_public_authoring.py::test_owned_cleanup_failure_is_typed_and_repeatable",
+    "tests/test_s4_lane_a_public_authoring.py::test_partial_build_failure_closes_already_owned_model"
+  ],
+  "cases": {
+    "normal_exit": "owned resources close once",
+    "exception_exit": "__exit__ runs the same cleanup contract",
+    "repeated_close": "returns the same receipt or raises the same typed failure",
+    "partial_build": "already-created owned resources close before failure escapes",
+    "caller_owned": "model_override and env_override are not closed",
+    "cleanup_failure": "agent_composition_cleanup_failed with redacted resource/type facts"
+  }
+}

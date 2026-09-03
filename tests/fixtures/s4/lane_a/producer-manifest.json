@@ -1,0 +1,59 @@
+{
+  "schema": "qitos.s4.producer_manifest/v1",
+  "lane": "A",
+  "source_commit": "65718ee782065e7dccc3b3d0a5e7ea9a318b5411",
+  "merge_base": "c4e621d05960a4e2f06cb4864f6a8cb8275ac067",
+  "branch": "codex/v4-s4-a-public-authoring",
+  "artifacts": [
+    {
+      "path": "tests/fixtures/s4/lane_a/canonical-beginner-config.yaml",
+      "sha256": "eac72aecfba2d90c982fca9321fe3abd42bac371cb523fa7d9ebf59650841336",
+      "classification": "public"
+    },
+    {
+      "path": "tests/fixtures/s4/lane_a/programmatic-golden-path.py",
+      "sha256": "5a4ec08f568773ddbfa539f08950d58e23a4f118828a7424c5108d8a171a0502",
+      "classification": "public"
+    },
+    {
+      "path": "tests/fixtures/s4/lane_a/cli-programmatic-equivalence-receipt.json",
+      "sha256": "56573b5b40d3d21d219bd5ad4a4f9d162eec68fab50399e79644fd9618e961f5",
+      "classification": "qualification"
+    },
+    {
+      "path": "tests/fixtures/s4/lane_a/lifecycle-cleanup-cases.json",
+      "sha256": "b22f17150897551edf003cbe6bf845c8e24cdc0bf8cbe22aa51afa83240eb460",
+      "classification": "qualification"
+    },
+    {
+      "path": "tests/fixtures/s4/lane_a/public-surface-budget.json",
+      "sha256": "bc8a630cb409146627cb03edf8f02215885cdd13d54e2b3821a9159756bf2cd2",
+      "classification": "public-contract"
+    },
+    {
+      "path": "tests/fixtures/s4/lane_a/bcd-config-slot-handoff.json",
+      "sha256": "684309444886321b28f37fdb8e47520d032622164d30648ed7deb502d179585e",
+      "classification": "cross-lane-extension"
+    },
+    {
+      "path": "tests/fixtures/s4/lane_a/qualification-evidence.json",
+      "sha256": "8d4cfeb68730d4ff1258fecbcb279222017bf3db46ad556bcac90c3de70cb99d",
+      "classification": "qualification"
+    }
+  ],
+  "independent_consumer_tests": [
+    "tests/test_s4_lane_a_public_authoring.py",
+    "tests/test_agent_config_cli.py",
+    "tests/test_cli_new.py"
+  ],
+  "unsupported_claims": [
+    "S4 complete",
+    "G5 complete",
+    "live daemon control",
+    "provider parity",
+    "production sandbox qualification",
+    "Trajectory frozen/default",
+    "release ready",
+    "default branch ready"
+  ]
+}

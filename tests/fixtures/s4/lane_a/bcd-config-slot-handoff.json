@@ -1,0 +1,37 @@
+{
+  "schema": "qitos.s4.lane_a.config_slots/v1",
+  "source_commit": "65718ee782065e7dccc3b3d0a5e7ea9a318b5411",
+  "public": {
+    "schema": "qitos.agent",
+    "slots": [
+      "context",
+      "memory",
+      "compaction",
+      "tools",
+      "runtime.environment",
+      "runtime.session",
+      "runtime.trajectory",
+      "budgets",
+      "lifecycle",
+      "failure_policy"
+    ]
+  },
+  "extension": {
+    "B": ["context", "memory", "compaction"],
+    "C": ["tools.options", "runtime.environment"],
+    "D": ["runtime.trajectory", "RuntimeComposition.event_sink"]
+  },
+  "boundary": "Owner-defined slots are strict JSON-safe mappings. Lane A preserves them and their digest but does not copy B/C/D implementation types.",
+  "forbidden_persistence": [
+    "live client",
+    "callable",
+    "resolver object",
+    "secret",
+    "host credential path",
+    "SDK response",
+    "Docker client",
+    "process handle",
+    "thread handle"
+  ],
+  "consumer_test": "tests/test_s4_lane_a_public_authoring.py::test_config_has_json_safe_owner_extension_slots"
+}
