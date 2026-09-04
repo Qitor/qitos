@@ -1,0 +1,56 @@
+{
+  "observed_before_final_validation": true,
+  "promoted": false,
+  "entries": [
+    {
+      "path": "/Users/morinop/Desktop/WhitzardOS",
+      "branch": "feat/campaign-absorption",
+      "head": "306e689ab19665678b6de644045d374c5ec05102",
+      "clean": true,
+      "state": "primary unchanged",
+      "retirement": "retain; remote baseline verification and push authorization pending"
+    },
+    {
+      "path": "/Users/morinop/Desktop/WhitzardOS-s4-a",
+      "branch": "codex/v4-s4-a-public-authoring",
+      "head": "f670e551f0bd5d88501182c2d24a5037fa0aebb9",
+      "clean": true,
+      "state": "completed source task; last observed idle/notLoaded",
+      "retirement": "retain; remote baseline verification and push authorization pending"
+    },
+    {
+      "path": "/Users/morinop/Desktop/WhitzardOS-s4-b",
+      "branch": "codex/v4-s4-b-model-context",
+      "head": "c834ce76b939e86b33019719d5b212b1c7a38bdd",
+      "clean": true,
+      "state": "completed source task; last observed idle/notLoaded",
+      "retirement": "retain; remote baseline verification and push authorization pending"
+    },
+    {
+      "path": "/Users/morinop/Desktop/WhitzardOS-s4-c",
+      "branch": "codex/v4-s4-c-safe-execution",
+      "head": "a1958fe620f9a80017d80aca702711991b80c8e6",
+      "clean": true,
+      "state": "completed source task; last observed idle/notLoaded",
+      "retirement": "retain; remote baseline verification and push authorization pending"
+    },
+    {
+      "path": "/Users/morinop/Desktop/WhitzardOS-s4-d",
+      "branch": "codex/v4-s4-d-trajectory-release",
+      "head": "18278bd42ea91284f76f2d4523f82d316cc20a75",
+      "clean": true,
+      "state": "completed source task; last observed idle/notLoaded",
+      "retirement": "retain; remote baseline verification and push authorization pending"
+    },
+    {
+      "path": "/Users/morinop/Desktop/WhitzardOS-s4-g5",
+      "branch": "codex/v4-s4-g5-convergence",
+      "head": "f977eb6642d4c49ac2200a93403ee511d726c029",
+      "clean": true,
+      "state": "active integration",
+      "retirement": "retain; remote baseline verification and push authorization pending"
+    }
+  ],
+  "relation": "all 29 source commits replayed with mapping in execution ledger; primary is G5 ancestor",
+  "remote_identity": "not verified; no push authorized"
+}

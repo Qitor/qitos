@@ -858,3 +858,20 @@ post-switch-storage-measurements.json. The earlier current-storage and 10003-
 record large measurements remain separate historical results. Journal scans
 and complete reads still materialize records; no bounded-memory or speedup
 claim is made.
+
+### Final candidate gate and retained worktrees
+
+All source worktrees and the primary tree were rechecked clean. Their exact
+paths, branches and HEADs are in retained-worktrees.json. Source tasks were
+observed completed/idle or not loaded; G5 is active. Primary remains the exact
+306e689 baseline. No source branch/ref/worktree was changed. All worktrees are
+retained pending separate push authorization and remote baseline verification;
+only a later non-forced removal of completed, clean, idle trees is eligible.
+
+The next clean candidate commit is the final gate target. Full pytest, stable
+and modified-surface static checks, readiness, unchanged public budget, build,
+all packaging profiles and installed consumers will be rerun on that identity.
+Results are kept outside the tree to avoid a self-referential evidence commit.
+Only a passed exact candidate may be fast-forwarded into unchanged primary;
+primary then runs the complete required verification again. This entry records
+the procedure and prior facts, not a claim that future checks already passed.

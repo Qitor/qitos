@@ -1423,3 +1423,10 @@ the exact output digest is now retained in G5 evidence. All source worktrees
 and refs remain retained. Primary HEAD remains 306e689; no promotion or push.
 See docs/internal/plans/s4_g5_convergence_execution.md for commands, failure
 history, exact source/replay identities and current acceptance work.
+
+G5 post-switch validation: committed source d01ea9e passed the complete suite
+(2663 passed / 50 opt-in live skips), stable/config/reader checks, 356-finding
+ratchet, all 20 wheel profiles and both fresh installed consumers with default
+qita inspection. Current registry evidence is 5f36d4b, pinned by f977eb6.
+Final evidence-inclusive candidate and primary post-FF validation remain
+separate required gates; remote sync and release are not authorized.
