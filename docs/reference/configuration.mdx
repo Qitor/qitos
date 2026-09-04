@@ -387,3 +387,12 @@ report. It does not assert native reasoning replay or authorize silent loss.
 New Session snapshots persist the existing approval setting, action execution
 policy, and context settings, so restore does not silently reset these controls.
 A changed declarative configuration still fails its persisted digest check.
+
+### Configured context budget and compaction
+
+Set `context.budget_policy` to an explicit composition extension key whose
+instance implements the existing `budget_for` protocol. `compaction.provider`
+resolves the existing `compact` protocol. Request selection invokes both at
+the model boundary. Compaction receipts are separate queryable Trajectory facts
+with declared model-projection loss; omission does not erase canonical exchange
+or artifact content. Budget units follow the policy/counter declaration.

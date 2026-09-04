@@ -259,6 +259,23 @@ def runtime_event_to_records(
     payload = raw if isinstance(raw, Mapping) else {}
     stage = str(payload.get("stage", ""))
     records = [primary]
+    if stage == "request_view":
+        request = payload.get("request_view", {})
+        for receipt in request.get("compaction_receipts", ()):
+            records.append(TrajectoryRecord.create(
+                RecordKind.COMPACTION, role=RecordRole.CANONICAL_RUNTIME_FACT,
+                run_id=run_id, session_id=session_id, work_item_id=work_item_id,
+                step_id=int(getattr(event, "step_id", 0)), phase=primary.phase,
+                agent_id=agent_id, **_explicit_identities(payload),
+                payload={"compaction_receipt": _json_value(receipt),
+                         "source": _json_value(request.get("source")),
+                         "request_id": request.get("request_id"),
+                         "selection": _json_value(request.get("selection"))},
+                loss=LossReport(policy_id=str(receipt["policy_id"]), entries=tuple(
+                    LossEntry(code=str(code), scope="model_request", consequence="model_projection_omitted")
+                    for code in receipt.get("declared_losses", ())
+                )),
+            ))
     if stage == "provider_transaction":
         for kind, key in (
             (RecordKind.REASONING, "reasoning"),

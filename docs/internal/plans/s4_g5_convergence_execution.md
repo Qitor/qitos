@@ -520,3 +520,20 @@ from the earlier seven passing real Docker cases in 20.02 s.
 Changed controller/composition/adapter flake8 and mypy passed (six files).
 Combined real Docker attempt 03 passed all eight cases in 29.11 s; log:
 `/tmp/qitos-g5-owned-channel-docker-03.log`. No other-task containers were used.
+
+### Configured budget/compaction and real work completion
+
+The controlled budget-policy regression first failed configuration admission
+(`/tmp/qitos-g5-context-budget-red.log`), then exposed missing independently
+queryable compaction receipts (`...-fix-01.log`). Configuration now resolves
+the existing budget protocol and the RuntimeEvent adapter emits its receipt
+with model-projection loss. An initial 1024-unit fixture compacted both requests
+(two real facts, not duplicate append); the corrected 4096-unit fixture admits
+the first exchange and compacts the oversized restored exchange only. It checks
+one receipt, explicit loss, and exact original 9000-character content retained
+in the durable snapshot. No failed history was removed.
+Real child execution/join now also covers delegate and fan-out, each with
+successful and failed child heads. All 170 composition/audit/work/tracing tests
+passed in 32.41 s (`/tmp/qitos-g5-composed-regressions-05.log`); changed static
+checks passed. These tests ran on 8f17ba6 plus the recorded working changes,
+including the process completion repair subsequently committed as e30975a.

@@ -329,3 +329,11 @@ codec loss report 记录 `assistant.reasoning`。这不表示支持原生 reason
 
 新 Session 快照保存已有的批准设置、动作执行策略和 context 设置，restore 不再
 静默恢复默认配置。声明式配置变化仍会触发 persisted config digest 检查。
+
+### 配置上下文预算和压缩
+
+`context.budget_policy` 引用显式 composition 扩展，其实例实现已有的
+`budget_for` 协议；`compaction.provider` 引用已有 `compact` 协议。
+两者都在真实模型请求选择边界调用。压缩 receipt 作为独立 Trajectory
+事实记录，并声明模型投影损失；省略不会删除 canonical exchange 或 artifact
+内容。预算单位由对应策略和计数器声明。

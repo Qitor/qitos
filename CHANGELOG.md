@@ -94,6 +94,8 @@ How to update:
 
 ### Fixed
 
+- Configured context budget policies now reach request selection; configured compaction publishes a canonical receipt with explicit projection loss while retaining the full conversation.
+
 - Docker process completion now requires the owned exec channel and a confirmed backend exit; mutable workspace state cannot forge success. Unknown cleanup keeps ownership and its failure receipt.
 
 - G5 candidate: MCP large responses are retained and verified through the artifact resolver; post-dispatch retention failures require reconciliation. Native durable work uses the canonical fork over a recorded pre-action snapshot.

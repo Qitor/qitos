@@ -57,7 +57,8 @@ def test_model_adapter_declares_real_children_during_session_run(operation):
 
 
 @pytest.mark.parametrize("child_fails", [False, True])
-def test_real_child_session_completion_closes_durable_join(child_fails):
+@pytest.mark.parametrize("operation", ["spawn", "delegate", "fan_out"])
+def test_real_child_session_completion_closes_durable_join(child_fails, operation):
     root = RuntimeComposition(lifecycle_policy=_PauseAtFirstBoundary())
 
     class Resolver:
@@ -96,7 +97,9 @@ def test_real_child_session_completion_closes_durable_join(child_fails):
         raise AssertionError("bounded child operation did not complete")
 
     try:
-        child = session.spawn("parent", task="child task", operation_id="spawn:g5-real")
+        specification = {"agent": "parent", "task": "child task"}
+        payload = {"tasks": [specification]} if operation == "fan_out" else specification
+        child = session.submit_work(operation, payload, operation_id=operation + ":g5-real")
         wait(child.operation_id)
         joined = session.join([child.operation_id], operation_id="join:g5-real")
         graph = wait(joined.operation_id)

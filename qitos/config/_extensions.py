@@ -24,7 +24,7 @@ def resolve_extensions(config: Any, registry: Mapping[str, Any]) -> tuple[dict[s
 
     context = dict(config.context)
     fields = set(ContextConfig.__dataclass_fields__)
-    service_keys = {"contributors", "selector", "artifact_resolver", "continuation_resolver", "allow_codec_loss"}
+    service_keys = {"contributors", "selector", "budget_policy", "artifact_resolver", "continuation_resolver", "allow_codec_loss"}
     if set(context) - fields - service_keys:
         reject("context")
     engine_context = {key: value for key, value in context.items() if key in fields}
@@ -40,6 +40,7 @@ def resolve_extensions(config: Any, registry: Mapping[str, Any]) -> tuple[dict[s
         resolve(name, "contribute", "context.contributors") for name in contributors
     )
     for key, field, method in (("selector", "context_selection_policy", "select"),
+                               ("budget_policy", "context_budget_policy", "budget_for"),
                                ("artifact_resolver", "artifact_resolver", "resolve"),
                                ("continuation_resolver", "continuation_resolver", "capture")):
         if key in context:

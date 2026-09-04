@@ -123,3 +123,71 @@ def test_native_work_adapter_uses_real_durable_child_head(tmp_path):
         assert len(graph.work_items) == 2 and len(scheduler.requests) == 1
         identity = scheduler.requests[0].descriptor.child_session_ids[0]
         assert current.runtime.checkpoint_store.get_session_head(identity).lifecycle == "paused"
+
+
+def test_configured_compactor_runs_on_closed_exchange_omission(tmp_path):
+    import hashlib
+    from qitos.config import SessionConfig
+    from qitos.core.context import DeclaredContextBudgetPolicy
+    from qitos.core.function_tool_decorator import function_tool
+    from qitos.core.request_view import CompactionReceipt
+    from qitos.engine.runtime import LifecyclePolicy
+    from test_s4_lane_a_public_authoring import _PauseAfterFirstStep
+
+    compacted = []
+    class Compactor:
+        policy_id = "g5.drop_closed_exchange"
+
+        def compact(self, **values):
+            compacted.append(values)
+            return CompactionReceipt(receipt_id="compaction-g5", input_exchange_ids=tuple(values["exchange_ids"]),
+                output_digest=hashlib.sha256(b"").hexdigest(), policy_id=self.policy_id,
+                declared_losses=("closed_exchange_omitted_without_summary",))
+
+    class Model(_FinalModel):
+        qitos_protocol = "json_decision_multi_v1"
+        context_window = 4096
+        max_tokens = 64
+        calls = 0
+
+        def call_raw(self, messages, **options):
+            self.calls += 1
+            if self.calls == 1:
+                return {"choices": [{"message": {"content": None, "tool_calls": [
+                    {"id": "large-exchange", "type": "function", "function": {"name": "large_fact", "arguments": "{}"}}]}}]}
+            return {"choices": [{"message": {"content": "done"}}]}
+
+    @function_tool(read_only=True)
+    def large_fact():
+        return "retained evidence " * 500
+
+    base = _config(tmp_path)
+    config = replace(base, protocol="json_decision_multi_v1", context={"strict_overflow": False, "budget_policy": "budget"},
+        compaction={"provider": "compactor"}, runtime=replace(base.runtime,
+            session=SessionConfig(store="sqlite", path=str(tmp_path / "sessions.sqlite3")),
+            trajectory=TrajectoryConfig(enabled=True, output=str(tmp_path / "trajectory.journal"))))
+    model = Model()
+    extensions = {"compactor": Compactor, "budget": lambda: DeclaredContextBudgetPolicy(
+        default_max_input_units=4096, protected_recent_exchanges=0)}
+    with build_agent_composition(config, model_override=model, extensions=extensions) as first:
+        first.tool_registry.register(large_fact)
+        first.runtime.lifecycle_policy = _PauseAfterFirstStep()
+        session = first.session("collect one large fact")
+        session.run()
+        identity = session.session_id
+        assert session.lifecycle.value == "paused"
+    with build_agent_composition(config, model_override=model, extensions=extensions) as second:
+        second.tool_registry.register(large_fact)
+        second.runtime.lifecycle_policy = LifecyclePolicy()
+        result = second.restore(identity).run(steering="Start a new exchange and acknowledge.")
+        assert result.state.final_result == "done"
+        assert compacted and compacted[0]["exchange_ids"]
+        from qitos.qita.reader import candidate_file_reader
+        from qitos.tracing.trajectory import PrivacyView
+        records = candidate_file_reader(second.trajectory_path).read_session(identity.value, view=PrivacyView.RAW_PRIVATE).records
+        receipts = [item for item in records if item.kind.value == "compaction"]
+        assert len(receipts) == len(compacted) == 1
+        assert not receipts[0].loss.is_lossless
+        head = second.runtime.checkpoint_store.get_session_head(identity.value)
+        persisted = second.runtime.checkpoint_store.get_session_snapshot(head.snapshot_id)
+        assert "retained evidence " * 500 in json.dumps(persisted.payload)
