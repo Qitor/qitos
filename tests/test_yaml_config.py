@@ -127,7 +127,7 @@ def test_session_defaults_to_durable_and_ephemeral_is_named(tmp_path: Path) -> N
     "session_text",
     [
         "mode: unknown\n    store: memory",
-        "mode: durable\n    store: sqlite",
+        "mode: durable\n    store: unsupported",
         "mode: ephemeral\n    store: memory\n    restore: true",
         "mode: ephemeral\n    store: memory\n    session_id: session_bad",
         "mode: durable\n    enabled: false\n    store: memory",

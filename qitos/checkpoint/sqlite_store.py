@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
+from pathlib import Path
 from typing import Any, Iterator, List, Optional, Sequence
 
 from .store import (
@@ -111,9 +112,14 @@ class SqliteCheckpointStore(CheckpointStore):
             Use ``":memory:"`` for an in-memory database (testing only).
     """
 
-    def __init__(self, db_path: str) -> None:
+    def __init__(self, db_path: str, *, read_only: bool = False) -> None:
         self._db_path = db_path
         self._lock = threading.RLock()
+        if read_only:
+            uri = Path(db_path).resolve().as_uri() + "?mode=ro"
+            self._conn = sqlite3.connect(uri, uri=True, check_same_thread=False)
+            self._conn.execute("PRAGMA query_only=ON")
+            return
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA synchronous=NORMAL")

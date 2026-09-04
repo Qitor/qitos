@@ -1600,6 +1600,45 @@ class Session:
         child._lifecycle = SessionLifecycle.RESTORING
         return child
 
+    @classmethod
+    def _fork_persisted(
+        cls,
+        engine: "Engine[Any, Any, Any]",
+        session_id: SessionIdentity,
+        snapshot: SessionSnapshot | SnapshotIdentity | str | None = None,
+        *,
+        operation_id: Optional[str] = None,
+    ) -> "Session":
+        """Bind a read-only source facade; only canonical fork may write a child."""
+        store = engine.runtime.ensure_checkpoint_store()
+        head = store.get_session_head(session_id.value)
+        if head is None:
+            raise _session_error(SessionErrorCode.SESSION_NOT_FOUND,
+                                 "Source Session was not found.", recoverable=True)
+        record = store.get_session_snapshot(head.snapshot_id)
+        if record is None:
+            raise _session_error(SessionErrorCode.SNAPSHOT_NOT_FOUND,
+                                 "Source snapshot was not found.", recoverable=True)
+        source = SessionSnapshot.from_dict(
+            record.payload, component_registry=engine.runtime.component_registry,
+        )
+        progress = _component_payload(source, ComponentSlot.ENGINE_PROGRESS.value)
+        task = _task_from_progress(progress)
+        template = engine.agent.init_state(task.objective if isinstance(task, Task) else str(task))
+        agent_state = _agent_state(source)
+        if not isinstance(template, StateSchema) or _state_schema_id(type(template)) != agent_state.state_schema:
+            raise _session_error(SessionErrorCode.RESOLVER_TYPE_MISMATCH,
+                                 "Source state schema does not match composition.", recoverable=True)
+        lineage = _fork_lineage(source, required=True)
+        facade = cls(
+            engine=engine, session_id=session_id, run_id=RunIdentity(head.owner_run_id),
+            agent_id=agent_state.agent_id, references=source.resolver_references,
+            created_at=source.created_at, state_type=type(template),
+            work_item_id=lineage.work_item_id, attempt_id=lineage.attempt_id,
+        )
+        # No restore, owner claim, source commit, or source component activation.
+        return facade.fork(snapshot or source.snapshot_id, operation_id=operation_id)
+
     def fork(
         self,
         snapshot: SessionSnapshot | SnapshotIdentity | str | None = None,

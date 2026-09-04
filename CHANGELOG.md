@@ -94,6 +94,8 @@ How to update:
 
 ### Fixed
 
+- Fork CLI Sessions without claiming source ownership; use durable SQLite defaults and inspect persisted Sessions without constructing model or sandbox resources.
+
 - Check complete journal writes and fsync before acknowledgement; preserve uncertain writes and read complete trajectories across bounded query pages.
 
 - Preserve sent-request facts through continuation capture, attachment and assistant finalization failures, including a failing provider error normalizer.

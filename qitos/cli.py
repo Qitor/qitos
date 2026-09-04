@@ -212,64 +212,22 @@ def _session_main(argv: list[str]) -> int:
         load_agent_config,
     )
     from qitos.config.errors import ConfigurationError
-    from qitos.core.session import SessionContractError, SessionErrorCode
+    from qitos.core.session import SessionContractError
 
     try:
         config = load_agent_config(args.config)
-        resolver = LocalCredentialFileResolver(
-            args.credentials,
-            repository_root=Path(__file__).resolve().parent.parent,
-        )
-        with build_agent_composition(
-            config, credential_resolver=resolver
-        ) as composition:
-            if args.operation in {"inspect", "capabilities"}:
-                store = composition.runtime.ensure_checkpoint_store()
-                head = store.get_session_head(args.session_id)
-                if head is None:
-                    raise SessionContractError(
-                        error_code=SessionErrorCode.SESSION_NOT_FOUND,
-                        message="Session head was not found.",
-                        recoverable=True,
-                        remediation="verify the Session identity and store path",
-                    )
-                payload = {
-                    "session_id": head.session_id,
-                    "lifecycle": head.lifecycle,
-                    "checkpoint_id": head.checkpoint_id,
-                    "snapshot_id": head.snapshot_id,
-                    "generation": head.generation,
-                    "capabilities": sorted(composition.runtime.capabilities()),
-                    "config_digest": config.digest(),
-                }
-                if args.operation == "capabilities":
-                    payload = {
-                        "session_id": head.session_id,
-                        "lifecycle": head.lifecycle,
-                        "capabilities": payload["capabilities"],
-                        "live_process_control": False,
-                        "restore_time_steering": True,
-                    }
-            else:
-                source_snapshot_id = None
-                if args.operation == "fork":
-                    source_head = composition.runtime.ensure_checkpoint_store().get_session_head(
-                        args.session_id
-                    )
-                    if source_head is None:
-                        raise SessionContractError(
-                            error_code=SessionErrorCode.SESSION_NOT_FOUND,
-                            message="Session head was not found.",
-                            recoverable=True,
-                            remediation="verify the Session identity and store path",
-                        )
-                    # ``restore`` claims the next generation and records a
-                    # RESTORING head.  Fork the immutable source head captured
-                    # before that claim unless the caller selected an older
-                    # snapshot explicitly.
-                    source_snapshot_id = args.snapshot_id or source_head.snapshot_id
-                session = composition.restore(args.session_id)
+        if args.operation in {"inspect", "capabilities"}:
+            from qitos.config.builder import _inspect_persisted_session
+
+            payload = _inspect_persisted_session(config, args.session_id)
+        else:
+            resolver = LocalCredentialFileResolver(
+                args.credentials,
+                repository_root=Path(__file__).resolve().parent.parent,
+            )
+            with build_agent_composition(config, credential_resolver=resolver) as composition:
                 if args.operation == "resume":
+                    session = composition.restore(args.session_id)
                     result = session.run(steering=args.steering)
                     payload = {
                         "session_id": session.session_id.value,
@@ -277,14 +235,12 @@ def _session_main(argv: list[str]) -> int:
                         "lifecycle": session.lifecycle.value,
                         "checkpoint_id": session.current_head.checkpoint_id.value,
                         "stop_reason": result.state.stop_reason,
-                        "steering_mode": (
-                            "restore_time" if args.steering else "none"
-                        ),
+                        "steering_mode": "restore_time" if args.steering else "none",
                     }
                 else:
-                    child = session.fork(source_snapshot_id)
+                    child = composition.fork(args.session_id, args.snapshot_id)
                     payload = {
-                        "source_session_id": session.session_id.value,
+                        "source_session_id": args.session_id,
                         "session_id": child.session_id.value,
                         "run_id": child.run_id.value,
                         "checkpoint_id": child.current_head.checkpoint_id.value,

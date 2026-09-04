@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import os
+import sqlite3
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -206,6 +207,17 @@ class AgentComposition:
             raise CompositionClosedError(
                 "agent composition is closed", field="composition"
             )
+
+    def fork(self, session_id: Any, snapshot: Any = None, *, operation_id: Optional[str] = None) -> Any:
+        """Fork immutable persisted state without claiming the source owner."""
+        from ..core.session import SessionIdentity
+        from ..engine.session_runtime import Session
+
+        self._require_open()
+        if self.config.runtime.session.mode != "durable":
+            raise CompositionError("ephemeral sessions cannot fork", field="runtime.session.mode")
+        identity = session_id if isinstance(session_id, SessionIdentity) else SessionIdentity(session_id)
+        return Session._fork_persisted(self.engine, identity, snapshot, operation_id=operation_id)
 
     def close(self) -> Dict[str, Any]:
         """Close every framework-owned resource once and return a stable receipt."""
@@ -444,28 +456,79 @@ def _build_environment_with_receipt(
     return env, backend, receipt.to_dict()
 
 
+def _session_store_path(config: AgentConfig) -> Path:
+    if config.runtime.session.path:
+        return Path(config.runtime.session.path).expanduser().resolve()
+    root = config.runtime.data_root
+    if not root:
+        workspace = config.runtime.environment.workspace
+        if workspace and workspace != ".":
+            root = str(Path(workspace).expanduser().resolve() / ".qitos")
+    if not root:
+        raise CompositionError(
+            "durable Session requires an explicit runtime data root or project workspace",
+            field="runtime.data_root",
+        )
+    return Path(root).expanduser().resolve() / "sessions.sqlite3"
+
+
+def _open_session_store(config: AgentConfig, *, read_only: bool = False) -> Any:
+    session = config.runtime.session
+    if not session.enabled:
+        if read_only:
+            raise CompositionError("ephemeral Session has no persisted head", field="runtime.session.mode")
+        return None
+    if session.store == "memory":
+        if read_only:
+            raise CompositionError("memory store is process-local", field="runtime.session.store")
+        return InMemoryCheckpointStore()
+    if session.store != "sqlite":
+        raise CompositionError("unsupported Session store", field="runtime.session.store")
+    path = _session_store_path(config)
+    try:
+        if not read_only:
+            path.parent.mkdir(parents=True, exist_ok=True)
+        return SqliteCheckpointStore(str(path), read_only=read_only)
+    except (OSError, sqlite3.Error):
+        raise CompositionError("Session store is unavailable", field="runtime.session.path") from None
+
+
+def _inspect_persisted_session(config: AgentConfig, session_id: str) -> Dict[str, Any]:
+    from ..checkpoint.session import verify_snapshot_payload_integrity
+    from ..core.session import SessionContractError, SessionErrorCode
+
+    with _open_session_store(config, read_only=True) as store:
+        head = store.get_session_head(session_id)
+        if head is None:
+            raise SessionContractError(
+                error_code=SessionErrorCode.SESSION_NOT_FOUND,
+                message="Session head was not found.", recoverable=True,
+                remediation="verify Session identity and store location",
+            )
+        snapshot = store.get_session_snapshot(head.snapshot_id)
+        if snapshot is None:
+            raise CompositionError("persisted Session snapshot is missing", field="runtime.session")
+        verify_snapshot_payload_integrity(snapshot.payload)
+        progress: Dict[str, Any] = next((item["payload"] for item in snapshot.payload["components"]
+                         if item["slot"] == "engine_progress"), {})
+        metadata = progress.get("runtime_composition", {}).get("launch_metadata", {})
+        capabilities = set(store.session_capabilities())
+        capabilities.update({"session.inspect", "session.restore", "session.fork"})
+        return {
+            "session_id": head.session_id, "lifecycle": head.lifecycle,
+            "checkpoint_id": head.checkpoint_id, "snapshot_id": head.snapshot_id,
+            "generation": head.generation, "capabilities": sorted(capabilities),
+            "config_digest": metadata.get("config_digest"),
+            "live_process_control": False, "restore_time_steering": True,
+            "store": {"kind": "sqlite", "path": str(_session_store_path(config)),
+                      "cross_process": True},
+        }
+
+
 def build_runtime(
     config: AgentConfig, *, sandbox_receipt: Optional[Dict[str, Any]] = None
 ) -> RuntimeComposition:
-    session = config.runtime.session
-    store: Any = None
-    if session.enabled:
-        if session.store == "sqlite":
-            if not session.path:
-                raise CompositionError(
-                    "sqlite session store requires a path",
-                    field="runtime.session.path",
-                )
-            path = Path(session.path).expanduser().resolve()
-            path.parent.mkdir(parents=True, exist_ok=True)
-            store = SqliteCheckpointStore(str(path))
-        elif session.store == "memory":
-            store = InMemoryCheckpointStore()
-        else:
-            raise CompositionError(
-                "runtime.session.store must be memory or sqlite",
-                field="runtime.session.store",
-            )
+    store = _open_session_store(config)
     event_sink: Any = None
     event_store: Any = None
     event_view: Any = None
@@ -597,6 +660,10 @@ def build_agent_composition(
     owns_model = model_override is None
     owns_environment = env_override is None
     try:
+        # Preflight persistence before constructing a model or provisioning Env.
+        if config.runtime.session.enabled and config.runtime.session.store != "memory":
+            preflight_store = _open_session_store(config)
+            preflight_store.close()
         model = (
             model_override
             if model_override is not None
@@ -761,7 +828,11 @@ def run_agent_config(
         payload = {
             "schema": config.schema,
             "config_digest": config.digest(),
-            "execution_mode": "ephemeral" if use_ephemeral else "durable_session",
+            "execution_mode": (
+                "ephemeral" if use_ephemeral else
+                "process_local_session" if config.runtime.session.store == "memory" else
+                "durable_session"
+            ),
             "run_id": result.run_id,
             "stop_reason": result.state.stop_reason,
             "final_result": result.state.final_result,
@@ -787,6 +858,10 @@ def run_agent_config(
                 "generation": head.generation.value,
                 "capabilities": sorted(session.capabilities()),
                 "config_digest": config.digest(),
+                "cross_process": config.runtime.session.store == "sqlite",
+                "store": config.runtime.session.store,
+                "store_path": (str(_session_store_path(config))
+                               if config.runtime.session.store == "sqlite" else None),
             }
         else:
             payload["session"] = {

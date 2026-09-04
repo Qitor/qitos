@@ -138,3 +138,31 @@ reimport. Initial retry comparison incorrectly compared fresh recorded_at;
 failed run retained (4 failed, 10 passed), then corrected to compare all producer
 content while excluding only store-assigned sequence/time/digest. This is not
 yet the final complete-tree gate or readiness/default qualification.
+
+### G5-A1/A2 Session repair
+
+`AgentComposition.fork` binds a source facade without restore and calls the one
+existing `Session.fork`/atomic checkpoint fork. Source ownership is never claimed.
+Repeated operation IDs retain the existing typed `duplicate_fork_operation`
+contract; no second child is created. Added tests cover paused/completed source,
+historical snapshot under a newer source owner, and persistence failure.
+
+Declarative defaults use SQLite. A YAML launch derives runtime.data_root from
+the explicitly supplied project config location; a Python launch derives it
+from an explicit project workspace or requires data_root/path. Store preflight
+runs before model construction. Memory stays explicit and reports
+process_local_session/cross_process=false. Read-only SQLite mode performs no
+schema creation or write PRAGMA. CLI inspect/capabilities opens that mode only,
+reads the persisted config digest, and does not construct model, credential
+resolver, tools, or sandbox. CLI live pause/steer remain typed unsupported.
+
+Public additions: AgentComposition.fork (necessary immutable-source entrypoint),
+RuntimeConfig.data_root (explicit durable storage location), and read_only option
+on the existing SQLite store. No root exports or Engine constructor growth.
+
+The Session/config/fork/checkpoint suite passed 72 tests after correcting memory
+preflight and expected process-local reporting. Extra public-path tests and
+seven audit probes are recorded separately. Initial failures remain in the
+local execution logs; static CLI findings F841/F401 are pre-existing, not
+new allowances. Session durability across fresh processes and all lifecycle
+variants still require the final combined qualification.

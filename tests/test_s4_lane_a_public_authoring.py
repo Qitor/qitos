@@ -193,7 +193,8 @@ def test_declarative_runner_is_session_first_and_ephemeral_is_explicit(
     monkeypatch.setattr(builder, "build_agent_composition", lambda *a, **k: composition)
     durable = run_agent_config(durable_config, credential_resolver=object())
 
-    assert durable["execution_mode"] == "durable_session"
+    assert durable["execution_mode"] == "process_local_session"
+    assert durable["session"]["cross_process"] is False
     assert durable["session"]["session_id"].startswith("session_")
     assert durable["session"]["checkpoint_id"].startswith("checkpoint_")
     assert durable["session"]["config_digest"] == durable_config.digest()
@@ -286,7 +287,7 @@ def test_cli_and_programmatic_golden_paths_share_runtime_contract(
     cli_payload = json.loads(capsys.readouterr().out)
 
     assert programmatic_result.state.final_result == cli_payload["final_result"]
-    assert cli_payload["execution_mode"] == "durable_session"
+    assert cli_payload["execution_mode"] == "process_local_session"
     assert cli_payload["session"]["checkpoint_id"].startswith("checkpoint_")
     assert cli_facts == {
         key: value for key, value in programmatic_facts.items() if key != "checkpoint"
@@ -410,7 +411,9 @@ def test_cli_inspects_terminal_session_without_claiming_live_control(
 ) -> None:
     import qitos.config
 
-    config = _config(tmp_path)
+    config = replace(_config(tmp_path), runtime=replace(
+        _config(tmp_path).runtime, session=SessionConfig(
+            store="sqlite", path=str(tmp_path / "inspect.sqlite3"))))
     composition = build_agent_composition(
         config,
         model_override=_FinalModel(),

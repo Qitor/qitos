@@ -144,7 +144,7 @@ class EnvironmentConfig:
 class SessionConfig:
     mode: str = "durable"
     enabled: Optional[bool] = None
-    store: str = "memory"
+    store: str = "sqlite"
     path: str = ""
     session_id: str = ""
     restore: bool = False
@@ -203,12 +203,14 @@ class RuntimeConfig:
     environment: EnvironmentConfig = field(default_factory=EnvironmentConfig)
     session: SessionConfig = field(default_factory=SessionConfig)
     trajectory: TrajectoryConfig = field(default_factory=TrajectoryConfig)
+    data_root: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "environment": self.environment.to_dict(),
             "session": self.session.to_dict(),
             "trajectory": self.trajectory.to_dict(),
+            "data_root": self.data_root,
         }
 
 
@@ -576,6 +578,9 @@ def load_agent_config(
     config = replace(
         config,
         schema=CANONICAL_SCHEMA,
+        runtime=replace(config.runtime, data_root=(
+            config.runtime.data_root or str(source_path.resolve().parent / ".qitos")
+        )),
         source=source,
         compatibility=tuple(config.compatibility) + tuple(receipts),
     )
@@ -836,7 +841,7 @@ def _parse_runtime(raw: Mapping[str, Any]) -> RuntimeConfig:
     _exact_keys(
         raw,
         required={"environment"},
-        optional={"session", "trajectory"},
+        optional={"session", "trajectory", "data_root"},
         field="runtime",
     )
     environment = _mapping(raw["environment"], "runtime.environment")
@@ -919,7 +924,7 @@ def _parse_runtime(raw: Mapping[str, Any]) -> RuntimeConfig:
                 field="runtime.session",
             )
     session_store = _string(
-        session.get("store", "memory"),
+        session.get("store", "sqlite"),
         "runtime.session.store",
         non_empty=True,
     )
@@ -934,11 +939,6 @@ def _parse_runtime(raw: Mapping[str, Any]) -> RuntimeConfig:
         if legacy_enabled is not None
         else session_mode
     )
-    if effective_mode == "durable" and session_store == "sqlite" and not session_path:
-        raise ConfigSchemaError(
-            "durable sqlite Session requires a path",
-            field="runtime.session.path",
-        )
     if effective_mode == "ephemeral" and (
         session.get("restore", False) or session.get("session_id", "")
     ):
@@ -974,6 +974,7 @@ def _parse_runtime(raw: Mapping[str, Any]) -> RuntimeConfig:
         }
     )
     return RuntimeConfig(
+        data_root=_string(raw.get("data_root", ""), "runtime.data_root"),
         environment=EnvironmentConfig(
             type=env_type,
             image=_string(
