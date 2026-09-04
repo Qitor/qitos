@@ -116,3 +116,77 @@ def test_g5_real_docker_command_parent_exit_waits_for_children(tmp_path):
     finally:
         env.close()
     assert env.cleanup_receipt["container_absent"] is True
+
+
+def test_g5_worker_cannot_forge_process_completion_in_mutable_files(tmp_path):
+    import shlex
+    env = DockerEnv(image="qitos-g5-qualification:20260904", host_workspace=str(tmp_path),
+                    auto_create=True, remove_on_close=True, strict_workspace=True,
+                    policy=SandboxPolicy(image="qitos-g5-qualification:20260904",
+                        limits=SandboxResourceLimits(cpu_count=.5, memory_bytes=256 * 1024 * 1024, pids=32)))
+    supervisor = None
+    try:
+        env.setup()
+        handle = env.processes.start("sleep 60")
+        path = "/tmp/qitos-processes/" + handle.process_id + ".state"
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            state = env.cmd.run("cat " + shlex.quote(path), timeout=2)
+            if state.get("returncode") == 0:
+                supervisor = json.loads(state["stdout"])["supervisor_pid"]
+                break
+        assert supervisor is not None
+        forged = json.dumps({"status": "terminal", "returncode": 0, "worker_still_running": False,
+                             "outcome_unknown": False, "stdout": "", "stderr": "",
+                             "completion_source": "backend_supervisor"})
+        env.cmd.run("kill -STOP " + str(supervisor) + "; printf '%s' " + shlex.quote(forged)
+                    + " > " + shlex.quote(path), timeout=2)
+        observed = env.processes.poll(handle)
+        assert observed["worker_still_running"] is True
+        assert observed["status"] != "terminal"
+    finally:
+        if supervisor is not None:
+            env.cmd.run("kill -CONT " + str(supervisor), timeout=2)
+        env.close()
+    assert env.cleanup_receipt["container_absent"] is True
+
+
+def test_g5_unknown_backend_exit_keeps_ownership_and_cleanup_failure(tmp_path):
+    import pytest
+    from qitos.core.env import EnvCapabilityError
+    (tmp_path / "input.py").write_text("original")
+    env = DockerEnv(image="qitos-g5-qualification:20260904", host_workspace=str(tmp_path),
+                    auto_create=True, remove_on_close=True, strict_workspace=True,
+                    policy=SandboxPolicy(image="qitos-g5-qualification:20260904",
+                        limits=SandboxResourceLimits(cpu_count=.5, memory_bytes=256 * 1024 * 1024, pids=32)))
+    killed = False
+    try:
+        env.setup()
+        env.fs.write_text("json.py", "raise RuntimeError('workspace import must not run')\n")
+        assert env.cmd.run("printf isolated", timeout=2)["stdout"] == "isolated"
+        env.fs.write_text("input.py", "unpublished")
+        handle = env.processes.start("sleep 60")
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            state = env.processes.poll(handle)
+            if state.get("supervisor_pid"):
+                break
+            time.sleep(.05)
+        assert state.get("supervisor_pid")
+        assert env.cmd.run("kill -KILL " + str(state["supervisor_pid"]), timeout=2)["returncode"] == 0
+        killed = True
+        result = env.processes.terminate(handle, timeout=0)
+        assert result["outcome_unknown"] and result["worker_still_running"]
+        assert handle.process_id in env.processes._owned
+    finally:
+        if killed:
+            with pytest.raises(EnvCapabilityError, match="process_cleanup_incomplete"):
+                env.close()
+        else:
+            env.close()
+    assert env.cleanup_receipt["container_absent"] is True
+    assert env.cleanup_receipt["process_cleanup_confirmed"] is False
+    assert (tmp_path / "input.py").read_text() == "original"
+    with pytest.raises(EnvCapabilityError, match="process_cleanup_incomplete"):
+        env.close()
+    assert handle.process_id in env.processes._owned

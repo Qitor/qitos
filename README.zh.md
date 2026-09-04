@@ -18,7 +18,7 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 
 ## 最新进展
 
-- **G5 融合候选**：已接入可取回的 MCP/工作区 artifact、隔离恢复、显式发布和基于 child checkpoint 的 join，仍在验收；参见[执行记录](docs/internal/plans/s4_g5_convergence_execution.md)。尚未本地提升或切换默认值。
+- **G5 融合候选**：已接入受控通道确认的 Docker 进程完成事实、可取回的 MCP/工作区 artifact、隔离恢复、显式发布和基于 child checkpoint 的 join，仍在验收；参见[执行记录](docs/internal/plans/s4_g5_convergence_execution.md)。尚未本地提升或切换默认值。
 
 - G5 融合进行中：模型请求发出后的失败保留准确计数；整体集成与默认切换尚未验收。
 

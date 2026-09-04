@@ -100,7 +100,10 @@ def test_g5_c2_parent_exit_is_not_descendant_completion(tmp_path):
     finally:
         if child is not None and _alive(child):
             os.kill(child, signal.SIGKILL)
-        control.close()
+        from qitos.core.env import EnvCapabilityError
+        with pytest.raises(EnvCapabilityError, match="process_cleanup_incomplete"):
+            control.close()
+        assert handle.process_id in control._owned
 
 
 def _persisted_config(tmp_path):

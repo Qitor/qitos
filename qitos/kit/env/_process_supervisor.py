@@ -10,13 +10,17 @@ import ctypes, json, os, pathlib, select, signal, subprocess, sys, time
 base, command = sys.argv[1:3]
 deadline_seconds = int(sys.argv[3]) if len(sys.argv) > 3 else 0
 output_limit = int(sys.argv[4]) if len(sys.argv) > 4 else 64000
+stdio = len(sys.argv) > 5 and sys.argv[5] == 'stdio'
 started = time.monotonic()
 timed_out = False
 root = pathlib.Path(base)
 root.parent.mkdir(parents=True, exist_ok=True)
 try:
     if sys.platform.startswith('linux'):
-        ctypes.CDLL(None).prctl(36, 1, 0, 0, 0)
+        if ctypes.CDLL(None).prctl(4, 0, 0, 0, 0) != 0:
+            raise RuntimeError('supervisor process protection unavailable')
+        if ctypes.CDLL(None).prctl(36, 1, 0, 0, 0) != 0:
+            raise RuntimeError('supervisor descendant tracking unavailable')
 except (AttributeError, OSError):
     pass
 
@@ -25,7 +29,7 @@ def publish(value):
     temporary = pathlib.Path(base + '.state.tmp')
     temporary.write_text(json.dumps(value))
     temporary.replace(path)
-    if deadline_seconds and value['status'] in {'terminal', 'unknown'}:
+    if stdio or (deadline_seconds and value['status'] in {'terminal', 'unknown'}):
         print(json.dumps(value), flush=True)
 
 def group_alive(group):

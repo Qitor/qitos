@@ -71,7 +71,7 @@ def retain_workspace(env: Any) -> ArtifactRef:
     if resolver is None or not callable(getattr(resolver, "put", None)):
         raise EnvCapabilityError("sandbox_artifact_unavailable", "workspace retention requires an artifact store")
     try:
-        result = subprocess.run(["docker", "exec", env.container, "python3", "-c", _CAPTURE,
+        result = subprocess.run(["docker", "exec", env.container, "python3", "-I", "-c", _CAPTURE,
                                  env.container_workspace, str(_LIMIT)], capture_output=True, timeout=30, check=True)
         if len(result.stdout) > _LIMIT:
             raise ValueError("snapshot bound exceeded")
@@ -105,7 +105,7 @@ def workspace_payload(env: Any, reference: ArtifactRef) -> dict[str, Any]:
 def restore_workspace(env: Any, reference: ArtifactRef) -> None:
     payload = workspace_payload(env, reference)
     try:
-        subprocess.run(["docker", "exec", "-i", env.container, "python3", "-c", _RESTORE, env.container_workspace],
+        subprocess.run(["docker", "exec", "-i", env.container, "python3", "-I", "-c", _RESTORE, env.container_workspace],
                        input=json.dumps(payload).encode(), capture_output=True, timeout=30, check=True)
     except Exception:
         raise EnvCapabilityError("sandbox_restore_failed", "workspace restoration failed") from None

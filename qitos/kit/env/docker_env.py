@@ -76,7 +76,7 @@ class DockerCommandCapability(CommandCapability):
         try:
             result = _run([
                 "docker", "exec", "-w", self.workdir, self.container,
-                "python3", "-c", SUPERVISOR, base, command,
+                "python3", "-I", "-c", SUPERVISOR, base, command,
                 str(max(1, int(timeout))), str(self.output_limit),
             ], timeout=max(1, int(timeout)) + 10)
             if result.returncode != 0:
@@ -140,6 +140,7 @@ print(json.dumps({
             self.workdir,
             self.container,
             "python3",
+            "-I",
             "-c",
             program,
             command.encode("utf-8").hex(),
@@ -204,7 +205,7 @@ class DockerFSCapability(FileSystemCapability):
             "sys.stdout.write(data)"
         )
         result = self.cmd.run(
-            "python3 -c " + shlex.quote(program) + " "
+            "python3 -I -c " + shlex.quote(program) + " "
             + shlex.quote(self.workdir) + " " + shlex.quote(inner)
         )
         if result.get("returncode", 1) != 0:
@@ -245,7 +246,7 @@ class DockerFSCapability(FileSystemCapability):
             "'byte_length':len(raw),'version':f'{s.st_dev}:{s.st_ino}:{s.st_mtime_ns}:{s.st_size}'}))"
         )
         result = self.cmd.run(
-            "python3 -c " + shlex.quote(program) + " "
+            "python3 -I -c " + shlex.quote(program) + " "
             + shlex.quote(self.workdir) + " " + shlex.quote(inner)
         )
         if int(result.get("returncode", 1)) != 0:
@@ -282,7 +283,7 @@ class DockerFSCapability(FileSystemCapability):
         result = subprocess.run(
             [
                 "docker", "exec", "-i", "-w", self.workdir, self.container,
-                "python3", "-c", program, self.workdir, inner,
+                "python3", "-I", "-c", program, self.workdir, inner,
                 expected_sha256 or "",
             ],
             input=content,
@@ -320,6 +321,7 @@ class DockerProcessControlCapability(ProcessControlCapability):
         self.command = command
         self.generation = generation
         self._owned: set[str] = set()
+        self._tasks: Dict[str, Any] = {}
         self._cleaning = False
 
     def _control(self, script: str, timeout: int = 10) -> Dict[str, Any]:
@@ -336,10 +338,20 @@ class DockerProcessControlCapability(ProcessControlCapability):
             raise EnvCapabilityError("invalid_command", "command must be non-empty")
         process_id = f"process-{uuid4().hex}"
         base = f"/tmp/qitos-processes/{process_id}"
-        script = (f"nohup python3 -c {shlex.quote(SUPERVISOR)} "
+        script = (f"nohup python3 -I -c {shlex.quote(SUPERVISOR)} "
                   f"{shlex.quote(base)} {shlex.quote(command)} </dev/null >/dev/null 2>&1 &")
         # Retain ownership even if start acknowledgement is lost.
         self._owned.add(process_id)
+        if isinstance(self.command, DockerCommandCapability):
+            from ._docker_process_task import _DockerProcessTask
+
+            try:
+                self._tasks[process_id] = _DockerProcessTask(
+                    self.command.container, self.command.workdir, base, command,
+                )
+            except OSError:
+                raise EnvCapabilityError("process_start_unknown", "backend task start was not acknowledged") from None
+            return ProcessHandle(process_id, self.generation)
         result = self._control(script, timeout=10)
         if int(result.get("returncode", 1)) != 0:
             raise EnvCapabilityError("process_start_unknown", "worker start was not acknowledged")
@@ -349,8 +361,10 @@ class DockerProcessControlCapability(ProcessControlCapability):
         from ._process_supervisor import POLL
 
         base = self._base(handle)
+        if handle.process_id in self._tasks:
+            return self._tasks[handle.process_id].poll()
         result = self._control(
-            f"python3 -c {shlex.quote(POLL)} {shlex.quote(base)}", timeout=10,
+            f"python3 -I -c {shlex.quote(POLL)} {shlex.quote(base)}", timeout=10,
         )
         try:
             if int(result.get("returncode", 1)) != 0:
@@ -358,6 +372,9 @@ class DockerProcessControlCapability(ProcessControlCapability):
             value = json.loads(str(result.get("stdout") or ""))
             if value.get("status") not in {"terminal", "running", "unknown"}:
                 raise ValueError("invalid worker state")
+            # A transport without an owned exec channel cannot attest worker
+            # completion from mutable files. Keep ownership and uncertainty.
+            value.update(status="unknown", returncode=None, worker_still_running=True, outcome_unknown=True)
             return dict(value)
         except (ValueError, TypeError):
             return {"status": "unknown", "returncode": None, "stdout": "", "stderr": "",
@@ -459,6 +476,7 @@ class DockerEnv(HostEnv):
         self._artifact_resolver: Any = None
         self.output_artifact: Any = None
         self._artifact_error: Optional[EnvCapabilityError] = None
+        self._process_cleanup_error: Optional[EnvCapabilityError] = None
         self._logical_identity: Dict[str, Any] = {}
         self._owner_guard: Any = None
         self._sandbox_id = f"sandbox-{uuid4().hex}"
@@ -564,13 +582,19 @@ class DockerEnv(HostEnv):
         if self._closed:
             if self.cleanup_receipt:
                 self.cleanup_receipt["repeated"] = True
+            if self._process_cleanup_error is not None:
+                raise self._process_cleanup_error
             if self._artifact_error is not None:
                 raise self._artifact_error
             return
         try:
             if self._wall_timer is not None:
                 self._wall_timer.cancel()
-            self.processes.close()
+            try:
+                self.processes.close()
+            except EnvCapabilityError as exc:
+                self._process_cleanup_error = exc
+                raise
             if self._artifact_resolver is not None and self._owns_container():
                 from ._workspace_artifact import retain_workspace
                 try:
@@ -607,6 +631,7 @@ class DockerEnv(HostEnv):
                 "repeated": False,
                 "output_retained": self.output_artifact is not None,
                 "output_retention_failed": self._artifact_error is not None,
+                "process_cleanup_confirmed": self._process_cleanup_error is None,
             }
             self._closed = absent and staging_absent
         if self._artifact_error is not None:
@@ -837,7 +862,7 @@ with tarfile.open(fileobj=sys.stdin.buffer, mode='r|') as bundle:
                     "docker", "exec", "-i", "-u",
                     f"{self.policy.run_as_uid}:{self.policy.run_as_gid}",
                     self.container,
-                    "python3", "-c", extractor, self.container_workspace,
+                    "python3", "-I", "-c", extractor, self.container_workspace,
                 ],
                 stdin=stream,
                 capture_output=True,

@@ -413,3 +413,15 @@ an explicit permission/effect operation. The candidate has focused regression
 evidence, but installed consumers, full platform qualification and final gates
 remain open. See [the execution ledger](../internal/plans/s4_g5_convergence_execution.md).
 No primary promotion, default Trajectory switch or release is asserted here.
+
+### G5 owned process completion repair
+
+Process start retains a task-owned Docker exec channel. Poll confirms completion
+only when the supervisor reports terminal, the channel is drained and Docker
+exec exits successfully. Mutable `.state` files are diagnostics, not authority.
+Trusted controllers use isolated Python imports; the Linux supervisor disables
+ptrace access and requires descendant adoption before starting user code.
+An abnormal backend exit remains unknown. Cleanup may remove its owned sandbox,
+but retains the unresolved process ownership and repeats the typed cleanup
+failure on subsequent close calls. No hard cancellation of Python threads or
+remote MCP/HTTP requests is claimed.

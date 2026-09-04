@@ -94,6 +94,8 @@ How to update:
 
 ### Fixed
 
+- Docker process completion now requires the owned exec channel and a confirmed backend exit; mutable workspace state cannot forge success. Unknown cleanup keeps ownership and its failure receipt.
+
 - G5 candidate: MCP large responses are retained and verified through the artifact resolver; post-dispatch retention failures require reconciliation. Native durable work uses the canonical fork over a recorded pre-action snapshot.
 
 - G5 integration candidate connects durable Docker workspace artifacts and isolated cold restore, explicit source publication, truthful process completion, transferred ownership, and child checkpoint-backed WorkGraph joins. Qualification and default switches remain pending.

@@ -503,3 +503,20 @@ and final-wheel qualifications remain pending. A three-repetition measurement
 on the intermediate real consumer exports ran with 305 coding and 125 research
 records; this preliminary result does not establish bounded memory or final-tree
 performance. Canonical append/query currently reload full journals.
+
+### G5-C2 completion-channel adversary (after 8f17ba6)
+
+A real owned Docker probe stopped its supervisor, rewrote the writable state
+file as terminal and reproduced false completion: 1 failed in 1.66 s
+(`/tmp/qitos-g5-forged-completion-red.log`). The repair uses an owned Docker
+exec completion channel, isolated controller imports and protected Linux
+supervisor state. Its focused regression passed in 1.34 s.
+The supervisor-kill/import-shadow probe passed in 10.74 s: unknown remained
+unknown, ownership and cleanup failure survived repeated close, and source
+bytes remained unchanged after owned-container removal.
+Combined platform attempt 02 selected an incorrect filename and collected no
+tests; attempt 03 uses the actual sandbox Session module. These are distinct
+from the earlier seven passing real Docker cases in 20.02 s.
+Changed controller/composition/adapter flake8 and mypy passed (six files).
+Combined real Docker attempt 03 passed all eight cases in 29.11 s; log:
+`/tmp/qitos-g5-owned-channel-docker-03.log`. No other-task containers were used.
