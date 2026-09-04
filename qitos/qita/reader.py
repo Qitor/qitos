@@ -9,11 +9,70 @@ from typing import Any, Dict, Optional
 from urllib.parse import quote
 
 
-def default_reader(root: str | Path) -> Any:
-    """Return the qualified default: the frozen-trace compatibility reader."""
+def default_reader(root: str | Path, *, selector: str = "trajectory") -> Any:
+    """Select canonical data with bounded trace compatibility, or explicit rollback."""
     from qitos.tracing.readers import TraceCompatibilityReader
 
-    return TraceCompatibilityReader(root)
+    source = Path(root)
+    if selector == "trace":
+        return TraceCompatibilityReader(source)
+    if selector != "trajectory":
+        raise ValueError("unsupported_reader_selector")
+    journal = source if source.is_file() else source / "trajectory.journal"
+    if journal.is_file():
+        return _DefaultReader(candidate_file_reader(journal), TraceCompatibilityReader(
+            source.parent if source.is_file() else source))
+    json_store = source / "trajectory.json"
+    if json_store.is_file():
+        return _DefaultReader(candidate_file_reader(json_store), TraceCompatibilityReader(source))
+    return TraceCompatibilityReader(source)
+
+
+class _DefaultReader:
+    """One read selection over canonical data and the existing compatibility adapter."""
+
+    def __init__(self, current: Any, compatibility: Any):
+        self.current = current
+        self.compatibility = compatibility
+
+    @property
+    def capabilities(self) -> Any:
+        from dataclasses import replace
+        return replace(self.current.capabilities, reader_id="qitos.default_trajectory_reader",
+                       source_kind="trajectory_with_trace_compatibility", default_qualified=True)
+
+    def discover_runs(self) -> Any:
+        current = self.current.discover_runs()
+        historical = self.compatibility.discover_runs()
+        if {item.run_id for item in current} & {item.run_id for item in historical}:
+            raise ValueError("trajectory_source_identity_conflict")
+        return current + historical
+
+    def read_run(self, run_id: str, **options: Any) -> Any:
+        current = self.current.read_run(run_id, **options)
+        historical_ids = {item.run_id for item in self.compatibility.discover_runs()}
+        if current.records and run_id in historical_ids:
+            raise ValueError("trajectory_source_identity_conflict")
+        return current if current.records else self.compatibility.read_run(run_id, **options)
+
+    def read_session(self, session_id: str, **options: Any) -> Any:
+        return self.current.read_session(session_id, **options)
+
+    def replay(self, query: Any, **options: Any) -> Any:
+        if query.run_id in {item.run_id for item in self.compatibility.discover_runs()}:
+            self.read_run(query.run_id, **options)  # Reject conflicting authority.
+            return self.compatibility.replay(query, **options)
+        return self.current.replay(query, **options)
+
+    def validate_integrity(self) -> Any:
+        from dataclasses import replace
+        current = self.current.validate_integrity()
+        historical = self.compatibility.validate_integrity()
+        self.discover_runs()  # Duplicate run identity cannot silently select a writer.
+        return replace(current, valid=current.valid and historical.valid,
+                       record_count=current.record_count + historical.record_count,
+                       findings=current.findings + historical.findings,
+                       source_kind=self.capabilities.source_kind)
 
 
 def candidate_file_reader(path: str | Path) -> Any:

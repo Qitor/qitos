@@ -17,6 +17,8 @@ How to update:
 
 ## Unreleased
 
+- Changed qita default reading to canonical journal data with historical trace compatibility, complete paginated discovery, explicit rollback selection and source-conflict rejection.
+
 - Changed declarative and AgentModule.run default trajectory output to the required canonical journal sink, with explicit opt-out and legacy-writer compatibility; no Engine constructor parameter was added.
 
 - Froze the existing Trajectory wire contract after controlled G5 consumer qualification, retaining stored schema identities and explicit privacy/loss compatibility. Default switching and final promotion remain separate gates.

@@ -740,3 +740,19 @@ output instead. Stable plus config flake8/mypy passed 101 files. qita selector
 switch is intentionally a separate next commit.
 Default-writer adjacent attempt 02 passed 40 tests in 2.30 seconds, including
 sink conformance, actual core flow, architecture and unchanged interface budget.
+
+### Separate default reader switch and selector rollback
+
+qita now selects canonical journal data with the existing trace compatibility
+adapter. It rejects duplicate source identities/corrupt current data and handles
+journal-backed routes without creating fake run directories. Store discovery
+consumes all bounded query pages; stop summaries project explicit runtime facts
+rather than inferring success from cleanup. The existing default_reader gains
+one optional selector keyword for explicit read-only rollback; no root symbol or
+parallel reader API family was introduced. Initial test attempts incorrectly
+used JournalTrajectoryStore as a context manager and failed before assertions;
+those logs are retained as default-reader-red/fix-01, not claimed as successful
+pre-fix probes. Corrected fixtures passed six parity/rollback tests in 3.78 s,
+and 23 reader/qita/journal/default-writer tests passed in 12.18 s. Both changed
+module static checks passed. Rollback verified exact bytes of every file before
+and after historical/current reads; no runtime execution was invoked.

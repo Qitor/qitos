@@ -629,8 +629,14 @@ def _build_handler(root: Path):
 
 def _resolve_run(root: Path, run_id: str) -> Optional[Path]:
     run_dir = (root / run_id).resolve()
-    if run_dir.exists() and run_dir.is_dir() and run_dir.parent == root:
+    if run_dir.parent != root or not run_id or _slug_run_id(run_id) != run_id:
+        return None
+    if run_dir.exists() and run_dir.is_dir():
         return run_dir
+    if (root / "trajectory.journal").is_file() or (root / "trajectory.json").is_file():
+        from .reader import default_reader
+        if any(item.run_id == run_id for item in default_reader(root).discover_runs()):
+            return run_dir  # Logical route only; no run directory is created.
     return None
 
 

@@ -448,6 +448,32 @@ class TraceCompatibilityReader:
         )
 
 
+def _canonical_run_payload(records: Tuple[TrajectoryRecord, ...]) -> Dict[str, Any]:
+    """Project explicit runtime start/stop facts into qita's existing summary."""
+    initial = next((record for record in records if record.kind == RecordKind.RUN), None)
+    if initial is None:
+        return {}
+    payload = copy.deepcopy(initial.payload)
+    if not isinstance(payload.get("payload"), Mapping) or "ok" not in payload:
+        return payload
+    payload = dict(payload["payload"])
+    summary: Dict[str, Any] = {}
+    lifecycle = None
+    for record in records:
+        if record.kind == RecordKind.SESSION and record.lifecycle_state:
+            lifecycle = record.lifecycle_state
+        detail = record.payload.get("payload", {})
+        if isinstance(detail, Mapping) and detail.get("stop_reason"):
+            summary["stop_reason"] = detail["stop_reason"]
+            if "final_result" in detail:
+                summary["final_result"] = detail["final_result"]
+    reason = summary.get("stop_reason")
+    status = lifecycle or ({"final": "completed", "unrecoverable_error": "failed"}.get(reason)
+                           if reason else None)
+    return {"run_id": initial.run_id, "status": status, "summary": summary,
+            "run_meta": payload.get("run_meta", {})}
+
+
 class StoreTrajectoryReader:
     """Reader adapter for any conforming trajectory store."""
 
@@ -473,18 +499,23 @@ class StoreTrajectoryReader:
         return TraceCompatibilityReader._project(trajectory, view)
 
     def discover_runs(self) -> Tuple[RunSummary, ...]:
-        records = self._store.replay(TrajectoryQuery())
+        records_list: List[TrajectoryRecord] = []
+        limit = self._store.capabilities.max_query_records
+        query = TrajectoryQuery(limit=limit)
+        while True:
+            page = self._store.query(query)
+            records_list.extend(page)
+            if len(page) < limit:
+                break
+            query = TrajectoryQuery(limit=limit, after_sequence=page[-1].sequence)
+        records = tuple(records_list)
         run_ids = tuple(
             dict.fromkeys(record.run_id for record in records if record.run_id)
         )
         summaries: List[RunSummary] = []
         for run_id in run_ids:
             run_records = tuple(record for record in records if record.run_id == run_id)
-            run_payload: Mapping[str, Any] = {}
-            for record in run_records:
-                if record.kind == RecordKind.RUN:
-                    run_payload = record.payload
-                    break
+            run_payload: Mapping[str, Any] = _canonical_run_payload(run_records)
             summary_payload = run_payload.get("summary")
             if not isinstance(summary_payload, Mapping):
                 summary_payload = {}
@@ -594,12 +625,7 @@ def trajectory_to_qita_payload(trajectory: Trajectory) -> Dict[str, Any]:
             if record.kind == RecordKind.STEP
         ]
     if not manifest:
-        run_record = next(
-            (record for record in trajectory.records if record.kind == RecordKind.RUN),
-            None,
-        )
-        if run_record is not None:
-            manifest = copy.deepcopy(run_record.payload)
+        manifest = _canonical_run_payload(trajectory.records)
     run_id = str(
         manifest.get("run_id")
         or next((record.run_id for record in trajectory.records if record.run_id), "")

@@ -41,3 +41,21 @@ The existing Engine constructor is unchanged, and no new root export is added.
 Low-level Engine callers continue to select their RuntimeComposition explicitly.
 The programmatic convenience path's default checkpoint remains process-local;
 use declarative durable composition for cross-process Session recovery.
+
+## Default reader selection and rollback
+
+`qita` selects `trajectory.journal` (or an explicitly retained trajectory.json)
+under its log directory and includes the existing frozen-trace compatibility
+reader. Identity collisions between those sources are rejected; corrupt current
+data never silently falls back to historical data. Discovery consumes every
+query page, while complete reads retain the documented materialization cost.
+Journal-backed run routes do not require or create legacy run directories.
+
+The existing `default_reader(root, selector="trace")` keyword selects historical
+reading for rollback; the default selector is `trajectory`. This optional
+parameter is needed to make reader selection explicit and testable without
+changing or deleting data. `candidate_file_reader(path)` still explicitly opens
+new data during rollback. Writer rollback is the explicit configuration disable
+or `trace=False` for the convenience path; callers can supply the existing
+TraceWriter when historical output is specifically needed. These selections
+never execute a Session or copy execution effects. Unknown selectors reject.
