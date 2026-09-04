@@ -155,6 +155,7 @@ class Session:
         self._pause_receipt: Optional[PauseReceipt] = None
         self._quiescence_receipt: Any = None
         self._parent_run_id: Optional[RunIdentity] = None
+        self._work_fork_snapshot: Optional[SnapshotIdentity] = None
 
     @property
     def session_id(self) -> SessionIdentity:
@@ -1595,6 +1596,11 @@ class Session:
     def _fork_or_recover(self, operation_id: str) -> "Session":
         receipt = self._store.get_session_fork(operation_id)
         if receipt is None:
+            if self._engine._session_handle is self and self._lifecycle is SessionLifecycle.RUNNING:
+                if self._work_fork_snapshot is None:
+                    raise _session_error(SessionErrorCode.UNSAFE_PAUSE_BOUNDARY,
+                                         "Child work requires a recorded pre-action boundary.", recoverable=True)
+                return self._fork_snapshot(self._work_fork_snapshot, operation_id=operation_id, work_source=True)
             return self.fork(operation_id=operation_id)
         if receipt.source_session_id != self._session_id.value:
             raise _session_error(
@@ -1687,6 +1693,25 @@ class Session:
         operation_id: Optional[str] = None,
     ) -> "Session":
         """Create an isolated durable child from one verified immutable snapshot."""
+        return self._fork_snapshot(snapshot, operation_id=operation_id)
+
+    def _capture_work_fork_boundary(self, state: StateSchema, task: str | Task, step_id: int) -> None:
+        """Pin a quiescent immutable source before any tool in the batch starts."""
+        self._work_fork_snapshot = None
+        context = RuntimeSnapshotContext(engine=self._engine, state=state, task=task,
+                                         lifecycle=SessionLifecycle.RUNNING, step_id=step_id, session=self)
+        safety = self._runtime.lifecycle_policy.pause_safety(context)
+        if not safety.migratable:
+            return
+        head = self._commit_snapshot(state=state, task=task, lifecycle=SessionLifecycle.RUNNING,
+                                     step_id=step_id, expected_head=self._require_head(), pause_safety=safety)
+        self._work_fork_snapshot = SnapshotIdentity(head.snapshot_id)
+
+    def _fork_snapshot(
+        self, snapshot: SessionSnapshot | SnapshotIdentity | str | None = None, *,
+        operation_id: Optional[str] = None, work_source: bool = False,
+    ) -> "Session":
+        """Sole child-snapshot implementation shared by public fork and work."""
         if ATOMIC_SESSION_FORK not in self._store.session_capabilities():
             raise _session_error(
                 SessionErrorCode.UNSUPPORTED_CAPABILITY,
@@ -1729,7 +1754,9 @@ class Session:
                 "Explicit snapshot differs from its persisted immutable record.",
                 recoverable=False,
             )
-        if not lifecycle_allows(source.lifecycle, SessionOperation.FORK):
+        pinned_work_source = (work_source and source.snapshot_id == self._work_fork_snapshot
+                              and source.lifecycle is SessionLifecycle.RUNNING)
+        if not pinned_work_source and not lifecycle_allows(source.lifecycle, SessionOperation.FORK):
             raise _invalid_operation(source.lifecycle, SessionOperation.FORK)
         _require_fork_safe(source, self._runtime.component_registry)
         source_lineage = _fork_lineage(source, required=True)
@@ -2896,6 +2923,7 @@ def _fork_lineage(
 def _require_fork_safe(snapshot: SessionSnapshot, registry: Any) -> None:
     progress = _component_payload(snapshot, ComponentSlot.ENGINE_PROGRESS.value)
     if snapshot.lifecycle in {
+        SessionLifecycle.RUNNING,
         SessionLifecycle.PAUSED,
         SessionLifecycle.WAITING_INPUT,
     }:

@@ -254,6 +254,10 @@ class _ActionRuntime(Generic[StateT, ActionT]):
         owner_generation = 0
         session_handle = getattr(engine, "_session_handle", None)
         if session_handle is not None:
+            if session_handle._runtime.work_runtime is not None:
+                session_handle._capture_work_fork_boundary(
+                    state, engine._active_task_obj or engine._active_task, record.step_id,
+                )
             owner_generation = session_handle.current_head.generation.value
         state_metadata = getattr(state, "metadata", None)
         if session_handle is None and isinstance(state_metadata, dict):

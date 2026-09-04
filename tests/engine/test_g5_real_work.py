@@ -10,6 +10,52 @@ from qitos.core.work_graph import WorkGraph
 from test_work_runtime import _Agent, _PauseAtFirstBoundary
 
 
+@pytest.mark.parametrize("operation", ["spawn", "delegate", "fan_out"])
+def test_model_adapter_declares_real_children_during_session_run(operation):
+    from qitos.core.action import Action
+    from qitos.core.decision import Decision
+    from qitos.core.agent_spec import AgentRegistry, AgentSpec
+    from qitos.kit.tool.agent.durable_adapter import SpawnTool
+    from qitos.kit.tool.delegate import DelegateTool
+    from qitos.kit.tool.fanout import FanOutTool
+    from test_work_runtime import IndependentSchedulerFake
+
+    scheduler = IndependentSchedulerFake()
+    runtime = RuntimeComposition(work_runtime=DurableWorkRuntime(scheduler))
+    registry = AgentRegistry()
+    tools = {"spawn": SpawnTool(), "delegate": DelegateTool(AgentSpec(name="parent", description="child", agent=_Agent()), registry),
+             "fan_out": FanOutTool(registry)}
+    selected = tools[operation]
+    selected.spec.timeout_s = .5
+    payload = {"tasks": [{"agent": "parent", "task": "child"}] } if operation == "fan_out" else {"agent": "parent", "task": "child"}
+    if operation == "delegate":
+        payload.pop("agent")
+
+    class Agent(_Agent):
+        def __init__(self):
+            super().__init__()
+            self.tool_registry.register(selected)
+
+        def decide(self, state, observation):
+            if state.current_step == 0:
+                return Decision.act([Action(selected.name, payload)])
+            return Decision.final(answer="done")
+
+    session = Engine(Agent(), runtime=runtime).session("model adapter parent")
+    try:
+        result = session.run()
+        assert result.records[0].action_results[0].status == "success", result.records[0].action_results
+        graph = WorkGraph.from_canonical_dict(session.inspect().work_graph)
+        assert len(scheduler.requests) == 1
+        descriptor = scheduler.requests[0].descriptor
+        assert len(descriptor.child_session_ids) == 1
+        child_head = runtime.checkpoint_store.get_session_head(descriptor.child_session_ids[0])
+        assert child_head is not None and child_head.session_id != session.session_id.value
+        assert len(graph.work_items) == 2
+    finally:
+        runtime.work_runtime.close()
+
+
 @pytest.mark.parametrize("child_fails", [False, True])
 def test_real_child_session_completion_closes_durable_join(child_fails):
     root = RuntimeComposition(lifecycle_policy=_PauseAtFirstBoundary())

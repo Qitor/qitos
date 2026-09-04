@@ -441,3 +441,27 @@ Logs: /tmp/qitos-g5-image-build{,-02}.log. The consumer now checks both canonica
 ToolResult and the documented trace-safe projection schema, retaining all eleven
 required tool-status assertions. Neither previous final text nor publication
 alone constitutes a passed tool consumer.
+
+### First passing installed consumers and in-loop durable work repair
+
+Coding attempt 6 and research attempt 2 passed their installed-wheel checks
+using framework code 7cf8bf6 and c02f1b7 consumer scripts, outside the repository
+with PYTHONPATH unset. Coding read 305 records; research read 125. Public exports
+round-tripped every record and explicitly declared privacy-projection loss.
+Logs: /tmp/qitos-g5-installed-coding-06.log and
+/tmp/qitos-g5-installed-research-02.log. They are intermediate qualifications;
+the final tree, final wheel and default selectors still require rerunning.
+The 797-test core/engine/checkpoint/provider/audit combination passed in 13.41 s
+on c02f1b7. No full-tree success is implied.
+
+Three additional model-adapter regressions reproduced an actual lifecycle
+failure: spawn/delegate/fan-out called public fork while the source was RUNNING.
+The first fixture attempt had invalid AgentSpec arguments; corrected execution
+failed all three assertions in 0.36 s. The fix records a quiescent pre-action
+snapshot and passes that identity into the sole private fork implementation.
+Public fork keeps its lifecycle checks; arbitrary running heads cannot fork.
+The fixed three cases passed in 0.44 s, and 50 adjacent work/fork/Session tests
+passed in 5.84 s. A separate native-model composition test also executes the
+adapter and verifies a real independent child head. Changed-module flake8/mypy
+passed. Logs: /tmp/qitos-g5-model-work-{red-02,fix-01,adjacent-02}.log and
+/tmp/qitos-g5-native-work-01.log.
