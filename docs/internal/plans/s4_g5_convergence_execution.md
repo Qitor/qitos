@@ -351,3 +351,17 @@ is claimed. Explicit publication rollback uncertainty also preserves its effect
 reference. After repair: 46 passed, 1.45 s (work runtime, real child failure,
 process tool truth, publication); prior 3-failure intermediate output retained.
 Installed consumers have NOT passed yet.
+
+### User-authorized supplemental live provider validation
+
+The user explicitly authorized real model calls after the original offline-only
+boundary. Live checks are now allowed as bounded informational capability evidence;
+they do not replace deterministic framework gates. No private credentials file
+is read, and supplied secrets are never committed or written to qualification
+artifacts. Endpoint and key values are intentionally absent from this record.
+
+Preparation found an SDK accounting gap: OpenAI client construction inherited
+the SDK retry default. The regression failed (1 failed, 0.25 s) because
+max_retries was unset. Shared sync/async client options now set max_retries=0,
+so an SDK cannot silently repeat an admitted request. Provider compatibility
+and conformance checks passed after the fix (see /tmp/qitos-g5-sdk-retry-fixed.log).

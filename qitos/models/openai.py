@@ -62,6 +62,9 @@ def _openai_client_options(model: Any) -> Dict[str, Any]:
         "api_key": model.api_key,
         "base_url": model.base_url,
         "timeout": model.timeout,
+        # Admission owns request accounting. Hidden SDK retries would issue
+        # additional requests without another durable budget reservation.
+        "max_retries": 0,
     }
     headers = dict(getattr(model, "default_headers", {}) or {})
     if headers:
