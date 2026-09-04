@@ -613,3 +613,15 @@ confirmed no added IDs; every removed finding is preserved in
 for legacy delegate/fan-out shrink with their resolved source findings.
 Logs: `/tmp/qitos-g5-ratchet-{04,shrink-01}.log`. This is a baseline maintenance
 step; the final full check is still required on the promoted candidate identity.
+
+### Controlled current qualification registry
+
+The requirement table now points to actual configured context/compaction,
+SQLite accounting, real Docker process cleanup, MCP retention and child-session
+completion tests rather than manifest-shape surrogates. The integration-owned
+`qualify_g5_composition.py` accepts only this fixed table. It checks every wheel
+Python source byte against the clean committed tree, runs the controlled nodes
+with JUnit, and runs each standalone consumer in an independent fresh wheel
+environment. All Docker execution is serial. It does not execute code named by
+a producer manifest, and it writes evidence outside the source tree.
+Qualification pins remain empty until its real results are committed.
