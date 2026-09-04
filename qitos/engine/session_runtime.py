@@ -1523,6 +1523,13 @@ class Session:
                         raise _session_error(SessionErrorCode.SUPERSEDED_OWNER,
                                              "The Session's work ownership has transferred.", recoverable=False)
                     state, task, next_step = self._restore_core_state(snapshot)
+                    if str(getattr(state, "stop_reason", "")) == "interrupt":
+                        raise _session_error(
+                            SessionErrorCode.UNSUPPORTED_CAPABILITY,
+                            "Durable interactive approval requires a supported approval resolver.",
+                            recoverable=True,
+                            metadata={"capability": "session.approval.resume"},
+                        )
                     self._restore_budget(snapshot)
                     self._restore_runtime_components(
                         snapshot, state=state, task=task, step_id=next_step
@@ -1577,9 +1584,20 @@ class Session:
                         is PersistenceReceiptStatus.PERSISTED
                     ):
                         terminal = _terminal_lifecycle(result)
+                        if terminal is SessionLifecycle.WAITING_INPUT:
+                            self._transition(SessionLifecycle.PAUSE_REQUESTED)
+                            self._transition(SessionLifecycle.PAUSING)
                         self._transition(terminal)
                         current = self._require_head()
-                        self._engine._qitos_tool_batch_snapshot = None
+                        safety = None
+                        if terminal is SessionLifecycle.WAITING_INPUT:
+                            safety = self._runtime.lifecycle_policy.pause_safety(RuntimeSnapshotContext(
+                                engine=self._engine, state=result.state, task=task,
+                                lifecycle=terminal, step_id=int(result.state.current_step), session=self,
+                            ))
+                            safety.require_migratable()
+                        else:
+                            self._engine._qitos_tool_batch_snapshot = None
                         self._commit_snapshot(
                             state=result.state,
                             task=task,
@@ -1588,6 +1606,7 @@ class Session:
                                 getattr(result.state, "current_step", next_step)
                             ),
                             expected_head=current,
+                            pause_safety=safety,
                         )
                     return result
             finally:
@@ -2995,6 +3014,8 @@ def _task_from_progress(progress: Mapping[str, Any]) -> str | Task:
 
 def _terminal_lifecycle(result: "EngineResult[Any]") -> SessionLifecycle:
     reason = str(getattr(result.state, "stop_reason", "") or "")
+    if reason == "interrupt":
+        return SessionLifecycle.WAITING_INPUT
     if reason.startswith("cancelled"):
         return SessionLifecycle.CANCELLED
     if reason == "unrecoverable_error":

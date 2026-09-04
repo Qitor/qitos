@@ -537,3 +537,24 @@ successful and failed child heads. All 170 composition/audit/work/tracing tests
 passed in 32.41 s (`/tmp/qitos-g5-composed-regressions-05.log`); changed static
 checks passed. These tests ran on 8f17ba6 plus the recorded working changes,
 including the process completion repair subsequently committed as e30975a.
+
+### Approval interruption and persisted post-dispatch accounting
+
+A new public Session probe reproduced approval interruption being treated as
+recovery, followed by `IncompleteToolBatchError` and a failed Session (1 failed,
+0.78 s; `/tmp/qitos-g5-pending-approval-red.log`). The repair records the
+non-executed approval slot, completes its quiescence receipt, then stops the sole
+Engine loop. Session follows pause-requested/pausing to waiting-input and keeps
+its snapshot. The historical Engine test expecting recovery and a second model
+request was corrected to assert one interrupted step, with that semantic reason.
+Fix attempts 01/02 exposed lifecycle-transition and quiescence defects; attempt
+03 exposed an invalid operation ID in the new fork fixture. All are preserved.
+The corrected test verifies source-preserving fork and typed unsupported approval
+resume (steering does not authorize effects). 329 Engine/Session/recovery/audit
+tests passed in 16.09 s (`/tmp/qitos-g5-interrupt-engine-targets-01.log`), and
+stable flake8/mypy passed on c961c09 plus this repair.
+
+A separate post-dispatch continuation-capture failure test passed in 0.67 s:
+exactly one request remained consumed in SQLite after closing/reopening the
+composition; terminal restore did not resend it. The original stage, sent flag
+and typed failure remained visible. Log: `/tmp/qitos-g5-budget-persistence-01.log`.

@@ -393,3 +393,13 @@ an explicit permission/effect operation. The candidate has focused regression
 evidence, but installed consumers, full platform qualification and final gates
 remain open. See [the execution ledger](../internal/plans/s4_g5_convergence_execution.md).
 No primary promotion, default Trajectory switch or release is asserted here.
+
+### G5 approval boundary
+
+A tool requiring approval with `auto_approve=False` records a skipped,
+non-executed tool slot and stops in `waiting_input`. Its safe immutable snapshot
+can be inspected and forked without changing the source. The public durable
+approval-response protocol is not implemented: attempting to execute that
+restored state raises `unsupported_capability` for `session.approval.resume`
+before a model or tool call. Steering is not an approval receipt. Existing
+cooperative Python pause and restore-time steering remain supported.

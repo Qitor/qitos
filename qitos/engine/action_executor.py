@@ -537,6 +537,9 @@ class ActionExecutor:
             cancel_callback=cancel_callback,
         )
 
+        from .interrupt import EngineInterrupt
+
+        approval_interrupt = None
         if prevented_status is None:
             def _late_callback() -> None:
                 self._late_worker_completed(
@@ -545,16 +548,23 @@ class ActionExecutor:
                     outcome_unknown=declaration is not None,
                 )
 
-            action_result = self._execute_one(
-                action,
-                env=env,
-                state=state,
-                tracker=tracker,
-                segment_index=segment_index,
-                runtime_context=runtime_context,
-                effect_declared=declaration is not None,
-                late_worker_callback=_late_callback,
-            )
+            try:
+                action_result = self._execute_one(
+                    action,
+                    env=env,
+                    state=state,
+                    tracker=tracker,
+                    segment_index=segment_index,
+                    runtime_context=runtime_context,
+                    effect_declared=declaration is not None,
+                    late_worker_callback=_late_callback,
+                )
+            except EngineInterrupt as exc:
+                approval_interrupt = exc
+                action_result = self._terminal_result(
+                    action, ActionStatus.SKIPPED, "approval_required", segment_index=segment_index,
+                )
+                action_result.metadata.update(executed=False, error_code="approval_required")
         elif prevented_status is ActionStatus.ERROR:
             action_result = self._error_result(action, prevented_reason)
             action_result.metadata.update(
@@ -600,6 +610,8 @@ class ActionExecutor:
             owner_generation=ledger.owner_generation,
             on_committed=_on_committed,
         )
+        if approval_interrupt is not None:
+            raise approval_interrupt
         return receipt
 
     def _canonicalize_action_result(self, item: ActionResult) -> ToolResult:

@@ -1971,7 +1971,17 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
         }
 
     def _recover(self, state: StateT, phase: RuntimePhase, exc: Exception) -> bool:
+        from .interrupt import EngineInterrupt
+
         step_id = int(getattr(state, "current_step", len(self.records) - 1) or 0)
+        if isinstance(exc, EngineInterrupt):
+            state.set_stop(StopReason.INTERRUPT)
+            self._emit(step_id, RuntimePhase.INTERRUPT, payload={
+                "interrupt_id": exc.interrupt_id,
+                "approval_required": True,
+                "resume_supported": False,
+            })
+            return False
         self._report_runtime_exception(phase, step_id, exc)
         return self._control_runtime.recover(state, phase, exc)
 

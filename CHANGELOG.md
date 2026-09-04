@@ -94,6 +94,8 @@ How to update:
 
 ### Fixed
 
+- Pending tool approval now records a non-executed slot and stops the canonical loop in waiting-input, instead of entering model recovery. Durable approval response remains explicitly unsupported.
+
 - Configured context budget policies now reach request selection; configured compaction publishes a canonical receipt with explicit projection loss while retaining the full conversation.
 
 - Docker process completion now requires the owned exec channel and a confirmed backend exit; mutable workspace state cannot forge success. Unknown cleanup keeps ownership and its failure receipt.

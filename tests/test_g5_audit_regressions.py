@@ -188,6 +188,37 @@ def test_g5_b1_missing_capture_preserves_dispatch_fact():
     assert raised.value.stage == "decode"
 
 
+def test_g5_b1_capture_failure_persists_budget_without_resend(tmp_path):
+    from qitos.core.session import SessionContractError
+
+    adapter, _ = _provider_request()
+    adapter.qitos_protocol = "json_decision_multi_v1"
+    adapter.qitos_continuation_resolver = None
+    calls = []
+    original = adapter.qitos_transport
+    adapter.qitos_transport = lambda payload: (calls.append(1), original(payload))[1]
+    config = replace(_persisted_config(tmp_path), protocol="json_decision_multi_v1")
+    with build_agent_composition(config, model_override=adapter) as first:
+        session = first.session("capture continuation")
+        result = session.run()
+        identity = session.session_id
+        assert len(calls) == 1
+        assert result.state.stop_reason == "unrecoverable_error"
+        assert session.inspect().budget["model_requests_consumed"] == 1
+        failures = [event.payload["provider_failure"] for event in result.events
+                    if event.payload.get("stage") == "provider_failure"]
+        assert failures[0]["provider_request_sent"] is True
+    with build_agent_composition(config, model_override=adapter) as fresh:
+        with pytest.raises(SessionContractError):
+            fresh.restore(identity)
+        assert len(calls) == 1
+        head = fresh.runtime.checkpoint_store.get_session_head(identity.value)
+        snapshot = fresh.runtime.checkpoint_store.get_session_snapshot(head.snapshot_id)
+        budget = next(item["payload"] for item in snapshot.payload["components"]
+                      if item["slot"] == "budget_capability")
+        assert budget["model_requests_consumed"] == 1
+
+
 @pytest.mark.parametrize("stage", ["admission", "cancel", "transport", "normalizer",
                                    "decode", "capture", "attachment", "assistant", "response"])
 def test_g5_b1_failure_accounting_is_conserved(stage, monkeypatch):

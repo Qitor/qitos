@@ -188,8 +188,7 @@ class TestEngineIntegration:
     """End-to-end tests with Engine loop."""
 
     def test_needs_approval_in_engine_loop(self):
-        """needs_approval=True tool triggers interrupt in Engine loop,
-        which the engine recovers from."""
+        """Approval interruption stops without spending a second model request."""
         from examples._support import SequenceModel
 
         outputs = [
@@ -200,10 +199,8 @@ class TestEngineIntegration:
         agent = _TestAgent(llm=llm, auto_approve=False)
         engine = Engine(agent=agent, auto_approve=False)
         result = engine.run("test", max_steps=5, return_state=True)
-        # Engine recovers from interrupt and continues
-        # The SequenceModel provides "Final Answer: Done." on next step
-        assert result.state.stop_reason == "final"
-        assert result.step_count >= 2  # At least interrupt step + final step
+        assert result.state.stop_reason == "interrupt"
+        assert result.step_count == 1
 
     def test_auto_approve_in_engine_loop(self):
         """With auto_approve=True, needs_approval tools execute normally."""
