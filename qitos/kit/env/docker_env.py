@@ -46,7 +46,9 @@ def _tree_digest(root: Path) -> str:
             continue
         digest.update(relative.as_posix().encode("utf-8"))
         digest.update(b"\0")
-        digest.update(path.read_bytes())
+        with path.open("rb") as stream:
+            while chunk := stream.read(1024 * 1024):
+                digest.update(chunk)
         digest.update(b"\0")
     return digest.hexdigest()
 
@@ -797,28 +799,12 @@ class DockerEnv(HostEnv):
         self._private_staging_root = str(staging)
         staged_input = staging / "input"
 
-        def ignore(directory: str, names: list[str]) -> set[str]:
-            base = Path(directory)
-            ignored = {
-                name for name in names
-                if (base / name).is_symlink()
-                or name.lower() in {".git", ".ssh", ".gnupg", ".aws", ".qitos", ".azure", ".netrc", ".gitconfig"}
-                or name.lower().startswith(".env")
-                or "secret" in name.lower() or "credential" in name.lower()
-                or name.lower().endswith((".pem", ".key", ".p12"))
-            }
-            return ignored
+        from ._input_staging import _stage_input
 
-        shutil.copytree(
-            source,
-            staged_input,
-            symlinks=True,
-            ignore=ignore,
+        self._input_files = _stage_input(
+            source, staged_input,
+            byte_limit=min(self.policy.limits.tmpfs_bytes, self.policy.limits.disk_bytes),
         )
-        self._input_files = {
-            item.relative_to(staged_input).as_posix(): hashlib.sha256(item.read_bytes()).hexdigest()
-            for item in staged_input.rglob("*") if item.is_file() and not item.is_symlink()
-        }
         self.input_digest = _tree_digest(staged_input)
         self.workspace_digest = self.input_digest
         archive = staging / "input.tar"

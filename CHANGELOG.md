@@ -94,6 +94,8 @@ How to update:
 
 ### Fixed
 
+- Docker input staging now rejects file-swap races, hard links, special files and input bounds through descriptor-relative copies; protected names and symlinks are excluded before data reads.
+
 - Pending tool approval now records a non-executed slot and stops the canonical loop in waiting-input, instead of entering model recovery. Durable approval response remains explicitly unsupported.
 
 - Configured context budget policies now reach request selection; configured compaction publishes a canonical receipt with explicit projection loss while retaining the full conversation.

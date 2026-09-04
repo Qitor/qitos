@@ -425,3 +425,13 @@ An abnormal backend exit remains unknown. Cleanup may remove its owned sandbox,
 but retains the unresolved process ownership and repeats the typed cleanup
 failure on subsequent close calls. No hard cancellation of Python threads or
 remote MCP/HTTP requests is claimed.
+
+### G5 input staging bounds
+
+Private-copy staging opens every ancestor and selected file without following
+links, checks the opened inode and detects modification during copying. It
+shares publication's protected-name policy, skips symlinks, and rejects hard
+links and special files. Copies use 1 MiB chunks and stop at the smaller of the
+configured disk/tmpfs byte ceilings. More than 10,000 entries or 64 directory
+levels are typed platform limits. The staging directory and its tar archive
+are task-owned; no host workspace bind or cleanup publication is introduced.

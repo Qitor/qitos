@@ -587,3 +587,17 @@ pid-limit rejection and self-reaping children, bounded RLIMIT_AS memory pressure
 and label-scoped absence after cleanup. Memory pressure was intentionally
 limited below the cgroup OOM boundary; it does not claim an OOM-kill experiment.
 Log: `/tmp/qitos-g5-resource-docker-01.log`. All Docker runs were serial.
+
+### Input-staging race extension to G5-C1
+
+A temporary-directory attack replaced a checked source file with a symlink just
+before the copying open. The 9a9cfe2 implementation imported outside-input
+bytes and did not reject (`/tmp/qitos-g5-staging-race-red.log`: 1 failed,
+0.34 s). The fix reuses publication's descriptor-root and protected-path policy
+for bounded descriptor-relative input copying. Atomic no-follow open and inode
+checks reject the race. Special-file, hard-link, size, protected-name and symlink
+tests were added without using any real user directory as an attack target.
+Thirty-eight adjacent offline tests passed in 0.40 s; 14 combined real Docker,
+sandbox Session and staging regressions passed in 33.19 s
+(`/tmp/qitos-g5-staging-docker-01.log`). Changed-module flake8/mypy passed.
+The chunked digest preserves the existing input digest definition.
