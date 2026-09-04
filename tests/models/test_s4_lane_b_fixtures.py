@@ -5,6 +5,7 @@ import json
 import re
 import runpy
 import subprocess
+import sys
 from pathlib import Path
 
 from qitos.models.anthropic import AnthropicModel
@@ -132,7 +133,7 @@ def test_lane_b_producer_manifest_binds_current_bytes_and_test_nodes() -> None:
         )
     collected = subprocess.run(
         [
-            "/opt/anaconda3/bin/python",
+            sys.executable,
             "-m",
             "pytest",
             "--collect-only",

@@ -1,0 +1,9 @@
+# Local fixture tags are not published images or historical G5 image identities.
+FROM python:3.12-slim-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends bash git procps ripgrep util-linux \
+    && apt-get clean
+RUN python -m pip install --no-cache-dir pytest==9.0.3
+RUN useradd --uid 65532 --create-home sandbox
+USER sandbox
+WORKDIR /workspace
+CMD ["sleep", "infinity"]

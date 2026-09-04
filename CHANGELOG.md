@@ -19,6 +19,8 @@ How to update:
 
 ### Changed
 
+- Make CI prerequisites explicit (build tools, asyncio plugin, full history and owned Docker fixtures), preserve the qualified typing context, and remove test-only interpreter and queue-scheduling assumptions. Remote Python 3.10 publication failures remain visible under the runtime freeze.
+
 - Prepare `master` as the default development branch; run CI/docs checks on master, main, the integration branch and PRs, with bounded jobs and retained test/build artifacts. Publication remains explicit.
 
 ### Documentation consolidation

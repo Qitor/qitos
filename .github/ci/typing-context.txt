@@ -1,0 +1,6 @@
+# Diagnostic context observed in the qualified G5 environment.
+# These are CI-only typing inputs, not package runtime dependency constraints.
+# The full Python matrix and dependency audit continue resolving runtime extras.
+types-requests==2.32.4.20260107
+numpy==2.4.6
+openai==2.41.0

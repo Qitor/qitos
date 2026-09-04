@@ -1,11 +1,9 @@
 """Tests for bounded queue capacity in EventStream and DurabilityManager."""
 from __future__ import annotations
 
-import asyncio
 import logging
-import queue
+import threading
 
-import pytest
 
 from qitos.engine.events import EventStream, EngineEvent, EngineEventType
 from qitos.checkpoint.durability import DurabilityManager, DurabilityMode
@@ -66,22 +64,32 @@ def test_durability_manager_sync_has_no_queue():
 
 
 def test_durability_manager_full_queue_logs_warning(caplog):
-    """Putting to a full DurabilityManager queue logs a warning instead of blocking."""
-    store = InMemoryCheckpointStore()
-    dm = DurabilityManager(store, mode=DurabilityMode.ASYNC)
+    """A held real store write makes queue saturation deterministic."""
+    entered = threading.Event()
+    release = threading.Event()
+
+    class HeldStore(InMemoryCheckpointStore):
+        def put(self, *args, **kwargs):
+            entered.set()
+            assert release.wait(10), "test did not release the owned store worker"
+            return super().put(*args, **kwargs)
+
+    dm = DurabilityManager(HeldStore(), mode=DurabilityMode.ASYNC)
+    cp = Checkpoint(
+        id=CheckpointId("cp1"), thread_id="t1", step=0, state_data={"x": 1}
+    )
+    config = CheckpointConfig(thread_id="t1")
     try:
-        assert dm._queue is not None
-        # Fill the queue to capacity with dummy items
+        dm.put(config, cp, {}, {})
+        assert entered.wait(5), "owned store worker did not start"
         for _ in range(4096):
-            dm._queue.put_nowait("dummy")
-        # Now try to put a real checkpoint — should log a warning, not block
-        cp = Checkpoint(
-            id=CheckpointId("cp1"), thread_id="t1", step=0, state_data={"x": 1}
-        )
+            dm.put(config, cp, {}, {})
         with caplog.at_level(logging.WARNING, logger="qitos.checkpoint.durability"):
-            dm.put(CheckpointConfig(thread_id="t1"), cp, {}, {})
+            _, receipt = dm.put_with_receipt(config, cp, {}, {})
+        assert receipt.state.value == "rejected"
         assert any("queue full" in rec.message.lower() for rec in caplog.records)
     finally:
+        release.set()
         dm.shutdown()
 
 

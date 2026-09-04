@@ -101,3 +101,28 @@ CI now triggers for master/main/the feature branch and PRs, with read-only token
 permissions, bounded jobs and obsolete-run concurrency cancellation. Existing
 quality, coverage, audit and package gates remain. Release workflow is unchanged;
 no PyPI publication or documentation deployment is requested or performed.
+
+
+### Remote CI first attempt: eb3fe2f
+
+Both docs workflows passed. Package, lint-stable and architecture jobs passed.
+The complete CI run exposed missing runner prerequisites (setuptools,
+pytest-asyncio, qualification Docker images), shallow-history failures and an
+existing queue test race. Fixes add explicit CI-only setup, full history and a
+real event-controlled store fixture. The source manifest collection test now
+uses sys.executable rather than a machine-specific interpreter.
+
+Typing diagnostics require the same external stub/import context as the local
+qualification: types-requests 2.32.4.20260107, numpy 2.4.6, openai 2.41.0.
+Without this, bundled requests annotations changed diagnostics, and numpy 2.5.2
+uses syntax incompatible with the frozen mypy target. These are CI diagnostic
+inputs only; package dependencies and static allowances are unchanged. Runtime
+matrix/audit jobs still resolve declared extras. Audit identified the runner's
+old setuptools; CI explicitly upgrades its build tool rather than ignoring the
+advisory. No release runs were triggered.
+
+A runtime blocker is independently visible: Python 3.10 publication calls
+hashlib.file_digest, which was introduced in 3.11 (qitos/kit/env/_publication.py).
+It remains unfixed under the qitos/ source freeze. No Python matrix row is removed,
+xfail added, or default-branch stability claimed. Original source-only S4 commits
+also require remote evidence availability; local refs remain preserved.

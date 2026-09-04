@@ -62,3 +62,12 @@ checks remain blocking job results. PyPI remains release/manual-only. No secrets
 are supplied to ordinary CI. No branch ruleset is changed by this task.
 Remote CI status must be read for the exact promotion SHA; local G5 qualification
 is not evidence that a later GitHub run passed.
+
+
+CI qualification images are built from `.github/ci/Dockerfile.sandbox` on each
+fresh runner. Its three local compatibility tags satisfy existing test fixtures;
+they do not claim byte identity with historical locally built images. The image
+is never published. `.github/ci/typing-context.txt` fixes the external annotation
+context for the existing diagnostic baseline; full tests and audit still resolve
+the declared runtime extras. Build tools and the asyncio plugin are CI tooling,
+not additions to QitOS package dependencies. No failing matrix row is omitted.
