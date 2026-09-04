@@ -3,6 +3,9 @@ title: "MLflow 集成"
 description: "将 QitOS 运行指标流式传输到 MLflow 进行实验追踪与可视化。"
 ---
 
+<Note>高级/兼容程序化示例。此页代码片段仅作机制说明；HostEnv 或 workspace 不提供隔离。新项目先按 [Quickstart](/zh/quickstart) 使用 Session 与明确资源配置。</Note>
+
+
 `MlflowTraceProcessor` 实现了 `TraceProcessor` 抽象基类，可将 QitOS 运行数据流式传输到 MLflow 追踪服务器。挂载后，它会在运行过程中自动记录每个 span 的指标，并在 trace 结束时写入最终汇总。
 
 ## 安装
@@ -16,6 +19,8 @@ pip install qitos[mlflow]
 ---
 
 ## 快速上手
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.tracing import add_trace_processor
@@ -88,6 +93,8 @@ result = agent.run(task="...", return_state=True)
 mlflow server --host 127.0.0.1 --port 5000
 ```
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.tracing import add_trace_processor
 from qitos.tracing.mlflow_processor import MlflowTraceProcessor
@@ -108,6 +115,8 @@ result = agent.run(task="...", return_state=True)
 ## 与其他处理器组合
 
 `add_trace_processor` 会将处理器追加到全局列表，因此可以将 `MlflowTraceProcessor` 与其他 `TraceProcessor` 组合使用，包括 `WandbTraceProcessor`：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.tracing import add_trace_processor
@@ -132,6 +141,8 @@ result = agent.run(task="...", return_state=True)
 
 若要替换所有处理器（移除默认写入器），请使用 `set_trace_processors`：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.tracing import set_trace_processors
 
@@ -145,6 +156,8 @@ set_trace_processors([mlflow_processor, wandb_processor])
 ### auto_end_run
 
 默认 `auto_end_run=True`，处理器会在 `on_trace_end` 触发时自动调用 `mlflow.end_run()`。如果需要在 QitOS trace 结束后继续向同一 MLflow 运行写入自定义指标，可设置 `auto_end_run=False`：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 import mlflow
@@ -169,6 +182,8 @@ mlflow.end_run()
 
 调用 `shutdown()` 可提前关闭 MLflow 运行（例如在 `SIGTERM` 信号处理或 notebook 清理步骤中）：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 processor.shutdown()
 ```
@@ -178,6 +193,8 @@ processor.shutdown()
 ### force_flush()
 
 调用 `force_flush()` 可确保所有缓冲指标已写入 MLflow 追踪服务器：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 processor.force_flush()

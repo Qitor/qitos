@@ -1,34 +1,19 @@
-> **Customize this file**: Tailor this template to your project by noting specific contribution types you're looking for, adding a Code of Conduct, or adjusting the writing guidelines to match your style.
+# Contributing to QitOS documentation
 
-# Contribute to the documentation
+Start with the root working agreement and docs/AGENTS.md. Correct the existing
+page before creating a parallel tutorial. Pair English and Chinese changes,
+register complete examples in tutorial-contracts.json, and update docs.json.
 
-Thank you for your interest in contributing to our documentation! This guide will help you get started.
+Python fences are illustrative fragments unless the page binds a complete
+executable example. Signatures use text fences. Configuration fragments are
+labelled; full agent.yaml is parsed by load_agent_config. Never execute arbitrary
+shell from prose. tests/test_docs_golden_paths.py runs only named offline lessons.
 
-## How to contribute
+Run the checks in README.md, the tutorial tests, and git diff --check. Inspect
+real Mintlify pages, not just file existence. Document tested source identity,
+Python and tool versions, runtime boundaries and failures. Keep current state
+above historical records; preserve historical evidence and raw-log digests.
 
-### Option 1: Edit directly on GitHub
-
-1. Navigate to the page you want to edit
-2. Click the "Edit this file" button (the pencil icon)
-3. Make your changes and submit a pull request
-
-### Option 2: Local development
-
-1. Fork and clone this repository
-2. Install the Mintlify CLI: `npm i -g mint`
-3. Create a branch for your changes
-4. Make changes
-5. Navigate to the docs directory and run `mint dev`
-6. Preview your changes at `http://localhost:3000`
-7. Commit your changes and submit a pull request
-
-For more details on local development, see our [development guide](development.mdx).
-
-## Writing guidelines
-
-- **Use active voice**: "Run the command" not "The command should be run"
-- **Address the reader directly**: Use "you" instead of "the user"
-- **Keep sentences concise**: Aim for one idea per sentence
-- **Lead with the goal**: Start instructions with what the user wants to accomplish
-- **Use consistent terminology**: Don't alternate between synonyms for the same concept
-- **Include examples**: Show, don't just tell
+Do not publish secrets, raw provider payloads or local paths. Remote branch
+sync, default-branch promotion, package release and docs deployment are separate
+operations requiring the applicable authorization.

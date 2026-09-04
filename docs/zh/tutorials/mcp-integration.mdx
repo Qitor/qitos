@@ -9,6 +9,8 @@ Model Context Protocol（MCP）是一个开放标准，用于将 AI 系统连接
 
 QitOS 内置两种传输实现。对于以命令行进程方式运行的本地 MCP 服务器，使用 `MCPServerStdio`：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.mcp import MCPServerStdio
 
@@ -20,6 +22,8 @@ await server.connect()
 ```
 
 对于提供 HTTP 端点的远程 MCP 服务器，使用 `MCPServerStreamableHttp`：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.mcp import MCPServerStreamableHttp
@@ -33,6 +37,8 @@ await server.connect()
 
 两种传输都会在 `connect()` 期间自动完成 MCP 初始化握手。连接成功后，可以列出可用工具：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 tools = await server.list_tools()
 for tool in tools:
@@ -44,6 +50,8 @@ for tool in tools:
 ## Step 2: 将 MCP 工具桥接到 QitOS
 
 `mcp_server_to_function_tools` 函数将已连接的 MCP 服务器上的每个工具转换为 `FunctionTool` 实例：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.mcp import MCPServerStdio, mcp_server_to_function_tools
@@ -61,12 +69,16 @@ tools = await mcp_server_to_function_tools(server)
 
 当需要将多个服务器桥接到同一注册表时，可以添加名称前缀来消除歧义：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 fs_tools = await mcp_server_to_function_tools(server, name_prefix="fs")
 # 工具名称变为：fs__read_file、fs__write_file 等
 ```
 
 像注册其他工具一样，将桥接后的工具注册到 `ToolRegistry`：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos import ToolRegistry
@@ -82,6 +94,8 @@ MCP 服务器通常暴露很多工具，但你的智能体可能只需要其中�
 
 **仅允许特定工具：**
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.mcp import ToolFilter, mcp_server_to_function_tools
 
@@ -91,6 +105,8 @@ tools = await mcp_server_to_function_tools(server, tool_filter=tool_filter)
 
 **阻止特定工具：**
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 tool_filter = ToolFilter(blocked_tool_names={"delete_file", "move_file"})
 tools = await mcp_server_to_function_tools(server, tool_filter=tool_filter)
@@ -98,12 +114,16 @@ tools = await mcp_server_to_function_tools(server, tool_filter=tool_filter)
 
 **自定义过滤函数：**
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 tool_filter = ToolFilter(filter_func=lambda name: name.startswith("read_"))
 tools = await mcp_server_to_function_tools(server, tool_filter=tool_filter)
 ```
 
 可以同时组合允许列表和阻止列表。工具名必须在允许列表中（如果设置了的话）且不在阻止列表中：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 tool_filter = ToolFilter(
@@ -123,6 +143,8 @@ tool_filter = ToolFilter(
 ## Step 4: 异步生命周期
 
 MCP 服务器连接持有资源（子进程、HTTP 客户端），必须进行清理。务必将 `connect()` 与 `cleanup()` 配对使用：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.mcp import MCPServerStdio, mcp_server_to_function_tools, ToolFilter
@@ -152,6 +174,8 @@ finally:
 `MCPServerStdio.cleanup()` 终止子进程（先 `SIGTERM`，5 秒超时后 `SIGKILL`）。`MCPServerStreamableHttp.cleanup()` 关闭 HTTP 客户端会话。
 
 完整的智能体集成模式示例：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos import ToolRegistry

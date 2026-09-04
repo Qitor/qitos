@@ -3,6 +3,9 @@ title: "Snowl Integration"
 description: "Connect QitOS agents to Snowl for evaluation, comparison, and production deployment."
 ---
 
+<Warning>Historical adapter design / 历史适配器设计。ToolMeta examples are not G5 APIs. Use the third-party extension guide for current contracts; this page is not executable qualification.</Warning>
+
+
 QitOS provides export APIs that allow Snowl (or any compatible adapter) to consume agent configuration, tool permissions, critic traces, and handoff traces. This guide covers the three integration paths and walks through each export API.
 
 ---
@@ -21,7 +24,7 @@ QitOS provides export APIs that allow Snowl (or any compatible adapter) to consu
 
 `Engine.export_config()` returns an `EngineConfig` snapshot capturing the agent's runtime configuration:
 
-```python
+```text
 from qitos.engine import Engine
 
 engine = Engine(agent=my_agent, budget=budget, critics=[critic])
@@ -62,7 +65,7 @@ config_dict = config.to_dict()
 
 `ToolRegistry.export_permissions()` returns a list of `ToolPermissionSpec` objects describing each tool's capability and safety profile:
 
-```python
+```text
 from qitos.core import ToolRegistry, ToolMeta, ToolPermission
 
 registry = ToolRegistry()
@@ -104,7 +107,7 @@ for spec in specs:
 
 `EngineResult` includes `critic_traces` — a list of `CriticTrace` records from every critic evaluation during the run:
 
-```python
+```text
 from qitos.engine import Engine
 
 result = engine.run(task="Analyze this document")
@@ -133,7 +136,7 @@ for trace in result.critic_traces:
 
 If you have raw `StepRecord.critic_outputs` instead of `EngineResult`:
 
-```python
+```text
 from qitos.engine.states import CriticTrace
 
 traces = []
@@ -159,7 +162,7 @@ for record in result.records:
 
 `EngineResult` includes `handoff_traces` — a list of `HandoffTrace` records from every agent handoff during the run:
 
-```python
+```text
 for trace in result.handoff_traces:
     print(f"Step {trace.step_id}: {trace.from_agent} → {trace.to_agent} "
           f"strategy={trace.context_strategy} msgs={trace.messages_passed}")
@@ -177,7 +180,7 @@ for trace in result.handoff_traces:
 
 ### Manual Extraction from RuntimeEvents
 
-```python
+```text
 from qitos.engine.states import HandoffTrace, RuntimePhase
 
 traces = []
@@ -200,7 +203,7 @@ for event in result.events:
 
 Develop an agent in QitOS, then evaluate it in Snowl:
 
-```python
+```text
 # 1. Build and run in QitOS
 from qitos import AgentModule, Engine, ToolRegistry, ToolMeta, ToolPermission
 

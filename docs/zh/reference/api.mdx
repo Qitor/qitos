@@ -5,7 +5,9 @@ description: "QitOS 公开 Python API 的完整参考。这里列出的符号都
 
 本页列出的符号都可以直接这样导入：
 
-```python
+Signature reference (not executable):
+
+```text
 from qitos import AgentModule, Engine, Decision, ...
 ```
 
@@ -17,13 +19,17 @@ from qitos import AgentModule, Engine, Decision, ...
 
 `AgentModule` 是 QitOS 的策略层。你通过继承它来定义智能体的状态形状、系统提示词、决策逻辑与归约规则；真正的执行循环由 `Engine`（执行内核）驱动。
 
-```python
+Signature reference (not executable):
+
+```text
 class AgentModule(ABC, Generic[StateT, ObservationT, ActionT])
 ```
 
 **构造函数**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(
     self,
     tool_registry: Any = None,
@@ -51,7 +57,9 @@ def __init__(
 <AccordionGroup>
 <Accordion title="init_state（必需）">
 
-```python
+Signature reference (not executable):
+
+```text
 def init_state(self, task: str, **kwargs: Any) -> StateT
 ```
 
@@ -61,7 +69,9 @@ def init_state(self, task: str, **kwargs: Any) -> StateT
 
 <Accordion title="reduce（必需）">
 
-```python
+Signature reference (not executable):
+
+```text
 def reduce(
     self,
     state: StateT,
@@ -76,7 +86,9 @@ def reduce(
 
 <Accordion title="build_system_prompt">
 
-```python
+Signature reference (not executable):
+
+```text
 def build_system_prompt(self, state: StateT) -> str | None
 ```
 
@@ -86,7 +98,9 @@ def build_system_prompt(self, state: StateT) -> str | None
 
 <Accordion title="prepare">
 
-```python
+Signature reference (not executable):
+
+```text
 def prepare(self, state: StateT) -> str
 ```
 
@@ -96,7 +110,9 @@ def prepare(self, state: StateT) -> str
 
 <Accordion title="decide">
 
-```python
+Signature reference (not executable):
+
+```text
 def decide(
     self,
     state: StateT,
@@ -110,7 +126,9 @@ def decide(
 
 <Accordion title="should_stop">
 
-```python
+Signature reference (not executable):
+
+```text
 def should_stop(self, state: StateT) -> bool
 ```
 
@@ -121,7 +139,9 @@ def should_stop(self, state: StateT) -> bool
 
 **`.run()` 方法**
 
-```python
+Signature reference (not executable):
+
+```text
 def run(
     self,
     task: str | Task,
@@ -154,7 +174,9 @@ def run(
 
 `Engine` 是执行内核，负责阶段循环、工具执行、恢复、追踪与停止条件评估。
 
-```python
+Signature reference (not executable):
+
+```text
 class Engine(Generic[StateT, ObservationT, ActionT])
 ```
 
@@ -172,13 +194,17 @@ class Engine(Generic[StateT, ObservationT, ActionT])
 
 最常用方法：
 
-```python
+Signature reference (not executable):
+
+```text
 def run(self, task: str | Task, **kwargs: Any) -> EngineResult[StateT]
 ```
 
 </Accordion>
 
 <Accordion title="EngineResult">
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 @dataclass
@@ -204,13 +230,17 @@ class EngineResult(Generic[StateT]):
 
 `AsyncEngine` 提供非阻塞的智能体执行能力。它封装了同样的 `Engine` 循环，但把阻塞调用放到线程池中执行，适用于 `asyncio` 事件循环。
 
-```python
+Signature reference (not executable):
+
+```text
 class AsyncEngine(Generic[StateT, ObservationT, ActionT])
 ```
 
 **构造函数**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(
     self,
     agent: AgentModule[StateT, ObservationT, ActionT],
@@ -222,7 +252,9 @@ def __init__(
 
 **方法**
 
-```python
+Signature reference (not executable):
+
+```text
 async def arun(self, task: str | Task, **kwargs: Any) -> EngineResult[StateT]
 ```
 
@@ -230,7 +262,9 @@ async def arun(self, task: str | Task, **kwargs: Any) -> EngineResult[StateT]
 
 ---
 
-```python
+Signature reference (not executable):
+
+```text
 async def arun_stream(self, task: str | Task, **kwargs: Any) -> AsyncIterator[EngineEvent]
 ```
 
@@ -238,7 +272,9 @@ async def arun_stream(self, task: str | Task, **kwargs: Any) -> AsyncIterator[En
 
 ---
 
-```python
+Signature reference (not executable):
+
+```text
 def run(self, task: str | Task, **kwargs: Any) -> EngineResult[StateT]
 ```
 
@@ -258,6 +294,8 @@ def run(self, task: str | Task, **kwargs: Any) -> EngineResult[StateT]
 
 `EngineEvent` 是 `AsyncEngine.arun_stream()` 产出的结构化事件。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 class EngineEventType(str, Enum):
     STEP_START = "step_start"
@@ -276,6 +314,8 @@ class EngineEventType(str, Enum):
     # ... 完整列表见 EngineEventType
 ```
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 @dataclass
 class EngineEvent:
@@ -291,7 +331,9 @@ class EngineEvent:
 
 `EventStream` 是一个异步兼容的事件队列，用于消费引擎事件：
 
-```python
+Signature reference (not executable):
+
+```text
 class EventStream:
     def emit(self, event: EngineEvent) -> None       # 线程安全发送
     def emit_sync(self, event: EngineEvent) -> None   # 同步调用者别名
@@ -302,7 +344,11 @@ class EventStream:
 
 </Accordion>
 
+<Accordion title="Decision">
+
 `Decision` 是决策阶段的规范输出（智能体每步的结构化决策）。推荐用工厂方法构造：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 Decision.act(...)

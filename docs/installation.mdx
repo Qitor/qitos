@@ -1,105 +1,52 @@
 ---
 title: "Installation"
-description: "Install QitOS from PyPI or source, with optional extras for models and benchmarks."
+description: "QitOS G5 · Installation"
 ---
 
-<Warning>
-QitOS is currently **Alpha**. The core `AgentModule + Engine` kernel, tracing, and canonical examples are stable. Higher-level APIs may change between releases. Pin your version in production.
-</Warning>
+## Select the source you intend to use
 
-## Requirements
+| Source | Installation | Capability identity |
+|---|---|---|
+| Published PyPI | `python -m pip install qitos` | Published distribution; **does not identify G5** |
+| Reproducible G5 source | Exact commit command below | `717b4cf1b23f2ed252cd03234ffd8605038d9567` |
+| GitHub development branch | `python -m pip install "qitos @ git+https://github.com/Qitor/qitos.git@feat/campaign-absorption"` | Moving development tree; record the resolved SHA |
+| Local wheel | `python -m pip install ./qitos-0.6.0-py3-none-any.whl` | Verify the wheel digest and source receipt |
+| Framework contributor | `python -m pip install -e ".[dev]"` in your clone | Editable checkout, not installed-wheel qualification |
 
-QitOS requires **Python 3.10 or later**. It is tested on Python 3.10, 3.11, and 3.12.
+The G5 source still declares package version 0.6.0. A version string alone
+cannot distinguish it from a published build. This task does not publish a package.
 
-<Note>
-Need a remote model API before running LLM-powered examples? Start with [Prerequisites](/prerequisites) for provider suggestions, API key setup, and compatibility checks.
-</Note>
+## Install the documented runtime
 
-## Standard install
-
-Install the core framework from PyPI:
-
-```bash
-pip install qitos
-```
-
-The core install includes the `AgentModule + Engine` kernel, the `qita` observability tools (QitOS's built-in trace viewer), and the `kit` toolkit modules (pre-built parsers, memory adapters, toolsets, critics, and planners). It does not include the OpenAI client or benchmark dataset loaders.
-
-<Tip>
-If you want to run the minimal coding-agent quickstart immediately, skip straight to `pip install "qitos[models]"`.
-</Tip>
-
-## Optional extras
-
-Use extras to add support for models, benchmarks, or everything at once.
-
-<CodeGroup>
-
-```bash OpenAI support
-pip install "qitos[models]"
-```
-
-```bash Benchmark adapters
-pip install "qitos[benchmarks]"
-```
-
-```bash Everything
-pip install "qitos[all]"
-```
-
-</CodeGroup>
-
-| Extra | What it adds |
-|---|---|
-| `models` | `openai>=1.66.0` — required for Chat Completions and optional Responses API model endpoints |
-| `benchmarks` | `datasets` and `huggingface_hub` — required for GAIA, Tau-Bench, and CyBench adapters |
-| `all` | All of the above |
-
-<Tip>
-If you're just getting started, `pip install "qitos[models]"` is the right choice. It gives you everything you need to run the minimal coding-agent quickstart.
-</Tip>
-
-## Source install
-
-Clone the repository and install in editable mode with all development dependencies:
+Python metadata declares **>=3.10**; G5 qualification used **3.12.7**.
+Other declared versions were not all validated in that round. Use Git and a POSIX
+shell for these commands (Windows users need corresponding activation commands).
 
 ```bash
-git clone https://github.com/Qitor/qitos.git
-cd qitos
-pip install -e ".[dev,models,benchmarks]"
-```
-
-The `dev` extra adds `pytest`, `black`, `flake8`, `mypy`, and the build tools used by the QitOS team.
-
-## Verify your installation
-
-Confirm the package is installed and check the version:
-
-```bash
-python -c "import qitos; print(qitos.__version__)"
-```
-
-You should see output like:
-
-```
-0.3.0
-```
-
-You can also verify the minimal coding agent and both CLIs are on your path:
-
-```bash
-qit demo minimal
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install "qitos @ git+https://github.com/Qitor/qitos.git@717b4cf1b23f2ed252cd03234ffd8605038d9567"
+python -m pip install pytest
 qit --help
 qita --help
 ```
 
-## Next steps
+The historical qualified wheel SHA256 is
+`e8eb54198c49d8082027a4379fa977b96a685224680aea8242573958db60f980`.
+A rebuilt wheel need not have identical archive bytes; compare its source identity.
 
-<CardGroup cols={2}>
-  <Card title="Quickstart" icon="rocket" href="/quickstart">
-    Run your first agent in under 2 minutes
-  </Card>
-  <Card title="Core concepts" icon="book" href="/concepts/agent-module">
-    Understand AgentModule, Engine, State, and Tools
-  </Card>
-</CardGroup>
+## Optional dependencies
+
+The fake arithmetic path needs only the base package and pytest. For an
+OpenAI or OpenAI-compatible client use the same pinned install with
+`qitos[openai] @ git+https://github.com/Qitor/qitos.git@717b4cf1b23f2ed252cd03234ffd8605038d9567`.
+`qitos[models]` also adds LiteLLM. `qitos[docker]` and `qitos[qita]` currently add
+no Python dependencies; Docker still requires a working Docker CLI and daemon.
+MCP needs `[mcp]`, browser tools `[web]`, W&B `[wandb]`, MLflow `[mlflow]`.
+Do not install every extra for the first lesson.
+
+## Verify and continue
+
+Both help commands must exit zero. A missing G5 import usually means a different
+interpreter or an older installed distribution; verify `python -m pip show qitos`
+and recreate the venv from the exact source. Continue to [Quickstart](/quickstart).

@@ -1,5 +1,15 @@
 # S4 candidate audit and G5 repair/convergence plan
 
+Current G5 runtime baseline: `717b4cf1b23f2ed252cd03234ffd8605038d9567`.
+Framework qualification **passed**; S4 local integration **complete**.
+Remote sync: **not performed by this documentation task yet**.
+Default branch and release: **not performed; no readiness claim**.
+Historical G5: 2663 passed / 50 live-opt-in skipped, Python 3.12.7.
+Documentation successors do not inherit that test execution identity.
+
+The dated audit/repair stages below are historical; failures and identities are preserved.
+
+
 Status: reviewed candidates; G5 repair required; no integration or promotion
 Updated: 2026-09-04
 Reviewed integration HEAD: `d78c385e91c37f8522d7696d4867f6c6c3fb50d3`

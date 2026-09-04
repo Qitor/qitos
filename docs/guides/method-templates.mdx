@@ -3,6 +3,9 @@ title: "Method Templates"
 description: "Use built-in method templates (Self-Refine, Reflexion, LATS, MoA, Magentic-One) to implement proven agent patterns with minimal boilerplate."
 ---
 
+<Note>Advanced/compatible programmatic examples. Fragments illustrate mechanisms; HostEnv or workspace does not provide isolation. New projects start with [Quickstart](/quickstart), Session and explicit resource configuration.</Note>
+
+
 QitOS provides **method templates** — ready-made Agent + Critic pairs that implement well-known agentic reasoning patterns. Each template packages a specialized state, critic, and agent so you can apply the pattern without rewriting the control loop.
 
 ## What is a method template?
@@ -28,6 +31,8 @@ The **Self-Refine** pattern (Madaan et al. 2023) iterates: **generate → critiq
 - Any task where iterative improvement reliably produces better output
 
 ### Quick start
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.recipes.self_refine import SelfRefineAgent, SelfRefineCritic
@@ -70,6 +75,8 @@ print(result.state.final_result) # FINAL ANSWER if extracted
 
 The built-in critic uses heuristics. For production use, subclass and override `evaluate()`:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.recipes.self_refine import SelfRefineCritic, SelfRefineState
 from qitos.engine.critic_result import CriticResult
@@ -104,6 +111,8 @@ The **Reflexion** pattern (Shinn et al. 2023) iterates: **act → evaluate → r
 - Multi-attempt problems (coding, reasoning) where reflections improve subsequent attempts
 
 ### Quick start
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.recipes.reflexion import ReflexionAgent, ReflexionCritic
@@ -154,6 +163,8 @@ The **LATS** pattern (Zhou et al. 2023) applies Monte Carlo Tree Search to langu
 - Problems where trying different strategies improves success
 
 ### Quick start
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.recipes.lats import LATSAgent, LATSCritic
@@ -209,6 +220,8 @@ The **MoA** pattern (Wang et al. 2024) runs multiple proposers independently and
 
 ### Quick start
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.recipes.moa import MoAOrchestrator, MoACritic
 
@@ -259,6 +272,8 @@ The **Magentic-One** pattern (Furtado et al. 2024) uses an orchestrator with a d
 - Open-ended problems with research, coding, and analysis subtasks
 
 ### Quick start
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.recipes.magentic_one import (
@@ -341,6 +356,8 @@ To create a custom method template, follow the same Agent + Critic pattern:
 1. **Define a state** that extends `StateSchema` with your pattern's tracking fields
 2. **Implement a critic** that returns `retry` with `instruction_patch` and `state_patch` when the pattern requires iteration
 3. **Implement an agent** whose `build_system_prompt()` injects pattern context from state
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from dataclasses import dataclass, field

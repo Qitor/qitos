@@ -1,174 +1,20 @@
 ---
-title: "Development Guide"
-description: "Prerequisites, setup, common commands, and troubleshooting for QitOS contributors."
+title: "Development and contribution"
+description: "QitOS G5 · Development and contribution"
 ---
 
-# Development Guide
+## Contribute to QitOS
 
-## Prerequisites
+Read root AGENTS.md and applicable directory rules. Preserve one kernel and its
+dependency boundaries. Update English, Chinese, CHANGELOG and README together.
+Execute complete examples; label illustrative fragments explicitly. Skipping
+ellipsis blocks is not proof of a runnable tutorial. Never commit credentials,
+private endpoints, raw trajectories or local machine paths.
 
-- Python 3.10+
-- `pip`
-- `git`
-
-Optional but recommended:
-
-- `rg` for fast search
-- `pre-commit`
-
-## Local Setup
-
-Quickstart from a local clone:
+## Local docs workflow
 
 ```bash
-pip install -r requirements.txt
+python -m pytest -q tests/test_tutorial_snippets.py tests/test_docs_golden_paths.py
+python scripts/validate_docs.py
 ```
-
-Full contributor setup:
-
-```bash
-pip install -r requirements-dev.txt
-pre-commit install
-```
-
-Install the pinned static-analysis toolchain with Python 3.12.7:
-
-```bash
-python -m pip install -r requirements/quality.txt
-```
-
-## Common Commands
-
-Run tests:
-
-```bash
-python -m pytest -q
-```
-
-Run stable-surface lint:
-
-```bash
-python -m flake8 qitos/core qitos/engine qitos/models qitos/trace
-```
-
-Run stable-surface type checks:
-
-```bash
-python -m mypy qitos/core qitos/engine qitos/models qitos/trace
-```
-
-Run the full-package no-regression ratchet:
-
-```bash
-python scripts/static_quality.py check
-```
-
-The stable commands must remain at zero errors. The ratchet covers all active
-`qitos` packages and compares existing findings with the committed baseline.
-It fails on new findings and stale baseline entries. See
-`quality/README.md` before shrinking the baseline or requesting an expiring
-maintainer exception.
-
-CI keeps the stable lint/type surface separate from the full-package ratchet.
-Repository-intent roles for required-candidate, advisory, stale, and release
-jobs are listed in `docs/internal/ci-job-ownership.md`; that inventory does not
-claim to represent external GitHub branch-protection settings.
-
-Run coverage gate:
-
-```bash
-pytest --cov=qitos.core --cov=qitos.engine --cov=qitos.trace --cov-report=term --cov-fail-under=80 -q
-```
-
-Build the package:
-
-```bash
-python -m build
-```
-
-Audit Python dependencies:
-
-```bash
-pip-audit
-```
-
-Preview docs locally:
-
-```bash
-npx mintlify dev docs
-```
-
-Check docs links:
-
-```bash
-npx mintlify broken-links docs
-```
-
-## Environment Configuration
-
-Copy `.env.example` and set only the provider variables you need.
-
-Avoid committing:
-
-- `.env`
-- local API keys
-- temporary benchmark data
-- generated run artifacts
-
-## Common Tasks
-
-### Adding A New Tool
-
-1. Implement it under the appropriate `qitos/kit/tool` module.
-2. Give it a clear docstring and tool spec.
-3. Register it through the canonical toolset or an explicit registry builder.
-4. Add behavior tests.
-5. Update docs if it changes the public surface.
-
-Security-sensitive tools must require explicit opt-in imports and must not be exposed from `qitos`, default `qitos.kit` imports, `qit demo`, or quickstart examples.
-
-### Adding A Product Agent
-
-Product-grade agents belong in `qitos-zoo`. Keep QitOS examples small, teaching-first, and focused on one framework concept at a time.
-
-### Changing Engine Behavior
-
-1. Preserve `Decision` as the execution contract.
-2. Add or update hook/trace coverage.
-3. Verify qita and parser behavior if event payloads change.
-
-### Removing Or Replacing APIs
-
-1. Update examples, templates, and docs in the same change.
-2. Remove long-term compatibility layers rather than introducing new ones unless migration risk is high.
-3. Record the change in `CHANGELOG.md`.
-
-## Release Checklist
-
-When cutting a GitHub release, verify the repo-facing surfaces before you tag:
-
-1. Run `python -m pytest -q`.
-2. Run `python -m build`.
-3. Run `python -m twine check dist/*`.
-4. Run `npx mintlify broken-links docs`.
-5. Confirm `README.md`, `README.zh.md`, `CHANGELOG.md`, and the relevant `docs/` pages match the shipped behavior.
-6. Confirm GitHub auth works with `gh auth status`.
-7. Create or update the release body from the release notes.
-8. Push the release branch and tag, then publish with `gh release create`.
-
-## Troubleshooting
-
-If coverage flags are unavailable locally, reinstall the contributor environment:
-
-```bash
-pip install -r requirements-dev.txt
-```
-
-If build artifacts or caches cause confusion, remove:
-
-- `build/`
-- `dist/`
-- `.pytest_cache/`
-- `.mypy_cache/`
-
-If docs links appear stale, run `npx mintlify broken-links docs` and preview the site with `npx mintlify dev docs`.
+Install pinned Mintlify/MDX in an isolated tool directory; see repository docs/README.md. Preview does not deploy the site. Editable installation is useful for framework work, but documentation qualification also requires an outside-repository wheel install.

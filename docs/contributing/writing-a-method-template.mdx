@@ -30,6 +30,8 @@ tests/test_<method_name>.py
 
 Create a dataclass tracking method-specific fields:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from dataclasses import dataclass, field
 from typing import List
@@ -49,8 +51,10 @@ State is stored in `EngineResult.state` after execution and is accessible to the
 
 Subclass `AgentModule` with `build_system_prompt()` and `reduce()`:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
-from qitos.core.agent import AgentModule
+from qitos.core.agent_module import AgentModule
 from qitos.core.decision import Decision
 
 class MyMethodAgent(AgentModule):
@@ -91,6 +95,8 @@ class MyMethodAgent(AgentModule):
 ## Step 3: Implement Critic
 
 Subclass `Critic` with `evaluate()` returning `CriticResult`:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.engine.critic import Critic
@@ -162,6 +168,8 @@ class MyMethodCritic(Critic):
 
 ### agent.py
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 """MyMethod template configuration."""
 from dataclasses import dataclass
@@ -222,6 +230,8 @@ What the template covers and what extensions users might add
 
 Add to `_METHOD_TEMPLATES` in `qitos/cli.py`:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 _METHOD_TEMPLATES = {
     # ... existing entries ...
@@ -235,10 +245,12 @@ This makes it appear in `qit list-templates` output.
 
 Minimum test coverage:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 """Tests for MyMethod template."""
 import pytest
-from qitos.recipes.my_method import MyMethodAgent, MyMethodCritic, MyMethodState
+from my_method import MyMethodAgent, MyMethodCritic, MyMethodState
 from qitos.core.decision import Decision
 from qitos.engine.critic_result import CriticResult
 

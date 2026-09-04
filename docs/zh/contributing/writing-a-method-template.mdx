@@ -30,6 +30,8 @@ tests/test_<method_name>.py
 
 创建一个跟踪方法特定字段的数据类：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from dataclasses import dataclass, field
 from typing import List
@@ -49,8 +51,10 @@ State 在执行后存储在 `EngineResult.state` 中，并且在每一步都可�
 
 继承 `AgentModule`，实现 `build_system_prompt()` 和 `reduce()`：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
-from qitos.core.agent import AgentModule
+from qitos.core.agent_module import AgentModule
 from qitos.core.decision import Decision
 
 class MyMethodAgent(AgentModule):
@@ -91,6 +95,8 @@ class MyMethodAgent(AgentModule):
 ## 第 3 步：实现 Critic
 
 继承 `Critic`，实现 `evaluate()` 返回 `CriticResult`：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.engine.critic import Critic
@@ -162,6 +168,8 @@ class MyMethodCritic(Critic):
 
 ### agent.py
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 """MyMethod 模板配置。"""
 from dataclasses import dataclass
@@ -222,6 +230,8 @@ model:
 
 在 `qitos/cli.py` 的 `_METHOD_TEMPLATES` 中添加：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 _METHOD_TEMPLATES = {
     # ... 已有条目 ...
@@ -235,10 +245,12 @@ _METHOD_TEMPLATES = {
 
 最低测试覆盖：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 """MyMethod 模板测试。"""
 import pytest
-from qitos.recipes.my_method import MyMethodAgent, MyMethodCritic, MyMethodState
+from my_method import MyMethodAgent, MyMethodCritic, MyMethodState
 from qitos.core.decision import Decision
 from qitos.engine.critic_result import CriticResult
 

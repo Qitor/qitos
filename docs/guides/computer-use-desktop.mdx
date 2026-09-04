@@ -33,6 +33,8 @@ The same computer-use harness (the configured adapter + protocol + toolset combi
 
 Use `DesktopEnv` when you want an OSWorld-style desktop environment with QitOS contracts.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit.env import DesktopEnv
 
@@ -51,6 +53,8 @@ Current provider layers:
 ### GUI tools
 
 Atomic GUI tools live under `qitos.kit.tool.gui`.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.kit.tool.gui import Click, TypeText, Hotkey
@@ -79,6 +83,8 @@ The action vocabulary aligns with OSWorld-style desktop actions:
 
 Most users should not register each GUI tool by hand. Start from the preset bundle:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit.toolset import computer_use_tools
 
@@ -86,6 +92,8 @@ registry = computer_use_tools()
 ```
 
 Or stay on the list-first authoring path:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.kit import ComputerUseToolSet
@@ -111,6 +119,8 @@ For desktop work, QitOS now ships two protocol presets:
 
 Use JSON first when the model is comfortable with structured JSON.
 Use XML when the model tends to follow tag-based contracts more reliably.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 agent = MyAgent(

@@ -9,8 +9,10 @@ description: "创建 QitOS 工具最快的方式：用一个装饰器将任意 P
 
 不带参数地应用装饰器。函数名即为工具名，文档字符串即为描述：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
-from qitos import function_tool
+from qitos.core.function_tool_decorator import function_tool
 
 @function_tool
 def greet(name: str) -> str:
@@ -19,6 +21,8 @@ def greet(name: str) -> str:
 ```
 
 需要传递参数时也可以使用带括号的形式（下一节介绍）：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 @function_tool()
@@ -33,8 +37,10 @@ def greet(name: str) -> str:
 
 通过关键字参数覆盖默认值并控制执行策略：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
-from qitos import function_tool
+from qitos.core.function_tool_decorator import function_tool
 
 @function_tool(
     name="search_files",
@@ -67,9 +73,11 @@ def search(pattern: str, max_results: int = 10) -> list[str]:
 
 装饰器会检查函数的类型注解，并将其转换为 `ToolSpec.parameters` 中的 JSON Schema 条目。支持的类型包括：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from typing import Literal, Optional
-from qitos import function_tool
+from qitos.core.function_tool_decorator import function_tool
 
 @function_tool
 def configure(
@@ -99,8 +107,11 @@ def configure(
 
 获得 `FunctionTool` 后，将其注册到 `ToolRegistry` 中，以便智能体发现和调用：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
-from qitos import ToolRegistry, function_tool
+from qitos import ToolRegistry
+from qitos.core.function_tool_decorator import function_tool
 
 @function_tool(read_only=True)
 def lookup_user(user_id: str) -> dict:
@@ -115,6 +126,8 @@ descriptions = registry.get_tool_descriptions()
 ```
 
 也可以批量注册工具并覆盖名称：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 @function_tool
@@ -137,8 +150,10 @@ QitOS 提供两种定义工具的方式，请按需选择：
 
 **`@function_tool` -- 适合简单的无状态操作：**
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
-from qitos import function_tool
+from qitos.core.function_tool_decorator import function_tool
 
 @function_tool(read_only=True)
 def get_time() -> str:
@@ -149,8 +164,10 @@ def get_time() -> str:
 
 **`BaseTool` 子类 -- 适合有状态的工具或需要复杂初始化的场景：**
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
-from qitos import BaseTool, ToolSpec, ToolMeta
+from qitos.core.tool import BaseTool, ToolSpec, ToolMeta
 
 class GetTimeTool(BaseTool):
     def __init__(self):

@@ -81,3 +81,21 @@ jobs:
 
           print("Chinese docs mirror covers all English docs pages.")
           PY
+
+      - name: Set up documentation runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install isolated documentation dependencies
+        run: |
+          python -m pip install . pytest wheel
+          npm install --prefix "$RUNNER_TEMP/qitos-doc-tools" @mdx-js/mdx@3.1.1
+
+      - name: Validate public links, MDX and executable tutorials
+        env:
+          QITOS_DOCS_TOOLS: ${{ runner.temp }}/qitos-doc-tools
+        run: |
+          python scripts/validate_docs.py
+          node scripts/validate_docs_mdx.mjs
+          python -m pytest -q tests/test_tutorial_snippets.py tests/test_docs_golden_paths.py

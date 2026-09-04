@@ -20,6 +20,8 @@ Use hooks when you want to log, trace, emit metrics, or trigger external notific
 
 Every hook inherits from `EngineHook`. The base class defines no-op methods for every lifecycle callback, so you only override the ones you need.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.engine.hooks import EngineHook
 ```
@@ -61,6 +63,8 @@ All no-op methods return `None`. Override only the callbacks you care about.
 
 Every step-level callback receives a `HookContext` dataclass that carries everything a hook might need:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.engine.hooks import HookContext
 
@@ -84,6 +88,8 @@ from qitos.engine.hooks import HookContext
 
 Tool-level callbacks receive `ToolHookContext`, which extends `HookContext` with tool-specific fields:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.engine.hooks import ToolHookContext
 
@@ -95,6 +101,8 @@ from qitos.engine.hooks import ToolHookContext
 ```
 
 The `phase` field comes from the `RuntimePhase` enum:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.engine.states import RuntimePhase
@@ -111,6 +119,8 @@ from qitos.engine.states import RuntimePhase
 ## Step 3: Writing a Custom Logging Hook
 
 A common use case is recording every phase transition for later analysis. Here is a `LifecycleRecorderHook` that logs each callback with a timestamp and step ID:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 import logging
@@ -176,6 +186,8 @@ Because hooks cannot modify the flow, the `LifecycleRecorderHook` is safe to add
 
 Tool-level hooks fire around individual tool invocations, giving you fine-grained visibility into which tools the agent calls and what they return.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.engine.hooks import EngineHook, ToolHookContext
 
@@ -211,6 +223,8 @@ Use `on_permission_denied` to monitor security boundaries without modifying the 
 
 Hooks are registered on the `Engine` instance before calling `run()`:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos import Engine
 
@@ -225,11 +239,15 @@ You can register multiple hooks. They fire in registration order within each cal
 
 To inspect currently registered hooks:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 print(engine.hooks)  # list of EngineHook instances
 ```
 
 To remove a hook:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 engine.remove_hook(my_hook_instance)
@@ -267,7 +285,7 @@ on_run_end
 On error recovery, `on_recover` fires instead of the remaining step callbacks for that step, and the engine may retry or abort depending on configuration.
 
 <CardGroup cols={2}>
-  <Card title="Related guide: Critics" icon="shield-check" href="/guides/critics">
+  <Card title="Related guide: Critics" icon="shield-check" href="/guides/critics-and-stop-criteria">
     Learn how critics differ from hooks and how to use them for control flow and decision gating.
   </Card>
   <Card title="Next tutorial: Multi-Agent Systems" icon="users" href="/tutorials/multi-agent">

@@ -59,6 +59,8 @@ This is a major QitOS design lesson:
 
 Even though the prompt is richer, the parser is still:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 model_parser=ReActTextParser()
 ```
@@ -105,7 +107,9 @@ If you later need a family-specific protocol, QitOS can support it, but the pres
   <Step title="Start from a preset tool registry">
     The lesson uses:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     super().__init__(
         toolset=[
             coding_tools(
@@ -148,7 +152,9 @@ If you later need a family-specific protocol, QitOS can support it, but the pres
   <Step title="Design state for long-running work">
     The state now carries workflow signals:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     @dataclass
     class ClaudeCodeState(StateSchema):
         scratchpad: list[str] = field(default_factory=list)
@@ -174,7 +180,9 @@ If you later need a family-specific protocol, QitOS can support it, but the pres
   <Step title="Use reduce to absorb structured tool output">
     `reduce()` listens for tool-driven workflow state:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     if isinstance(first, dict):
         if first.get("todos"):
             state.todos = list(first.get("todos") or [])
@@ -198,7 +206,9 @@ If you later need a family-specific protocol, QitOS can support it, but the pres
   <Step title="Introduce explicit history control">
     The run passes:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     history_policy=HistoryPolicy(max_messages=16, max_tokens=2800)
     ```
 
@@ -224,7 +234,9 @@ If you later need a family-specific protocol, QitOS can support it, but the pres
 
     Add `CompactHistory` when the run becomes long enough that simple trimming loses too much context:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     from qitos.kit import CompactConfig, CompactHistory, WindowMemory
 
     super().__init__(

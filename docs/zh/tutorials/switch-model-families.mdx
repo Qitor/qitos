@@ -3,14 +3,19 @@ title: "用预设切换模型家族"
 description: "使用家族预设让同一个智能体在 Qwen、Kimi、DeepSeek 等模型家族之间切换——无需重写智能体代码。"
 ---
 
+<Note>高级/兼容程序化示例。此页代码片段仅作机制说明；HostEnv 或 workspace 不提供隔离。新项目先按 [Quickstart](/zh/quickstart) 使用 Session 与明确资源配置。</Note>
+
+
 家族预设（预配置的模型家族默认值）让你只需极少代码改动就能切换模型家族。本教程展示如何构建可在多个家族上运行的智能体、如何覆盖预设、以及如何在 qita 中对比结果。
 
 ## Step 1 — 用预设构建模型
 
 最快的方式是使用 `build_model_for_preset`：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
-from qitos.harness import build_model_for_preset
+from qitos.models.harness_adapter import build_model_for_preset
 
 llm = build_model_for_preset(
     model_name="Qwen/Qwen3-8B",
@@ -25,8 +30,10 @@ llm = build_model_for_preset(
 
 核心要点：智能体代码不变，只有模型构造变化：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
-from qitos.harness import build_model_for_preset
+from qitos.models.harness_adapter import build_model_for_preset
 
 configs = [
     ("qwen", "Qwen/Qwen3-8B", "https://api.siliconflow.cn/v1/"),
@@ -49,6 +56,8 @@ for family_id, model_name, base_url in configs:
 ## Step 3 — 覆盖预设
 
 当内建预设不完全符合需求时，用 `preset.override()` 创建自定义副本：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from dataclasses import replace

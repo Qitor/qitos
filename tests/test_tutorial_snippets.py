@@ -1,145 +1,46 @@
-"""Verify that tutorial code snippets compile and import correctly.
+"""Compile bilingual public Python examples and resolve imported symbols.
 
-This test extracts Python code blocks from tutorial .mdx files and validates:
-1. Syntax correctness (compile)
-2. Import resolution (the referenced modules actually exist)
-3. Basic instantiation (no runtime errors for simple patterns)
-
-It does NOT run end-to-end agent execution — snippets that call agent.run()
-are expected to fail at the network call, not at import/construction time.
+Blocks are explicitly illustrative unless bound to a complete executable file
+in tutorial-contracts.json. No arbitrary documentation shell is executed.
 """
-
-from __future__ import annotations
-
 import ast
+import importlib
+from pathlib import Path
 import re
 import textwrap
-from pathlib import Path
 
 import pytest
+import yaml
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-_TUTORIALS_DIR = Path(__file__).resolve().parent.parent / "docs" / "tutorials"
-
-_PYTHON_CODE_BLOCK_RE = re.compile(
-    r"```python\n(.*?)```",
-    re.DOTALL,
-)
+ROOT = Path(__file__).resolve().parents[1]
+DOCS = ROOT / "docs"
+BLOCK = re.compile(r"```(python|yaml|json)[^\n]*\n(.*?)```", re.S)
+CASES = [(str(p.relative_to(DOCS)), i, lang, textwrap.dedent(code))
+         for p in sorted(DOCS.rglob("*.mdx"))
+         for i, (lang, code) in enumerate(BLOCK.findall(p.read_text()))]
 
 
-def _extract_python_blocks(mdx_path: Path) -> list[str]:
-    """Extract all Python code blocks from an .mdx file."""
-    content = mdx_path.read_text(encoding="utf-8")
-    return _PYTHON_CODE_BLOCK_RE.findall(content)
-
-
-def _get_tutorial_files() -> list[Path]:
-    """Return all EN tutorial .mdx files."""
-    if not _TUTORIALS_DIR.exists():
-        return []
-    return sorted(_TUTORIALS_DIR.glob("*.mdx"))
-
-
-# ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
-
-
-class TestTutorialSnippets:
-    """Compile and import-check tutorial code snippets."""
-
-    @pytest.fixture(autouse=True)
-    def _skip_if_no_tutorials(self):
-        if not _get_tutorial_files():
-            pytest.skip("No tutorial files found")
-
-    # Tutorials that are purely prose/navigation (no Python code expected)
-    _PROSE_ONLY_TUTORIALS = {
-        "index.mdx",
-        "inspect-a-gui-failure-in-qita.mdx",
-        "run-your-first-desktop-benchmark.mdx",
-        "replay-and-inspect-failed-runs.mdx",
-    }
-
-    def test_new_tutorials_have_python_blocks(self):
-        """Newly added tutorials should contain at least one Python code block."""
-        new_tutorials = {
-            "critic-system.mdx",
-            "hook-lifecycle.mdx",
-            "func-api.mdx",
-            "mcp-integration.mdx",
-            "checkpoint-and-fork.mdx",
-        }
-        for path in _get_tutorial_files():
-            if path.name not in new_tutorials:
-                continue
-            blocks = _extract_python_blocks(path)
-            assert len(blocks) > 0, f"{path.name} has no Python code blocks"
-
-    def test_snippets_compile(self):
-        """Every Python code block should be syntactically valid.
-
-        Blocks with ``...`` placeholders (common in docs) are skipped.
-        Async blocks with top-level ``await`` are wrapped in ``async def``.
-        """
-        for path in _get_tutorial_files():
-            blocks = _extract_python_blocks(path)
-            for i, block in enumerate(blocks):
-                block = textwrap.dedent(block).strip()
-                if not block:
-                    continue
-                # Skip blocks with ellipsis placeholders
-                if "..." in block:
-                    continue
-                try:
-                    compile(block, f"{path.name}:block-{i}", "exec")
-                except SyntaxError:
-                    # Async code blocks use 'await' at top level — wrap in async def
-                    if "await " in block:
-                        wrapped = "async def _snippet():\n" + textwrap.indent(block, "    ")
-                        try:
-                            compile(wrapped, f"{path.name}:block-{i}", "exec")
-                        except SyntaxError as e2:
-                            pytest.fail(
-                                f"Syntax error in {path.name} block {i}: {e2}"
-                            )
-                    else:
-                        raise
-
-    def test_qitos_imports_resolve(self):
-        """Imports from qitos should resolve without ImportError."""
-        for path in _get_tutorial_files():
-            blocks = _extract_python_blocks(path)
-            for i, block in enumerate(blocks):
-                block = textwrap.dedent(block).strip()
-                if not block:
-                    continue
-                # Extract import lines
-                try:
-                    tree = ast.parse(block)
-                except SyntaxError:
-                    continue  # Already tested in compile test
-
-                for node in ast.walk(tree):
-                    if isinstance(node, ast.Import):
-                        for alias in node.names:
-                            if alias.name.startswith("qitos"):
-                                try:
-                                    __import__(alias.name)
-                                except ImportError as e:
-                                    pytest.fail(
-                                        f"Import error in {path.name} block {i}: "
-                                        f"cannot import {alias.name}: {e}"
-                                    )
-                    elif isinstance(node, ast.ImportFrom):
-                        if node.module and node.module.startswith("qitos"):
-                            try:
-                                __import__(node.module)
-                            except ImportError as e:
-                                pytest.fail(
-                                    f"Import error in {path.name} block {i}: "
-                                    f"cannot import from {node.module}: {e}"
-                                )
+@pytest.mark.parametrize("page,index,language,code", CASES,
+                         ids=[f"{p}:block-{i}" for p, i, _, _ in CASES])
+def test_public_snippet(page, index, language, code):
+    if language != "python":
+        # Shell/template interpolation and documented config fragments are illustrative.
+        if language == "json":
+            import json
+            json.loads(code)
+        else:
+            yaml.safe_load(code)
+        return
+    filename = f"{page}:block-{index}"
+    compile(code, filename, "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
+    tree = ast.parse(code)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name.startswith("qitos"):
+                    importlib.import_module(alias.name)
+        elif isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("qitos"):
+            module = importlib.import_module(node.module)
+            for alias in node.names:
+                if alias.name != "*":
+                    assert hasattr(module, alias.name), f"{filename}: missing {node.module}.{alias.name}"

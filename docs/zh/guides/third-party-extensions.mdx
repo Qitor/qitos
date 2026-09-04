@@ -1,0 +1,40 @@
+---
+title: "第三方扩展"
+description: "QitOS G5 · 第三方扩展"
+---
+
+## 学习目标
+
+通过结构化 extension factory 替换 context selection 和 compaction；阅读 session_walkthrough.py 中的 fake provider 和纯函数工具作为最小教学 adapter。
+
+## 前置条件
+
+完成[Quickstart](/zh/quickstart)的安装与 lessons 复制；基础包，Python 3.12.7 实测，无真实请求。
+
+## 完整可运行示例
+
+[`examples/tutorials/context_memory.py`](https://github.com/Qitor/qitos/blob/feat/campaign-absorption/examples/tutorials/context_memory.py)
+
+完整目录是唯一执行来源；同目录的 session_walkthrough.py 是公开教学依赖，不依赖仓库 tests。
+
+```bash
+python lessons/context_memory.py --root ./extensions-run
+```
+
+## 预期输出与断言
+
+`context selected; memory selected; compaction loss recorded`
+
+文件内的 assert 验证结果；ID 每次不同。除 board 由 Ctrl-C 关闭外，命令应退出 0。
+
+## 支持边界
+
+fake call_raw adapter 只证明兼容教学路径。真实 provider 必须声明 target/capabilities、codec、transport、failure normalization 以及支持的 continuation/streaming。CheckpointStore 与 EventSink 通过 RuntimeComposition 替换，sandbox 和 evaluator 遵循其公开 contract。每个替代实现都需独立 conformance tests；改类名不证明安全或持久性。
+
+## 常见错误
+
+目录已存在时选一个新 root；导入失败核对安装来源。配置不匹配、缺失扩展或 typed failure 应检查 Trajectory 和迁移页，不能静默重试 unknown 外部效果。
+
+## 下一步
+
+[学习目录](/zh/tutorials/index) · [迁移与排障](/zh/reference/g5-migration)

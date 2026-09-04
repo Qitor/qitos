@@ -1,0 +1,85 @@
+# G5 documentation, tutorials and promotion
+
+Status: in progress; remote sync not performed; no release/default-branch change.
+
+## Source identity and scope
+
+Runtime qualification and this documentation branch start at
+`717b4cf1b23f2ed252cd03234ffd8605038d9567`. The historical G5 result is
+2663 passed / 50 live-opt-in skipped on Python 3.12.7. It is not a test result
+for documentation successors. Runtime, metadata, dependencies, quality allowances,
+public-interface budgets and architecture allowlists are frozen.
+
+G5 archive identities: FINAL_REPORT.md SHA256
+`9e0a0da5b24dbe2da3eb3379395ba28237ba459918bafc7049ba25065cf19280`;
+final-facts.json SHA256
+`5ad325ea64201f2cb32e41c2d04c569bfc561fd8eb7b3a0290edf1d3c45ce0fc`;
+wheel SHA256 `e8eb54198c49d8082027a4379fa977b96a685224680aea8242573958db60f980`.
+Archive stays outside Git. The existing convergence execution ledger preserves
+all 29 source/replay mappings and historical failed evidence.
+
+## Execution
+
+1. Correct current status and inventory every public entry; retain historical context.
+2. Unify bilingual installation → scaffold → configuration → Session → inspection
+   → recovery/extension, with an explicitly fake deterministic starting path.
+3. Bind eight learning units to complete public-API examples; test symbols,
+   configuration, ordered execution and installed-wheel consumption.
+4. Validate bilingual navigation, links, MDX compilation and actual local rendering;
+   add deterministic docs CI and the next real-user E2E plan.
+5. Run the requested focused suite, static checks, Docker tutorial, installed checks
+   and frozen-scope proof. Scan the entire outgoing commit range for private data.
+6. Commit, verify exact tested tree, fast-forward the clean unchanged primary;
+   recheck, ordinary push only to feat/campaign-absorption and verify three SHAs.
+7. Only then remove exact clean, idle, completed worktrees with preserved refs and
+   evidence; retain the G5 archive. Record final receipts without recursive rebuilds.
+
+## Qualification ledger
+
+Pending. No new tutorial, rendering, remote or retirement success claimed yet.
+
+## Reproductions and public boundaries found while authoring
+
+- G5 scaffold emits a flat credentials.example.yaml, but LocalCredentialFileResolver
+  requires the single credentials mapping root. Public Configuration supplies the
+  complete corrected file; generator runtime is frozen and remains a follow-up.
+- SandboxPublicationTool must bind the restored Env identity: registering it before
+  initial Session resource resolution produced publication_authority_mismatch.
+  The teaching path pauses, restores, then registers selected-file publication.
+- Fan-out without explicit sibling request grants allocated the remaining ceiling
+  to the first child and admitted zero for the second. The lesson declares two
+  requests per sibling and retains the admission policy.
+- Native text fallback may retain a Final Answer prefix whereas restored protocol
+  parsing strips it; assertion failures during authoring were not framework passes.
+- G5 qita replay/export checks that --run exists before reading the journal.
+  A journal file used as --run is misread as a run ID; a nonexistent logical
+  run path fails early. The documented workaround creates an empty run-ID
+  selector directory under the journal directory; data remains journal-owned.
+  CLI inspection and canonical JSON export do not need this workaround.
+
+## Outgoing privacy preflight (before docs commits)
+
+Remote feature baseline: `f07b38647cf3b18a5235581224a1153b88fac397`.
+Through runtime baseline: 80 commits, 555 distinct changed blobs examined.
+Pattern families: key/token/private-key signatures, credential assignments,
+user absolute paths and RFC1918 HTTP endpoints. Exact matches reviewed by file;
+no blanket fixture directory exemption.
+
+Synthetic fixtures: context-transfer prohibited-value matrix;
+privacy-portability forbidden marker matrix; publication/exporter redaction
+fixtures; tool-runtime secret-redaction test; conversation-codec rejected input;
+provider-adapter error redaction. Their literals are test inputs/expected rejects,
+not live credentials or requests. Original source identities remain in Git.
+
+Actual local path findings (not synthetic):
+- `docs/internal/plans/s4_a_public_authoring.md`, first replay `1938ea21`;
+- `docs/internal/plans/s4_b_model_context.md`, first replay `7e86a115`;
+- `docs/internal/plans/s4_c_safe_execution.md`, first replay `dd308484`;
+- `tests/fixtures/s4/lane_b/producer-manifest.json`, replay `b4ebab11`;
+- `tests/fixtures/s4/g5/retained-worktrees.json`, commit `c9d9e401`.
+
+These include user-provided machine paths in the outgoing history. Ordinary
+successor edits cannot remove historical blobs. Push and retirement are held
+pending resolution of the user's privacy/no-history-rewrite constraints.
+No original values are repeated in this report. No secret or private endpoint
+has been identified outside the explicitly reviewed synthetic fixtures.

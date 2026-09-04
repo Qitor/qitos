@@ -3,6 +3,9 @@ title: "评估器与停止条件"
 description: "使用评估器、停止条件与恢复策略来约束智能体运行。"
 ---
 
+<Note>高级/兼容程序化示例。此页代码片段仅作机制说明；HostEnv 或 workspace 不提供隔离。新项目先按 [Quickstart](/zh/quickstart) 使用 Session 与明确资源配置。</Note>
+
+
 Engine 提供两套互补机制来控制运行的生命周期：
 
 - **评估器（critic）**：在归约（reduce，将观测结果和决策归约回状态的钩子）之后验证每一步，可以允许继续、强制停止，或要求重试本步。
@@ -13,6 +16,8 @@ Engine 提供两套互补机制来控制运行的生命周期：
 评估器会接收当前状态、本步决策（decision，智能体每步的结构化决策）和动作（action，标准化工具调用）结果，然后返回一个结构化裁定字典。
 
 ### 评估器契约
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from abc import ABC, abstractmethod
@@ -52,6 +57,8 @@ class Critic(ABC):
 
 可以直接在 `agent.run()` 时传入：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 result = agent.run(
     task="...",
@@ -63,6 +70,8 @@ result = agent.run(
 
 也可以在直接构造 `Engine` 时传入：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.engine.engine import Engine
 
@@ -71,6 +80,8 @@ result = engine.run("my task")
 ```
 
 ### 自定义评估器示例
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from typing import Any, Dict
@@ -109,6 +120,8 @@ class VerificationCritic(Critic):
 
 ### StopCriteria 契约
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Tuple
@@ -134,6 +147,8 @@ QitOS 在 `qitos.engine.stop_criteria` 中提供四个常用实现：
 
 当 `state.final_result` 被设置为非空字符串时停止。它是默认唯一启用的条件。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.engine.stop_criteria import FinalResultCriteria
 ```
@@ -141,6 +156,8 @@ from qitos.engine.stop_criteria import FinalResultCriteria
 **`MaxStepsCriteria`**
 
 当步数达到 `max_steps` 时停止。一般由 `RuntimeBudget` 自动注入，不需要手动创建。
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.engine.stop_criteria import MaxStepsCriteria
@@ -152,6 +169,8 @@ criterion = MaxStepsCriteria(max_steps=15)
 
 当墙钟时间超过阈值时停止。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.engine.stop_criteria import MaxRuntimeCriteria
 
@@ -161,6 +180,8 @@ criterion = MaxRuntimeCriteria(max_runtime_seconds=120.0)
 **`StagnationCriteria`**
 
 当状态连续若干步没有有效变化时停止。它使用一个签名函数来判断是否有变化。
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.engine.stop_criteria import StagnationCriteria
@@ -175,6 +196,8 @@ criterion = StagnationCriteria(
 
 当累计 token 用量超过预算时停止。Engine 在每个步骤中通过 `runtime_info` 传递 `total_tokens`，因此该准则追踪整个运行的实际 token 消耗。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.engine.stop_criteria import MaxTokensCriteria
 
@@ -182,6 +205,8 @@ criterion = MaxTokensCriteria(max_tokens=500_000)
 ```
 
 当你需要独立于步数或时间的硬性 token 预算时使用它。可以搭配黄金预设的推荐值：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.harness import resolve_family_preset
@@ -191,6 +216,8 @@ criterion = MaxTokensCriteria(max_tokens=preset.recommended_max_tokens or 500_00
 ```
 
 ### 给运行传入停止条件
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.engine.stop_criteria import FinalResultCriteria, MaxRuntimeCriteria, StagnationCriteria
@@ -212,6 +239,8 @@ result = agent.run(
 </Warning>
 
 ### 自定义条件示例
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from typing import Any, Dict, Optional, Tuple
@@ -243,6 +272,8 @@ class MinEvidenceCriteria(StopCriteria):
 ## 用 TaskBudget 表达预算（budget）停止
 
 对于结构化任务，通常用 `TaskBudget` 同时表达三种预算：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.core.task import Task, TaskBudget

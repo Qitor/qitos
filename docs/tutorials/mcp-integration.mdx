@@ -9,6 +9,8 @@ The Model Context Protocol (MCP) is an open standard for connecting AI systems t
 
 QitOS ships two transport implementations. For most local MCP servers that run as command-line processes, use `MCPServerStdio`:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.mcp import MCPServerStdio
 
@@ -20,6 +22,8 @@ await server.connect()
 ```
 
 For remote MCP servers that expose an HTTP endpoint, use `MCPServerStreamableHttp`:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.mcp import MCPServerStreamableHttp
@@ -33,6 +37,8 @@ await server.connect()
 
 Both transports perform the MCP initialization handshake automatically during `connect()`. After connecting, you can list available tools:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 tools = await server.list_tools()
 for tool in tools:
@@ -44,6 +50,8 @@ Each `MCPToolInfo` returned by `list_tools()` carries `name`, `description`, and
 ## Step 2: Bridging MCP tools into QitOS
 
 The `mcp_server_to_function_tools` function converts every tool on a connected MCP server into a `FunctionTool` instance:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.mcp import MCPServerStdio, mcp_server_to_function_tools
@@ -61,12 +69,16 @@ Each returned `FunctionTool` wraps a remote MCP call. When the tool is executed,
 
 You can add a name prefix to disambiguate tools when bridging multiple servers into the same registry:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 fs_tools = await mcp_server_to_function_tools(server, name_prefix="fs")
 # Tool names become: fs__read_file, fs__write_file, etc.
 ```
 
 Register the bridged tools in a `ToolRegistry` just like any other tool:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos import ToolRegistry
@@ -82,6 +94,8 @@ MCP servers often expose many tools, but your agent may only need a subset. `Too
 
 **Allow only specific tools:**
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.mcp import ToolFilter, mcp_server_to_function_tools
 
@@ -91,6 +105,8 @@ tools = await mcp_server_to_function_tools(server, tool_filter=tool_filter)
 
 **Block specific tools:**
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 tool_filter = ToolFilter(blocked_tool_names={"delete_file", "move_file"})
 tools = await mcp_server_to_function_tools(server, tool_filter=tool_filter)
@@ -98,12 +114,16 @@ tools = await mcp_server_to_function_tools(server, tool_filter=tool_filter)
 
 **Custom filter function:**
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 tool_filter = ToolFilter(filter_func=lambda name: name.startswith("read_"))
 tools = await mcp_server_to_function_tools(server, tool_filter=tool_filter)
 ```
 
 You can combine allowed and blocked lists. A tool name must be in the allowed list (if set) and not in the blocked list:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 tool_filter = ToolFilter(
@@ -123,6 +143,8 @@ The evaluation order is:
 ## Step 4: Async lifecycle
 
 MCP server connections hold resources (subprocesses, HTTP clients) that must be cleaned up. Always pair `connect()` with `cleanup()`:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.mcp import MCPServerStdio, mcp_server_to_function_tools, ToolFilter
@@ -152,6 +174,8 @@ finally:
 `MCPServerStdio.cleanup()` terminates the subprocess (first `SIGTERM`, then `SIGKILL` after a 5-second timeout). `MCPServerStreamableHttp.cleanup()` closes the HTTP client session.
 
 For the full integration pattern with an agent, see the complete example:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos import ToolRegistry

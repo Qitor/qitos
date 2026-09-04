@@ -11,6 +11,8 @@ Engine 每一步的执行都流经一条管线：decide、act、reduce，然后�
 
 每个 Critic 都返回一个 `CriticResult`——一个告知 Engine 下一步操作的数据类。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.engine.critic_result import CriticResult
 ```
@@ -35,11 +37,15 @@ from qitos.engine.critic_result import CriticResult
 
 最简的 continue 结果：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 result = CriticResult(action="continue", reason="all good", score=1.0)
 ```
 
 带指令补丁的重试：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 result = CriticResult(
@@ -51,6 +57,8 @@ result = CriticResult(
 ```
 
 强制停止：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 result = CriticResult(
@@ -68,6 +76,8 @@ QitOS 在 `qitos.kit.critic` 中提供了开箱即用的 Critic。
 
 最简单的 Critic——始终以满分继续。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.kit.critic import PassThroughCritic
 
@@ -80,6 +90,8 @@ critic = PassThroughCritic()
 ### SelfReflectionCritic
 
 检查工具结果中是否包含错误，并在可配置的重试上限内自动重试。
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.kit.critic import SelfReflectionCritic
@@ -95,6 +107,8 @@ critic = SelfReflectionCritic(max_retries=2)
 
 将其传入 Engine：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.engine import Engine
 
@@ -109,6 +123,8 @@ engine = Engine(
 
 专为 ReAct 智能体设计的增强版本。遇到错误时，它会构建一条结构化的反思笔记，描述失败的动作与观察到的错误，并将其追加到状态的 metadata 中，以便 LLM 在下次重试时能够从失败中学习。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.kit.critic import ReActSelfReflectionCritic
 
@@ -119,6 +135,8 @@ critic = ReActSelfReflectionCritic(max_retries=2)
 
 每个内置 Critic 都同时提供了装饰器函数版本：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.kit.critic import pass_through_critic, self_reflection_critic
 
@@ -128,6 +146,8 @@ from qitos.kit.critic import pass_through_critic, self_reflection_critic
 ## Step 3: 使用 @critic 装饰器编写自定义 Critic
 
 `@critic` 装饰器可将任意普通函数转换为 `Critic` 实例。该函数接收 `(state, decision, results)` 参数，可返回简写形式或完整的 `CriticResult`。
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.engine.critic_decorator import critic
@@ -145,6 +165,8 @@ from qitos.engine.critic_decorator import critic
 
 无参数装饰器：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 @critic
 def no_empty_answers(state, decision, results):
@@ -155,6 +177,8 @@ def no_empty_answers(state, decision, results):
 ```
 
 带关键字参数——设置自定义名称和默认评分：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 @critic(name="safety", score=0.8)
@@ -169,6 +193,8 @@ def safety_check(state, decision, results):
 当函数未显式设置评分时，装饰器的 `score` 参数将用作默认值。在上面的示例中，`"continue"` 返回会获得 `score=0.8`，而非通常的 `1.0`。
 
 将 Critic 接入 Engine：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 engine = Engine(
@@ -186,6 +212,8 @@ engine = Engine(
 - **`state_patch`**——一个字典，其键值通过 `setattr` 合并到智能体的状态对象中。
 
 这些补丁在 Engine 再次调用 `decide` 之前就已应用，因此当重试开始时，LLM 和状态都已经更新完毕。
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.engine.critic_result import CriticResult
@@ -210,6 +238,8 @@ def enforce_json_output(state, decision, results):
 ```
 
 使用 `state_patch` 注入追踪数据：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 @critic(name="retry_tracker")
@@ -236,6 +266,8 @@ def track_retries(state, decision, results):
 
 也可以使用元组简写配合指令补丁：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 @critic
 def be_concise(state, decision, results):
@@ -247,6 +279,8 @@ def be_concise(state, decision, results):
 ## Step 5: 组合多个 Critic
 
 Engine 接受一个 Critic 列表。它们按顺序求值，**第一个非 continue 的结果生效**。这让你可以从最严格到最宽松地堆叠 Critic。
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.kit.critic import SelfReflectionCritic
@@ -272,6 +306,8 @@ def format_check(state, decision, results):
 
 将它们接入 Engine——安全优先，然后是格式，最后是内置的自省 Critic 作为兜底：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.engine import Engine
 
@@ -294,16 +330,16 @@ engine = Engine(
 
 这种分层方式让每个 Critic 保持小巧专注，而顺序则赋予你对优先级的完全控制。
 
-import { CardGroup, Card } from "nextra/components";
+
 
 <CardGroup>
-  <Card title="Hooks 生命周期" href="/docs/tutorials/hooks-lifecycle">
+  <Card title="Hooks 生命周期" href="/zh/tutorials/hook-lifecycle">
     了解 Critic 参与的完整 Engine 事件生命周期。
   </Card>
-  <Card title="Agent Module" href="/docs/concepts/agent-module">
+  <Card title="Agent Module" href="/zh/concepts/agent-module">
     深入了解 Critic 审查的 AgentModule 接口。
   </Card>
-  <Card title="Critic 与停止条件" href="/docs/guides/critics-and-stop-criteria">
+  <Card title="Critic 与停止条件" href="/zh/guides/critics-and-stop-criteria">
     了解 Critic 如何与停止条件和重试预算交互。
   </Card>
 </CardGroup>

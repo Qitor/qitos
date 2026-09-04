@@ -1,277 +1,40 @@
 ---
-title: "Tools 与 Registry"
-description: "理解 QitOS 中的工具、工具集以及 ToolRegistry 如何组合成智能体能力表面。"
+title: "工具与并行调用"
+description: "QitOS G5 · 工具与并行调用"
 ---
 
-工具就是智能体可以执行的动作。运行时，Engine 会把 `Decision` 里的动作（标准化工具调用）分发给 `ToolRegistry`，由它查找并执行对应的可调用对象。
+## 学习目标
 
-## `@tool` 装饰器
+注册受信任函数，构造 batch，设置 max_concurrency=2 并行执行；阅读 decide/reduce 查看声明与结果在哪里汇合。
 
-使用 `@tool` 把任意可调用对象标记成 QitOS 工具。这个装饰器只会附加元数据，不会改变函数行为，测试里依旧可以像普通函数一样直接调用。
+## 前置条件
 
-```python
-from qitos import tool
-from qitos.core.tool import ToolPermission
+完成[Quickstart](/zh/quickstart)的安装与 lessons 复制；基础包，Python 3.12.7 实测，无真实请求。
 
-@tool(
-    name="read_file",
-    description="Read the contents of a file at the given path.",
-    timeout_s=10.0,
-    permissions=ToolPermission(filesystem_read=True),
-)
-def read_file(path: str) -> str:
-    with open(path, "r") as f:
-        return f.read()
+## 完整可运行示例
+
+[`examples/tutorials/custom_agent.py`](https://github.com/Qitor/qitos/blob/feat/campaign-absorption/examples/tutorials/custom_agent.py)
+
+完整目录是唯一执行来源；同目录的 session_walkthrough.py 是公开教学依赖，不依赖仓库 tests。
+
+```bash
+python lessons/custom_agent.py
 ```
 
-### `@tool` 参数
+## 预期输出与断言
 
-| 参数 | 类型 | 说明 |
-|---|---|---|
-| `name` | `str \| None` | 在 `Decision.actions` 中使用的工具名。默认是函数 `__name__`。 |
-| `description` | `str \| None` | 展示给大模型的工具说明。默认回退到文档字符串。 |
-| `timeout_s` | `float \| None` | 单次调用超时时间，单位秒。`None` 表示不限时。 |
-| `max_retries` | `int` | 失败时重试次数。默认 `0`。 |
-| `permissions` | `ToolPermission \| None` | 声明该工具需要的系统能力。 |
-| `required_ops` | `list[str] \| None` | 环境层面的低级操作能力标识。 |
+`squares complete; completed=2; process_local=true`
 
-### `ToolPermission`
+文件内的 assert 验证结果；ID 每次不同。除 board 由 Ctrl-C 关闭外，命令应退出 0。
 
-`ToolPermission` 描述工具允许做什么。Engine 可以在预检阶段利用这些信息检查环境能力。
+## 支持边界
 
-```python
-from qitos.core.tool import ToolPermission
+声明顺序不等于完成顺序。canonical completion 保存实际顺序，不能依赖线程调度推断；只有 concurrency_safe 工具可并行。timeout 不证明硬取消，outcome_unknown 需要核对，不能自动重放。
 
-ToolPermission(
-    filesystem_read=True,
-    filesystem_write=False,
-    network=True,
-    command=False,
-)
-```
+## 常见错误
 
-四个字段默认都是 `False`。
+目录已存在时选一个新 root；导入失败核对安装来源。配置不匹配、缺失扩展或 typed failure 应检查 Trajectory 和迁移页，不能静默重试 unknown 外部效果。
 
----
+## 下一步
 
-## ToolRegistry
-
-`ToolRegistry` 是 Engine 分发动作时查询的注册表。通常在 `AgentModule` 构造函数里创建并传入。
-
-```python
-from qitos import ToolRegistry
-
-registry = ToolRegistry()
-```
-
-### 注册单个工具
-
-用 `registry.register()` 注册一个可调用对象或 `BaseTool` 实例：
-
-```python
-@tool(name="add")
-def add(a: int, b: int) -> int:
-    """Add two integers."""
-    return a + b
-
-registry.register(add)
-```
-
-也可以在注册时覆写名称或元数据：
-
-```python
-from qitos.core.tool import ToolMeta
-
-registry.register(add, name="math.add")
-registry.register(some_func, meta=ToolMeta(description="Custom description"))
-```
-
-<Warning>
-  同一个注册表内工具名必须唯一。重复注册同名工具会抛出 `ValueError`。
-</Warning>
-
-### 用 `include` 扫描模块或对象
-
-`registry.include(obj)` 会扫描 `obj` 上所有公开且可调用的属性，并注册其中带有 `@tool` 元数据的成员：
-
-```python
-class MyTools:
-    @tool(name="summarize")
-    def summarize(self, text: str) -> str:
-        ...
-
-    @tool(name="translate")
-    def translate(self, text: str, lang: str) -> str:
-        ...
-
-tools = MyTools()
-registry.include(tools)
-```
-
-当你把一组相关工具封装成类方法时，这通常是最方便的注册方式。
-
-### 注册工具集
-
-工具集（toolset）指的是任何拥有 `tools()` 方法、并返回可调用对象或 `BaseTool` 列表的对象。使用 `register_toolset()` 注册它：
-
-```python
-from qitos.kit import CodingToolSet
-
-registry.register_toolset(
-    CodingToolSet(
-        workspace_root="/tmp/work",
-        include_notebook=False,
-        enable_lsp=False,
-        enable_tasks=False,
-        enable_web=False,
-        expose_modern_names=False,
-    )
-)
-```
-
-来自工具集的工具会自动带命名空间：`toolset_name.tool_name`。你也可以显式指定命名空间：
-
-```python
-registry.register_toolset(CodingToolSet(workspace_root="/tmp/work"), namespace="coding")
-```
-
----
-
-## `BaseTool` 与 `FunctionTool`
-
-如果工具需要维护共享状态或生命周期逻辑，可以直接继承 `BaseTool`：
-
-```python
-from qitos.core.tool import BaseTool, ToolSpec, ToolPermission
-
-
-class DatabaseTool(BaseTool):
-    """Query a SQLite database."""
-
-    def __init__(self, db_path: str):
-        self.db_path = db_path
-        super().__init__(
-            ToolSpec(
-                name="query_db",
-                description="Run a SQL query and return rows as a list.",
-                parameters={"sql": {"type": "string", "description": "SQL statement"}},
-                required=["sql"],
-                permissions=ToolPermission(filesystem_read=True),
-            )
-        )
-
-    def run(self, sql: str) -> list:
-        import sqlite3
-        with sqlite3.connect(self.db_path) as conn:
-            return conn.execute(sql).fetchall()
-
-
-registry.register(DatabaseTool(db_path="data.db"))
-```
-
-当你向 `register()` 传入普通可调用对象时，QitOS 内部会自动把它包装成 `FunctionTool`。大多数情况下你无需显式实例化它。
-
-<Note>
-  对于实际编码智能体，通常优先使用 `CodingToolSet` 或 `qitos.kit.toolset` 中的预设构建器，而不是手工把文件、Shell、Web 工具逐个注册。
-</Note>
-
----
-
-## 把注册表传给 AgentModule
-
-把准备好的 `ToolRegistry` 传入 `AgentModule.__init__()`：
-
-```python
-from qitos import AgentModule, ToolRegistry, tool
-
-
-class SearchAgent(AgentModule[MyState, dict, Action]):
-    def __init__(self):
-        registry = ToolRegistry()
-        registry.register(web_search)
-        registry.register(read_file)
-        super().__init__(tool_registry=registry)
-```
-
-Engine 会读取 `agent.tool_registry` 并据此创建 `ActionExecutor`。你也可以调用 `registry.get_tool_descriptions()` 得到格式化工具说明，用于插入系统提示词：
-
-```python
-def build_system_prompt(self, state: MyState) -> str | None:
-    tools_text = self.tool_registry.get_tool_descriptions()
-    return f"You have access to these tools:\n\n{tools_text}"
-```
-
----
-
-## 完整示例
-
-<CodeGroup>
-```python tools.py
-from qitos import tool, ToolPermission
-
-@tool(
-    name="read_file",
-    timeout_s=5.0,
-    permissions=ToolPermission(filesystem_read=True),
-)
-def read_file(path: str) -> str:
-    """Read the contents of a file."""
-    with open(path) as f:
-        return f.read()
-
-
-@tool(
-    name="write_file",
-    timeout_s=5.0,
-    permissions=ToolPermission(filesystem_write=True),
-)
-def write_file(path: str, content: str) -> str:
-    """Write content to a file."""
-    with open(path, "w") as f:
-        f.write(content)
-    return f"Written {len(content)} bytes to {path}"
-```
-
-```python agent.py
-from dataclasses import dataclass
-from typing import Any
-
-from qitos import AgentModule, StateSchema, ToolRegistry
-
-from .tools import read_file, write_file
-
-
-@dataclass
-class EditorState(StateSchema):
-    files_read: list[str] = None
-
-    def __post_init__(self):
-        if self.files_read is None:
-            self.files_read = []
-
-
-class EditorAgent(AgentModule[EditorState, dict[str, Any], Any]):
-    def __init__(self, llm):
-        registry = ToolRegistry()
-        registry.register(read_file)
-        registry.register(write_file)
-        super().__init__(tool_registry=registry, llm=llm)
-
-    def init_state(self, task: str, **kwargs: Any) -> EditorState:
-        return EditorState(task=task, max_steps=int(kwargs.get("max_steps", 10)))
-
-    def build_system_prompt(self, state: EditorState) -> str | None:
-        return (
-            "You are a file editor.\n\n"
-            f"Tools:\n{self.tool_registry.get_tool_descriptions()}"
-        )
-
-    def reduce(self, state: EditorState, observation: dict, decision) -> EditorState:
-        for action in decision.actions:
-            if action.name == "read_file":
-                state.files_read.append(action.args.get("path", ""))
-        if decision.final_answer:
-            state.final_result = decision.final_answer
-        return state
-```
-</CodeGroup>
+[学习目录](/zh/tutorials/index) · [迁移与排障](/zh/reference/g5-migration)

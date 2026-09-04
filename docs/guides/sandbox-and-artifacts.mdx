@@ -1,0 +1,43 @@
+---
+title: "Sandbox and artifacts"
+description: "QitOS G5 · Sandbox and artifacts"
+---
+
+## Learning goal
+
+Run real Docker Env file/command tools, retain and resolve a large output by digest, then opt in to publication of answer.txt in a separate fixture.
+
+## Prerequisites
+
+Complete the [Quickstart](/quickstart) installation and lessons copy; base package, Python 3.12.7 tested, no real model requests.
+
+## Complete runnable example
+
+[`examples/tutorials/sandbox_artifacts.py`](https://github.com/Qitor/qitos/blob/feat/campaign-absorption/examples/tutorials/sandbox_artifacts.py)
+
+The complete directory is the execution source. Sibling session_walkthrough.py is a public teaching dependency, not a repository test helper.
+
+```bash
+docker info
+docker pull python:3.12-slim
+python lessons/sandbox_artifacts.py --root ./sandbox-retained
+python lessons/sandbox_artifacts.py --root ./sandbox-published --publish
+```
+
+## Expected output and assertions
+
+`docker=true; artifacts>0; container_absent=true; published=false then true`
+
+Assertions in the file verify the result; generated IDs vary. Commands exit zero; stop the board with Ctrl-C.
+
+## Support boundaries
+
+Docker CLI/daemon and python:3.12-slim are required; [docker] does not install a daemon. These commands create only new tutorial directories. Cleanup retains output and never publishes it. --publish explicitly registers authority for one top-level regular file and its expected input digest; the composition approval policy applies. Current publication requires supported POSIX descriptor operations (qualified here on macOS), rejects links/nested/special/protected paths and source conflicts. Docker is not a VM guarantee.
+
+## Common errors
+
+Choose a new root if the directory already exists. For missing imports verify the installed source. Inspect Trajectory and the migration page for config mismatch, missing extensions or typed failures; never silently retry unknown external effects.
+
+## Next step
+
+[Learning path](/tutorials/index) · [Migration and troubleshooting](/reference/g5-migration)

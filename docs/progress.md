@@ -1,5 +1,22 @@
 # v4 integration progress
 
+## Current status (2026-09-04)
+
+Current G5 runtime baseline: `717b4cf1b23f2ed252cd03234ffd8605038d9567`.
+Framework qualification **passed**; S4 local integration **complete**.
+Remote sync: **not performed by this documentation task yet**.
+Default branch and release: **not performed; no readiness claim**.
+Historical G5: 2663 passed / 50 live-opt-in skipped, Python 3.12.7.
+Documentation successors do not inherit that test execution identity.
+
+See [documentation promotion]( internal/plans/g5_docs_tutorials_promotion.md).
+
+## Historical design and execution record
+
+The remaining milestones and proposed interfaces record their original dates;
+read the current public Quickstart and migration guide for supported usage.
+
+
 Status: active integration ledger
 Updated: 2026-09-04
 Integration branch: `feat/campaign-absorption`
@@ -14,8 +31,7 @@ Promoted S2 runtime head:
 `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`
 S3 plan freeze: `52e050d9bc1ee0d4c6dcc78c90a5497c25722648`
 S3 convergence source: `851f7902f15da670e72f4c04d7453cf37201aee7`
-Current gate: **S3/G4 CLOSED; S4 CANDIDATES REVIEWED, FRAMEWORK REPAIRS REQUIRED;
-G5 NOT STARTED; LIVE AGENT CAPABILITY REMAINS INFORMATIONAL**
+Historical pre-G5 gate: S4 candidates required repair; superseded by the current status above.
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 15 public framework graduation`](v4/15-public-framework-graduation.md),
 building on [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md),

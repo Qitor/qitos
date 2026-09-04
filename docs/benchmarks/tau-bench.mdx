@@ -37,6 +37,8 @@ Tau-Bench task data is vendored inside the QitOS package. You do not need to dow
 
 ## Loading tasks
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.benchmark import TauBenchAdapter
 
@@ -51,6 +53,8 @@ print(tasks[0].inputs["reference_outputs"])  # Expected response strings
 ```
 
 One-line convenience loader:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.benchmark.tau_bench.adapter import load_tau_bench_tasks
@@ -139,6 +143,8 @@ Use `--num-trials 5` and `--shuffle` to compute pass^k metrics. Each trial uses 
 
 `TauRuntimeEnv` is a minimal drop-in for the upstream Tau environment. It exposes a `reset / step / calculate_reward` interface:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.benchmark.tau_bench.runtime import get_tau_runtime_env
 
@@ -156,6 +162,8 @@ print(response.reward)       # 1.0 or 0.0 (only set when done=True)
 Reward is computed by replaying the ground-truth action sequence on a fresh data state and comparing its hash to the agent's final data state. A reward of `1.0` requires both the correct state hash **and** all expected output strings present in agent responses.
 
 ## Task structure
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 Task(

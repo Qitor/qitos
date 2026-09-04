@@ -3,11 +3,16 @@ title: "Agent Module"
 description: "AgentModule is the policy layer that defines your agent's strategy: how it initializes state, builds prompts, decides what to do, and reduces observations into the next state."
 ---
 
+<Note>Advanced/compatible programmatic examples. Fragments illustrate mechanisms; HostEnv or workspace does not provide isolation. New projects start with [Quickstart](/quickstart), Session and explicit resource configuration.</Note>
+
+
 `AgentModule` is the contract you implement to define agent behavior. It owns everything about how your agent thinks — state initialization, prompt construction, decision logic, and state reduction — but it never runs the loop itself. That is the [Engine's](/concepts/engine) job.
 
 ## Generic type parameters
 
 `AgentModule` is generic over three type variables:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 class AgentModule(ABC, Generic[StateT, ObservationT, ActionT]):
@@ -22,6 +27,8 @@ class AgentModule(ABC, Generic[StateT, ObservationT, ActionT]):
 
 A fully-typed declaration looks like:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 class MyAgent(AgentModule[MyState, dict[str, Any], Action]):
     ...
@@ -35,6 +42,8 @@ class MyAgent(AgentModule[MyState, dict[str, Any], Action]):
 
 Called once at the start of every run. Return your typed state object, initialized from the task string.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 def init_state(self, task: str, **kwargs: Any) -> StateT:
     return MyState(task=task, max_steps=int(kwargs.get("max_steps", 10)))
@@ -45,6 +54,8 @@ Any keyword arguments passed to `Engine.run()` flow through here, so you can acc
 ### `reduce` (required)
 
 Called after every action cycle (one full round of decide → act → observe). Transform the previous state plus the new observation and decision into the next state. This is where your agent absorbs what just happened and updates its progress.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 def reduce(
@@ -65,6 +76,8 @@ def reduce(
 
 Return a dynamic system prompt string, or `None` to skip. Called before every decide step, so your prompt can adapt to the current state.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 def build_system_prompt(self, state: StateT) -> str | None:
     return render_prompt(SYSTEM_TEMPLATE, {"tools": self.tool_registry.get_tool_descriptions()})
@@ -76,6 +89,8 @@ The default implementation returns `None`.
 
 Converts current state into the model-ready text that becomes the user turn (the message sent to the LLM as the user's input). Defaults to `str(state)`. Override this to format a structured prompt from your state fields.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 def prepare(self, state: StateT) -> str:
     return f"Task: {state.task}\nStep: {state.current_step}/{state.max_steps}"
@@ -84,6 +99,8 @@ def prepare(self, state: StateT) -> str:
 ### `decide` (optional)
 
 Override to provide your own decision logic before the Engine calls the LLM. Return `None` to let the Engine use its standard model decision path.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 def decide(self, state: StateT, observation: ObservationT) -> Decision[ActionT] | None:
@@ -96,6 +113,8 @@ def decide(self, state: StateT, observation: ObservationT) -> Decision[ActionT] 
 
 An additional stop condition checked each step after `reduce`. Return `True` to halt the run. The Engine's built-in stop criteria (step budget, `FinalResultCriteria`, etc.) still apply on top of this.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 def should_stop(self, state: StateT) -> bool:
     return state.final_result is not None
@@ -104,6 +123,8 @@ def should_stop(self, state: StateT) -> bool:
 ## Minimal example
 
 In QitOS, the minimal public example is still a real coding agent: it configures a model, mounts a workspace, and lets the Engine drive tool use and verification.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from dataclasses import dataclass, field
@@ -168,6 +189,8 @@ class MinimalCodingAgent(AgentModule[MinimalCodingState, dict[str, Any], Action]
 
 Call `agent.run()` to execute a task. This is the primary entry point — it creates an `Engine` internally, runs the loop, and returns the result.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 agent = MinimalCodingAgent(
     llm=build_model(),
@@ -213,6 +236,8 @@ Key parameters for `agent.run()`:
 ## Constructor arguments
 
 `AgentModule.__init__` accepts these keyword arguments, all optional:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 AgentModule(

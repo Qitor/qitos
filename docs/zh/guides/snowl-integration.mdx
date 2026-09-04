@@ -3,6 +3,9 @@ title: "Snowl 集成"
 description: "将 QitOS 智能体连接到 Snowl，实现评估、比较和生产部署。"
 ---
 
+<Warning>Historical adapter design / 历史适配器设计。ToolMeta examples are not G5 APIs. Use the third-party extension guide for current contracts; this page is not executable qualification.</Warning>
+
+
 QitOS 提供了导出 API，允许 Snowl（或任何兼容适配器）消费智能体配置、工具权限、评审轨迹和交接轨迹。本指南介绍三种集成路径，并逐一说明每个导出 API。
 
 ---
@@ -21,7 +24,7 @@ QitOS 提供了导出 API，允许 Snowl（或任何兼容适配器）消费智�
 
 `Engine.export_config()` 返回 `EngineConfig` 快照，捕获智能体的运行时配置：
 
-```python
+```text
 from qitos.engine import Engine
 
 engine = Engine(agent=my_agent, budget=budget, critics=[critic])
@@ -62,7 +65,7 @@ config_dict = config.to_dict()
 
 `ToolRegistry.export_permissions()` 返回 `ToolPermissionSpec` 对象列表，描述每个工具的能力和安全配置：
 
-```python
+```text
 from qitos.core import ToolRegistry, ToolMeta, ToolPermission
 
 registry = ToolRegistry()
@@ -104,7 +107,7 @@ for spec in specs:
 
 `EngineResult` 包含 `critic_traces` — 运行过程中每次评审评估的 `CriticTrace` 记录：
 
-```python
+```text
 from qitos.engine import Engine
 
 result = engine.run(task="分析此文档")
@@ -133,7 +136,7 @@ for trace in result.critic_traces:
 
 如果有原始 `StepRecord.critic_outputs` 而非 `EngineResult`：
 
-```python
+```text
 from qitos.engine.states import CriticTrace
 
 traces = []
@@ -159,7 +162,7 @@ for record in result.records:
 
 `EngineResult` 包含 `handoff_traces` — 运行过程中每次智能体交接的 `HandoffTrace` 记录：
 
-```python
+```text
 for trace in result.handoff_traces:
     print(f"步骤 {trace.step_id}: {trace.from_agent} → {trace.to_agent} "
           f"策略={trace.context_strategy} 消息数={trace.messages_passed}")
@@ -177,7 +180,7 @@ for trace in result.handoff_traces:
 
 ### 从 RuntimeEvent 手动提取
 
-```python
+```text
 from qitos.engine.states import HandoffTrace, RuntimePhase
 
 traces = []
@@ -200,7 +203,7 @@ for event in result.events:
 
 在 QitOS 中开发智能体，然后在 Snowl 中评估：
 
-```python
+```text
 # 1. 在 QitOS 中构建并运行
 from qitos import AgentModule, Engine, ToolRegistry, ToolMeta, ToolPermission
 

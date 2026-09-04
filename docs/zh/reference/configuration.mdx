@@ -1,338 +1,147 @@
 ---
 title: "配置"
-description: "QitOS 的 canonical AgentConfig 启动、程序化 composition 与底层运行时控制。"
+description: "QitOS G5 · 配置"
 ---
 
-完整 Agent 启动只有一条声明式黄金路径：
+## 完整配置与依赖
 
-```bash
-qit run --config agent.yaml
-```
-
-Python 入口复用同一个严格 `AgentConfig` 路径：
-
-```python
-from qitos.config import run_agent_config
-
-result = run_agent_config("agent.yaml")
-```
-
-canonical `qitos.agent` YAML 根节点固定包含 `schema`、`agent`、`model`、
-`tools`、`runtime`、`budgets`，并可选包含 `context`、`metadata`、`dataset`。
-未知字段、重复键、含糊类型、不安全 YAML tag、缺少必填值与环境插值都会
-失败关闭。仓库提供了
-[`examples/config/agent.yaml`](../../../examples/config/agent.yaml) 这一份供应商无关示例。
-
-历史 schema 拼写只由内部兼容 reader 接受；canonical writer、示例、CLI
-receipt 与文档只输出 `qitos.agent`，也不创建带版本后缀的公共 AgentConfig
-类型。加载对象深度不可变；canonical JSON 确定且不含已解析 credential、
-live client、本机 source path 或 runtime object。等价配置产生相同 digest，
-该 digest 会绑定启动 receipt、Session snapshot/restore 与 Trajectory
-provenance。
-
-配置只保存逻辑凭据引用，不保存凭据值：
+先完成安装。真实客户端需要 `[openai]`，文件工具需要 Docker CLI、daemon 和镜像。
+将下方完整文件保存为 `agent.yaml`，修改示例模型与保留域名 endpoint；
+`provider.example` 仅为占位，不能连接。供应商的 tools、reasoning、continuation
+和 Responses 支持需分别核验，不能仅按“OpenAI-compatible”判定。
 
 ```yaml
 schema: qitos.agent
 agent:
-  name: coding-agent
+  name: example-coding-agent
   protocol: auto
   parser: auto
+  seed: 0
 model:
   provider: openai_compatible
   model: example-model
   base_url: https://provider.example/v1
   credential:
     ref: example-openai-compatible
+  api_mode: chat_completions
+  context_window: 32768
+  request:
+    temperature: 0.0
+    max_tokens: 2048
+    timeout_seconds: 180
+    extra_body: {}
 tools:
   preset: env_coding
-  policy: required_before_final
+  include: []
+  options: {}
+  policy: auto
 runtime:
   environment:
     type: docker
     image: python:3.12-slim
     workspace: .
+    container_workspace: /workspace
     network: none
     read_only_root: true
     cap_drop: true
     no_new_privileges: true
     pids_limit: 256
     memory_mb: 2048
-    cpus: 2
+    cpus: 2.0
+    cleanup_required: true
+  session:
+    mode: durable
+    store: sqlite
+    path: ./.qitos/example-sessions.sqlite3
   trajectory:
     enabled: true
-    output: ./private-runs
+    output: ./runs
     privacy: private
     failure_policy: required
 budgets:
   max_steps: 10
+  max_runtime_seconds: 600
+  max_requests: 12
+context: {}
+memory: {}
+compaction: {}
+lifecycle:
+  policy: cooperative
+failure_policy:
+  tool: fail_closed
+metadata:
+  purpose: provider-neutral-launch-example
+dataset:
+  - task: Inspect the workspace and report one verified fact.
 ```
 
-默认本地 resolver 读取仓库外的私有凭据文件；文件权限必须精确为 `0600`，
-credential 目录不得开放 group/world 权限（不宽于 `0700`）。
-`FakeCredentialResolver` 用于确定性测试；`EnvironmentCredentialResolver`
-仅是显式兼容/部署适配器。环境变量不是 canonical 启动接口，缺失变量始终
-产生 typed failure。canonical serialization 只包含逻辑引用与安全 digest，
-绝不包含已解析 secret。
+## 私有凭据
 
-protocol 是 request/response 语义的唯一真相。`parser: auto` 从 resolved
-protocol 派生；显式但不兼容的 parser 会在启动前拒绝。provider capability、
-`RequestView`、codec projection、tool schema/choice、reasoning、continuation
-与 response parser 都走同一路径；malformed structured response 与未经授权的
-lossy fallback 是 typed failure，不会被猜成文本成功。
+在仓库外创建目录，权限 `0700`；文件 `0600`，当前用户拥有，禁止 symlink。
+loader 验证文件所在的直接目录；建议整条私有目录链也禁止组/其他用户访问。
+使用本地编辑器填入密钥，不把真实值放入 shell 命令或 Git。
+生成器的 `credentials.example.yaml` 在 G5 缺少根节点，请使用下方完整结构。
 
-Tool policy 是配置语义，不是 live harness 的 provider 特例：
+```bash
+mkdir -p "$HOME/.config/qitos"
+chmod 700 "$HOME/.config/qitos"
+touch "$HOME/.config/qitos/credentials.yaml"
+chmod 600 "$HOME/.config/qitos/credentials.yaml"
+```
 
-| Policy | 语义 |
-|---|---|
-| `auto` | 默认；模型可用工具，也可正常结束 |
-| `required_for_next_decision` | 下一次可接受 decision 必须执行工具 action |
-| `required_before_final` | 本次 run 获得真实工具结果前拒绝 final |
-| `disabled` | 不投影 tool schema，也不接受 tool call |
+```yaml
+credentials:
+  example-openai-compatible: REPLACE_IN_PRIVATE_EDITOR
+```
 
-coding/file-write 配置必须使用真实 sandbox backend。Docker reference backend
-从 runtime inspect 事实证明 non-root、只读 rootfs、私有 workspace staging、无 writable host bind、禁网、
-capability drop、no-new-privileges、CPU/memory/process 限额、无 credential
-注入、provider request 留在可信 host 以及 cleanup。Docker 不可用返回
-`sandbox_unavailable`，绝不回退 host。`unsafe_host` 是显式未隔离退出选项，
-会生成 unsafe receipt，并拒绝 `network: none`、`read_only_root: true` 等
-Docker-only 声明。
+上方 `model.credential.ref` 对应这里的键。`CredentialRef` 仅保存逻辑引用；
+显式 resolver 在 composition 边界解析秘密，不把它存进 config 或 Session。
 
-`runtime.trajectory.enabled` 默认为 true，composition 注册现有 Trajectory EventSink。
-config、sandbox、request/response、tool/effect、pause/snapshot/restore、child/
-WorkGraph、join、failure 与 final 事实均由 canonical runtime 写入，并可由
-现有 reader/qita 重开。private artifact 必须留在 source control 之外；公开
-export 保持 redacted；sink failure 沿用 `required`/`optional` 语义。G5 冻结现有序列化合同；省略 output 时从 Session/runtime 数据位置派生，目录输出使用 `trajectory.journal`。参见 [G5 迁移](/zh/reference/g5-migration)。
+## 先检查，再运行
 
-真实 lower-level composition 用法如下：
+本轮只验证加载，不执行以下真实 launch。`load_agent_config` 不读取凭据，
+不创建 provider 或 Docker。请求预算 `12`，每次输出上限 `2048` tokens，
+总步数 `10`、总时间 `600` 秒；超时不代表硬取消。
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
+from qitos.config import load_agent_config
+config = load_agent_config("agent.yaml")
+assert config.budgets.max_requests == 12
+print(config.digest())
+```
+
+```bash
+docker info
+docker pull python:3.12-slim
+qit run --config agent.yaml --credentials "$HOME/.config/qitos/credentials.yaml"
+```
+
+将下面保存为 `run_agent.py`，运行 `python run_agent.py`（会发真实请求）：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
+from pathlib import Path
 from qitos.config import LocalCredentialFileResolver, build_agent_composition, load_agent_config
 
 config = load_agent_config("agent.yaml")
-resolver = LocalCredentialFileResolver("<user-config-dir>/credentials.yaml")
-composition = build_agent_composition(config, credential_resolver=resolver)
-try:
-    result = composition.engine.run(config.dataset[0].task)
-finally:
-    composition.close()
-```
-
-framework config、本地 credential store、tool sandbox、host-side provider
-request runtime、private trajectory 与 public/redacted export 是不同的 trust
-boundary。QitOS 不声称 distributed scheduler、外部 effect exactly-once、
-Python thread hard cancellation，也不把 Docker reference backend 描述为
-microVM isolation。
-
-底层程序化 API 仍可按三层使用：
-
-1. **`AgentModule.run()` 关键字参数**：最常见、最推荐的每次运行配置入口
-2. **`Engine` 构造函数参数**：更底层的运行时控制
-3. **兼容环境适配器**：旧 provider 默认值，不是声明式启动权威
-
-## OpenAI 传输模式
-
-`OpenAIModel`、`OpenAICompatibleModel` 及其异步版本支持两种显式传输模式：
-
-| `api_mode` | 行为 |
-|---|---|
-| `chat_completions` | 默认值。使用 `/v1/chat/completions`，保持现有 QitOS 行为 |
-| `responses` | 可选启用。使用 `/v1/responses`，保留有序原生输出项，并通过 `call_id` 关联函数调用与工具结果 |
-
-YAML 配置示例：
-
-```yaml
-model:
-  provider: openai
-  model: gpt-5
-  api_mode: responses
-```
-
-也可以直接构造模型：
-
-```python
-from qitos.models import OpenAIModel
-
-llm = OpenAIModel(
-    model="gpt-5",
-    api_mode="responses",
+resolver = LocalCredentialFileResolver(
+    Path.home() / ".config/qitos/credentials.yaml",
+    repository_root=Path.cwd(),
 )
+with build_agent_composition(config, credential_resolver=resolver) as composition:
+    session = composition.session("Inspect the workspace and report one verified fact.")
+    result = session.run()
+    print(session.session_id.value, result.state.stop_reason, result.state.final_result)
 ```
 
-Responses 模式支持同步、异步和类型化流式调用。工具循环期间，QitOS 会重放供应商返回的有序输出项以及 `function_call_output`，无需在模型适配器中维护可变的 `previous_response_id`。历史压缩不会拆散仍在执行的原生工具调用轮次。
+## 失败、兼容与扩展
 
-<Warning>
-不同 OpenAI 兼容端点可能只实现 `/v1/responses` 的一部分。Responses 请求失败后，QitOS 不会静默回退到 Chat Completions；不支持 Responses 的端点应显式使用 `chat_completions`。
-</Warning>
-
-Reasoning item 被视为不透明的续接状态。追踪摘要只保留安全的 item 描述与供应商允许的摘要，并排除加密 reasoning 续接内容。
-
-### 每个客户端的 HTTP 头
-
-`OpenAIModel`、`OpenAICompatibleModel` 以及异步兼容模型支持
-`default_headers`。它适合表达路由亲和性、网关元数据等中性的传输需求：
-
-```python
-from qitos.models import OpenAICompatibleModel
-
-llm = OpenAICompatibleModel(
-    model="research-model",
-    base_url="https://gateway.example/v1",
-    default_headers={"x-route-key": task_route_key},
-)
-```
-
-QitOS 不读取供应商特定的路由环境变量。密钥和任务到路由的映射应由调用方管理，且不要把敏感头值写入 trace 元数据。
-
-## AgentModule.run() 参数
-
-这些参数都可以直接传给 `agent.run(task, ...)`：
-
-<AccordionGroup>
-<Accordion title="任务与执行">
-
-- `task`：`str | Task`
-- `max_steps`
-- `return_state`
-- `workspace`
-- `env`
-
-</Accordion>
-
-<Accordion title="解析与决策">
-
-- `parser`
-- `search`
-- `critics`（评估器，可批准、停止或重试当前步骤）
-- `stop_criteria`
-- `history_policy`
-
-</Accordion>
-
-<Accordion title="追踪与渲染">
-
-- `trace`
-- `trace_logdir`
-- `trace_prefix`
-- `render`
-- `theme`
-
-</Accordion>
-
-<Accordion title="钩子与 Engine 透传">
-
-- `hooks`
-- `render_hooks`
-- `engine_kwargs`
-- `**state_kwargs`
-
-</Accordion>
-</AccordionGroup>
-
-一个典型例子：
-
-```python
-result = agent.run(
-    task="Analyse the repository and list all public API functions.",
-    workspace="/path/to/repo",
-    max_steps=20,
-    trace_logdir="./experiment-runs",
-    trace_prefix="api-analysis",
-)
-```
-
-## Engine 构造参数
-
-当你直接构造 `Engine` 时，最常用的参数包括：
-
-- `agent`
-- `budget`（预算）
-- `validation_gate`
-- `recovery_handler`
-- `recovery_policy`
-- `trace_writer`
-- `parser`
-- `stop_criteria`
-- `branch_selector`
-- `search`
-- `critics`（评估器）
-- `env`
-- `history_policy`
-- `hooks`（钩子）
-
-`RuntimeBudget` 的常见字段：
-
-```python
-@dataclass
-class RuntimeBudget:
-    max_steps: int = 10
-    max_runtime_seconds: Optional[float] = None
-    max_tokens: Optional[int] = None
-```
-
-## 环境变量
-
-常见环境变量包括：
-
-| 变量 | 用途 |
-|---|---|
-| `OPENAI_API_KEY` | OpenAI / OpenAI 兼容 API 密钥 |
-| `OPENAI_BASE_URL` | OpenAI 兼容端点基础 URL |
-| `QITOS_API_KEY` | `ModelFactory.from_env()` 可识别的备用密钥 |
-| `QITOS_MODEL` | 默认模型 ID |
-| `AZURE_OPENAI_API_KEY` | Azure OpenAI 密钥 |
-| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI 端点 |
-| `AZURE_OPENAI_DEPLOYMENT` | Azure 部署名称 |
-| `AZURE_OPENAI_API_VERSION` | Azure API 版本 |
-
-示例：
-
-```bash
-OPENAI_API_KEY=sk-...
-OPENAI_BASE_URL=https://api.siliconflow.cn/v1/
-```
-
-## 追踪输出目录
-
-默认情况下，`AgentModule.run()` 会把追踪记录写到 `./runs/`：
-
-```text
-<trace_logdir>/
-└── <trace_prefix>_<YYYYMMDD_HHMMSS_ffffff>/
-    ├── manifest.json
-    ├── events.jsonl
-    └── steps.jsonl
-```
-
-你可以通过 `trace_prefix` 覆盖自动生成的前缀：
-
-```python
-agent.run(task="...", trace_prefix="experiment-01")
-```
-
-然后用：
-
-```bash
-qita board --logdir ./runs
-```
-
-来查看这些结果。
-
-### G5：显式投影损失与执行配置恢复
-
-`context.allow_codec_loss: true` 显式允许 codec 声明的有损请求投影，默认值为 false。
-通用 Chat Completions 端点返回 reasoning、但其 codec 不支持回放时，此选项允许
-后续模型请求省略 reasoning；Session 的 canonical conversation 仍保留原始内容，
-codec loss report 记录 `assistant.reasoning`。这不表示支持原生 reasoning 回放，
-也不允许静默丢失数据。
-
-新 Session 快照保存已有的批准设置、动作执行策略和 context 设置，restore 不再
-静默恢复默认配置。声明式配置变化仍会触发 persisted config digest 检查。
-
-### 配置上下文预算和压缩
-
-`context.budget_policy` 引用显式 composition 扩展，其实例实现已有的
-`budget_for` 协议；`compaction.provider` 引用已有 `compact` 协议。
-两者都在真实模型请求选择边界调用。压缩 receipt 作为独立 Trajectory
-事实记录，并声明模型投影损失；省略不会删除 canonical exchange 或 artifact
-内容。预算单位由对应策略和计数器声明。
+未知/重复键、类型不匹配、YAML tag、环境插值都 fail closed。
+`failure_policy` 当前只接受 `tool: continue` 或 `tool: fail_closed`。
+扩展名必须由 Python `extensions` 显式注册，CLI 不导入任意配置指定代码。
+`EnvironmentCredentialResolver` 是高级部署兼容适配，不是默认入门路径。
+`AgentModule.run()` 和直接 Engine 仍用于高级程序化控制；有 host 工具时不能声称隔离。
+[下一步：Session](/zh/tutorials/checkpoint-and-fork)。

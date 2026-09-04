@@ -86,6 +86,8 @@ different phases of the same agent can use different parsing contracts, as long 
 
 Just like lesson 1, the example uses:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 OpenAICompatibleModel(...)
 ```
@@ -100,7 +102,9 @@ Why keep the same harness?
   <Step title="Extend state with a plan and a cursor">
     The state adds only what execution needs:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     @dataclass
     class PlanActState(StateSchema):
         plan_steps: list[str] = field(default_factory=list)
@@ -123,13 +127,17 @@ Why keep the same harness?
   <Step title="Use a dedicated plan builder">
     The planner is initialized once:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     self.plan_builder = NumberedPlanBuilder()
     ```
 
     And called like this:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     prompt = render_prompt(
         PLAN_DRAFT_PROMPT,
         {
@@ -151,7 +159,9 @@ Why keep the same harness?
   <Step title="Use decide only as the planning gate">
     The control logic is small:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     def decide(self, state: PlanActState, observation: dict[str, Any]):
         if not state.plan_steps or state.cursor >= len(state.plan_steps):
             if not self._plan(state):
@@ -172,7 +182,9 @@ Why keep the same harness?
   <Step title="Bind execution prompt and parser clearly">
     Execution still uses:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     super().__init__(
         tool_registry=registry,
         llm=llm,
@@ -182,7 +194,9 @@ Why keep the same harness?
 
     and:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     def build_system_prompt(self, state: PlanActState) -> str | None:
         return render_prompt(
             PLAN_EXEC_SYSTEM_PROMPT,
@@ -202,7 +216,9 @@ Why keep the same harness?
   <Step title="Make the plan visible in prepare">
     `prepare()` now renders both the global task and the current plan step:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     def prepare(self, state: PlanActState) -> str:
         lines = [
             f"Task: {state.task}",
@@ -224,7 +240,9 @@ Why keep the same harness?
   <Step title="Advance plan progress in reduce">
     Progress becomes ordinary state logic:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     if isinstance(first, dict) and first.get("status") == "success":
         state.cursor += 1
     if isinstance(first, dict) and int(first.get("returncode", 1)) == 0:

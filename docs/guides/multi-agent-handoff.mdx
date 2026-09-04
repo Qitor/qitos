@@ -13,6 +13,8 @@ QitOS supports multi-agent collaboration through Handoff — switching execution
 
 Triggered via `DelegateTool`, suitable for temporary subtask delegation:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.core.agent_spec import AgentSpec, AgentRegistry
 
@@ -31,6 +33,8 @@ delegate_tools = registry.get_delegate_tools()
 
 Triggered via `Decision.handoff()`, suitable for formal agent transitions:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 decision = Decision.handoff(target="researcher")
 ```
@@ -42,6 +46,8 @@ Context strategies control how the source agent's conversation history is passed
 ### FULL — Pass Everything
 
 Pass the complete conversation history. Suitable when the target agent needs full context.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.core.agent_spec import AgentSpec, ContextStrategy
@@ -58,6 +64,8 @@ spec = AgentSpec(
 
 Compress older history into a summary, keeping the last 3 rounds intact. Prevents context explosion.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 spec = AgentSpec(
     name="coder",
@@ -71,6 +79,8 @@ spec = AgentSpec(
 
 Pass only the system prompt and task description. The target agent starts fresh. Suitable for independent subtask execution.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 spec = AgentSpec(
     name="executor",
@@ -83,6 +93,8 @@ spec = AgentSpec(
 ## SharedMemory
 
 Multiple agents can share state through `SharedMemoryManager`:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.core.shared_memory import SharedMemoryManager, InMemorySharedMemory
@@ -108,6 +120,8 @@ child_view.write("task", "modified")  # raises PermissionError
 
 `HandoffContext` provides finer control beyond the context strategy:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.core.agent_spec import HandoffContext, ContextStrategy
 
@@ -131,6 +145,8 @@ Handoff events are automatically recorded in the trace:
 - `HANDOFF_END` — records target agent confirmation
 
 With `TracingProvider` enabled, handoff creates `HandoffSpanData` spans:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.tracing import TracingProvider

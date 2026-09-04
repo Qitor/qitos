@@ -3,6 +3,9 @@ title: "第 1 课：ReAct"
 description: "构建第一个真正的 QitOS 智能体，并完整理解提示词、解析器、工具与归约的闭环。"
 ---
 
+<Note>高级/兼容程序化示例。此页代码片段仅作机制说明；HostEnv 或 workspace 不提供隔离。新项目先按 [Quickstart](/zh/quickstart) 使用 Session 与明确资源配置。</Note>
+
+
 这是整条课程里第一个完整的智能体。
 
 它故意保持小巧，但并不玩具化。这一课里你会看到一个真正可运行的编码智能体，它具备完整的组件链：
@@ -45,11 +48,15 @@ description: "构建第一个真正的 QitOS 智能体，并完整理解提示�
 
 本课使用：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 OpenAICompatibleModel(...)
 ```
 
 以及：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 model_parser=ReActTextParser()
@@ -82,6 +89,8 @@ Final Answer: <final answer only>
 
 在代码里通常表现为：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 def build_system_prompt(self, state: ReactState) -> str | None:
     return render_prompt(
@@ -100,6 +109,8 @@ def build_system_prompt(self, state: ReactState) -> str | None:
 ## 本课的模型适配层
 
 示例里的模型构造通常长这样：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 def build_model() -> OpenAICompatibleModel:
@@ -125,7 +136,9 @@ def build_model() -> OpenAICompatibleModel:
   <Step title="围绕下一步决策来设计 state">
     本课的 state 故意很小：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     @dataclass
     class ReactState(StateSchema):
         scratchpad: list[str] = field(default_factory=list)
@@ -149,7 +162,9 @@ def build_model() -> OpenAICompatibleModel:
   <Step title="暴露尽量小的工具界面">
     示例使用手工注册表，让你能精确看到暴露给模型的能力：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     registry = ToolRegistry()
     registry.include(
         CodingToolSet(
@@ -177,7 +192,9 @@ def build_model() -> OpenAICompatibleModel:
   <Step title="把提示词与解析器明确绑在一起">
     智能体构造函数里通常会这样写：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     super().__init__(
         tool_registry=registry,
         llm=llm,
@@ -195,7 +212,9 @@ def build_model() -> OpenAICompatibleModel:
   <Step title="prepare 只组织下一步真正需要的上下文">
     `prepare()` 负责把 state 变成提示词就绪的文本：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     def prepare(self, state: ReactState) -> str:
         lines = [
             f"Task: {state.task}",
@@ -217,7 +236,9 @@ def build_model() -> OpenAICompatibleModel:
   <Step title="让归约决定智能体记住什么">
     ReAct 的学习发生在 `reduce()` 里：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     def reduce(
         self,
         state: ReactState,

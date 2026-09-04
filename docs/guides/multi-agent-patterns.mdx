@@ -1,120 +1,42 @@
-# Multi-Agent Patterns: DelegateTool vs FanOutTool vs Handoff
+---
+title: "Multi-agent work"
+description: "QitOS G5 · Multi-agent work"
+---
 
-QitOS provides three mechanisms for multi-agent coordination. This guide helps
-you choose the right one for your use case.
+## Learning goal
 
-## Decision Tree
+Use delegate, spawn and fan-out to execute four real child Sessions in fresh processes, then join their durable results. The local resolver explicitly selects this tutorial worker.
 
-```
-Need multiple agents?
-├── 1:1 delegation (parent delegates, child returns result)
-│   └── Use DelegateTool
-├── 1:N parallel delegation (dispatch N tasks, aggregate results)
-│   └── Use FanOutTool
-└── Linear workflow (A → B → C, no return)
-    └── Use Decision.handoff()
-```
+## Prerequisites
 
-## DelegateTool
+Complete the [Quickstart](/quickstart) installation and lessons copy; base package, Python 3.12.7 tested, no real model requests.
 
-**Topology**: Tree (parent → child → grandchild)
-**Result flow**: Child result flows back to parent as tool output
-**Execution**: Synchronous, nested `Engine.run()`
+## Complete runnable example
 
-```python
-from qitos import AgentSpec, AgentRegistry, ContextStrategy
+[`examples/tutorials/work_graph.py`](https://github.com/Qitor/qitos/blob/feat/campaign-absorption/examples/tutorials/work_graph.py)
 
-registry = AgentRegistry()
-registry.register(AgentSpec(
-    name="researcher",
-    description="Researches a topic",
-    agent=ResearcherAgent(llm=llm),
-    context_strategy=ContextStrategy.SUMMARY,
-    tool_name="research_topic",  # optional; defaults to delegate_to_researcher
-))
-tools = registry.get_delegate_tools()  # [DelegateTool(name="research_topic")]
+The complete directory is the execution source. Sibling session_walkthrough.py is a public teaching dependency, not a repository test helper.
+
+```bash
+python lessons/work_graph.py --root ./work-run
 ```
 
-`DelegateTool` exposes `task` and optional `context` parameters. The `task`
-becomes the child agent objective, while a dict `context` is passed to the child
-agent as `init_state(..., context=context)`. Use `AgentSpec.tool_name` when the
-model-facing tool should read like a task affordance instead of the default
-`delegate_to_{agent_name}`.
+## Expected output and assertions
 
-**When to use**:
-- A coordinator needs results back from a specialist
-- Sequential dependency: step 2 depends on step 1's output
-- Nested research → implementation → verification
+`durable children=4; join=closed; parent retains ownership`
 
-## FanOutTool
+Assertions in the file verify the result; generated IDs vary. Commands exit zero; stop the board with Ctrl-C.
 
-**Topology**: Fan-out (1 → N parallel, then fan-in)
-**Result flow**: All N results aggregated into a summary
-**Execution**: Parallel via ThreadPoolExecutor
+## Support boundaries
 
-```python
-registry = AgentRegistry()
-registry.register(AgentSpec(name="explorer", ...))
-fanout_tool = registry.get_fanout_tool(max_workers=4, per_task_timeout=120.0)
-```
+Delegate creates awaited child work; spawn creates detached child work; fan-out declares a set; join consumes outcomes. Handoff transfers ownership of the same WorkItem and fences the old owner; it is not a child or fork. Fork creates independent lineage without advancing the source. The executable lesson covers child operations; handoff execution is a next-round E2E scenario. No distributed scheduler or external exactly-once effects are claimed.
 
-The LLM calls: `fanout(tasks=[{"agent":"explorer","task":"Explore /auth"}, {"agent":"explorer","task":"Explore /api"}])`
+## Common errors
 
-**When to use**:
-- Parallel code exploration of different directories
-- Parallel testing of different endpoints
-- Any task where subtasks are independent
+Choose a new root if the directory already exists. For missing imports verify the installed source. Inspect Trajectory and the migration page for config mismatch, missing extensions or typed failures; never silently retry unknown external effects.
 
-**Key features**:
-- `max_workers`: Thread pool size (default 4)
-- `per_task_timeout`: Per-task timeout in seconds (default 120s)
-- Aggregated results with success/partial/failure breakdown
+## Next step
 
-## Decision.handoff()
+[Learning path](/tutorials/index) · [Migration and troubleshooting](/reference/g5-migration)
 
-**Topology**: Chain (A → B → C)
-**Result flow**: No return — control transfers permanently
-**Execution**: Same Engine loop, agent swap
-
-```python
-from qitos import Decision
-
-# In the agent's decide() method:
-return Decision.handoff(target="coder", rationale="This needs code changes")
-```
-
-**When to use**:
-- Workflow-style pipelines (triage → code → review)
-- Linear processing stages
-- When the next agent doesn't need to report back
-
-## ContextStrategy
-
-Controls what context sub-agents receive:
-
-| Strategy | Parent context | Use case |
-|----------|---------------|----------|
-| `ISOLATED` | None | Sub-agent works independently |
-| `SUMMARY` | Last 4 scratchpad entries | Sub-agent needs brief context |
-| `FULL` | Last 16 scratchpad entries | Sub-agent needs full context |
-
-## Depth Guard
-
-Both DelegateTool and FanOutTool enforce `MAX_DELEGATE_DEPTH=3` to prevent
-unbounded recursive delegation. Handoff has `max_handoffs` (default 10, configurable
-via `ContextConfig.max_handoffs`) and cycle detection.
-
-## Pattern Templates
-
-QitOS provides built-in pattern templates:
-
-```python
-# Manager-Worker: parallel fan-out
-from qitos.kit.patterns import build_manager_worker_system, ManagerWorkerConfig
-
-# Planner-Executor: plan then hand off
-from qitos.kit.patterns import build_planner_executor_system, PlannerExecutorConfig
-
-# Proposer-Verifier: explore then validate
-from qitos.kit.patterns import build_proposer_verifier_system, ProposerVerifierConfig
-```
+The parent request ceiling is 16, with two explicitly granted requests per fan-out sibling. Without sibling grants the first child can reserve the remainder.

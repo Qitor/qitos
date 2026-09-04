@@ -17,6 +17,22 @@ How to update:
 
 ## Unreleased
 
+### Documentation consolidation
+
+- Correct current G5 status: framework qualification passed and S4 locally integrated
+  at `717b4cf1b23f2ed252cd03234ffd8605038d9567`; no default-branch/release action.
+- Add bilingual Session-first installation/configuration and runnable learning units,
+  with explicit fake-provider, credential, sandbox and recovery boundaries.
+- Documentation successor checks and remote-sync receipts are recorded separately
+  in `docs/internal/plans/g5_docs_tutorials_promotion.md`.
+
+### Historical implementation entries
+
+The entries below retain their original stage context. Statements about pending
+G5 gates, unfrozen defaults or unintegrated lanes describe those historical
+commits, not the current runtime identity above.
+
+
 - Fixed implicit trajectory storage to use project/runtime data locations, preserved trace prefixes and actual writer schema metadata, and migrated minimal-demo summaries to journal plus run identity.
 
 - Changed qita default reading to canonical journal data with historical trace compatibility, complete paginated discovery, explicit rollback selection and source-conflict rejection.

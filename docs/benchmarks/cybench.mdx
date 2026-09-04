@@ -3,6 +3,9 @@ title: "CyBench"
 description: "Run CTF-style security evaluation tasks with CyBenchAdapter, Docker isolation, and guided subtask scoring."
 ---
 
+<Note>Advanced/compatible programmatic examples. Fragments illustrate mechanisms; HostEnv or workspace does not provide isolation. New projects start with [Quickstart](/quickstart), Session and explicit resource configuration.</Note>
+
+
 CyBench is a capture-the-flag (CTF) benchmark that tests an agent's ability to perform security analysis tasks: reverse engineering, web exploitation, forensics, and cryptography. Tasks run in isolated environments and are scored by comparing agent-submitted answers to known flag values.
 
 QitOS provides `CyBenchAdapter` to load task metadata from a local CyBench repository, `CyBenchRuntime` (a runtime that prepares and tears down the task environment) to manage the task environment lifecycle, and `score_cybench_submission` to compute all standard metrics.
@@ -40,6 +43,8 @@ QitOS provides `CyBenchAdapter` to load task metadata from a local CyBench repos
 
 ## Loading tasks
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.benchmark import CyBenchAdapter
 
@@ -58,6 +63,8 @@ print(tasks[0].inputs["subtasks"])     # list of subtask dicts
 ```
 
 One-line convenience loader:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.benchmark.cybench.adapter import load_cybench_tasks
@@ -157,9 +164,11 @@ Always run CyBench tasks in an isolated environment. Challenge services may expo
 
 The evaluation agent registers a minimal set of tools suited for CTF work:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit import CodingToolSet
-from qitos.kit.tool.cybench import SubmitAnswer
+from qitos.recipes.benchmarks.cybench import SubmitAnswer
 
 registry.include(
     CodingToolSet(
@@ -182,6 +191,8 @@ You can extend the toolset with additional browser tools from `qitos.kit.tool.br
 ## Task environment lifecycle
 
 `CyBenchRuntime` manages task workspace preparation and teardown:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.benchmark import CyBenchRuntime
@@ -209,6 +220,8 @@ runtime.cleanup()
 
 Use `score_cybench_submission` to compute all metrics at once:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.benchmark import score_cybench_submission
 
@@ -228,6 +241,8 @@ print(score["partial_matches"])       # [True, True]
 Partial match checks whether the token inside `{...}` appears anywhere in the prediction. Exact match requires the full normalized string.
 
 ## Task structure
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 Task(

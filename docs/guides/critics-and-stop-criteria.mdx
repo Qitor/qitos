@@ -3,6 +3,9 @@ title: "Critics & Stop Criteria"
 description: "Validate steps with critics and control when the Engine halts with stop criteria."
 ---
 
+<Note>Advanced/compatible programmatic examples. Fragments illustrate mechanisms; HostEnv or workspace does not provide isolation. New projects start with [Quickstart](/quickstart), Session and explicit resource configuration.</Note>
+
+
 The Engine provides two complementary mechanisms for controlling the run lifecycle:
 
 - **Critics** (step-level validators) validate each step after `reduce()` runs. They can allow the run to continue, force a stop, or trigger a retry of the current step.
@@ -13,6 +16,8 @@ The Engine provides two complementary mechanisms for controlling the run lifecyc
 A critic receives the current state, the decision (the model's structured output for a step) taken, and the action (the tool call dispatched based on the decision) results, then returns a structured verdict dict.
 
 ### The Critic contract
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from abc import ABC, abstractmethod
@@ -52,6 +57,8 @@ Any `action` value other than `"stop"` or `"retry"` is treated as `"continue"`.
 
 Pass a list of `Critic` instances to `agent.run()`:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 result = agent.run(
     task="...",
@@ -63,6 +70,8 @@ result = agent.run(
 
 Or pass them when constructing the Engine directly:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.engine.engine import Engine
 
@@ -71,6 +80,8 @@ result = engine.run("my task")
 ```
 
 ### Writing a custom critic
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from typing import Any, Dict
@@ -109,6 +120,8 @@ Stop criteria are evaluated after every step's critic pass. Each criterion recei
 
 ### The StopCriteria contract
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Tuple
@@ -134,6 +147,8 @@ QitOS ships four built-in criteria in `qitos.engine.stop_criteria`:
 
 Stops when `state.final_result` is set to a non-empty string. It is the only criterion used when you do not pass `stop_criteria` to the Engine.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.engine.stop_criteria import FinalResultCriteria
 ```
@@ -141,6 +156,8 @@ from qitos.engine.stop_criteria import FinalResultCriteria
 **`MaxStepsCriteria`**
 
 Stops when the step count reaches `max_steps`. The Engine applies this automatically from the `RuntimeBudget` — you rarely need to instantiate it manually.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.engine.stop_criteria import MaxStepsCriteria
@@ -152,6 +169,8 @@ criterion = MaxStepsCriteria(max_steps=15)
 
 Stops when wall-clock time exceeds a threshold.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.engine.stop_criteria import MaxRuntimeCriteria
 
@@ -162,16 +181,21 @@ criterion = MaxRuntimeCriteria(max_runtime_seconds=120.0)
 
 Stops when state has not changed for `max_stagnant_steps` consecutive steps. Uses a signature function to detect change (defaults to checking `final_result` and `phase`).
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.engine.stop_criteria import StagnationCriteria
 
 criterion = StagnationCriteria(
     max_stagnant_steps=3,
+)
 ```
 
 **`MaxTokensCriteria`**
 
 Stops when cumulative token usage exceeds a budget. The Engine passes `total_tokens` in `runtime_info` on each step, so this criterion tracks real token consumption across the entire run.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.engine.stop_criteria import MaxTokensCriteria
@@ -181,12 +205,16 @@ criterion = MaxTokensCriteria(max_tokens=500_000)
 
 Use this when you need a hard token budget independent of step count or wall-clock time. Pair it with gold preset advisory values:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.harness import resolve_family_preset
 
 preset = resolve_family_preset("qwen")
 criterion = MaxTokensCriteria(max_tokens=preset.recommended_max_tokens or 500_000)
 ```
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 criterion = StagnationCriteria(
@@ -196,6 +224,8 @@ criterion = StagnationCriteria(
 ```
 
 ### Passing criteria to a run
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.engine.stop_criteria import FinalResultCriteria, MaxRuntimeCriteria, StagnationCriteria
@@ -217,6 +247,8 @@ When you pass `stop_criteria`, you **replace** the default `FinalResultCriteria`
 </Warning>
 
 ### Writing a custom criterion
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from typing import Any, Dict, Optional, Tuple
@@ -248,6 +280,8 @@ class MinEvidenceCriteria(StopCriteria):
 ## Budget-based stopping with TaskBudget
 
 For structured task definitions, use `TaskBudget` to express all three budget dimensions together:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.core.task import Task, TaskBudget
@@ -289,6 +323,8 @@ The Engine applies `TaskBudget` values to its internal `RuntimeBudget` before th
 | `unrecoverable_error` | An exception was raised that the recovery policy could not handle |
 
 Check `result.state.stop_reason` after a run to distinguish a successful completion from a budget exhaustion:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 result = agent.run(task="...", max_steps=10, return_state=True)

@@ -2,32 +2,26 @@
 
 `examples/` is canonical learning material, not a product showcase.
 
-The learning path is:
-
-```text
-StateSchema -> prepare -> Engine/Model decide -> tool/env -> reduce -> trace/qita
-```
+The beginner path is installation → qit new → canonical configuration → Session
+→ result/artifact/Trajectory inspection → recovery or extension.
+Follow [Quickstart](../docs/quickstart.mdx) or [中文](../docs/zh/quickstart.mdx).
 
 ## Directory Map
 
-- `examples/quickstart/`: the smallest runnable coding agent
-- `examples/patterns/`: one design axis per example
-- `examples/real/`: minimal real agents only
-- `examples/benchmarks/`: thin wrappers over `qitos.recipes` and `qitos.benchmark`
+- `examples/tutorials/`: complete offline Session and real Docker lessons.
+- `examples/quickstart/`: compatible host coding demo; not the beginner isolation path.
+- `examples/patterns/`: advanced method examples; inspect their host/tool policy.
+- `examples/real/`: application teaching examples, not blanket provider qualification.
+- `examples/benchmarks/`: benchmark recipe adapters.
 
 ## Recommended First Run Order
 
-```bash
-export OPENAI_API_KEY="your_api_key"
-qit demo minimal
-python examples/quickstart/minimal_agent.py
-python examples/patterns/react.py
-python examples/patterns/planact.py
-python examples/patterns/reflexion.py
-python examples/patterns/tot.py
-python examples/real/research_harness_agent.py
-python examples/real/coding_agent.py
-```
+Install the exact G5 source before running qit, copy the complete tutorials
+folder, then run session_walkthrough.py create and restore as documented.
+The fake provider calls only trusted arithmetic functions; host is not a sandbox.
+See tutorials/index for the eight units and explicit prerequisites.
+
+## Benchmark wrappers
 
 Benchmark wrappers:
 

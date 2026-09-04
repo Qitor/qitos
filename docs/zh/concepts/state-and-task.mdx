@@ -3,11 +3,16 @@ title: "State 与 Task"
 description: "理解 QitOS 中的 StateSchema、Task、TaskBudget、TaskResource 和 Decision。"
 ---
 
+<Note>高级/兼容程序化示例。此页代码片段仅作机制说明；HostEnv 或 workspace 不提供隔离。新项目先按 [Quickstart](/zh/quickstart) 使用 Session 与明确资源配置。</Note>
+
+
 ## StateSchema
 
 `StateSchema` 是智能体强类型状态的基类。一次运行中，所有钩子都围绕它读取与写入，它是整个运行期间的单一事实来源。
 
 ### 内置字段
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 @dataclass
@@ -36,6 +41,8 @@ class StateSchema:
 
 通过继承 `StateSchema` 来增加自己的字段。Engine 会在每个步骤记录中通过 `state.to_dict()` 记录状态差异，因此这些字段也会自动进入追踪记录。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from dataclasses import dataclass, field
 from typing import Any
@@ -52,6 +59,8 @@ class ResearchState(StateSchema):
 
 然后在 `init_state` 中初始化：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 def init_state(self, task: str, **kwargs: Any) -> ResearchState:
     return ResearchState(
@@ -64,6 +73,8 @@ def init_state(self, task: str, **kwargs: Any) -> ResearchState:
 
 你可以在 `reduce` 中调用 `state.set_stop()`，让运行在下一次停止检查时终止。它接受 `StopReason` 枚举或等价字符串。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos import StopReason
 
@@ -75,6 +86,8 @@ def reduce(self, state, observation, decision):
 
 如果是成功完成，更推荐直接设置 `state.final_result`：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 state.final_result = "The answer is 42."
 ```
@@ -84,6 +97,8 @@ state.final_result = "The answer is 42."
 ## Task
 
 `Task` 是结构化任务包，用来描述智能体应完成什么、需要哪些资源、以及受什么约束。任何支持 `agent.run()` 或 `Engine.run()` 的地方都可以传入 `Task`。
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos import Task, TaskBudget, TaskResource
@@ -120,6 +135,8 @@ result = agent.run(task, return_state=True)
 
 `TaskBudget` 用来指定单个任务的步数、时间和令牌限制。传入 `Task` 时，它会优先于 Engine 默认的 `RuntimeBudget`。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos import TaskBudget
 
@@ -135,6 +152,8 @@ budget = TaskBudget(
 ### TaskResource
 
 `TaskResource` 描述任务依赖的文件、目录、URL 或先前运行的产物。Engine 会在循环开始前验证所有必需资源。
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos import TaskResource
@@ -164,7 +183,9 @@ TaskResource(kind="artifact", path="runs/agent_20260407/steps.jsonl")
   <Tab title="act">
     执行一个或多个工具动作。
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     from qitos import Decision, Action
 
     decision = Decision.act(
@@ -176,7 +197,9 @@ TaskResource(kind="artifact", path="runs/agent_20260407/steps.jsonl")
   <Tab title="final">
     表示智能体已经得到最终答案，运行应结束。
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     decision = Decision.final(
         answer="The paper proposes a novel attention mechanism that reduces memory usage by 40%.",
         rationale="Finished reading all sections.",
@@ -186,14 +209,18 @@ TaskResource(kind="artifact", path="runs/agent_20260407/steps.jsonl")
   <Tab title="wait">
     本步暂时不执行动作，常用于等待外部事件或环境信号。
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     decision = Decision.wait(rationale="Waiting for environment to reset.")
     ```
   </Tab>
   <Tab title="branch">
     提出多个候选决策，交给 `BranchSelector` 评估。
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     decision = Decision.branch(
         candidates=[
             Decision.act([Action(name="search", args={"query": "attention mechanism"})]),

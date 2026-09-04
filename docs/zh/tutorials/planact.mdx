@@ -86,6 +86,8 @@ Final Answer: <step result>
 
 和第 1 课一样，这节课仍然使用：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 OpenAICompatibleModel(...)
 ```
@@ -100,7 +102,9 @@ OpenAICompatibleModel(...)
   <Step title="在状态中加入计划与游标">
     新状态只增加执行真正需要的字段：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     @dataclass
     class PlanActState(StateSchema):
         plan_steps: list[str] = field(default_factory=list)
@@ -123,13 +127,17 @@ OpenAICompatibleModel(...)
   <Step title="使用专用的计划构建器">
     规划器通常在构造时初始化：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     self.plan_builder = NumberedPlanBuilder()
     ```
 
     调用方式类似：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     prompt = render_prompt(
         PLAN_DRAFT_PROMPT,
         {
@@ -151,7 +159,9 @@ OpenAICompatibleModel(...)
   <Step title="把 decide 只用作规划门控">
     这节课的控制逻辑通常非常小：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     def decide(self, state: PlanActState, observation: dict[str, Any]):
         if not state.plan_steps or state.cursor >= len(state.plan_steps):
             if not self._plan(state):
@@ -174,7 +184,9 @@ OpenAICompatibleModel(...)
   <Step title="把执行提示词与解析器明确绑定">
     执行阶段仍是：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     super().__init__(
         tool_registry=registry,
         llm=llm,
@@ -184,7 +196,9 @@ OpenAICompatibleModel(...)
 
     同时：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     def build_system_prompt(self, state: PlanActState) -> str | None:
         return render_prompt(
             PLAN_EXEC_SYSTEM_PROMPT,
@@ -204,7 +218,9 @@ OpenAICompatibleModel(...)
   <Step title="让 prepare 显式展示计划">
     `prepare()` 现在不再只渲染任务，而是同时渲染当前计划进度：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     def prepare(self, state: PlanActState) -> str:
         lines = [
             f"Task: {state.task}",
@@ -224,7 +240,9 @@ OpenAICompatibleModel(...)
   <Step title="在归约里推进计划进度">
     计划推进仍然是普通的状态逻辑：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     if isinstance(first, dict) and first.get("status") == "success":
         state.cursor += 1
     if isinstance(first, dict) and int(first.get("returncode", 1)) == 0:

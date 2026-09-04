@@ -1,106 +1,73 @@
 ---
 title: "快速开始"
-description: "在 2 分钟内运行你的第一个 QitOS 最小编程智能体，并用 qita 检查它。"
+description: "QitOS G5 · 快速开始"
 ---
 
-## Session-first 项目路径
+## 目标与前置条件
 
-新建持久化、沙箱化 Agent 项目：
+安装指定来源 → 创建项目 → 配置模型引用、工具和资源 → 运行 Session →
+检查结果、artifact 与 Trajectory → 恢复或扩展自己的 Agent。
+先读[安装](/zh/installation)。实测解释器为 Python 3.12.7；
+本节算术入门不需要真实凭据或 Docker。
+
+## 创建并执行项目
+
+先安装，再使用 `qit`：
 
 ```bash
-qit new --agent-name my_agent --output-dir . --no-input
-python -m pip install ./my_agent
-python -m pytest my_agent/tests
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install "qitos @ git+https://github.com/Qitor/qitos.git@717b4cf1b23f2ed252cd03234ffd8605038d9567"
+python -m pip install pytest
+qit --help
+qita --help
 ```
 
-生成测试在临时测试 workspace 使用确定性 provider；配置执行使用 Docker sandbox
-和显式 credential resolver。恢复、immutable fork、artifact 保留、显式发布和
-journal 检查见 [G5 迁移](/zh/reference/g5-migration)。下方旧 minimal demo 操作
-其初始化的 host workspace，不作为隔离能力证明。
+下载完整教学文件，生成可安装项目，然后执行：
 
-本页会带你从零开始，搭建一个模型驱动的最小编程智能体（coding agent），直到可视化查看追踪记录（trace），全程大约 2 分钟。
+```bash
+git clone --branch feat/campaign-absorption --single-branch https://github.com/Qitor/qitos.git qitos-lessons
+cp -R qitos-lessons/examples/tutorials ./lessons
+qit new --agent-name my_agent --output-dir . --no-input
+python -m pip install ./my_agent
+python -m pytest -q my_agent/tests
+python lessons/session_walkthrough.py create --root ./arithmetic-run
+python lessons/session_walkthrough.py restore --root ./arithmetic-run
+```
 
-QitOS 运行时（runtime）的实际效果如下：
+生成的 `my_agent/agent.yaml` 是 canonical 配置。生成项目的测试明确替换为
+fake provider 和临时的非隔离 host workspace，只验证 composition/Session
+接线，不执行模型选择的 shell 操作。完整的 `lessons/session_walkthrough.py`
+只注册受信任纯函数 `add`，通过明确标注的 fake provider、SQLite 和真实
+Trajectory writer 运行。**这不证明沙箱隔离，也不是自主任务成功证据。**
 
-![QitOS 运行时快照](/images/qitos-cli.png)
+第一个进程输出 `lifecycle: paused`、`tool_output: 42`；第二个输出
+`final_result: arithmetic complete`、独立 child Session ID 和正数 record count。
+两个进程均应退出 0；断言失败就是失败。重复执行请使用新 root，保留原始证据。
 
-<Note>
-如果你还没有远程模型服务和 API 密钥，建议先阅读 [前置准备](/zh/prerequisites)。其中说明了去哪里注册、如何创建 API 密钥，以及如何验证兼容 OpenAI 的服务商（provider）是否可用。
-</Note>
+## 检查结果
 
-## 前置条件
+脚本写入 `arithmetic-run/control.json`、`sessions.sqlite3`、
+`trajectory.journal` 和 `public-trajectory.json`。
 
-- Python 3.10 或更高版本
-- `pip`
-- 一个兼容 OpenAI 的 API 密钥
+```bash
+qita board --logdir ./arithmetic-run
+qit session inspect --help
+qita inspect --help
+```
 
-## 操作步骤
+board 是只读入口，Ctrl-C 停止本地服务。
+[Session 教程](/zh/tutorials/checkpoint-and-fork)给出实际 ID 与匹配配置的 CLI 检查。
+public export 有脱敏和 loss 声明，不是 raw 备份。
 
-<Steps>
-  <Step title="安装 QitOS">
-    ```bash
-    pip install "qitos[models]"
-    ```
-  </Step>
+## 理解 typed failure
 
-  <Step title="设置服务商配置">
-    ```bash
-    export OPENAI_API_KEY="sk-..."
-    export OPENAI_BASE_URL="https://api.siliconflow.cn/v1/"
-    export QITOS_MODEL="Qwen/Qwen3-8B"
-    ```
+无效配置在执行前拒绝。coding 路径没有 Docker 时出现 `sandbox_unavailable`；
+应启动 daemon 并重新检查，不能通过改成 host 执行绕过。
+凭据缺失或 codec 不支持都不算模型成功；见[迁移与排障](/zh/reference/g5-migration)。
 
-    <Tip>
-      任意兼容 OpenAI 的接口地址都可以使用。如果你不是直接使用 OpenAI，请将 `OPENAI_BASE_URL` 指向对应的服务商。
-    </Tip>
-  </Step>
+## 真实模型与扩展
 
-  <Step title="运行最小编程智能体">
-    ```bash
-    qit demo minimal
-    ```
-
-    这条命令会先创建一个包含最小缺陷的工作区（workspace），配置真实模型，让最小编程智能体修复缺陷、执行验证，并输出 qita 可识别的追踪记录。你会看到类似输出：
-
-    ```
-    model_name: Qwen/Qwen3-8B
-    workspace: .../playground/minimal_coding_agent
-    target_file: buggy_module.py
-    trace_run: .../runs/trajectory.journal
-    final_result: Patch applied and verification passed.
-    stop_reason: final
-    next_step: qita board --logdir runs
-    ```
-  </Step>
-
-  <Step title="用 qita 查看运行轨迹">
-    ```bash
-    qita board --logdir runs
-    ```
-
-    在浏览器中打开 [http://127.0.0.1:8765](http://127.0.0.1:8765)。面板（board）会列出日志目录中的所有运行记录，包括步骤数、停止原因和最终结果。点击任意运行记录的 **view** 查看逐步轨迹，或点击 **replay** 按钮进行回放（replay）。
-
-    <Tip>
-      打包好的演示与 [`examples/quickstart/minimal_agent.py`](https://github.com/Qitor/qitos/blob/main/examples/quickstart/minimal_agent.py) 走的是同一条最小编程智能体路径。想阅读或修改代码，可以从这个示例文件入手。
-    </Tip>
-  </Step>
-</Steps>
-
-## 接下来怎么学
-
-你已经跑起了一个最小编程智能体，也看到了它的追踪记录。接下来推荐继续：
-
-<CardGroup cols={2}>
-  <Card title="构建第一个智能体" icon="code" href="/zh/guides/build-your-first-agent">
-    从状态、模型、工具、运行到 qita，系统理解最小编程智能体的结构
-  </Card>
-  <Card title="教程课程" icon="graduation-cap" href="/zh/tutorials">
-    通过 ReAct、PlanAct、Claude Code 风格和安全审计课程递进学习
-  </Card>
-  <Card title="可观测性" icon="chart-line" href="/zh/guides/observability">
-    全面了解 qita 面板、回放与导出（export）
-  </Card>
-  <Card title="基准测试（benchmark）" icon="trophy" href="/zh/benchmarks/overview">
-    在 QitOS 内核上运行 GAIA、Tau-Bench 与 CyBench
-  </Card>
-</CardGroup>
+[配置](/zh/reference/configuration)提供完整私有凭据文件与显式 resolver。
+只有实际运行真实 launch 才会发请求；本轮文档验收没有真实模型请求。
+下一步按[八个学习单元](/zh/tutorials/index)继续。

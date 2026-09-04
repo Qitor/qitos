@@ -3,6 +3,9 @@ title: "Lesson 1: ReAct"
 description: "Build the first real QitOS agent and learn the full prompt-parser-tool-reduce loop from end to end."
 ---
 
+<Note>Advanced/compatible programmatic examples. Fragments illustrate mechanisms; HostEnv or workspace does not provide isolation. New projects start with [Quickstart](/quickstart), Session and explicit resource configuration.</Note>
+
+
 This is the first complete agent in the course.
 
 It is small on purpose, but it is not a toy. You will build a real coding agent with:
@@ -45,11 +48,15 @@ That small task is useful because it lets you see the whole QitOS kernel (the co
 
 The first lesson uses:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 OpenAICompatibleModel(...)
 ```
 
 with:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 model_parser=ReActTextParser()
@@ -82,6 +89,8 @@ Final Answer: <final answer only>
 
 In code, that is:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 def build_system_prompt(self, state: ReactState) -> str | None:
     return render_prompt(
@@ -100,6 +109,8 @@ The first durable QitOS lesson is:
 ## The full model harness for this lesson
 
 The example builds the model like this:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 def build_model() -> OpenAICompatibleModel:
@@ -125,7 +136,9 @@ You are not choosing the best model here. You are choosing the simplest harness 
   <Step title="Design the state around the next step">
     The state is intentionally small:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     @dataclass
     class ReactState(StateSchema):
         scratchpad: list[str] = field(default_factory=list)
@@ -149,7 +162,9 @@ You are not choosing the best model here. You are choosing the simplest harness 
   <Step title="Expose a minimal tool surface">
     The example uses a manual registry so you can see exactly what is being exposed:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     registry = ToolRegistry()
     registry.include(
         CodingToolSet(
@@ -177,7 +192,9 @@ You are not choosing the best model here. You are choosing the simplest harness 
   <Step title="Bind the prompt to the parser">
     The agent constructor pairs the prompt contract and the parser:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     super().__init__(
         tool_registry=registry,
         llm=llm,
@@ -197,7 +214,9 @@ You are not choosing the best model here. You are choosing the simplest harness 
   <Step title="Prepare only the context the next step needs">
     `prepare()` curates the current step's input:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     def prepare(self, state: ReactState) -> str:
         lines = [
             f"Task: {state.task}",
@@ -219,7 +238,9 @@ You are not choosing the best model here. You are choosing the simplest harness 
   <Step title="Use reduce to define what the agent remembers">
     ReAct learns inside `reduce()`:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     def reduce(
         self,
         state: ReactState,

@@ -3,6 +3,9 @@ title: "Kit Reference"
 description: "Reference for qitos.kit — reusable parsers, memory adapters, tool sets, planning helpers, critics, and models."
 ---
 
+<Note>Advanced/compatible programmatic examples. Fragments illustrate mechanisms; HostEnv or workspace does not provide isolation. New projects start with [Quickstart](/quickstart), Session and explicit resource configuration.</Note>
+
+
 `qitos.kit` provides concrete, reusable building blocks for common agent authoring patterns. All components attach to the `AgentModule + Engine` pipeline and do not introduce a second orchestrator.
 
 Key terms used on this page:
@@ -15,7 +18,9 @@ Key terms used on this page:
 - **critic**: a module that evaluates each step and can trigger retries or stops
 - **trace**: a structured log of all run events and steps
 
-```python
+Signature reference (not executable):
+
+```text
 from qitos.kit import ReActTextParser, WindowMemory, CodingToolSet, ...
 ```
 
@@ -96,7 +101,9 @@ Prompt format and parser must match exactly. If your prompt asks for `Thought:` 
 
 Parses ReAct-style text output with labeled blocks such as `Thought:` and `Action:`.
 
-```python
+Signature reference (not executable):
+
+```text
 from qitos.kit import ReActTextParser
 
 class ReActTextParser(BaseParser[dict[str, Any]])
@@ -104,7 +111,9 @@ class ReActTextParser(BaseParser[dict[str, Any]])
 
 **Constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(
     self,
     *,
@@ -124,6 +133,8 @@ def __init__(
 
 **Usage**
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit import ReActTextParser
 
@@ -142,7 +153,9 @@ Pass `parser` to `AgentModule.run()` or the `Engine` constructor.
 
 Parses JSON-formatted model output. Supports `mode` field (`"act"`, `"final"`, `"wait"`) and configurable key names.
 
-```python
+Signature reference (not executable):
+
+```text
 from qitos.kit import JsonDecisionParser
 
 class JsonDecisionParser(BaseParser[dict[str, Any]])
@@ -150,7 +163,9 @@ class JsonDecisionParser(BaseParser[dict[str, Any]])
 
 **Constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(
     self,
     *,
@@ -164,6 +179,8 @@ def __init__(
 Same parameter names as `ReActTextParser`. All keys default to the same values.
 
 **Usage**
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.kit import JsonDecisionParser
@@ -180,7 +197,9 @@ parser = JsonDecisionParser()
 
 Parses XML-formatted model output. Supports both XML `mode` attribute and configurable tag names.
 
-```python
+Signature reference (not executable):
+
+```text
 from qitos.kit import XmlDecisionParser
 
 class XmlDecisionParser(BaseParser[dict[str, Any]])
@@ -188,7 +207,9 @@ class XmlDecisionParser(BaseParser[dict[str, Any]])
 
 **Constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(
     self,
     *,
@@ -207,6 +228,8 @@ def __init__(
 
 **Usage**
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit import XmlDecisionParser
 
@@ -224,6 +247,8 @@ parser = XmlDecisionParser()
 <Accordion title="TerminusJsonParser / TerminusXmlParser">
 
 Terminus parsers are specialized variants that handle agent formats with explicit `<terminus>` or JSON-level termination signals. Use them with their matching system prompts (`TERMINUS_JSON_SYSTEM_PROMPT`, `TERMINUS_XML_SYSTEM_PROMPT`).
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.kit import TerminusJsonParser, TerminusXmlParser
@@ -314,13 +339,17 @@ Memory adapters implement `qitos.Memory` and give your agent persistent recall a
 
 Keeps the last N records in memory. Oldest records are dropped when the window overflows.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit import WindowMemory
 ```
 
 **Constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(self, window_size: int = 20)
 ```
 
@@ -330,7 +359,9 @@ def __init__(self, window_size: int = 20)
 
 **Usage**
 
-```python
+Signature reference (not executable):
+
+```text
 from qitos.kit import WindowMemory
 
 memory = WindowMemory(window_size=30)
@@ -343,13 +374,17 @@ agent = MyAgent(memory=memory, ...)
 
 Keeps the last N records in memory and compresses older records into a summary string when `evict()` is called.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit.memory import SummaryMemory
 ```
 
 **Constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(self, keep_last: int = 10)
 ```
 
@@ -365,13 +400,17 @@ When `evict()` runs, records beyond `keep_last` are pipe-joined into `self._summ
 
 Persists all memory records to a local markdown file in an append-only format. Useful for debugging and long-running agents that need durable memory.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit import MarkdownFileMemory
 ```
 
 **Constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(self, path: str = "memory.md", max_in_memory: int = 200)
 ```
 
@@ -397,13 +436,17 @@ Each appended record is written as a markdown section:
 
 Stores records in an in-process embedding index and retrieves the top-K most similar records for a given query.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit.memory import VectorMemory
 ```
 
 **Constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(self, top_k: int = 5)
 ```
 
@@ -416,6 +459,8 @@ def __init__(self, top_k: int = 5)
 </AccordionGroup>
 
 **Factory helpers**
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.kit.memory import window_memory, summary_memory, vector_memory, markdown_file_memory
@@ -438,13 +483,17 @@ Tool sets bundle related tools with shared lifecycle hooks (`setup` / `teardown`
 
 Full coding bundle combining editor, codebase search, file I/O, shell, and optionally notebook tools.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit import CodingToolSet
 ```
 
 **Constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(
     self,
     workspace_root: str = ".",
@@ -457,6 +506,8 @@ def __init__(
 ```
 
 **Typical usage**
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos import ToolRegistry
@@ -481,6 +532,8 @@ registry.register_toolset(
 
 Higher-level coding preset intended for Claude-style or operator-style long-running coding agents.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit.toolset import advanced_coding_tools
 ```
@@ -493,13 +546,17 @@ Use this preset when you want a richer coding workflow surface than the base `co
 
 Persistent task-board tools backed by a JSON file. Useful for agents that manage multi-step plans.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit import TaskToolSet
 ```
 
 **Constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(
     self,
     workspace_root: str = ".",
@@ -512,6 +569,8 @@ def __init__(
 <Accordion title="ThinkingToolSet">
 
 Lightweight thought-recording tools for workflows that want explicit scratch thoughts as tool calls.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.kit.toolset import thinking_tools
@@ -527,13 +586,17 @@ Use this as an opt-in research toolset rather than a default dependency for all 
 
 Assessment and reporting tools for evaluation agents.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit import ReportToolSet
 ```
 
 **Constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(self, workspace_root: str = ".")
 ```
 
@@ -543,11 +606,15 @@ def __init__(self, workspace_root: str = ".")
 
 Defensive repository-audit tools for entrypoint discovery, sink analysis, secret scanning, dependency checks, and finding synthesis.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit.tool.experimental.security_research import SecurityAuditToolSet
 ```
 
 **Typical usage**
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos import ToolRegistry
@@ -571,13 +638,17 @@ Use this toolset when you want a defensive code-review or audit agent rather tha
 
 Jupyter notebook manipulation tools.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit.tool.notebook import NotebookToolSet
 ```
 
 **Constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(self, workspace_root: str = ".")
 ```
 
@@ -588,6 +659,8 @@ def __init__(self, workspace_root: str = ".")
 <Accordion title="WebToolSet">
 
 Web-oriented preset built around HTTP and extraction tools.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.kit.toolset import web_tools
@@ -604,6 +677,8 @@ Use it for lightweight web research and scraping flows when you do not need the 
 **Pre-built registry helpers**
 
 The `qitos.kit.toolset` module provides factory functions that return a configured `ToolRegistry`:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.kit.toolset import (
@@ -635,14 +710,18 @@ Stand-alone tool objects you can register directly.
 
 HTTP request tools with automatic retries and structured response payloads.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
-from qitos.kit import HTTPGet, HTTPPost
+from qitos.kit.tool.web.http import HTTPGet, HTTPPost
 from qitos.kit.tool.web import HTTPRequest
 ```
 
 **`HTTPGet` constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(
     self,
     headers: Optional[Dict[str, str]] = None,
@@ -655,7 +734,9 @@ def __init__(
 
 **`HTTPRequest` constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(
     self,
     headers: Optional[Dict[str, str]] = None,
@@ -674,6 +755,8 @@ def __init__(
 
 Extract readable text from raw HTML, optionally preserving anchor links.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit import HTMLExtractText
 ```
@@ -688,8 +771,10 @@ from qitos.kit import HTMLExtractText
 
 Utility tool used by benchmark-style agents to submit a final candidate answer or flag.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
-from qitos.kit.tool.cybench import SubmitAnswer
+from qitos.recipes.benchmarks.cybench import SubmitAnswer
 ```
 
 This is especially useful in CyBench-like settings where the agent must explicitly hand over a candidate result through a tool call rather than only return a final natural-language answer.
@@ -699,6 +784,8 @@ This is especially useful in CyBench-like settings where the agent must explicit
 <Accordion title="SendTerminalKeys">
 
 Send keystrokes to a terminal session (tmux or similar).
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.kit import SendTerminalKeys
@@ -722,13 +809,17 @@ Planning helpers for building structured plans and search-driven agents.
 
 Calls an LLM to generate a numbered plan from a prompt.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit import NumberedPlanBuilder
 ```
 
 **Constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(self, system_prompt: str = "Return a numbered plan only.")
 ```
 
@@ -737,6 +828,8 @@ def __init__(self, system_prompt: str = "Return a numbered plan only.")
 Calls `llm` with the system prompt and user `prompt`, then parses lines matching `1. ...`, `2. ...` etc. Returns the list of step strings.
 
 **Usage**
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.kit import NumberedPlanBuilder
@@ -752,19 +845,25 @@ plan = builder.build(llm=agent.llm, prompt="How to analyse a Python codebase?")
 
 Manages plan and cursor fields on a state object.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit.planning import PlanCursor
 ```
 
 **Constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(self, plan_field: str = "plan", cursor_field: str = "plan_cursor")
 ```
 
 **Methods**
 
-```python
+Signature reference (not executable):
+
+```text
 def init(self, state: Any, plan: List[str]) -> None
 def current(self, state: Any) -> Optional[str]
 def advance(self, state: Any) -> None
@@ -777,13 +876,17 @@ def done(self, state: Any) -> bool
 
 Adaptive tree search that maintains a frontier of unexplored candidates and selects branches by score plus novelty bonus.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit import DynamicTreeSearch
 ```
 
 **Constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(
     self,
     top_k: int = 3,
@@ -807,6 +910,8 @@ Pass it to `Engine(search=DynamicTreeSearch(...))` or `AgentModule.run(search=..
 <Accordion title="State ops">
 
 Lightweight helpers for safely updating common state fields:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.kit.planning import append_log, format_action, set_final, set_if_empty
@@ -840,13 +945,17 @@ Critics evaluate each step's decision and action results, and can signal `contin
 
 Generates reflection notes when tool calls fail and triggers retries up to a configurable limit.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit import ReActSelfReflectionCritic
 ```
 
 **Constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(self, max_retries: int = 2)
 ```
 
@@ -862,6 +971,8 @@ def __init__(self, max_retries: int = 2)
 
 **Usage**
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit import ReActSelfReflectionCritic
 
@@ -875,6 +986,8 @@ agent.run(task="...", critics=[critic])
 
 General-purpose self-reflection critic. Checks action results and produces structured feedback without the ReAct-specific format assumptions.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit.critic import SelfReflectionCritic
 ```
@@ -884,6 +997,8 @@ from qitos.kit.critic import SelfReflectionCritic
 <Accordion title="PassThroughCritic">
 
 A no-op critic that always returns `action="continue"`. Useful as a placeholder during development.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.kit.critic import PassThroughCritic
@@ -901,8 +1016,11 @@ The models module provides concrete LLM callables compatible with `AgentModule.l
 
 For v0.4 research authoring, prefer the family-preset layer when you want one agent to switch across model families:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
-from qitos.harness import build_harness_policy, build_model_for_preset
+from qitos.models.harness_adapter import build_model_for_preset
+from qitos.harness import build_harness_policy
 ```
 
 Use `OpenAICompatibleModel(...)` directly when you are hand-authoring a single transport path.
@@ -913,13 +1031,17 @@ Use `OpenAICompatibleModel(...)` directly when you are hand-authoring a single t
 
 Works with any OpenAI-compatible API endpoint — including SiliconFlow, Azure OpenAI, Tongyi, Zhipu AI, LM Studio, vLLM, and LocalAI.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.models import OpenAICompatibleModel
 ```
 
 **Constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(
     self,
     model: str = "default",
@@ -946,7 +1068,9 @@ def __init__(
 
 **Usage**
 
-```python
+Signature reference (not executable):
+
+```text
 from qitos.models import OpenAICompatibleModel
 
 llm = OpenAICompatibleModel(
@@ -963,13 +1087,17 @@ agent = MyAgent(llm=llm, ...)
 
 Direct OpenAI (GPT) model integration.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.models import OpenAIModel
 ```
 
 **Constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(
     self,
     model: str = "gpt-4",
@@ -988,6 +1116,8 @@ Reads `OPENAI_API_KEY` and `OPENAI_BASE_URL` from the environment by default.
 
 <Accordion title="Local models">
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.models import OllamaModel, LMStudioModel, VLLMModel
 
@@ -1004,6 +1134,8 @@ All local models share the same base constructor signature as `OpenAICompatibleM
 
 Automatically selects and constructs a model from environment variables.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.models import ModelFactory
 
@@ -1013,6 +1145,8 @@ llm = ModelFactory.from_env()
 Reads `QITOS_MODEL` (or `OPENAI_API_KEY` / `OPENAI_BASE_URL`) to pick the right backend.
 
 Register a custom backend:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 @ModelFactory.register("my_backend")

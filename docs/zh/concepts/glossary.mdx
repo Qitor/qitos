@@ -1,134 +1,17 @@
 ---
-title: "术语表"
-description: "QitOS 中与运行、运行轨迹、产物、回放和基准测试输出相关的核心术语。"
+title: "术语"
+description: "QitOS G5 · 术语"
 ---
 
-## 运行时术语
-
-### 运行（Run）
-
-一次 `AgentModule.run(...)` 调用，或等价的基准测试执行路径，产出一组追踪记录产物。
-
-### 运行轨迹（Trajectory）
-
-一次运行的时间序列记录，包括提示词、决策（智能体每步的结构化决策）、工具调用、观测结果（每步后智能体接收的结构化观察结果）、归约与停止条件。
-
-### 观测结果（Observation）
-
-每个步骤之后进入智能体的结构化观察结果，通常包含动作执行结果与环境输出。
-
-### 决策（Decision）
-
-Engine 层的一等语义对象。它可以包含动作，也可以直接给出最终答案。
-
-### 动作（Action）
-
-智能体选出的标准化工具调用，由运行时执行。
-
-## 复现术语
-
-### 产物（Artifact）
-
-运行持久化下来的任何输出文件，尤其是 `manifest.json`、`events.jsonl`、`steps.jsonl`、导出的 HTML 与基准测试结果 JSONL。
-
-### 回放（Replay）
-
-基于已有产物对一次运行进行回放和审阅，通常通过 `qita replay` 完成。
-
-### 官方运行（Official Run）
-
-满足 QitOS 官方契约的运行：有规格说明、有标准产物，并支持 qita 回放/导出/比较。
-
-### 基准测试结果（Benchmark Result）
-
-统一的 `BenchmarkRunResult` 结果行，至少包含 `task_id`、`benchmark`、`split`、`prediction`、`success`、`stop_reason`、`steps` 与 `run_spec_ref`。
-
-## 控制与检查术语
-
-### 工具清单（Tool Manifest）
-
-本次运行暴露出的工具面序列化结果。它是官方运行的关键字段，因为工具漂移会直接改变行为。
-
-### 提示词协议（Prompt Protocol）
-
-模型输出遵循的格式契约（协议），例如 ReAct 文本、JSON、XML 或模型特定适配层。
-
-### 解析器（Parser）
-
-将原始模型输出转成 `Decision` 的组件。解析器必须和提示词协议匹配。
-
-### 上下文压缩（Context Compaction）
-
-在长时运行中压缩上下文的策略。QitOS 会把上下文压缩遥测记录到追踪记录里。
-
-### qita 面板 / 回放 / 差异比较
-
-分别对应多运行总览、单运行回放和双运行摘要比较。
-
-## 适配层与预设术语
-
-### 预设覆盖（Preset override）
-
-使用 `preset.override(**kwargs)` 创建内建 `FamilyPreset` 的自定义副本。原始预设不会被修改；`override()` 返回一个替换了指定字段的新实例。
-
-### MaxTokensCriteria
-
-当累计 token 用量超过预算时停止 Engine 的停止准则。Engine 在所有步骤中追踪 `total_tokens` 并通过 `runtime_info` 传递。
-
-### 推荐默认值（Advisory defaults）
-
-`FamilyPreset` 上的可选字段（`recommended_max_steps`、`recommended_max_tokens`、`recommended_retry_budget`、`recommended_temperature`），记录经过测试的基线值。这些仅供参考——引擎不会自动应用它们。
-
-## 追踪集成术语
-
-### WandbTraceProcessor
-
-`TraceProcessor` 的实现，将 QitOS 运行指标（token 用量、步数、评估器分数、工具调用、停止原因）流式传输到 Weights & Biases 项目。需要 `wandb` 包（`pip install qitos[wandb]`）。
-
-### MlflowTraceProcessor
-
-`TraceProcessor` 的实现，将 QitOS 运行指标流式传输到 MLflow 追踪服务器。支持自定义 `tracking_uri` 连接远程服务器。需要 `mlflow` 包（`pip install qitos[mlflow]`）。
-
-## Engine 导出术语
-
-### CriticTrace
-
-运行中单次评估器评估的结构化记录，存储在 `EngineResult.critic_traces` 中。包含 `step_id`、`critic_name`、`action`、`reason`、`score`，以及可选的 `instruction_patch`/`state_patch`。
-
-### HandoffTrace
-
-运行中智能体切换的结构化记录，存储在 `EngineResult.handoff_traces` 中。包含 `step_id`、`from_agent`、`to_agent`、`context_strategy` 和 `messages_passed`。
-
-### EngineConfig
-
-通过 `Engine.export_config()` 生成的不可变可序列化 Engine 配置快照。包含智能体名称、模型 ID、预算设置、评估器名称、协议和能力标志。
-
-### ToolPermissionSpec
-
-通过 `ToolRegistry.export_permissions()` 生成的不可变可序列化工具权限与能力概要。包含 `name`、`permissions`、`needs_approval`、`read_only`、`concurrency_safe` 和 `required_ops`。
-
-## 方法模板术语
-
-### 方法模板（Method Template）
-
-现成的 Agent + Critic 组合，实现了知名的智能体推理模式。QitOS 在 `qitos.recipes` 中内置了 Self-Refine、Reflexion、LATS、MoA 和 Magentic-One 模板。每个模板封装了专用的状态、评论器和智能体。
-
-### Self-Refine
-
-迭代精炼模式（Madaan et al. 2023），智能体生成草稿、接收批评、反复精炼直到质量达到阈值。`SelfRefineCritic` 通过启发式评分驱动循环；`SelfRefineAgent` 在提示词中注入当前草稿和批评历史。
-
-### Reflexion
-
-迭代反思模式（Shinn et al. 2023），智能体行动、评估结果，在失败时生成语言反思存储在状态中。`ReflexionCritic` 检测失败并以指令补丁形式产生反思；`ReflexionAgent` 将先前的反思注入系统提示词，使 LLM 能从过去的错误中学习。
-
-### LATS
-
-语言智能体树搜索（Zhou et al. 2023），将蒙特卡洛树搜索应用于语言智能体。`LATSAgent` 探索解路，`LATSCritic` 使用 UCB1 风格评分评估每条路径并在失败轨迹上生成反思，`LATSState` 跟踪树统计信息包括最佳奖励、失败路径和反思。
-
-### MoA（混合智能体）
-
-分层模式（Wang et al. 2024），多个提议者独立生成响应，聚合器综合最佳见解。`MoAOrchestrator` 管理提议收集和聚合；`MoACritic` 通过检查提议数量驱动循环，提示收集或综合。
-
-### Magentic-One
-
-双账本编排模式（Furtado et al. 2024），编排器维护事实库和任务账本，委派给专家智能体，在停滞时重新规划。`ProgressCritic` 检测停滞并触发重新规划；`MagenticOneOrchestrator` 在提示词中注入事实和任务进度。
+| Term | 含义 |
+|---|---|
+| Agent / AgentModule | 你的行为策略 / 对应实现契约。 |
+| Engine | 执行 observe → decide → act → reduce → check_stop。 |
+| Session / Run | 持久执行身份 / 一次执行尝试或区间。 |
+| Snapshot / Checkpoint | 不可变状态捕获 / 已持久化恢复身份。 |
+| WorkItem / Attempt | 有所有者的工作单元 / 一次具体尝试。 |
+| handoff / delegate / spawn / fork / join | 转移所有权 / 等待 child / 分离 child / 独立 lineage / 汇集 child 结果。 |
+| ToolResult / ArtifactRef | canonical 结果 / 可解析的保留字节引用。 |
+| Trajectory / historical trace | canonical journal 事实 / 兼容的旧 trace 文件。 |
+| provider / codec / continuation | 模型服务 adapter / 语义编码契约 / 后续请求所需不透明状态。 |
+| sandbox / publication / effect / unknown | 执行边界 / 显式输出发布 / 外部动作 / 尚未确定的结果。 |

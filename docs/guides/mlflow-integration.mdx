@@ -3,6 +3,9 @@ title: "MLflow Integration"
 description: "Stream QitOS run metrics to MLflow for experiment tracking and visualization."
 ---
 
+<Note>Advanced/compatible programmatic examples. Fragments illustrate mechanisms; HostEnv or workspace does not provide isolation. New projects start with [Quickstart](/quickstart), Session and explicit resource configuration.</Note>
+
+
 `MlflowTraceProcessor` implements the `TraceProcessor` ABC and streams QitOS run data to an MLflow tracking server. Once attached, it automatically logs per-span metrics during the run and writes a final summary when the trace ends.
 
 ## Installation
@@ -16,6 +19,8 @@ This installs the `mlflow` SDK as an optional dependency. Without it, importing 
 ---
 
 ## Quick start
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.tracing import add_trace_processor
@@ -88,6 +93,8 @@ Start an MLflow tracking server locally, then point the processor at it:
 mlflow server --host 127.0.0.1 --port 5000
 ```
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.tracing import add_trace_processor
 from qitos.tracing.mlflow_processor import MlflowTraceProcessor
@@ -108,6 +115,8 @@ If `tracking_uri` is not set, MLflow defaults to the local `mlruns` directory.
 ## Combining with other processors
 
 `add_trace_processor` appends to the global processor list, so you can combine `MlflowTraceProcessor` with any other `TraceProcessor`, including `WandbTraceProcessor`:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.tracing import add_trace_processor
@@ -132,6 +141,8 @@ result = agent.run(task="...", return_state=True)
 
 To replace all processors (removing the default writer), use `set_trace_processors`:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.tracing import set_trace_processors
 
@@ -145,6 +156,8 @@ set_trace_processors([mlflow_processor, wandb_processor])
 ### auto_end_run
 
 By default, `auto_end_run=True` and the processor calls `mlflow.end_run()` automatically when `on_trace_end` fires. Set `auto_end_run=False` if you want to continue logging custom metrics to the same MLflow run after the QitOS trace ends:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 import mlflow
@@ -169,6 +182,8 @@ mlflow.end_run()
 
 Call `shutdown()` to close the MLflow run early (for example, on `SIGTERM` or in a notebook cleanup step):
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 processor.shutdown()
 ```
@@ -178,6 +193,8 @@ This calls `mlflow.end_run()` if a run is active and `auto_end_run` is `True`. I
 ### force_flush()
 
 Call `force_flush()` to ensure all buffered metrics are written to the MLflow tracking server:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 processor.force_flush()

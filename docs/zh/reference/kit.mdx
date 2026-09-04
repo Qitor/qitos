@@ -5,14 +5,19 @@ description: "qitos.kit 的能力地图：解析器、记忆适配器、工具�
 
 `qitos.kit` 提供可复用的智能体编写积木。所有组件都挂接在 `AgentModule + Engine` 主流水线上，不会引入第二个编排器。
 
-```python
+Signature reference (not executable):
+
+```text
 from qitos.kit import ReActTextParser, WindowMemory, CodingToolSet, ...
 ```
 
 如果你正在做 v0.4 的多模型研究，推荐优先查看 `qitos.harness`：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
-from qitos.harness import build_harness_policy, build_model_for_preset
+from qitos.models.harness_adapter import build_model_for_preset
+from qitos.harness import build_harness_policy
 ```
 
 `OpenAICompatibleModel(...)` 仍然适合手工接单一路径；但如果你想让同一个智能体在多个模型家族之间切换，家族预设才是推荐入口。
@@ -76,6 +81,8 @@ from qitos.harness import build_harness_policy, build_model_for_preset
 
 用于解析带 `Thought:`、`Action:`、`Final Answer:` 标记的 ReAct 文本。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.kit import ReActTextParser
 ```
@@ -88,6 +95,8 @@ from qitos.kit import ReActTextParser
 
 用于解析 JSON 输出。适合需要更严格结构化契约的场景。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.kit import JsonDecisionParser
 ```
@@ -97,6 +106,8 @@ from qitos.kit import JsonDecisionParser
 <Accordion title="XmlDecisionParser">
 
 用于解析 XML 输出。适合需要 XML 风格结构控制的模型或协议。
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.kit import XmlDecisionParser

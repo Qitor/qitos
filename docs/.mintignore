@@ -1,7 +1,6 @@
-# Mintlify automatically ignores these files and directories:
-# .git, .github, .claude, .agents, .idea, node_modules,
-# README.md, LICENSE.md, CHANGELOG.md, CONTRIBUTING.md
-
-# Draft content
-drafts/
-*.draft.mdx
+# Repository engineering records are reviewed in Git, not published as site pages.
+# All public MDX pages remain included and checked by validate_docs.py.
+internal/
+architecture/
+v4/
+**/*.md

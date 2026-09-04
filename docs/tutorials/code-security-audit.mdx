@@ -3,6 +3,9 @@ title: "Lesson 4: Code security audit agent"
 description: "Specialize the QitOS kernel into a reproducible defensive audit agent with domain tools, ranked findings, and review-grade traces."
 ---
 
+<Note>Advanced/compatible programmatic examples. Fragments illustrate mechanisms; HostEnv or workspace does not provide isolation. New projects start with [Quickstart](/quickstart), Session and explicit resource configuration.</Note>
+
+
 This final lesson answers the hardest question in the course:
 
 can the same kernel (the core AgentModule + Engine execution loop) power a serious domain agent without collapsing into custom orchestration?
@@ -53,6 +56,8 @@ The runtime still has not changed.
 
 The audit agent still uses:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 model_parser=ReActTextParser()
 ```
@@ -73,7 +78,9 @@ QitOS supports those options, but the default research path remains provider-agn
   <Step title="Compose the tool surface by domain">
     The lesson combines three tool families:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     super().__init__(
         toolset=[
             SecurityAuditToolSet(
@@ -114,7 +121,9 @@ QitOS supports those options, but the default research path remains provider-agn
   <Step title="Encode the audit method in prompt plus prepare">
     The prompt provides the audit discipline, and `prepare()` makes the run stage explicit:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     lines = [
         f"Audit task: {state.task}",
         f"Workspace: {WORKSPACE}",
@@ -132,7 +141,9 @@ QitOS supports those options, but the default research path remains provider-agn
   <Step title="Track findings as first-class state">
     The audit state is intentionally lean:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     @dataclass
     class SecurityAuditState(StateSchema):
         scratchpad: list[str] = field(default_factory=list)
@@ -156,7 +167,9 @@ QitOS supports those options, but the default research path remains provider-agn
   <Step title="Use reduce to rank and compress evidence">
     The example extracts only the highest-signal findings from tool output:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     if isinstance(first, dict):
         data = (
             first.get("data", {})
@@ -180,7 +193,9 @@ QitOS supports those options, but the default research path remains provider-agn
   <Step title="Use bounded history, not unlimited accumulation">
     The example runs with:
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     history_policy=HistoryPolicy(max_messages=14)
     ```
 

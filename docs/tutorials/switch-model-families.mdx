@@ -3,14 +3,19 @@ title: "Switch model families with presets"
 description: "Run the same agent across Qwen, Kimi, DeepSeek, and other model families using family presets — without rewriting agent code."
 ---
 
+<Note>Advanced/compatible programmatic examples. Fragments illustrate mechanisms; HostEnv or workspace does not provide isolation. New projects start with [Quickstart](/quickstart), Session and explicit resource configuration.</Note>
+
+
 Family presets (pre-configured defaults for a model family) let you switch model families with minimal code changes. This tutorial shows you how to build an agent that runs on multiple families, override a preset when you need to, and compare the results in qita.
 
 ## Step 1 — Build a model with a preset
 
 The fastest way to get a model configured for a specific family is `build_model_for_preset`:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
-from qitos.harness import build_model_for_preset
+from qitos.models.harness_adapter import build_model_for_preset
 
 llm = build_model_for_preset(
     model_name="Qwen/Qwen3-8B",
@@ -25,8 +30,10 @@ This returns a fully configured model object with the Qwen family preset already
 
 The key insight is that your agent code does not change. Only the model construction changes:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
-from qitos.harness import build_model_for_preset
+from qitos.models.harness_adapter import build_model_for_preset
 
 configs = [
     ("qwen", "Qwen/Qwen3-8B", "https://api.siliconflow.cn/v1/"),
@@ -49,6 +56,8 @@ Each `build_model_for_preset` call resolves the correct protocol, parser, tool d
 ## Step 3 — Override a preset
 
 When a built-in preset does not match your needs, use `preset.override()` to create a customized copy:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from dataclasses import replace

@@ -3,6 +3,9 @@ title: "GAIA"
 description: "Run the GAIA general AI assistant benchmark with QitOS using the GaiaAdapter and a ReAct web research agent."
 ---
 
+<Note>Advanced/compatible programmatic examples. Fragments illustrate mechanisms; HostEnv or workspace does not provide isolation. New projects start with [Quickstart](/quickstart), Session and explicit resource configuration.</Note>
+
+
 GAIA (General AI Assistants) is a benchmark of real-world tasks that require multi-step reasoning, web research, file inspection, and arithmetic. Tasks are grouped into three difficulty levels and evaluated by exact-match comparison to a reference answer.
 
 QitOS provides `GaiaAdapter` to convert GAIA dataset rows into `Task` objects. The canonical execution path is `qit bench run`, while `examples/benchmarks/gaia_eval.py` remains available as a thin wrapper over the same official result contract.
@@ -35,6 +38,8 @@ QitOS provides `GaiaAdapter` to convert GAIA dataset rows into `Task` objects. T
 
 Use `GaiaAdapter` to load the dataset and convert rows to `Task` objects:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.benchmark import GaiaAdapter
 
@@ -52,6 +57,8 @@ print(tasks[0].inputs["attachments"])  # list of file paths
 
 Or use the one-line convenience loader:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.benchmark.gaia.adapter import load_gaia_tasks
 
@@ -61,6 +68,8 @@ tasks = load_gaia_tasks(split="validation", limit=20)
 ### Loading from a local snapshot
 
 If you have downloaded the dataset locally, load from disk to avoid repeated HuggingFace requests:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 adapter = GaiaAdapter(local_dir="data/gaia")
@@ -156,6 +165,8 @@ Pass `--gaia-use-annotated` to load the `smolagents/GAIA-annotated` variant, whi
 
 The evaluation script builds an `OpenDeepResearchGaiaAgent` with the following toolset:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit import CodingToolSet
 from qitos.kit.tool.browser import (
@@ -191,6 +202,8 @@ The agent uses a `ReActTextParser` expecting `Thought:` / `Action:` output forma
 ## Task structure
 
 Each `Task` produced by `GaiaAdapter` contains:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 Task(

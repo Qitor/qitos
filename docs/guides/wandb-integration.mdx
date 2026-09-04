@@ -3,6 +3,9 @@ title: "W&B Integration"
 description: "Stream QitOS run metrics to Weights & Biases for experiment tracking and visualization."
 ---
 
+<Note>Advanced/compatible programmatic examples. Fragments illustrate mechanisms; HostEnv or workspace does not provide isolation. New projects start with [Quickstart](/quickstart), Session and explicit resource configuration.</Note>
+
+
 `WandbTraceProcessor` implements the `TraceProcessor` ABC and streams QitOS run data to a Weights & Biases project. Once attached, it automatically logs per-span metrics during the run and writes a final summary when the trace ends.
 
 ## Installation
@@ -16,6 +19,8 @@ This installs the `wandb` SDK as an optional dependency. Without it, importing `
 ---
 
 ## Quick start
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.tracing import add_trace_processor
@@ -85,6 +90,8 @@ When the trace ends, the processor writes aggregate metrics to `run.summary`:
 
 `add_trace_processor` appends to the global processor list, so you can combine `WandbTraceProcessor` with any other `TraceProcessor` (for example, the default `LegacyTraceWriterProcessor` that writes to disk):
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.tracing import add_trace_processor
 from qitos.tracing.wandb_processor import WandbTraceProcessor
@@ -101,6 +108,8 @@ result = agent.run(task="...", return_state=True)
 
 To replace all processors (removing the default writer), use `set_trace_processors`:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.tracing import set_trace_processors
 
@@ -112,6 +121,8 @@ set_trace_processors([wandb_processor])
 ## Using with presets for config
 
 Family presets provide recommended model parameters. Use them to populate the W&B `config` dictionary so that your W&B dashboard reflects the same settings the agent used:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.harness import resolve_family_preset
@@ -142,6 +153,8 @@ result = agent.run(task="...", return_state=True)
 
 By default, `auto_finish=True` and the processor calls `wandb.finish()` automatically when `on_trace_end` fires. Set `auto_finish=False` if you want to continue logging custom metrics to the same W&B run after the QitOS trace ends:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 import wandb
 from qitos.tracing import add_trace_processor
@@ -165,6 +178,8 @@ wandb.finish()
 
 Call `shutdown()` to close the W&B run early (for example, on `SIGTERM` or in a notebook cleanup step):
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 processor.shutdown()
 ```
@@ -174,6 +189,8 @@ This calls `wandb.finish()` if a run is active and `auto_finish` is `True`. It i
 ### force_flush()
 
 Call `force_flush()` to ensure all buffered metrics are written to the W&B backend:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 processor.force_flush()

@@ -20,6 +20,8 @@ QitOS 有两种运行在不同层面的扩展机制：
 
 每个 Hook 都继承自 `EngineHook`。基类为每个生命周期回调定义了空操作方法，因此你只需覆盖需要的方法。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.engine.hooks import EngineHook
 ```
@@ -61,6 +63,8 @@ from qitos.engine.hooks import EngineHook
 
 每个步骤级回调都接收一个 `HookContext` 数据类，它携带了 Hook 可能需要的所有信息：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.engine.hooks import HookContext
 
@@ -84,6 +88,8 @@ from qitos.engine.hooks import HookContext
 
 工具级回调接收 `ToolHookContext`，它在 `HookContext` 基础上扩展了工具特有的字段：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.engine.hooks import ToolHookContext
 
@@ -95,6 +101,8 @@ from qitos.engine.hooks import ToolHookContext
 ```
 
 `phase` 字段来自 `RuntimePhase` 枚举：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.engine.states import RuntimePhase
@@ -111,6 +119,8 @@ from qitos.engine.states import RuntimePhase
 ## Step 3: 编写自定义日志 Hook
 
 一个常见用例是记录每个阶段转换，以便后续分析。下面是一个 `LifecycleRecorderHook`，它为每个回调记录时间戳和步骤 ID：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 import logging
@@ -176,6 +186,8 @@ class LifecycleRecorderHook(EngineHook):
 
 工具级 Hook 围绕单次工具调用触发，让你可以精细地观察智能体调用了哪些工具以及它们的返回值。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.engine.hooks import EngineHook, ToolHookContext
 
@@ -211,6 +223,8 @@ class ToolAuditHook(EngineHook):
 
 在调用 `run()` 之前，将 Hook 注册到 `Engine` 实例上：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos import Engine
 
@@ -225,11 +239,15 @@ result = engine.run(task="Fix the bug in buggy_module.py")
 
 查看当前已注册的 Hook：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 print(engine.hooks)  # list of EngineHook instances
 ```
 
 移除某个 Hook：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 engine.remove_hook(my_hook_instance)
@@ -267,7 +285,7 @@ on_run_end
 当发生错误恢复时，`on_recover` 代替该步骤的其余回调触发，Engine 可能根据配置决定重试或中止。
 
 <CardGroup cols={2}>
-  <Card title="相关指南：Critic" icon="shield-check" href="/guides/critics">
+  <Card title="相关指南：Critic" icon="shield-check" href="/zh/guides/critics-and-stop-criteria">
     了解 Critic 与 Hook 的区别，以及如何使用 Critic 进行控制流和决策门控。
   </Card>
   <Card title="下一篇教程：多智能体系统" icon="users" href="/tutorials/multi-agent">

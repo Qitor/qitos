@@ -32,6 +32,8 @@ Tau-Bench 的任务数据已经内置于 QitOS 包中，无需额外下载。
 
 ## 加载任务
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.benchmark import TauBenchAdapter
 
@@ -41,6 +43,8 @@ tasks = adapter.to_tasks(records, split="test", limit=5)
 ```
 
 也可以用一行式加载器：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.benchmark.tau_bench.adapter import load_tau_bench_tasks

@@ -1,47 +1,38 @@
 ---
-title: "G5 框架迁移"
+title: "G5 迁移与限制"
+description: "QitOS G5 · G5 迁移与限制"
 ---
 
-使用 `qit new --agent-name my_agent --output-dir . --no-input` 生成仓库外项目。
-生成测试使用确定性 provider；正常安装项目、运行 pytest、构建 wheel 并重装。
-Agent 策略保留在项目中，不进入 qitos。
+## 当前状态
 
-声明式启动默认使用 durable SQLite 和 required private Trajectory journal。
-省略 Session 路径时，从明确的 runtime data root 或项目配置/workspace 派生；
-省略轨迹输出时使用同一数据位置。位置不可用会在执行前拒绝。显式 memory store
-仅支持进程内使用；ephemeral 不承诺恢复。CLI inspect/capabilities 只读取存储，
-不要求 provider credential 或 Docker，显示持久化时的配置 digest。
+G5 runtime `717b4cf1b23f2ed252cd03234ffd8605038d9567` 框架资格通过，S4 本地融合完成。历史 2663 passed / 50 skipped 属于该 SHA；本轮不重跑或冒称新提交通过 G5。远端同步待本任务核验，默认分支与 release 未执行。
 
-通过现有 composition context manager 使用 composition.session、session.run、
-session.pause、composition.restore，以及 restored.run(steering=...)。
-composition.fork 从 immutable snapshot 创建 child，不获取或改变 source owner。
-Child 与 join 复用 durable work runtime；transfer 会 fencing 旧 owner。
-CLI 实时 pause/steer 和 durable approval-response resume 仍 typed unsupported；
-steering 不是工具授权。
+| 边界 | 支持范围 |
+|---|---|
+| Durable Session / Memory | SQLite 支持跨进程；Memory 只在进程内；ephemeral 不承诺恢复。 |
+| inspect / pause / steer | CLI inspect 不需要 provider、凭据或 Docker。CLI live pause/steer unsupported；Python 安全边界暂停与 restore-time steering 已支持。 |
+| approval / fork | 未解决 approval 阻止 restore；steering 不授权工具。fork 读取不可变 snapshot，不修改 source head。 |
+| timeout / unknown | timeout 不等于硬取消；unknown effect 不自动重放，需核对外部实际结果。 |
+| sandbox / publication | cleanup 保留输出，不自动发布。显式 publication 仅支持限定顶层普通文件与支持的 POSIX 平台；macOS 已验收，Linux host publication 未独立验收。 |
+| Trajectory / historical trace | journal 是默认；历史 wire ID 与显式 TraceWriter 保持兼容。qita 只读；完整读取目前全量加载。 |
+| export / privacy | public redacted export 是声明 loss 的投影，不是 raw 无损副本。 |
 
-Context contributor、memory source、selector 和 compactor 经显式 composition
-registry 配置；continuation/artifact resolver 由调用者注入。不支持的 lifecycle/
-failure policy 会拒绝。原生并行取决于工具声明、权限和配置；已发出的请求即使
-在 decode/capture 失败仍消耗预算，恢复不会自动重发。
+## 迁移操作
 
-Docker reference 使用 non-root、只读 rootfs、cap-drop/NNP、network-none、CPU/
-memory/pids 限额及任务私有存储。Cleanup 保留输出，不自动回写源码。显式
-SandboxPublicationTool（定义在 qitos.kit.tool.internal.publication）限定调用者
-选定路径及 input digest，经过既有 permission/effect 边界。当前仅支持合格
-Darwin/Linux 原子交换实现上的顶层普通文件（本轮实际验证 Darwin host）；嵌套路径、不支持的平台、源码冲突、
-链接及保护名称均拒绝。无法确认停止的 worker 保留 unknown；不承诺 Python thread
-或远端请求硬取消。
+1. 按准确源码安装，不能只检查 0.6.0 版本号。
+2. 将环境变量优先的配置迁移为 agent.yaml + CredentialRef + 显式 resolver。
+3. 用 AgentComposition.session 管理标准配置运行；自定义 AgentModule 继续使用公共 Engine/RuntimeComposition。
+4. 将 host 文件工具迁移到 attested Docker Env，显式选择需要 publication 的文件。
+5. 保留旧 trace，使用 default_reader 读取新旧数据。
 
-qita board --logdir DATA_DIRECTORY 和 qita inspect session SESSION_ID --logdir
-DATA_DIRECTORY 默认读取 journal 并兼容历史 trace。Minimal demo 返回 journal
-路径与 run identity，不再表示 manifest 目录。显式 TraceWriter 保持兼容。回滚时
-禁用 trajectory.enabled（AgentModule.run 使用 trace=False），并选择
- default_reader(root, selector="trace")；candidate_file_reader(path) 仍可读取新数据。
-Selector 不删除数据，也不重放执行效果；显式 RuntimeComposition 自行选择 sink。
+## 故障排查
 
-ArtifactRef 可通过 resolver 取回保留内容，缺失时 typed failure。公开导出脱敏、
-绑定内容并声明 loss；exact re-import 保留该公开 projection。完整读取及导出不会
-静默截断，但当前 journal 会扫描并物化全部数据，query limit 不是总内存上限。
-成本测量及合同见仓库 architecture/trajectory-contract 文档。
+`sandbox_unavailable`：启动 daemon，核对镜像与资源，不改为 unsafe host。
 
-最终组合门禁和主工作树复验通过前，G5 仍是本地集成候选，不代表远端同步、发布或部署。
+凭据文件错误：检查 `credentials:` 根节点、ref、0600 文件、0700 目录、仓库外位置。G5 scaffold 示例缺少根节点，请按配置参考替换，不修改检查。
+
+codec loss：即使工具已经执行，下次请求仍可能因无法保留语义而拒绝。保留 request_sent、预算、工具结果和 loss report；不能关闭检查或将其归为模型不聪明。
+
+required sink 失败：处理存储/权限后核对持久化事实；不能把 final 文本作为成功依据。
+
+[配置](/zh/reference/configuration) · [Quickstart](/zh/quickstart).

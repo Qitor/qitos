@@ -3,6 +3,9 @@ title: "方法模板"
 description: "使用内置方法模板（Self-Refine、Reflexion、LATS、MoA、Magentic-One）以最少的样板代码实现经过验证的智能体模式。"
 ---
 
+<Note>高级/兼容程序化示例。此页代码片段仅作机制说明；HostEnv 或 workspace 不提供隔离。新项目先按 [Quickstart](/zh/quickstart) 使用 Session 与明确资源配置。</Note>
+
+
 QitOS 提供**方法模板**——即现成的 Agent + Critic 组合，实现了知名的智能体推理模式。每个模板封装了专用的状态、评论器和智能体，让你无需重写控制循环即可应用该模式。
 
 ## 什么是方法模板？
@@ -28,6 +31,8 @@ QitOS 提供**方法模板**——即现成的 Agent + Critic 组合，实现了
 - 任何迭代改进能可靠产生更好输出的任务
 
 ### 快速开始
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.recipes.self_refine import SelfRefineAgent, SelfRefineCritic
@@ -77,6 +82,8 @@ print(result.state.final_result) # 如果提取到 FINAL ANSWER
 - 多次尝试的问题（编码、推理），反思能改进后续尝试
 
 ### 快速开始
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.recipes.reflexion import ReflexionAgent, ReflexionCritic
@@ -128,6 +135,8 @@ print(result.state.final_result)  # 如果提取到 FINAL ANSWER
 
 ### 快速开始
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.recipes.lats import LATSAgent, LATSCritic
 
@@ -172,6 +181,8 @@ print(result.state.best_reward)    # 最佳奖励分数
 
 ### 快速开始
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.recipes.moa import MoAOrchestrator, MoACritic
 
@@ -204,6 +215,8 @@ print(result.state.synthesis)  # 聚合后的答案
 - 涉及研究、编码和分析子任务的开放性问题
 
 ### 快速开始
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.recipes.magentic_one import (
@@ -276,6 +289,8 @@ qit new \
 1. **定义状态**，扩展 `StateSchema` 并添加模式的跟踪字段
 2. **实现评论器**，当模式需要迭代时返回带有 `instruction_patch` 和 `state_patch` 的 `retry`
 3. **实现智能体**，其 `build_system_prompt()` 从状态中注入模式上下文
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from dataclasses import dataclass, field

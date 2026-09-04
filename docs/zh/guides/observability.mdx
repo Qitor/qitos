@@ -1,251 +1,55 @@
 ---
-title: "可观测性"
-description: "通过 qita 网页看板检查、回放并导出智能体运行。"
+title: "Trajectory 与 qita"
+description: "QitOS G5 · Trajectory 与 qita"
 ---
 
-默认情况下，每次 `agent.run()` 都会把追踪记录（trace）写到 `./runs/<run_id>/`。`qita` 命令行工具会读取这些追踪记录，并通过本地网页看板提供运行检查、逐步回放与独立 HTML 导出。
+## 学习目标
 
-## 追踪记录产物
+通过 default_reader 读取 canonical journal，检查 steering 与 fork lineage，导出脱敏 public projection 并重新读入。
 
-每个运行目录都包含三个文件：
+## 前置条件
 
-| 文件 | 内容 |
-|---|---|
-| `manifest.json` | 运行元数据：`run_id`、`model_id`、`status`、`stop_reason`、`step_count`、`event_count`、`schema_version`、`prompt_hash`、`run_config_hash`、`seed`、`summary` |
-| `events.jsonl` | 每行一个 `RuntimeEvent`，包含 `step_id`、`phase`、`ts`、`ok`、`error` 与 `payload` |
-| `steps.jsonl` | 每行一个 `StepRecord`，包含 `step_id`、决策（decision，智能体每步的结构化决策）、动作（action，标准化工具调用）、动作结果、观测结果（observation，每步后智能体接收的结构化观察结果）与评估器输出 |
+完成[Quickstart](/zh/quickstart)的安装与 lessons 复制；基础包，Python 3.12.7 实测，无真实请求。
 
-`manifest.json` 会在初始化时写出，并在 Engine 退出时完成定稿。`events.jsonl` 与 `steps.jsonl` 都是只追加写入。
+## 完整可运行示例
 
----
+[`examples/tutorials/session_walkthrough.py`](https://github.com/Qitor/qitos/blob/feat/campaign-absorption/examples/tutorials/session_walkthrough.py)
 
-## qita 看板
-
-`qita board` 会启动一个本地 HTTP 服务器，发现日志根目录下所有运行目录并渲染成卡片网格。
-
-<Steps>
-
-<Step title="启动看板">
+完整目录是唯一执行来源；同目录的 session_walkthrough.py 是公开教学依赖，不依赖仓库 tests。
 
 ```bash
-qita board --logdir ./runs
+python lessons/session_walkthrough.py create --root ./observe-run
+python lessons/session_walkthrough.py restore --root ./observe-run
+qita board --logdir ./observe-run
 ```
 
-默认地址为 `http://127.0.0.1:8765`。
+## 预期输出与断言
 
-常用参数：
+`records>0; public_export_lossless=false; board opens locally`
 
-| 参数 | 默认值 | 说明 |
-|---|---|---|
-| `--logdir` | `./runs` | 包含各个运行子目录的根路径 |
-| `--host` | `127.0.0.1` | 绑定地址 |
-| `--port` | `8765` | 监听端口 |
+文件内的 assert 验证结果；ID 每次不同。除 board 由 Ctrl-C 关闭外，命令应退出 0。
+
+## HTML 导出与 replay
+
+--run 使用日志目录下的逻辑 run ID 路径，不是 journal 文件名。replay 启动只读本地服务，用 Ctrl-C 停止。
 
 ```bash
-qita board --logdir ./runs --host 0.0.0.0 --port 9000
+run_id=$(python -c 'import json; print(json.load(open("observe-run/control.json"))["run_id"])')
+mkdir -p "./observe-run/$run_id"
+qita export --run "./observe-run/$run_id" --html ./observe-run/replay.html
+qita replay --run "./observe-run/$run_id"
 ```
 
-</Step>
+## 支持边界
 
-<Step title="浏览运行记录">
+qita 只读，不拥有执行语义。默认发现 journal 与 historical trace。完整读取正确，但目前全量加载；query limit 不是总内存上限。public export 不是无损 raw 备份。CLI qita export 输出 HTML，CanonicalTrajectoryExporter 输出 canonical JSON。private runs 不进入 Git。
 
-看板每 2.5 秒自动刷新一次。每个运行会以卡片形式展示：
+## 常见错误
 
-- 运行标识
-- 状态徽标
-- 步数与事件数
-- 停止原因
-- 更新时间
-- 清单元数据，如模型标识、模式版本、种子、提示词哈希
+目录已存在时选一个新 root；导入失败核对安装来源。配置不匹配、缺失扩展或 typed failure 应检查 Trajectory 和迁移页，不能静默重试 unknown 外部效果。
 
-你可以通过工具栏：
+## 下一步
 
-- **搜索**：按运行标识、停止原因、最终结果搜索
-- **状态筛选**：按状态筛选
-- **排序**：按更新时间、事件数或步数排序
-- **自动刷新**：开关自动刷新
+[学习目录](/zh/tutorials/index) · [迁移与排障](/zh/reference/g5-migration)
 
-页面顶部还会展示摘要指标，如成功率、平均步数、平均事件数和主要失败停止原因。
-
-这是最常用的总览界面。
-
-![qita 看板总览](/images/qita-board.png)
-
-</Step>
-
-<Step title="打开一个运行">
-
-点击任意运行卡片的 **查看** 即可进入详情页。详情页通常有两个标签页：
-
-**轨迹标签页**
-
-轨迹视图会把每一步显示成一张卡片，通常包含这些折叠区块：
-
-- **状态**：当前观测结果中的关键状态字段
-- **思考**：模型推理文本
-- **动作**：本步调用的动作
-- **直接观测**：动作结果；搜索结果会表格化，错误会高亮
-- **评估器**：评估器输出
-- **追踪事件**：该步骤的原始 `RuntimeEvent`
-
-左侧**步骤导航器**支持：
-
-- 全文过滤
-- 按事件阶段过滤
-- 升序或降序排序
-- 开关观测结果/评估器区块
-- 全部折叠或展开
-- 调整字号
-
-顶部还有一个甘特图风格的阶段时间线，用颜色表示各阶段时长。
-
-**清单标签页**
-
-直接展示格式化后的 `manifest.json`。
-
-这是逐步检查智能体行为时最重要的界面。
-
-![qita 轨迹视图](/images/qita-traj.png)
-
-</Step>
-
-</Steps>
-
----
-
-## qita 回放（replay）
-
-`qita replay` 用于把单次运行以时间序方式回放出来。
-
-```bash
-qita replay --run ./runs/my_agent_20260407_120000_000001
-```
-
-| 参数 | 默认值 | 说明 |
-|---|---|---|
-| `--run` | 必填 | 运行目录路径 |
-| `--host` | `127.0.0.1` | 绑定地址 |
-| `--port` | `8765` | 监听端口 |
-
-回放页面支持调整播放速度，URL 上可使用 `?speed=300` 指定毫秒级间隔。
-
----
-
-## qita 导出（export）
-
-`qita export` 会生成一个自包含的 HTML 文件，便于分享而不必运行本地服务器。
-
-```bash
-qita export --run ./runs/my_agent_20260407_120000_000001 --html out.html
-```
-
-| 参数 | 说明 |
-|---|---|
-| `--run` | 运行目录路径，必填 |
-| `--html` | 输出 HTML 文件路径，必填 |
-
-导出文件会内联全部 CSS、JavaScript 与运行数据，因此可以直接作为审阅产物发送给同事或审稿人。
-
----
-
-## 配置追踪记录输出
-
-默认情况下，`agent.run()` 会把追踪记录写到 `./runs/`，运行标识由智能体类名与 UTC 时间戳组成。你也可以自定义目录和前缀：
-
-```python
-result = agent.run(
-    task="...",
-    max_steps=10,
-    trace_logdir="./my_experiments",
-    trace_prefix="react_v2",
-    return_state=True,
-)
-```
-
-如果完全不想写追踪记录，可以传：
-
-```python
-result = agent.run(task="...", trace=False, return_state=True)
-```
-
-也可以传入一个预配置的 `TraceWriter`：
-
-```python
-from qitos.trace import TraceWriter
-
-writer = TraceWriter(
-    output_dir="./runs",
-    run_id="my_custom_run_id",
-    strict_validate=True,
-    metadata={"model_id": "Qwen3-8B"},
-)
-
-result = agent.run(task="...", trace=writer, return_state=True)
-```
-
-<Note>
-  `qita` 发现运行至少需要三个文件：`manifest.json`、`events.jsonl` 和 `steps.jsonl`。缺少 `manifest.json` 的目录会被 `qita board` 静默跳过。
-</Note>
-
----
-
-## 实时流式推送（SSE）
-
-qita 为每个运行提供了 Server-Sent Events（SSE）端点，可以实时流式推送步骤事件。这对构建自定义仪表盘或对接外部监控系统非常有用。
-
-### SSE 端点
-
-```
-GET /api/stream/{run_id}
-```
-
-该端点以 SSE 格式发出带类型名称的事件：
-
-| 事件类型 | 何时发出 |
-|---|---|
-| `run_start` | 运行开始（包含 `run_id`、`task`、`agent_name`） |
-| `step_start` | 一个步骤开始（包含 `step_id`、`agent_id`） |
-| `step_end` | 一个步骤完成 |
-| `phase` | 运行时阶段事件（decide、act、reduce 等） |
-| `handoff` | 智能体切换事件 |
-| `delegate` | 委托事件（1:1 子任务） |
-| `fanout` | 扇出事件（1:N 并行子任务） |
-| `run_end` | 运行结束（包含 `step_count`、`stop_reason`） |
-
-### 客户端消费
-
-在任何网页中：
-
-```javascript
-const es = new EventSource('/api/stream/my_run_id');
-es.addEventListener('step_start', e => {
-    const data = JSON.parse(e.data);
-    console.log('步骤', data.step_id, '智能体:', data.agent_id);
-});
-es.addEventListener('handoff', e => {
-    console.log('切换:', JSON.parse(e.data));
-});
-es.addEventListener('run_end', e => {
-    es.close();
-});
-```
-
-### 实时流按钮
-
-qita 运行详情页包含一个 **live stream** 按钮，点击后会连接 SSE 端点并在浏览器控制台输出事件日志。这对于调试和理解已完成运行的事件流很有用。
-
-### 使用 AsyncEngine 流式推送
-
-对于实时运行，使用 `AsyncEngine.arun_stream()` 以编程方式消费事件：
-
-```python
-from qitos import AsyncEngine
-
-engine = AsyncEngine(agent=agent, budget=RuntimeBudget(max_steps=10))
-
-async for event in engine.arun_stream("分析数据"):
-    if event.event_type == "step_end":
-        print(f"步骤 {event.step_id} 完成")
-    elif event.event_type == "handoff":
-        print(f"智能体切换: {event.payload}")
-```
+G5 CLI 仍要求 --run 路径存在，因此先创建同名空目录；真实数据仍由 parent 目录中的 journal 读取。这是 CLI 兼容限制，不是新的 trace 数据格式。

@@ -3,11 +3,16 @@ title: "Agent Module"
 description: "AgentModule 是策略层，用来定义智能体如何初始化状态、构造提示词、做决策，并把观测结果归约到下一步状态。"
 ---
 
+<Note>高级/兼容程序化示例。此页代码片段仅作机制说明；HostEnv 或 workspace 不提供隔离。新项目先按 [Quickstart](/zh/quickstart) 使用 Session 与明确资源配置。</Note>
+
+
 `AgentModule` 是你定义智能体行为时要实现的核心契约。它负责智能体如何思考的全部内容：状态初始化、提示词构造、决策逻辑以及状态归约，但它**不执行循环本身**。执行循环由 [Engine](/zh/concepts/engine)（执行内核）负责。
 
 ## 泛型参数
 
 `AgentModule` 有三个泛型类型参数：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 class AgentModule(ABC, Generic[StateT, ObservationT, ActionT]):
@@ -22,6 +27,8 @@ class AgentModule(ABC, Generic[StateT, ObservationT, ActionT]):
 
 一个完整的强类型声明通常长这样：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 class MyAgent(AgentModule[MyState, dict[str, Any], Action]):
     ...
@@ -35,6 +42,8 @@ class MyAgent(AgentModule[MyState, dict[str, Any], Action]):
 
 每次运行开始时调用一次。你需要返回一个初始状态对象，通常基于任务字符串初始化。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 def init_state(self, task: str, **kwargs: Any) -> StateT:
     return MyState(task=task, max_steps=int(kwargs.get("max_steps", 10)))
@@ -45,6 +54,8 @@ def init_state(self, task: str, **kwargs: Any) -> StateT:
 ### `reduce`（必需）
 
 每次动作循环结束后调用。它把旧状态、新观测结果和本步决策归约成下一步状态——这是智能体从执行结果中学习的地方，也是归约的核心机制。
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 def reduce(
@@ -65,6 +76,8 @@ def reduce(
 
 返回动态系统提示词；如果返回 `None`，则本步不使用系统提示词。它会在每个决策步骤之前调用，因此提示词可以根据当前状态动态变化。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 def build_system_prompt(self, state: StateT) -> str | None:
     return render_prompt(SYSTEM_TEMPLATE, {"tools": self.tool_registry.get_tool_descriptions()})
@@ -76,6 +89,8 @@ def build_system_prompt(self, state: StateT) -> str | None:
 
 把当前状态转成模型可直接消费的文本，也就是用户轮次。默认行为是 `str(state)`。通常你会覆写它，把多个状态字段组织成结构化输入。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 def prepare(self, state: StateT) -> str:
     return f"Task: {state.task}\nStep: {state.current_step}/{state.max_steps}"
@@ -84,6 +99,8 @@ def prepare(self, state: StateT) -> str:
 ### `decide`（可选）
 
 如果你想在 Engine 走默认大模型调用路径之前插入自定义决策逻辑，就覆写它。返回 `None` 时，Engine 会继续走模型调用与解析器路径。
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 def decide(self, state: StateT, observation: ObservationT) -> Decision[ActionT] | None:
@@ -96,6 +113,8 @@ def decide(self, state: StateT, observation: ObservationT) -> Decision[ActionT] 
 
 在每步 `reduce` 之后额外检查一次停止条件。返回 `True` 会终止运行。Engine 的内置停止条件仍会继续叠加生效。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 def should_stop(self, state: StateT) -> bool:
     return state.final_result is not None
@@ -104,6 +123,8 @@ def should_stop(self, state: StateT) -> bool:
 ## 一个最小可运行示例
 
 在 QitOS 里，公开的最小示例依然是一个真实的编码智能体：它会配置模型、挂载工作区，并让 Engine 驱动工具使用与验证。
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from dataclasses import dataclass, field
@@ -168,6 +189,8 @@ class MinimalCodingAgent(AgentModule[MinimalCodingState, dict[str, Any], Action]
 
 调用 `agent.run()` 即可执行一个任务。这是最常用的入口。它会在内部创建 `Engine`、运行循环，并返回结果。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 agent = MinimalCodingAgent(
     llm=build_model(),
@@ -213,6 +236,8 @@ print(result.state.stop_reason)
 ## 构造函数参数
 
 `AgentModule.__init__` 支持这些参数，全部可选：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 AgentModule(

@@ -58,6 +58,8 @@ QitOS 把三层明确分开。
 
 ### 使用 eval_config
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 import yaml
 from pathlib import Path
@@ -88,6 +90,8 @@ preset = resolve_builtin_preset(model)
 ### W&B 集成
 
 在配方执行时将基准测试指标流式传输到 Weights & Biases：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.tracing import add_trace_processor

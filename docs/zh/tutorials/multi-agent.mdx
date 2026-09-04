@@ -1,4 +1,9 @@
-# 在 QitOS 中构建第一个多智能体系统
+---
+title: "高级多 Agent 策略"
+---
+
+<Note>高级/兼容程序化示例。此页代码片段仅作机制说明；HostEnv 或 workspace 不提供隔离。新项目先按 [Quickstart](/zh/quickstart) 使用 Session 与明确资源配置。</Note>
+在 QitOS 中构建第一个多智能体系统
 
 本教程将构建一个多智能体代码探索系统：它会并行派发多个子 Agent，
 分别调查代码库的不同部分。
@@ -17,6 +22,8 @@
 
 首先创建一个能够调查目录的 explorer Agent：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from dataclasses import dataclass, field
 from typing import Any
@@ -32,7 +39,7 @@ You are a code explorer agent. Investigate directories and report findings.
 
 Output contract (strict):
 Thought: <reasoning>
-Action: <tool_name>(arg=value, ...)
+Action: <tool_name>(arg=value )
 or
 Final Answer: <summary>
 """
@@ -78,6 +85,8 @@ class ExplorerAgent(AgentModule[ExplorerState, dict[str, Any], Action]):
 
 使用 `AgentSpec` 和 `AgentRegistry` 注册子 Agent：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos import AgentRegistry, AgentSpec, ContextStrategy
 
@@ -99,13 +108,15 @@ registry.register(explorer_spec)
 
 Coordinator Agent 同时拥有 coding tools 和 `fanout` 工具：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.kit import CodingToolSet
 
 class CoordinatorAgent(AgentModule[ExplorerState, dict[str, Any], Action]):
     def __init__(self, llm, workspace_root, agent_registry):
         registry = ToolRegistry()
-        registry.include(CodingToolSet(workspace_root=workspace_root, ...))
+        registry.include(CodingToolSet(workspace_root=workspace_root ))
         # Register delegation and fanout tools
         for delegate_tool in agent_registry.get_delegate_tools():
             registry.register(delegate_tool)
@@ -116,6 +127,8 @@ class CoordinatorAgent(AgentModule[ExplorerState, dict[str, Any], Action]):
 ```
 
 ## 第 4 步：运行
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 coordinator = CoordinatorAgent(llm=llm, workspace_root="./my-project", agent_registry=registry)
@@ -133,6 +146,8 @@ LLM 将调用
 ## 使用 Patterns 快速开始
 
 常见模式可以直接使用内建模板：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.kit.patterns import build_manager_worker_system, ManagerWorkerConfig

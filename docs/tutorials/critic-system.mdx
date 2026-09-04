@@ -11,6 +11,8 @@ This tutorial covers the full critic API: the `CriticResult` contract, built-in 
 
 Every critic returns a `CriticResult` -- a dataclass that tells the Engine what to do next.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.engine.critic_result import CriticResult
 ```
@@ -35,11 +37,15 @@ The three actions control the loop:
 
 A minimal continue result:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 result = CriticResult(action="continue", reason="all good", score=1.0)
 ```
 
 A retry with an instruction patch:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 result = CriticResult(
@@ -51,6 +57,8 @@ result = CriticResult(
 ```
 
 A hard stop:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 result = CriticResult(
@@ -68,6 +76,8 @@ QitOS ships with ready-made critics in `qitos.kit.critic`.
 
 The simplest critic -- always continues with a perfect score.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit.critic import PassThroughCritic
 
@@ -80,6 +90,8 @@ This is the default when you create an Engine without specifying critics. It is 
 ### SelfReflectionCritic
 
 Inspects tool results for errors and retries automatically up to a configurable limit.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.kit.critic import SelfReflectionCritic
@@ -95,6 +107,8 @@ Behavior:
 
 Pass it to the Engine:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.engine import Engine
 
@@ -109,6 +123,8 @@ engine = Engine(
 
 A richer variant designed for ReAct agents. On error, it builds a structured reflection note describing the failed action and the observed error, then appends it to the state's metadata so the LLM can learn from the failure on the next retry.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit.critic import ReActSelfReflectionCritic
 
@@ -119,6 +135,8 @@ critic = ReActSelfReflectionCritic(max_retries=2)
 
 Each built-in critic also ships as a decorated function:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit.critic import pass_through_critic, self_reflection_critic
 
@@ -128,6 +146,8 @@ from qitos.kit.critic import pass_through_critic, self_reflection_critic
 ## Step 3: Writing a Custom Critic with the @critic Decorator
 
 The `@critic` decorator converts any plain function into a `Critic` instance. The function receives `(state, decision, results)` and can return a quick shorthand or a full `CriticResult`.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.engine.critic_decorator import critic
@@ -145,6 +165,8 @@ Quick-return shorthands:
 
 A bare decorator (no arguments):
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 @critic
 def no_empty_answers(state, decision, results):
@@ -155,6 +177,8 @@ def no_empty_answers(state, decision, results):
 ```
 
 With keyword arguments -- set a custom name and default score:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 @critic(name="safety", score=0.8)
@@ -169,6 +193,8 @@ def safety_check(state, decision, results):
 When the function does not set a score explicitly, the decorator's `score` parameter is used as the default. In the example above, a `"continue"` return gets `score=0.8` instead of the usual `1.0`.
 
 Wire the critic into the Engine:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 engine = Engine(
@@ -186,6 +212,8 @@ When a critic returns `action="retry"`, it can guide the next iteration in two w
 - **`state_patch`** -- a dictionary whose keys and values are merged into the agent's state object via `setattr`.
 
 These are applied before the Engine calls `decide` again, so the LLM and the state are already updated when the retry begins.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.engine.critic_result import CriticResult
@@ -210,6 +238,8 @@ def enforce_json_output(state, decision, results):
 ```
 
 Using `state_patch` to inject tracking data:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 @critic(name="retry_tracker")
@@ -236,6 +266,8 @@ def track_retries(state, decision, results):
 
 You can also use the tuple shorthand with an instruction patch:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 @critic
 def be_concise(state, decision, results):
@@ -247,6 +279,8 @@ def be_concise(state, decision, results):
 ## Step 5: Combining Critics
 
 The Engine accepts a list of critics. They are evaluated in order, and the **first non-continue result wins**. This lets you stack critics from strictest to most permissive.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.kit.critic import SelfReflectionCritic
@@ -272,6 +306,8 @@ def format_check(state, decision, results):
 
 Wire them into the Engine -- safety first, then format, then the built-in self-reflection as a fallback:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.engine import Engine
 
@@ -294,16 +330,16 @@ With this ordering:
 
 This layered approach keeps each critic small and focused, while the ordering gives you full control over priority.
 
-import { CardGroup, Card } from "nextra/components";
+
 
 <CardGroup>
-  <Card title="Hooks Lifecycle" href="/docs/tutorials/hooks-lifecycle">
+  <Card title="Hooks Lifecycle" href="/tutorials/hook-lifecycle">
     Understand the full Engine event lifecycle that critics participate in.
   </Card>
-  <Card title="Agent Module" href="/docs/concepts/agent-module">
+  <Card title="Agent Module" href="/concepts/agent-module">
     Deep dive into the AgentModule interface that critics inspect.
   </Card>
-  <Card title="Critics and Stop Criteria" href="/docs/guides/critics-and-stop-criteria">
+  <Card title="Critics and Stop Criteria" href="/guides/critics-and-stop-criteria">
     How critics interact with stop criteria and retry budgets.
   </Card>
 </CardGroup>

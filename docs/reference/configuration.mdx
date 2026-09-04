@@ -1,398 +1,154 @@
 ---
 title: "Configuration"
-description: "Canonical declarative AgentConfig launches, programmatic composition, and lower-level runtime controls."
+description: "QitOS G5 · Configuration"
 ---
 
-For a complete agent launch, QitOS has one declarative golden path:
+## Complete configuration and dependencies
 
-```bash
-qit run --config agent.yaml
-```
-
-The same strict `AgentConfig` path is available from Python:
-
-```python
-from qitos.config import run_agent_config
-
-result = run_agent_config("agent.yaml")
-```
-
-The canonical `qitos.agent` YAML root has exactly `schema`, `agent`,
-`model`, `tools`, `runtime`, and `budgets`, plus optional `context`, `metadata`,
-and `dataset`. Unknown or duplicate fields, ambiguous types, unsafe YAML tags,
-missing required values, and environment interpolation fail closed. A complete
-provider-neutral example is checked in at
-[`examples/config/agent.yaml`](../../examples/config/agent.yaml).
-
-Historical schema spellings are accepted only by an internal compatibility
-reader. Canonical serialization, examples, CLI receipts, and documentation
-always write `qitos.agent`; there are no public version-suffixed AgentConfig
-classes. Loaded objects are deeply immutable. Their canonical JSON is
-deterministic and omits resolved credentials, live clients, local source paths,
-and runtime objects, so equivalent configuration produces the same digest. That
-digest binds launch receipts, Session snapshots/restores, and Trajectory
-provenance.
-
-Credentials are logical references, never values:
+Install first. The real client requires `[openai]`; file tools require Docker
+CLI, daemon and image. Save this complete file as `agent.yaml`, then replace
+the example model and reserved endpoint. `provider.example` is a placeholder,
+not a working service. Validate tools, reasoning, continuation and Responses
+support individually; an OpenAI-compatible label is not a compatibility guarantee.
 
 ```yaml
 schema: qitos.agent
 agent:
-  name: coding-agent
+  name: example-coding-agent
   protocol: auto
   parser: auto
+  seed: 0
 model:
   provider: openai_compatible
   model: example-model
   base_url: https://provider.example/v1
   credential:
     ref: example-openai-compatible
+  api_mode: chat_completions
+  context_window: 32768
+  request:
+    temperature: 0.0
+    max_tokens: 2048
+    timeout_seconds: 180
+    extra_body: {}
 tools:
   preset: env_coding
-  policy: required_before_final
+  include: []
+  options: {}
+  policy: auto
 runtime:
   environment:
     type: docker
     image: python:3.12-slim
     workspace: .
+    container_workspace: /workspace
     network: none
     read_only_root: true
     cap_drop: true
     no_new_privileges: true
     pids_limit: 256
     memory_mb: 2048
-    cpus: 2
+    cpus: 2.0
+    cleanup_required: true
+  session:
+    mode: durable
+    store: sqlite
+    path: ./.qitos/example-sessions.sqlite3
   trajectory:
     enabled: true
-    output: ./private-runs
+    output: ./runs
     privacy: private
     failure_policy: required
 budgets:
   max_steps: 10
+  max_runtime_seconds: 600
+  max_requests: 12
+context: {}
+memory: {}
+compaction: {}
+lifecycle:
+  policy: cooperative
+failure_policy:
+  tool: fail_closed
+metadata:
+  purpose: provider-neutral-launch-example
+dataset:
+  - task: Inspect the workspace and report one verified fact.
 ```
 
-The default local resolver reads a private credential file outside the
-repository. The file must be exactly `0600`, and every containing credential
-directory must deny group/world permissions (no broader than `0700`).
-`FakeCredentialResolver` supports deterministic tests.
-`EnvironmentCredentialResolver` is an explicit compatibility/deployment
-adapter; environment variables are not the canonical launch interface and a
-missing variable is always a typed failure. Canonical serialization contains
-only a credential reference and safe digests, never the resolved secret.
+## Private credentials
 
-Protocol is the sole request/response semantic authority. `parser: auto`
-derives the parser from the resolved protocol; an explicit incompatible parser
-is rejected before launch. Provider capability declarations, `RequestView`,
-codec projection, tool schemas/tool choice, reasoning and continuation facts,
-and response parsing remain on that same route. Malformed structured responses
-or unauthorized lossy fallback are typed failures rather than text-success
-guesses.
+Use a directory outside the repository with mode `0700`, and a regular,
+current-user-owned non-symlink file with mode `0600`. The resolver validates
+the immediate parent; keeping the private directory chain restricted is also
+recommended. Fill the value with a local editor, not in shell history or Git.
+G5's generated `credentials.example.yaml` omits the required root key;
+use this complete structure instead.
 
-Tool policy is configuration, not a provider-specific harness rule:
+```bash
+mkdir -p "$HOME/.config/qitos"
+chmod 700 "$HOME/.config/qitos"
+touch "$HOME/.config/qitos/credentials.yaml"
+chmod 600 "$HOME/.config/qitos/credentials.yaml"
+```
 
-| Policy | Meaning |
-|---|---|
-| `auto` | Default; the model may use tools or finish normally |
-| `required_for_next_decision` | The next accepted decision must perform a tool action |
-| `required_before_final` | A final answer is rejected until this run has a real tool result |
-| `disabled` | No tool schema or tool call is accepted |
+```yaml
+credentials:
+  example-openai-compatible: REPLACE_IN_PRIVATE_EDITOR
+```
 
-Coding/file-write configurations use a real sandbox backend. Docker is the
-reference backend and is attested from runtime inspect facts: non-root,
-read-only root filesystem, private workspace staging without a writable host bind, disabled network,
-dropped capabilities, no-new-privileges, bounded CPU/memory/processes, no
-credential injection, host-side provider requests, and proven cleanup. Docker
-unavailability is `sandbox_unavailable`; it never falls back to host execution.
-`unsafe_host` is an explicit unisolated opt-out. It emits an unsafe receipt and
-rejects Docker-only claims such as `network: none` or `read_only_root: true`.
+`model.credential.ref` matches the mapping key. `CredentialRef` stores only
+the logical reference; the explicit resolver resolves secrets at composition,
+not in serialized config or Session data.
 
-`runtime.trajectory.enabled` defaults to true; composition installs the existing
-Trajectory EventSink. Config, sandbox, request/response, tool/effect,
-pause/snapshot/restore, child/work-graph, join, failure, and final facts flow
-through the canonical runtime and can be reopened by the existing reader and
-qita. `privacy: private` artifacts stay outside source control; public exports
-remain redacted. Sink failure follows the existing `required`/`optional`
-policy. G5 freezes the existing wire schema. Omitted output is derived from the Session/runtime data location; directory output uses `trajectory.journal`. See [G5 migration](/reference/g5-migration).
+## Inspect first, then run
 
-The lower-level composition path is also real and explicit:
+This qualification only loads the config; it does not execute the real launch
+below. `load_agent_config` reads neither credentials nor provider/Docker state.
+The budget is 12 requests, 2048 output tokens per response, 10 steps and 600
+seconds. Timeout is not hard cancellation.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
+from qitos.config import load_agent_config
+config = load_agent_config("agent.yaml")
+assert config.budgets.max_requests == 12
+print(config.digest())
+```
+
+```bash
+docker info
+docker pull python:3.12-slim
+qit run --config agent.yaml --credentials "$HOME/.config/qitos/credentials.yaml"
+```
+
+Save as `run_agent.py` and run `python run_agent.py` (sends real requests):
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
+from pathlib import Path
 from qitos.config import LocalCredentialFileResolver, build_agent_composition, load_agent_config
 
 config = load_agent_config("agent.yaml")
-resolver = LocalCredentialFileResolver("<user-config-dir>/credentials.yaml")
-composition = build_agent_composition(config, credential_resolver=resolver)
-try:
-    result = composition.engine.run(config.dataset[0].task)
-finally:
-    composition.close()
-```
-
-Framework configuration, the local credential store, the tool sandbox, the
-host-side provider request runtime, private trajectory storage, and
-public/redacted exports are separate trust boundaries. QitOS does not claim a
-distributed scheduler, external-effect exactly-once delivery, Python-thread
-hard cancellation, or microVM isolation from the Docker reference backend.
-
-Lower-level programmatic APIs remain available through three overlapping
-layers:
-
-1. **`AgentModule.run()` keyword arguments** — the normal per-run entrypoint
-2. **`Engine` constructor keyword arguments** — lower-level runtime control
-3. **Compatibility environment adapters** — legacy provider defaults, not the declarative launch authority
-
----
-
-## OpenAI transport mode
-
-`OpenAIModel`, `OpenAICompatibleModel`, and their async variants support two
-explicit transport modes:
-
-| `api_mode` | Behavior |
-|---|---|
-| `chat_completions` | Default. Uses `/v1/chat/completions` and preserves existing QitOS behavior |
-| `responses` | Opt-in. Uses `/v1/responses`, preserves ordered native output items, and correlates function calls and outputs with `call_id` |
-
-Configure the mode in YAML:
-
-```yaml
-model:
-  provider: openai
-  model: gpt-5
-  api_mode: responses
-```
-
-Or construct a model directly:
-
-```python
-from qitos.models import OpenAIModel
-
-llm = OpenAIModel(
-    model="gpt-5",
-    api_mode="responses",
+resolver = LocalCredentialFileResolver(
+    Path.home() / ".config/qitos/credentials.yaml",
+    repository_root=Path.cwd(),
 )
+with build_agent_composition(config, credential_resolver=resolver) as composition:
+    session = composition.session("Inspect the workspace and report one verified fact.")
+    result = session.run()
+    print(session.session_id.value, result.state.stop_reason, result.state.final_result)
 ```
 
-Responses mode supports synchronous, asynchronous, and typed streaming calls.
-QitOS replays the provider's ordered output items and
-`function_call_output` items during a tool loop, so no mutable
-`previous_response_id` state is required. Active native tool rounds remain
-atomic during history compaction.
+## Failures, compatibility and extension
 
-<Warning>
-OpenAI-compatible providers may implement only part of `/v1/responses`.
-QitOS never silently falls back to Chat Completions after a Responses request
-fails. Select `chat_completions` explicitly for endpoints that do not support
-Responses.
-</Warning>
-
-Reasoning items are treated as opaque continuation state. Trace summaries keep
-safe item descriptors and provider-authorized summaries, but omit encrypted
-reasoning continuation payloads.
-
-### Per-client HTTP headers
-
-`OpenAIModel`, `OpenAICompatibleModel`, and their async compatible variants
-accept `default_headers`. Use it for neutral transport concerns such as routing
-affinity or gateway metadata:
-
-```python
-from qitos.models import OpenAICompatibleModel
-
-llm = OpenAICompatibleModel(
-    model="research-model",
-    base_url="https://gateway.example/v1",
-    default_headers={"x-route-key": task_route_key},
-)
-```
-
-QitOS does not read a provider-specific routing environment variable. Keep
-secrets and task-to-route policy in the calling application, and do not include
-secret header values in trace metadata.
-
----
-
-## AgentModule.run() arguments
-
-All of the following can be passed to `agent.run(task, ...)`. This is the canonical user-facing configuration surface for QitOS runs.
-
-<AccordionGroup>
-
-<Accordion title="Task and execution">
-
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `task` | `str \| Task` | required | Task objective string or structured `Task` object |
-| `max_steps` | `int \| None` | `None` | Override `TaskBudget.max_steps`; also sets `state.max_steps` via `state_kwargs` |
-| `return_state` | `bool` | `False` | Return the full `EngineResult` instead of just `state.final_result` |
-| `workspace` | `str \| None` | `None` | Path to workspace root; automatically constructs a `HostEnv` and sets `env_spec` on the task |
-| `env` | `Any` | `None` | Explicit `Env` instance; takes precedence over `workspace` |
-
-</Accordion>
-
-<Accordion title="Parsing and decisions">
-
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `parser` | `Any` | `None` | Parser (a component that converts raw model output into a typed Decision) instance (e.g. `ReActTextParser`, `JsonDecisionParser`) forwarded to the `Engine` |
-| `search` | `Any` | `None` | `Search` strategy instance for `branch` decisions (e.g. `DynamicTreeSearch`) |
-| `critics` | `List[Any] \| None` | `None` | List of `Critic` (a module that evaluates each step and can trigger retries or stops) instances evaluated after each step |
-| `stop_criteria` | `List[Any] \| None` | `None` | Custom stop criteria list; replaces the default `FinalResultCriteria` |
-| `history_policy` | `Any` | `None` | `HistoryPolicy` instance controlling message history window |
-
-</Accordion>
-
-<Accordion title="Tracing and rendering">
-
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `trace` | `Any` | `None` | `True` to enable default `TraceWriter`; pass a `TraceWriter` instance for full control; `False`/`None` disables tracing only if `trace_writer` is not already set in `engine_kwargs` |
-| `trace_logdir` | `str` | `"./runs"` | Directory where trace run subdirectories are created |
-| `trace_prefix` | `str \| None` | `None` | Prefix for the auto-generated run ID; defaults to `agent.name` |
-| `render` | `Any` | `None` | `True` to enable the default `ClaudeStyleHook` render hook; pass a hook instance for custom rendering |
-| `theme` | `str` | `"research"` | Theme name passed to the render hook |
-
-</Accordion>
-
-<Accordion title="Hooks and engine passthrough">
-
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `hooks` | `List[Any] \| None` | `None` | Additional `EngineHook` instances appended to the Engine's hook list |
-| `render_hooks` | `List[Any] \| None` | `None` | Additional render hook instances merged into `hooks` |
-| `engine_kwargs` | `Dict[str, Any] \| None` | `None` | Any `Engine` constructor keyword argument; lower-priority than the explicit arguments above |
-| `**state_kwargs` | `Any` | | Extra keyword arguments forwarded to `agent.init_state()` |
-
-</Accordion>
-
-</AccordionGroup>
-
-**Minimal example**
-
-```python
-result = agent.run(
-    task="Analyse the repository and list all public API functions.",
-    workspace="/path/to/repo",
-    max_steps=20,
-    trace_logdir="./experiment-runs",
-    trace_prefix="api-analysis",
-)
-```
-
----
-
-## Engine constructor arguments
-
-When you construct an `Engine` directly (or via `engine_kwargs`), these parameters are available:
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `agent` | `AgentModule` | required | The agent whose hooks the Engine calls |
-| `budget` | `RuntimeBudget \| None` | `RuntimeBudget(max_steps=10)` | Step, time, and token budgets for the run |
-| `validation_gate` | `StateValidationGate \| None` | default gate | Validates state before and after each phase |
-| `recovery_handler` | `RecoveryHandler \| None` | `None` | Callable `(state, phase, exc) -> None` invoked on recoverable errors |
-| `recovery_policy` | `RecoveryPolicy \| None` | `RecoveryPolicy()` | Controls retry behaviour and backoff |
-| `trace_writer` | `TraceWriter \| None` | `None` | Writes trace (a structured log of all run events and steps) artifacts; set via `AgentModule.run(trace=True)` |
-| `parser` | `Parser[ActionT] \| None` | `None` | Parser (a component that converts raw model output into a typed Decision); converts raw LLM output to `Decision` |
-| `stop_criteria` | `List[StopCriteria] \| None` | `[FinalResultCriteria()]` | Ordered stop criteria evaluated after each step |
-| `branch_selector` | `BranchSelector \| None` | `FirstCandidateSelector()` | Selects among `branch` candidates |
-| `search` | `Search \| None` | `None` | Search strategy for expanding and scoring branch candidates |
-| `critics` | `List[Critic] \| None` | `[]` | Critics (modules that evaluate each step and can trigger retries or stops) evaluated after each step |
-| `env` | `Env \| None` | `None` | Environment for observe/step/is_terminal lifecycle |
-| `history_policy` | `HistoryPolicy \| None` | `HistoryPolicy()` | Controls how history messages are assembled for model calls |
-| `hooks` | `List[EngineHook] \| None` | `[]` | Engine lifecycle hooks |
-| `render_hooks` | `List[Any] \| None` | `None` | Render hooks merged into `hooks` |
-
-**`RuntimeBudget` fields**
-
-```python
-@dataclass
-class RuntimeBudget:
-    max_steps: int = 10
-    max_runtime_seconds: Optional[float] = None
-    max_tokens: Optional[int] = None
-```
-
-When a `Task` object is passed to `Engine.run()`, the `Task.budget` values override the Engine's `RuntimeBudget` for that run.
-
----
-
-## Environment variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `OPENAI_API_KEY` | Yes (for OpenAI / compatible APIs) | API key sent in the `Authorization` header. Used by `OpenAIModel` and `OpenAICompatibleModel` |
-| `OPENAI_BASE_URL` | Yes (for compatible APIs) | Base URL of the API endpoint. Required by `OpenAICompatibleModel`; optional for `OpenAIModel` (defaults to `https://api.openai.com/v1`) |
-| `QITOS_API_KEY` | No | Alternative API key variable. Recognized by `ModelFactory.from_env()` as a fallback when `OPENAI_API_KEY` is not set |
-| `QITOS_MODEL` | No | Default model identifier. Read by `ModelFactory.from_env()` to select the model when none is specified in code |
-| `AZURE_OPENAI_API_KEY` | Only for Azure | API key for Azure OpenAI. Used by `AzureOpenAIModel` |
-| `AZURE_OPENAI_ENDPOINT` | Only for Azure | Endpoint URL for Azure OpenAI |
-| `AZURE_OPENAI_DEPLOYMENT` | No | Deployment name for Azure OpenAI |
-| `AZURE_OPENAI_API_VERSION` | No | API version; defaults to `2024-02-15-preview` |
-
-**Example `.env` file**
-
-```bash
-# OpenAI-compatible endpoint (e.g. SiliconFlow, Ollama proxy)
-OPENAI_API_KEY=sk-...
-OPENAI_BASE_URL=https://api.siliconflow.cn/v1/
-```
-
----
-
-## Trace output directory structure
-
-By default, `AgentModule.run()` writes traces to `./runs/`. Each run creates one subdirectory:
-
-```
-<trace_logdir>/
-└── <trace_prefix>_<YYYYMMDD_HHMMSS_ffffff>/
-    ├── manifest.json    # Run metadata and final summary
-    ├── events.jsonl     # All runtime events (one JSON object per line)
-    └── steps.jsonl      # All step records (one JSON object per line)
-```
-
-**Auto-generated run ID format**
-
-```
-<agent.name>_<YYYYMMDD_HHMMSS_ffffff>
-```
-
-Override the prefix with `trace_prefix`:
-
-```python
-agent.run(task="...", trace_prefix="experiment-01")
-# → runs/experiment-01_20260407_120000_123456/
-```
-
-**Pointing `qita board` at your trace directory**
-
-```bash
-qita board --logdir ./runs
-```
-
-<Note>
-Tracing is enabled by default in `AgentModule.run()`. Set `trace=False` only for quick interactive experiments — disabling tracing means runs cannot be replayed or inspected with `qita`.
-</Note>
-
-### G5 explicit projection loss and restored execution settings
-
-`context.allow_codec_loss: true` opts into a codec's declared lossy request
-projection. It defaults to false. For a generic Chat Completions endpoint that
-returns reasoning but cannot replay it, the opt-in permits the codec to omit
-reasoning from subsequent model requests while retaining the canonical reasoning
-in the Session conversation and recording `assistant.reasoning` in the codec loss
-report. It does not assert native reasoning replay or authorize silent loss.
-
-New Session snapshots persist the existing approval setting, action execution
-policy, and context settings, so restore does not silently reset these controls.
-A changed declarative configuration still fails its persisted digest check.
-
-### Configured context budget and compaction
-
-Set `context.budget_policy` to an explicit composition extension key whose
-instance implements the existing `budget_for` protocol. `compaction.provider`
-resolves the existing `compact` protocol. Request selection invokes both at
-the model boundary. Compaction receipts are separate queryable Trajectory facts
-with declared model-projection loss; omission does not erase canonical exchange
-or artifact content. Budget units follow the policy/counter declaration.
+Unknown/duplicate keys, invalid types, YAML tags and environment interpolation
+fail closed. `failure_policy` currently accepts only `tool: continue` or
+`tool: fail_closed`. Python must register extension names explicitly through
+`extensions`; CLI does not import arbitrary config-selected code.
+`EnvironmentCredentialResolver` is an advanced deployment compatibility adapter.
+`AgentModule.run()` and direct Engine remain useful for advanced programmatic
+control; host tools do not imply isolation.
+[Next: Session](/tutorials/checkpoint-and-fork).

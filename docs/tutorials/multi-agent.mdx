@@ -1,4 +1,9 @@
-# Build Your First Multi-Agent System in QitOS
+---
+title: "Advanced multi-agent strategy"
+---
+
+<Note>Advanced/compatible programmatic examples. Fragments illustrate mechanisms; HostEnv or workspace does not provide isolation. New projects start with [Quickstart](/quickstart), Session and explicit resource configuration.</Note>
+Build Your First Multi-Agent System in QitOS
 
 This tutorial walks through building a multi-agent code exploration system that
 dispatches parallel sub-agents to investigate different parts of a codebase.
@@ -18,6 +23,8 @@ aggregated and synthesized.
 
 First, create an explorer agent that can investigate directories:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from dataclasses import dataclass, field
 from typing import Any
@@ -33,7 +40,7 @@ You are a code explorer agent. Investigate directories and report findings.
 
 Output contract (strict):
 Thought: <reasoning>
-Action: <tool_name>(arg=value, ...)
+Action: <tool_name>(arg=value )
 or
 Final Answer: <summary>
 """
@@ -79,6 +86,8 @@ class ExplorerAgent(AgentModule[ExplorerState, dict[str, Any], Action]):
 
 Use `AgentSpec` and `AgentRegistry` to register your sub-agent:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos import AgentRegistry, AgentSpec, ContextStrategy
 
@@ -100,13 +109,15 @@ registry.register(explorer_spec)
 
 The coordinator agent has coding tools plus the `fanout` tool:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.kit import CodingToolSet
 
 class CoordinatorAgent(AgentModule[ExplorerState, dict[str, Any], Action]):
     def __init__(self, llm, workspace_root, agent_registry):
         registry = ToolRegistry()
-        registry.include(CodingToolSet(workspace_root=workspace_root, ...))
+        registry.include(CodingToolSet(workspace_root=workspace_root ))
         # Register delegation and fanout tools
         for delegate_tool in agent_registry.get_delegate_tools():
             registry.register(delegate_tool)
@@ -117,6 +128,8 @@ class CoordinatorAgent(AgentModule[ExplorerState, dict[str, Any], Action]):
 ```
 
 ## Step 4: Run It
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 coordinator = CoordinatorAgent(llm=llm, workspace_root="./my-project", agent_registry=registry)
@@ -133,6 +146,8 @@ spawning three parallel explorers.
 ## Quick Start with Patterns
 
 For common patterns, use the built-in templates:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos.kit.patterns import build_manager_worker_system, ManagerWorkerConfig

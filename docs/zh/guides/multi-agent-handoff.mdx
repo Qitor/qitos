@@ -13,6 +13,8 @@ QitOS 支持多 Agent 协作，通过 Handoff 机制在 Agent 之间切换执行
 
 通过 `DelegateTool` 触发，适合临时性的子任务委托：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.core.agent_spec import AgentSpec, AgentRegistry
 
@@ -31,6 +33,8 @@ delegate_tools = registry.get_delegate_tools()
 
 通过 `Decision.handoff()` 触发，适合 Agent 间的正式切换：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 decision = Decision.handoff(target="researcher")
 ```
@@ -42,6 +46,8 @@ Handoff 时，源 Agent 的对话历史如何传递给目标 Agent 由上下文�
 ### FULL — 完整传递
 
 传递完整的对话历史，适合目标 Agent 需要完整上下文的场景。
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.core.agent_spec import AgentSpec, ContextStrategy
@@ -58,6 +64,8 @@ spec = AgentSpec(
 
 压缩较旧的历史为摘要，保留最近 3 轮完整消息。适合大多数场景，防止上下文爆炸。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 spec = AgentSpec(
     name="coder",
@@ -71,6 +79,8 @@ spec = AgentSpec(
 
 只传递系统提示和任务描述，目标 Agent 从零开始。适合完全独立的子任务执行。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 spec = AgentSpec(
     name="executor",
@@ -83,6 +93,8 @@ spec = AgentSpec(
 ## SharedMemory 共享
 
 多 Agent 可以通过 `SharedMemoryManager` 共享状态数据：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.core.shared_memory import SharedMemoryManager, InMemorySharedMemory
@@ -108,6 +120,8 @@ child_view.write("task", "修改")  # raises PermissionError
 
 `HandoffContext` 提供了比上下文策略更精细的控制：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.core.agent_spec import HandoffContext, ContextStrategy
 
@@ -131,6 +145,8 @@ Handoff 事件自动记录在追踪中：
 - `HANDOFF_END` — 记录目标 Agent 确认
 
 启用 `TracingProvider` 后，Handoff 会创建 `HandoffSpanData` 跨度记录：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.tracing import TracingProvider

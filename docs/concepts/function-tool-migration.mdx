@@ -1,0 +1,8 @@
+---
+title: "Function tool migration"
+description: "QitOS G5 · Function tool migration"
+---
+
+Historical ToolMeta/decorator examples are not the G5 authoring contract. Use function_tool from qitos.core.function_tool_decorator for pure functions; class tools implement BaseTool.execute(args, runtime_context) with ToolSpec. Register them with ToolRegistry. Keep permissions and effect declarations explicit; run is a compatibility path.
+
+[Learning path](/tutorials/index) · [Configuration](/reference/configuration) · [Contributing](/contributing/development).

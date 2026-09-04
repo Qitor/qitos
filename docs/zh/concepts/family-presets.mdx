@@ -43,6 +43,8 @@ task -> state -> prepare -> llm -> parser -> Decision -> tools -> reduce -> trac
 
 ## v0.4 的公共表面
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.harness import (
     FamilyPreset,
@@ -52,8 +54,8 @@ from qitos.harness import (
     ContextPolicy,
     resolve_family_preset,
     build_harness_policy,
-    build_model_for_preset,
-)
+ )
+from qitos.models import build_model_for_preset
 ```
 
 ## 第一批黄金预设
@@ -137,6 +139,8 @@ QitOS 通过 `RunSpec.metadata` 把预设和适配层信息写进追踪记录。
 ## 覆盖预设
 
 当内建预设不完全符合需求时，用 `preset.override()` 创建自定义副本，无需修改源码：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from dataclasses import replace

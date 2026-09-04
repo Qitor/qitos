@@ -1,5 +1,22 @@
 # Task 12 — durable session runtime and process-independent resume
 
+## Current status (2026-09-04)
+
+Current G5 runtime baseline: `717b4cf1b23f2ed252cd03234ffd8605038d9567`.
+Framework qualification **passed**; S4 local integration **complete**.
+Remote sync: **not performed by this documentation task yet**.
+Default branch and release: **not performed; no readiness claim**.
+Historical G5: 2663 passed / 50 live-opt-in skipped, Python 3.12.7.
+Documentation successors do not inherit that test execution identity.
+
+See [documentation promotion]( ../internal/plans/g5_docs_tutorials_promotion.md).
+
+## Historical design and execution record
+
+The remaining milestones and proposed interfaces record their original dates;
+read the current public Quickstart and migration guide for supported usage.
+
+
 Status: durable Session, clean-process restore, fork, and ownership promoted;
 S4 public composition/CLI/default migration remains open
 Depends on: Task 01; coordinates with Tasks 02, 03, 04, and 09

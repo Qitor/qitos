@@ -3,11 +3,16 @@ title: "State and Task"
 description: "StateSchema is the typed container for everything your agent tracks across steps. Task is the structured package that describes what the agent should accomplish."
 ---
 
+<Note>Advanced/compatible programmatic examples. Fragments illustrate mechanisms; HostEnv or workspace does not provide isolation. New projects start with [Quickstart](/quickstart), Session and explicit resource configuration.</Note>
+
+
 ## StateSchema
 
 `StateSchema` is the base class for your agent's typed state. It acts as the single source of truth during a run — every hook in your `AgentModule` reads from and writes to it.
 
 ### Built-in fields
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 @dataclass
@@ -36,6 +41,8 @@ class StateSchema:
 
 Add your own fields by subclassing `StateSchema`. The Engine serializes state diffs into each step record using `state.to_dict()`, so all fields are captured in the trace automatically.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from dataclasses import dataclass, field
 from typing import Any
@@ -52,6 +59,8 @@ class ResearchState(StateSchema):
 
 Initialize it in `init_state`:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 def init_state(self, task: str, **kwargs: Any) -> ResearchState:
     return ResearchState(
@@ -64,6 +73,8 @@ def init_state(self, task: str, **kwargs: Any) -> ResearchState:
 
 Call `state.set_stop()` from within `reduce` (the hook that folds the step's observation and decision back into state) to halt the run on the next stop check. It accepts a `StopReason` enum value or its string equivalent.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos import StopReason
 
@@ -75,6 +86,8 @@ def reduce(self, state, observation, decision):
 
 Setting `state.final_result` triggers the default `FinalResultCriteria` stop condition, which is the preferred way to signal a successful completion:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 state.final_result = "The answer is 42."
 ```
@@ -84,6 +97,8 @@ state.final_result = "The answer is 42."
 ## Task
 
 `Task` is a structured package that describes what the agent should do, what resources it needs, and what constraints apply. You can pass a `Task` anywhere `agent.run()` or `Engine.run()` accepts a task argument.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos import Task, TaskBudget, TaskResource
@@ -120,6 +135,8 @@ result = agent.run(task, return_state=True)
 
 `TaskBudget` sets per-task limits on steps, wall-clock time, and tokens. When a `Task` is passed to `Engine.run()`, its budget takes precedence over the Engine's default `RuntimeBudget`.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos import TaskBudget
 
@@ -135,6 +152,8 @@ Any field left as `None` inherits the Engine's default.
 ### TaskResource
 
 `TaskResource` declares a file, directory, URL, or artifact that the task depends on. The Engine validates required resources before the loop starts.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos import TaskResource
@@ -164,7 +183,9 @@ Valid `kind` values: `"file"`, `"dir"`, `"url"`, `"artifact"`.
   <Tab title="act">
     Execute one or more tool actions.
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     from qitos import Decision, Action
 
     decision = Decision.act(
@@ -176,7 +197,9 @@ Valid `kind` values: `"file"`, `"dir"`, `"url"`, `"artifact"`.
   <Tab title="final">
     Signal that the agent has a final answer and the run should end.
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     decision = Decision.final(
         answer="The paper proposes a novel attention mechanism that reduces memory usage by 40%.",
         rationale="Finished reading all sections.",
@@ -186,14 +209,18 @@ Valid `kind` values: `"file"`, `"dir"`, `"url"`, `"artifact"`.
   <Tab title="wait">
     Do nothing this step — useful when waiting on an external event or environment signal.
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     decision = Decision.wait(rationale="Waiting for environment to reset.")
     ```
   </Tab>
   <Tab title="branch">
     Propose multiple candidate decisions for the `BranchSelector` to evaluate.
 
-    ```python
+    Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
+```python
     decision = Decision.branch(
         candidates=[
             Decision.act([Action(name="search", args={"query": "attention mechanism"})]),

@@ -3,6 +3,9 @@ title: "第 4 课：代码安全审计智能体"
 description: "把 QitOS 内核专门化成一个可复现的防御式审计智能体，具备领域工具、排序发现与审查级追踪记录。"
 ---
 
+<Note>高级/兼容程序化示例。此页代码片段仅作机制说明；HostEnv 或 workspace 不提供隔离。新项目先按 [Quickstart](/zh/quickstart) 使用 Session 与明确资源配置。</Note>
+
+
 最后一课会回答整条课程里最难的问题：
 
 **同一个执行内核，能不能支撑一个真正严肃的领域智能体，而不坍缩成定制编排？**
@@ -53,6 +56,8 @@ Judgment rules:
 
 这个审计智能体仍然使用：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 model_parser=ReActTextParser()
 ```
@@ -75,7 +80,9 @@ QitOS 支持这些路径，但默认研究路径依然是与供应商无关的�
   <Step title="按领域组合工具界面">
     这一课会组合三类工具：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     super().__init__(
         toolset=[
             SecurityAuditToolSet(
@@ -116,7 +123,9 @@ QitOS 支持这些路径，但默认研究路径依然是与供应商无关的�
   <Step title="让提示词与 prepare 共同编码审计方法">
     提示词负责定义全局审计纪律，而 `prepare()` 负责定义当前阶段的局部框架：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     lines = [
         f"Audit task: {state.task}",
         f"Workspace: {WORKSPACE}",
@@ -134,7 +143,9 @@ QitOS 支持这些路径，但默认研究路径依然是与供应商无关的�
   <Step title="把发现作为一等状态">
     审计状态反而应该保持精简：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     @dataclass
     class SecurityAuditState(StateSchema):
         scratchpad: list[str] = field(default_factory=list)
@@ -156,7 +167,9 @@ QitOS 支持这些路径，但默认研究路径依然是与供应商无关的�
   <Step title="让归约负责证据压缩与排名">
     示例里通常只会从工具输出中抽取最高信号的发现：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     if isinstance(first, dict):
         data = (
             first.get("data", {})
@@ -180,7 +193,9 @@ QitOS 支持这些路径，但默认研究路径依然是与供应商无关的�
   <Step title="使用有限历史，而不是无限累积">
     这一课的示例一般会使用：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     history_policy=HistoryPolicy(max_messages=14)
     ```
 

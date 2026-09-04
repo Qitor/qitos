@@ -3,6 +3,9 @@ title: "Engine"
 description: "Engine 是执行内核，负责驱动智能体循环、执行动作、管理追踪记录，并检查停止条件。"
 ---
 
+<Note>高级/兼容程序化示例。此页代码片段仅作机制说明；HostEnv 或 workspace 不提供隔离。新项目先按 [Quickstart](/zh/quickstart) 使用 Session 与明确资源配置。</Note>
+
+
 `Engine` 是 QitOS 所有智能体工作流共享的执行内核（kernel）。它运行步骤循环，协调 `AgentModule` 的钩子，分发工具调用，执行评估器，检查停止条件，并写出追踪记录产物。只有当你需要比 `agent.run()` 更细粒度的控制时，才会直接和它交互。
 
 <Note>
@@ -26,6 +29,8 @@ prepare → decide → act → reduce → critics → check_stop → trace
 7. **追踪记录**：把本步的步骤记录与运行时事件写入 `TraceWriter`。
 
 ## 构造函数
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos import Engine
@@ -85,6 +90,8 @@ engine = Engine(
 
 ## `Engine.run(task)`
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 result = engine.run(task)
 ```
@@ -94,6 +101,8 @@ result = engine.run(task)
 当传入 `Task` 时，Engine 会读取 `task.budget` 并覆盖自身默认预算，同时自动管理资源预检、环境重置/观测/关闭等生命周期。
 
 ## `EngineResult`
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 @dataclass
@@ -115,6 +124,8 @@ class EngineResult(Generic[StateT]):
 
 常见用法：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 result = engine.run("summarize the paper")
 
@@ -128,6 +139,8 @@ print(result.task_result.success)
 
 钩子用于在不修改 Engine 内部逻辑的前提下观察或响应生命周期事件。它们通常实现 `EngineHook`，在 `on_before_step` 与 `on_after_step` 等边界被调用。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 engine.register_hook(my_hook)
 engine.unregister_hook(my_hook)
@@ -139,6 +152,8 @@ engine.clear_hooks()
 ## 预算耗尽
 
 当步数、墙钟时间或令牌预算耗尽时，Engine 会把 `state.stop_reason` 设置为对应值，并写出 `END` 事件。运行会优雅结束，仍然返回 `EngineResult`，你可以通过检查 `state.stop_reason` 判断是否发生了预算耗尽。
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.engine.states import RuntimeBudget
@@ -157,6 +172,8 @@ engine = Engine(
 
 `AgentModule.build_engine()` 是一个便捷工厂，会创建一个和当前智能体绑定好的 Engine：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 engine = agent.build_engine(
     budget=RuntimeBudget(max_steps=15),
@@ -171,6 +188,8 @@ result = engine.run(task)
 
 `AsyncEngine` 提供非阻塞的智能体执行能力。它封装了同样的 `Engine` 循环，但把阻塞调用放到线程池中执行，因此在 `asyncio` 事件循环中使用是安全的。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos import AsyncEngine
 
@@ -181,6 +200,8 @@ async_engine = AsyncEngine(agent=agent, budget=RuntimeBudget(max_steps=20))
 
 异步运行智能体循环，返回与 `Engine.run()` 相同的 `EngineResult`。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 result = await async_engine.arun("分析数据")
 print(result.state.final_result)
@@ -190,6 +211,8 @@ print(result.state.final_result)
 
 异步运行智能体循环，并在事件发生时产出结构化的 `EngineEvent` 对象——非常适合实时 UI 更新或将进度流式推送给客户端。
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 async for event in async_engine.arun_stream("分析数据"):
     print(event.event_type, event.step_id, event.payload)
@@ -198,6 +221,8 @@ async for event in async_engine.arun_stream("分析数据"):
 事件在步骤边界（`step_start`、`step_end`）、阶段切换（`decide`、`act`、`reduce`、`critic`、`check_stop`）和多智能体事件（`handoff`、`delegate`、`fanout`）时产出。流总是以 `run_start` 开始、以 `run_end` 结束。
 
 ### `EngineEvent`
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 @dataclass
@@ -216,6 +241,8 @@ class EngineEvent:
 
 `EventStream` 是支撑 `arun_stream()` 的异步队列。你也可以独立使用它，将事件扇出到多个消费者：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.engine.events import EventStream
 
@@ -227,6 +254,8 @@ q2 = stream.subscribe()  # 消费者 2 的 asyncio.Queue
 ### 异步模型
 
 当配置的模型实现了 `acall()`（来自 `AsyncModel`）时，`AsyncEngine` 可以在不阻塞事件循环的情况下调用它。内置的异步模型适配器：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.models import AsyncOpenAICompatibleModel, AsyncOpenAIModel

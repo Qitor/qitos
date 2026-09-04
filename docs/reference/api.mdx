@@ -5,7 +5,9 @@ description: "Complete reference for the public QitOS Python API — everything 
 
 Every symbol listed here is exported from `qitos` and accessible as:
 
-```python
+Signature reference (not executable):
+
+```text
 from qitos import AgentModule, Engine, Decision, ...
 ```
 
@@ -17,13 +19,17 @@ from qitos import AgentModule, Engine, Decision, ...
 
 `AgentModule` is the strategy layer of QitOS. You subclass it to define your agent's state shape, system prompt, decision logic, and reduction rules. The `Engine` drives the execution loop (the kernel) and calls each hook in order.
 
-```python
+Signature reference (not executable):
+
+```text
 class AgentModule(ABC, Generic[StateT, ObservationT, ActionT])
 ```
 
 **Constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(
     self,
     tool_registry: Any = None,
@@ -52,7 +58,9 @@ Override these methods in your subclass. Only `init_state` and `reduce` are requ
 
 <Accordion title="init_state (required)">
 
-```python
+Signature reference (not executable):
+
+```text
 @abstractmethod
 def init_state(self, task: str, **kwargs: Any) -> StateT
 ```
@@ -63,7 +71,9 @@ Create and return the initial typed state for a run. Called once by `Engine.run(
 
 <Accordion title="reduce (required)">
 
-```python
+Signature reference (not executable):
+
+```text
 @abstractmethod
 def reduce(
     self,
@@ -79,7 +89,9 @@ Fold the current observation and decision into the next state. Called at the end
 
 <Accordion title="build_system_prompt">
 
-```python
+Signature reference (not executable):
+
+```text
 def build_system_prompt(self, state: StateT) -> str | None
 ```
 
@@ -89,7 +101,9 @@ Return a dynamic system prompt string, or `None` to use no system prompt. Called
 
 <Accordion title="prepare">
 
-```python
+Signature reference (not executable):
+
+```text
 def prepare(self, state: StateT) -> str
 ```
 
@@ -99,7 +113,9 @@ Convert the current state into a model-ready text string (the user turn). Defaul
 
 <Accordion title="decide">
 
-```python
+Signature reference (not executable):
+
+```text
 def decide(
     self,
     state: StateT,
@@ -113,7 +129,9 @@ Optional custom decision hook. Return a `Decision` to bypass the Engine's model 
 
 <Accordion title="should_stop">
 
-```python
+Signature reference (not executable):
+
+```text
 def should_stop(self, state: StateT) -> bool
 ```
 
@@ -127,7 +145,9 @@ Optional additional stop condition checked after each step. Return `True` to ter
 
 Convenience method that builds an `Engine`, runs it, and returns the final result.
 
-```python
+Signature reference (not executable):
+
+```text
 def run(
     self,
     task: str | Task,
@@ -182,13 +202,17 @@ def run(
 
 `Engine` is the execution kernel (the core AgentModule + Engine execution loop). It owns the phase loop, tool execution, recovery, tracing, and stop-criteria evaluation. You normally obtain an `Engine` through `AgentModule.build_engine()` or `AgentModule.run()`, but you can also construct one directly.
 
-```python
+Signature reference (not executable):
+
+```text
 class Engine(Generic[StateT, ObservationT, ActionT])
 ```
 
 **Constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(
     self,
     agent: AgentModule[StateT, ObservationT, ActionT],
@@ -229,7 +253,9 @@ def __init__(
 
 **Methods**
 
-```python
+Signature reference (not executable):
+
+```text
 def run(self, task: str | Task, **kwargs: Any) -> EngineResult[StateT]
 ```
 
@@ -237,7 +263,9 @@ Execute the agent loop for `task`. Resets run state, initialises the env, calls 
 
 ---
 
-```python
+Signature reference (not executable):
+
+```text
 def register_hook(self, hook: Any) -> None
 ```
 
@@ -245,7 +273,9 @@ Append one hook instance to the active hook list.
 
 ---
 
-```python
+Signature reference (not executable):
+
+```text
 def unregister_hook(self, hook: Any) -> None
 ```
 
@@ -253,7 +283,9 @@ Remove one hook instance from the active hook list (identity comparison).
 
 ---
 
-```python
+Signature reference (not executable):
+
+```text
 def clear_hooks(self) -> None
 ```
 
@@ -265,13 +297,17 @@ Remove all registered hooks.
 
 `AsyncEngine` provides non-blocking execution for agent workflows. It wraps the same `Engine` loop but runs blocking calls in a thread pool, making it safe to use inside `asyncio` event loops.
 
-```python
+Signature reference (not executable):
+
+```text
 class AsyncEngine(Generic[StateT, ObservationT, ActionT])
 ```
 
 **Constructor**
 
-```python
+Signature reference (not executable):
+
+```text
 def __init__(
     self,
     agent: AgentModule[StateT, ObservationT, ActionT],
@@ -283,7 +319,9 @@ All keyword arguments are forwarded to the internal `Engine` constructor (same p
 
 **Methods**
 
-```python
+Signature reference (not executable):
+
+```text
 async def arun(self, task: str | Task, **kwargs: Any) -> EngineResult[StateT]
 ```
 
@@ -291,7 +329,9 @@ Execute the agent loop asynchronously. Returns the same `EngineResult` as `Engin
 
 ---
 
-```python
+Signature reference (not executable):
+
+```text
 async def arun_stream(self, task: str | Task, **kwargs: Any) -> AsyncIterator[EngineEvent]
 ```
 
@@ -299,7 +339,9 @@ Execute the agent loop and yield `EngineEvent` objects in real time. The stream 
 
 ---
 
-```python
+Signature reference (not executable):
+
+```text
 def run(self, task: str | Task, **kwargs: Any) -> EngineResult[StateT]
 ```
 
@@ -318,6 +360,8 @@ Synchronous fallback — delegates to the underlying `Engine.run()`.
 <Accordion title="EngineEvent, EngineEventType, EventStream">
 
 `EngineEvent` is the structured event emitted by `AsyncEngine.arun_stream()`.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 class EngineEventType(str, Enum):
@@ -338,6 +382,8 @@ class EngineEventType(str, Enum):
     RUN_END = "run_end"
 ```
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 @dataclass
 class EngineEvent:
@@ -353,7 +399,9 @@ class EngineEvent:
 
 `EventStream` is an async-compatible event queue for consuming engine events.
 
-```python
+Signature reference (not executable):
+
+```text
 class EventStream:
     def emit(self, event: EngineEvent) -> None       # thread-safe emit
     def emit_sync(self, event: EngineEvent) -> None   # alias for sync callers
@@ -367,6 +415,8 @@ class EventStream:
 <Accordion title="EngineResult">
 
 `EngineResult` is the dataclass returned by `Engine.run()`.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 @dataclass
@@ -392,6 +442,8 @@ class EngineResult(Generic[StateT]):
 
 `Decision` is the canonical output of the decide phase. Use the factory class methods rather than constructing directly. A Decision captures what the agent wants to do next -- execute actions, produce a final answer, wait, or propose branch candidates.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 @dataclass
 class Decision(Generic[ActionT]):
@@ -414,7 +466,9 @@ class Decision(Generic[ActionT]):
 
 **Factory methods**
 
-```python
+Signature reference (not executable):
+
+```text
 @classmethod
 def act(
     cls,
@@ -424,7 +478,9 @@ def act(
 ) -> Decision[ActionT]
 ```
 
-```python
+Signature reference (not executable):
+
+```text
 @classmethod
 def final(
     cls,
@@ -434,7 +490,9 @@ def final(
 ) -> Decision[ActionT]
 ```
 
-```python
+Signature reference (not executable):
+
+```text
 @classmethod
 def wait(
     cls,
@@ -443,7 +501,9 @@ def wait(
 ) -> Decision[ActionT]
 ```
 
-```python
+Signature reference (not executable):
+
+```text
 @classmethod
 def branch(
     cls,
@@ -460,6 +520,8 @@ def branch(
 <Accordion title="Action">
 
 `Action` is the normalized action (a tool invocation) contract emitted by the policy and consumed by the executor.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 @dataclass
@@ -495,6 +557,8 @@ class Action:
 
 `StateSchema` is the canonical typed state base class. Subclass it to define your agent's state fields.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 @dataclass
 class StateSchema:
@@ -520,7 +584,9 @@ class StateSchema:
 
 **Key methods**
 
-```python
+Signature reference (not executable):
+
+```text
 def set_stop(self, reason: StopReason | str, final_result: Optional[str] = None) -> None
 def advance_step(self) -> None
 def validate(self) -> None
@@ -539,6 +605,8 @@ def migrate_payload(cls, payload: Dict[str, Any], target_version: int) -> Dict[s
 
 Use `Task` when you need to pass structured metadata, resources, and budget constraints alongside the objective string.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 @dataclass
 class Task:
@@ -553,6 +621,8 @@ class Task:
     metadata: Dict[str, Any] = field(default_factory=dict)
 ```
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 @dataclass
 class TaskBudget:
@@ -560,6 +630,8 @@ class TaskBudget:
     max_runtime_seconds: Optional[float] = None
     max_tokens: Optional[int] = None
 ```
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 @dataclass
@@ -572,6 +644,8 @@ class TaskResource:
     description: str = ""
     metadata: Dict[str, Any] = field(default_factory=dict)
 ```
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 @dataclass
@@ -588,7 +662,9 @@ class TaskResult:
 
 **`Task` helper methods**
 
-```python
+Signature reference (not executable):
+
+```text
 def validate(self) -> None
 def validate_structured(self, workspace: Optional[str] = None) -> List[TaskValidationIssue]
 def resolve_resources(self, workspace: Optional[str] = None) -> List[TaskResourceBinding]
@@ -603,6 +679,8 @@ def from_dict(cls, payload: Dict[str, Any]) -> Task
 <Accordion title="Env, EnvSpec">
 
 `Env` is the abstract environment interface. Implement it to provide a custom observe/step lifecycle for your agent.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 class Env(ABC):
@@ -624,6 +702,8 @@ class Env(ABC):
 
 `EnvSpec` is a dataclass used inside `Task` to declare the environment type and configuration:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 @dataclass
 class EnvSpec:
@@ -640,7 +720,9 @@ class EnvSpec:
 
 The `tool` decorator marks a callable as a QitOS tool and attaches metadata to it without changing its call semantics.
 
-```python
+Signature reference (not executable):
+
+```text
 def tool(
     name: Optional[str] = None,
     description: Optional[str] = None,
@@ -662,6 +744,8 @@ def tool(
 
 **Example**
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos import tool
 
@@ -677,7 +761,9 @@ def search_web(query: str) -> str:
 
 `ToolRegistry` stores tools and toolsets and is passed to `AgentModule` and `Engine` at construction time.
 
-```python
+Signature reference (not executable):
+
+```text
 class ToolRegistry
 ```
 
@@ -685,7 +771,9 @@ class ToolRegistry
 
 **Methods**
 
-```python
+Signature reference (not executable):
+
+```text
 def register(
     self,
     item: Any,
@@ -697,7 +785,9 @@ Register a single callable or `BaseTool`. Returns `self` for chaining.
 
 ---
 
-```python
+Signature reference (not executable):
+
+```text
 def register_toolset(
     self,
     toolset: Any,
@@ -708,14 +798,18 @@ Register all tools from a toolset object. Tool names are prefixed with `namespac
 
 ---
 
-```python
+Signature reference (not executable):
+
+```text
 def include(self, obj: Any) -> ToolRegistry
 ```
 Scan an object for methods decorated with `@tool` and register them all.
 
 ---
 
-```python
+Signature reference (not executable):
+
+```text
 def get(self, name: str) -> Optional[BaseTool]
 def list_tools(self) -> List[str]
 def list_toolsets(self) -> List[str]
@@ -728,6 +822,8 @@ def teardown(self, context: Optional[Dict[str, Any]] = None) -> None
 ```
 
 **Example**
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from qitos import ToolRegistry, tool
@@ -747,6 +843,8 @@ registry.register(greet)
 <Accordion title="Memory">
 
 `Memory` is the abstract interface for long-term memory adapters.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 class Memory(ABC):
@@ -773,6 +871,8 @@ class Memory(ABC):
 
 `MemoryRecord` is the unit of storage:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 @dataclass
 class MemoryRecord:
@@ -787,6 +887,8 @@ class MemoryRecord:
 <Accordion title="History, HistoryPolicy">
 
 `History` is the abstract interface for model message history adapters.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 class History(ABC):
@@ -813,6 +915,8 @@ class History(ABC):
 
 `HistoryPolicy` controls how the Engine assembles history for model calls:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 @dataclass
 class HistoryPolicy:
@@ -831,6 +935,8 @@ class HistoryPolicy:
 
 `HistoryMessage` is the unit of storage:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 @dataclass
 class HistoryMessage:
@@ -845,6 +951,8 @@ class HistoryMessage:
 <Accordion title="StopReason">
 
 `StopReason` is a string enum. Its value is written to `state.stop_reason` when a run ends.
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 class StopReason(str, Enum):
@@ -887,6 +995,8 @@ class StopReason(str, Enum):
 
 `QitosRuntimeError` is the base class for all structured runtime errors in QitOS.
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 class QitosRuntimeError(Exception):
     def __init__(self, info: RuntimeErrorInfo): ...
@@ -894,6 +1004,8 @@ class QitosRuntimeError(Exception):
 ```
 
 `RuntimeErrorInfo` carries structured context:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 @dataclass

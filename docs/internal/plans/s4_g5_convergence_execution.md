@@ -1,5 +1,15 @@
 # S4 G5 convergence execution
 
+Current G5 runtime baseline: `717b4cf1b23f2ed252cd03234ffd8605038d9567`.
+Framework qualification **passed**; S4 local integration **complete**.
+Remote sync: **not performed by this documentation task yet**.
+Default branch and release: **not performed; no readiness claim**.
+Historical G5: 2663 passed / 50 live-opt-in skipped, Python 3.12.7.
+Documentation successors do not inherit that test execution identity.
+
+The dated audit/repair stages below are historical; failures and identities are preserved.
+
+
 Status: runtime qualification and local fast-forward passed on c9d9e40;
 main revalidation passed. Closing evidence commit receives its own final-tree
 verification. Remote sync, default-branch readiness and release remain disabled.
@@ -388,7 +398,7 @@ provider_capability_loss: the generic Chat Completions codec cannot replay the
 returned reasoning under the default loss-rejecting policy. No SDK retry or
 persisted/diagnostic secret was detected. These are failed capability attempts,
 not framework qualification passes. Sanitized receipts remain under
-/tmp/qitos-g5-live-result{,-02}.json.
+`/tmp/qitos-g5-live-result{,-02}.json`.
 
 The public config now wires the existing allow_codec_loss extension, false by
 default. The regression initially failed at config admission. Corrected native
@@ -439,7 +449,7 @@ an owned sandbox probe confirmed python3 and pytest 7.2.1 only. A dedicated
 Dockerfile adds ripgrep and python-is-python3 and restores USER node. Build 1
 failed because the inherited non-root user cannot install packages; build 2
 succeeded as image sha256:e3c403f9d6b7b0b93c1cda6bcb329cea11c60d9c0b70b4ac249e8ff049bcde53.
-Logs: /tmp/qitos-g5-image-build{,-02}.log. The consumer now checks both canonical
+Logs: `/tmp/qitos-g5-image-build{,-02}.log`. The consumer now checks both canonical
 ToolResult and the documented trace-safe projection schema, retaining all eleven
 required tool-status assertions. Neither previous final text nor publication
 alone constitutes a passed tool consumer.
@@ -465,7 +475,7 @@ Public fork keeps its lifecycle checks; arbitrary running heads cannot fork.
 The fixed three cases passed in 0.44 s, and 50 adjacent work/fork/Session tests
 passed in 5.84 s. A separate native-model composition test also executes the
 adapter and verifies a real independent child head. Changed-module flake8/mypy
-passed. Logs: /tmp/qitos-g5-model-work-{red-02,fix-01,adjacent-02}.log and
+passed. Logs: `/tmp/qitos-g5-model-work-{red-02,fix-01,adjacent-02}.log` and
 /tmp/qitos-g5-native-work-01.log.
 
 ### Complete intermediate tree and MCP artifact repair
@@ -497,7 +507,7 @@ The bridge now keeps runtime_context local, persists and verifies large response
 through the composed artifact resolver, and returns a typed post-dispatch failure
 if retention fails. It preserves reconciliation requirements. Tests: 87 passed
 in 1.86 s (tests/mcp plus S4 C safe execution). Full MCP and sandbox component
-flake8/mypy passed. Logs: /tmp/qitos-g5-mcp-{red,fixed-01,static-01}.log.
+flake8/mypy passed. Logs: `/tmp/qitos-g5-mcp-{red,fixed-01,static-01}.log`.
 
 The 19 non-base packaging profiles all installed and imported the explicit
 5ddb78e wheel in independent fresh environments. Base/current installed-consumer

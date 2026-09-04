@@ -1,200 +1,40 @@
 ---
-title: "构建第一个智能体"
-description: "从零开始构建一个可运行的 QitOS 最小编码智能体：状态、模型、工具、运行与 qita 检查。"
+title: "自定义 Agent"
+description: "QitOS G5 · 自定义 Agent"
 ---
 
-每个 QitOS 智能体都遵循同一条执行路径：`AgentModule + Engine + Trace`（追踪记录）。你负责定义策略，Engine 负责执行循环。本页会用 `examples/quickstart/minimal_agent.py` 里的最小编码智能体，带你把这条主链路从头走一遍。
+## 学习目标
+
+编写 StateSchema、AgentModule.decide/reduce 和停止决策。示例通过两个 action 计算 3 和 4 的平方。
 
 ## 前置条件
 
-- Python 3.10+
-- 任意 OpenAI-compatible 端点的 API key
+完成[Quickstart](/zh/quickstart)的安装与 lessons 复制；基础包，Python 3.12.7 实测，无真实请求。
 
-<Steps>
+## 完整可运行示例
 
-<Step title="安装 qitos 并设置模型配置">
+[`examples/tutorials/custom_agent.py`](https://github.com/Qitor/qitos/blob/feat/campaign-absorption/examples/tutorials/custom_agent.py)
 
-```bash
-pip install "qitos[models]"
-export OPENAI_API_KEY="sk-..."
-export OPENAI_BASE_URL="https://api.siliconflow.cn/v1/"
-export QITOS_MODEL="Qwen/Qwen3-8B"
-```
-
-</Step>
-
-<Step title="围绕编码任务定义状态">
-
-最小 QitOS 编码智能体依然从一个强类型 `StateSchema` 开始：
-
-```python
-from dataclasses import dataclass, field
-
-from qitos import StateSchema
-
-
-@dataclass
-class MinimalCodingState(StateSchema):
-    scratchpad: list[str] = field(default_factory=list)
-    target_file: str = "buggy_module.py"
-    test_command: str = 'python -c "import buggy_module; assert buggy_module.add(20, 22) == 42"'
-```
-
-核心心智模型：任务、草稿区和验证契约都显式放在状态里，而不是藏在隐式胶水里。
-
-</Step>
-
-<Step title="接入真实模型和编码工具集">
-
-这个最小示例故意保持模型驱动，使用一个 OpenAI-compatible 模型，再配上规范编码预设（preset，预配置的模型家族默认值）：
-
-```python
-from typing import Any
-
-from qitos import Action, AgentModule, Decision
-from qitos.kit import REACT_SYSTEM_PROMPT, ReActTextParser, format_action, render_prompt
-from qitos.kit.toolset import coding_tools
-from qitos.models import OpenAICompatibleModel
-
-
-class MinimalCodingAgent(AgentModule[MinimalCodingState, dict[str, Any], Action]):
-    def __init__(self, llm: OpenAICompatibleModel, workspace_root: str) -> None:
-        super().__init__(
-            toolset=[coding_tools(workspace_root=workspace_root, shell_timeout=20, include_notebook=False)],
-            llm=llm,
-            model_parser=ReActTextParser(),
-        )
-
-    def init_state(self, task: str, **kwargs: Any) -> MinimalCodingState:
-        return MinimalCodingState(
-            task=task,
-            max_steps=int(kwargs.get("max_steps", 8)),
-            target_file=str(kwargs.get("target_file", "buggy_module.py")),
-            test_command=str(kwargs.get("test_command")),
-        )
-
-    def build_system_prompt(self, state: MinimalCodingState) -> str | None:
-        _ = state
-        return render_prompt(
-            REACT_SYSTEM_PROMPT,
-            {"tool_schema": self.tool_registry.get_tool_descriptions()},
-        )
-```
-
-</Step>
-
-<Step title="把运行轨迹（trajectory）归约回状态">
-
-`reduce()` 是归约（reduce，将观测结果和决策归约回状态的钩子），也是 QitOS 把工具执行结果变成智能体进度的地方：
-
-```python
-    def reduce(
-        self,
-        state: MinimalCodingState,
-        observation: dict[str, Any],
-        decision: Decision[Action],
-    ) -> MinimalCodingState:
-        action_results = observation.get("action_results", [])
-        if decision.rationale:
-            state.scratchpad.append(f"Thought: {decision.rationale}")
-        if decision.actions:
-            state.scratchpad.append(f"Action: {format_action(decision.actions[0])}")
-        if action_results:
-            first = action_results[0]
-            state.scratchpad.append(f"Observation: {first}")
-            if isinstance(first, dict) and int(first.get("returncode", 1)) == 0:
-                state.final_result = "Patch applied and verification passed."
-        return state
-```
-
-<Warning>
-  `reduce` 必须返回 `state`。在编码智能体里也一样。
-</Warning>
-
-</Step>
-
-<Step title="初始化工作区并运行智能体">
-
-最小示例会先创建一个带 bug 的小文件，再让智能体去修它：
-
-```python
-from pathlib import Path
-
-WORKSPACE = Path("./playground/minimal_coding_agent")
-TARGET_FILE = "buggy_module.py"
-TASK = "Fix the bug in buggy_module.py and make the verification command pass."
-
-
-def seed_workspace() -> None:
-    WORKSPACE.mkdir(parents=True, exist_ok=True)
-    target = WORKSPACE / TARGET_FILE
-    if not target.exists():
-        target.write_text("def add(a, b):\n    return a - b\n", encoding="utf-8")
-
-
-def main() -> None:
-    seed_workspace()
-    agent = MinimalCodingAgent(llm=build_model(), workspace_root=str(WORKSPACE))
-    result = agent.run(
-        task=TASK,
-        workspace=str(WORKSPACE),
-        max_steps=8,
-        target_file=TARGET_FILE,
-        return_state=True,
-    )
-    print("final_result:", result.state.final_result)
-    print("stop_reason:", result.state.stop_reason)
-```
-
-</Step>
-
-<Step title="用 qita 检查这次运行">
+完整目录是唯一执行来源；同目录的 session_walkthrough.py 是公开教学依赖，不依赖仓库 tests。
 
 ```bash
-qita board --logdir ./runs
+python lessons/custom_agent.py
 ```
 
-看板默认启动在 `http://127.0.0.1:8765`。你可以用它检查补丁轨迹、回放运行，并把追踪记录导出成 HTML。
+## 预期输出与断言
 
-</Step>
+`squares complete; completed=2; process_local=true`
 
-</Steps>
+文件内的 assert 验证结果；ID 每次不同。除 board 由 Ctrl-C 关闭外，命令应退出 0。
 
-## 完整示例
+## 支持边界
 
-完整的最小编码智能体例子在这里：
-
-- [`examples/quickstart/minimal_agent.py`](https://github.com/Qitor/qitos/blob/main/examples/quickstart/minimal_agent.py)
-
-你也可以直接运行打包好的版本：
-
-```bash
-qit demo minimal
-```
+这是高级 Python 路径：Engine + RuntimeComposition + process-local Memory store。AgentComposition 创建 ConfiguredAgent，不提供任意 agent_override 参数；自定义 AgentModule 使用这里的公共 Engine 路径，跨进程恢复需另配置持久 store/resolver。
 
 ## 常见错误
 
-| 错误 | 症状 | 修复方式 |
-|---|---|---|
-| 忘记在 `reduce` 里 `return state` | `StateValidationError` 或状态变成 `None` | `reduce` 最后务必返回 `state` |
-| 没有先配置提供商 | 运行还没开始就报 `OPENAI_API_KEY` / `QITOS_API_KEY` 错误 | 先导出 API key 和 base URL |
-| 从不做验证 | 智能体改了代码，但没有完成证明 | 把明确的 `test_command` 放进状态，并把它成功通过当成完成条件 |
-| 提示词和解析器不匹配 | 每一步都出现解析错误 | 让提示词格式和 `ReActTextParser` 之类的显式解析器对齐 |
-| 工具集给得过宽 | 运行在不必要的工具之间游走 | 先从最小编码预设开始，只有任务真的需要时再加工具 |
+目录已存在时选一个新 root；导入失败核对安装来源。配置不匹配、缺失扩展或 typed failure 应检查 Trajectory 和迁移页，不能静默重试 unknown 外部效果。
 
-## 下一步建议
+## 下一步
 
-<CardGroup cols={2}>
-  <Card title="教程课程" icon="graduation-cap" href="/zh/tutorials">
-    沿着 ReAct、PlanAct、Claude Code 风格与安全审计路线继续学习
-  </Card>
-  <Card title="智能体模式" icon="diagram-project" href="/zh/guides/agent-patterns">
-    在选模式之前，先比较不同 QitOS 模式家族的权衡
-  </Card>
-  <Card title="可观测性" icon="chart-line" href="/zh/guides/observability">
-    用 qita 看板、回放与导出检查每次运行
-  </Card>
-  <Card title="Kit 参考" icon="toolbox" href="/zh/reference/kit">
-    查看课程里会用到的解析器、工具集与辅助函数
-  </Card>
-</CardGroup>
+[学习目录](/zh/tutorials/index) · [迁移与排障](/zh/reference/g5-migration)

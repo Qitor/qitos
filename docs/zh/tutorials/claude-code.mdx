@@ -57,6 +57,8 @@ Final Answer: <what changed + verification proof>
 
 尽管提示词复杂了很多，解析器仍然是：
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 model_parser=ReActTextParser()
 ```
@@ -99,7 +101,9 @@ MiniMax 则继续保留自己更适合的工具调用解析器。
   <Step title="从预设工具注册表开始">
     本课通常会这样初始化：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     super().__init__(
         toolset=[
             coding_tools(
@@ -140,7 +144,9 @@ MiniMax 则继续保留自己更适合的工具调用解析器。
   <Step title="把 state 设计成长时运行友好的形状">
     这一课的 state 会开始承载工作流信号：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     @dataclass
     class ClaudeCodeState(StateSchema):
         scratchpad: list[str] = field(default_factory=list)
@@ -162,7 +168,9 @@ MiniMax 则继续保留自己更适合的工具调用解析器。
   <Step title="让归约吸收结构化工具输出">
     `reduce()` 会开始从工具结果中吸收结构化工作流状态：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     if isinstance(first, dict):
         if first.get("todos"):
             state.todos = list(first.get("todos") or [])
@@ -186,7 +194,9 @@ MiniMax 则继续保留自己更适合的工具调用解析器。
   <Step title="第一次显式引入历史控制">
     本课的运行通常会传：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     history_policy=HistoryPolicy(max_messages=16, max_tokens=2800)
     ```
 
@@ -210,7 +220,9 @@ MiniMax 则继续保留自己更适合的工具调用解析器。
 
     但当运行足够长、简单裁剪已经开始影响行为时，就应该升级到 `CompactHistory`：
 
-    ```python
+    示意片段（非独立程序；完整执行文件见本页链接）。
+
+```python
     from qitos.kit import CompactConfig, CompactHistory, WindowMemory
 
     super().__init__(

@@ -9,8 +9,10 @@ The `@function_tool` decorator is the quickest path from a plain Python function
 
 Apply the decorator without arguments. The function name becomes the tool name and the docstring becomes the description:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
-from qitos import function_tool
+from qitos.core.function_tool_decorator import function_tool
 
 @function_tool
 def greet(name: str) -> str:
@@ -19,6 +21,8 @@ def greet(name: str) -> str:
 ```
 
 You can also use it with parentheses when you need to pass parameters (covered in the next step):
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 @function_tool()
@@ -33,8 +37,10 @@ Both forms return a `FunctionTool` instance with a populated `spec` that include
 
 Pass keyword arguments to the decorator to override defaults and control execution policy:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
-from qitos import function_tool
+from qitos.core.function_tool_decorator import function_tool
 
 @function_tool(
     name="search_files",
@@ -67,9 +73,11 @@ The available parameters are:
 
 The decorator inspects your function's type hints and converts them into JSON Schema entries inside `ToolSpec.parameters`. Supported types include:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from typing import Literal, Optional
-from qitos import function_tool
+from qitos.core.function_tool_decorator import function_tool
 
 @function_tool
 def configure(
@@ -99,8 +107,11 @@ Parameters without defaults are marked as required. Parameter descriptions are e
 
 Once you have a `FunctionTool`, register it with a `ToolRegistry` so agents can discover and call it:
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
-from qitos import ToolRegistry, function_tool
+from qitos import ToolRegistry
+from qitos.core.function_tool_decorator import function_tool
 
 @function_tool(read_only=True)
 def lookup_user(user_id: str) -> dict:
@@ -115,6 +126,8 @@ descriptions = registry.get_tool_descriptions()
 ```
 
 You can also register multiple tools at once and override names:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 @function_tool
@@ -137,8 +150,10 @@ QitOS offers two ways to define tools. Use the one that fits your needs:
 
 **`@function_tool` -- best for simple, stateless operations:**
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
-from qitos import function_tool
+from qitos.core.function_tool_decorator import function_tool
 
 @function_tool(read_only=True)
 def get_time() -> str:
@@ -149,8 +164,10 @@ def get_time() -> str:
 
 **`BaseTool` subclass -- best for stateful tools or complex initialization:**
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
-from qitos import BaseTool, ToolSpec, ToolMeta
+from qitos.core.tool import BaseTool, ToolSpec, ToolMeta
 
 class GetTimeTool(BaseTool):
     def __init__(self):

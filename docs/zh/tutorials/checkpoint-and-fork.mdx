@@ -1,143 +1,51 @@
 ---
-title: "检查点与分支"
-description: "使用 QitOS 检查点机制保存、恢复和分支 Agent 运行。"
+title: "Session 生命周期"
+description: "QitOS G5 · Session 生命周期"
 ---
 
-# 检查点与分支
+## 学习目标
 
-QitOS 检查点让你可以在任意步骤保存 Agent 状态，在中断后恢复运行，以及从某个步骤分叉运行来探索替代路径——所有这些都不需要从头重新运行。
+在真实纯函数工具完成后暂停并退出进程；从不可变 paused head fork，然后 restore 和 steer。parent 与 child 都通过 Session 执行。
 
-这对以下场景至关重要：
-- **长时间运行的任务**，可能被中断（网络错误、预算限制）
-- **分支实验**，你想从特定步骤探索"如果…会怎样？"
-- **时间旅行调试**，你从更早的检查点恢复状态
+## 前置条件
 
-## Step 1: 基本检查点
+完成[Quickstart](/zh/quickstart)的安装与 lessons 复制；基础包，Python 3.12.7 实测，无真实请求。
 
-创建 `CheckpointStore` 并配置 Engine 使用它：
+## 完整可运行示例
 
-```python
-from qitos.checkpoint import InMemoryCheckpointStore, CheckpointConfig
+[`examples/tutorials/session_walkthrough.py`](https://github.com/Qitor/qitos/blob/feat/campaign-absorption/examples/tutorials/session_walkthrough.py)
 
-# 创建内存存储（使用 SqliteCheckpointStore 进行持久化）
-store = InMemoryCheckpointStore()
+完整目录是唯一执行来源；同目录的 session_walkthrough.py 是公开教学依赖，不依赖仓库 tests。
 
-# 传递给 Engine
-from qitos.engine import Engine
-from my_agent import MyAgent
-
-agent = MyAgent()
-engine = Engine(agent, checkpoint_store=store, auto_approve=True)
-
-# 运行 Agent — 检查点自动保存
-result = engine.run("分析数据集")
-
-# 访问最新检查点
-config = CheckpointConfig(thread_id=result.run_id)
-latest = store.get_tuple(config)
-print(f"Checkpoint at step {latest.checkpoint.step}")
+```bash
+python lessons/session_walkthrough.py create --root ./session-run
+python lessons/session_walkthrough.py restore --root ./session-run
 ```
 
-跨会话持久化存储，使用 `SqliteCheckpointStore`：
+## 预期输出与断言
 
-```python
-from qitos.checkpoint import SqliteCheckpointStore
+`tool_output=42; lifecycle=paused; final_result=arithmetic complete; parent head unchanged by fork`
 
-store = SqliteCheckpointStore("./checkpoints.db")
+文件内的 assert 验证结果；ID 每次不同。除 board 由 Ctrl-C 关闭外，命令应退出 0。
+
+## CLI 检查
+
+脚本还写入可加载的 agent.json。inspect 只读 SQLite，不解析凭据或创建 Docker。
+
+```bash
+session_id=$(python -c 'import json; print(json.load(open("session-run/control.json"))["session_id"])')
+qit session inspect --config ./session-run/agent.json --session-id "$session_id"
+qita inspect session "$session_id" --logdir ./session-run
 ```
 
-## Step 2: 恢复运行
+## 支持边界
 
-如果运行被中断，从上次检查点恢复：
+SQLite 是持久存储；Memory 即使在 Session 模式也只在当前进程有效。ephemeral 不承诺恢复。先 fork，再用 restore 获取 source 所有权；不能任意 fork restoring/running head。CLI live pause/steer、未解决 approval 的 restore 当前 unsupported。steering 不授予工具权限。
 
-```python
-from qitos.checkpoint import CheckpointConfig
+## 常见错误
 
-# thread_id 标识运行（通常是 run_id）
-config = CheckpointConfig(thread_id="my-run-001")
+目录已存在时选一个新 root；导入失败核对安装来源。配置不匹配、缺失扩展或 typed failure 应检查 Trajectory 和迁移页，不能静默重试 unknown 外部效果。
 
-# 恢复运行
-result = engine.run("继续分析", checkpoint_config=config)
-```
+## 下一步
 
-Engine 从最新检查点恢复状态，从中断处继续执行。
-
-## Step 3: 分叉检查点
-
-分叉从现有检查点创建新分支，允许你探索替代路径而不影响原始运行：
-
-```python
-from qitos.checkpoint import fork_checkpoint, CheckpointConfig
-
-# 指向特定检查点（例如第 3 步）
-source_config = CheckpointConfig(
-    thread_id="my-run-001",
-    checkpoint_id="abc123",  # 要分叉的检查点
-)
-
-# 分叉到新线程（真正分支）
-fork_config = fork_checkpoint(store, source_config, new_thread_id="my-run-001-branch-a")
-
-# 从分叉状态以不同提示运行 Agent
-result = engine.run(
-    "尝试不同策略",
-    checkpoint_config=fork_config,
-)
-```
-
-原始运行不受影响。分叉运行从相同状态开始，但可以走不同路径。
-
-## Step 4: 时间旅行（同线程分叉）
-
-如果省略 `new_thread_id`，分叉替换同线程内的当前状态——适用于"撤销并重试"场景：
-
-```python
-from qitos.checkpoint import fork_checkpoint, CheckpointConfig
-
-# 在同一线程内分叉（时间旅行）
-config = CheckpointConfig(
-    thread_id="my-run-001",
-    checkpoint_id="step2-checkpoint-id",
-)
-time_travel_config = fork_checkpoint(store, config)
-
-# 从更早状态重新运行
-result = engine.run("从第 2 步重新开始，修改指令", checkpoint_config=time_travel_config)
-```
-
-## Step 5: 持久化模式
-
-控制检查点持久化的激进程度：
-
-```python
-from qitos.checkpoint import DurabilityMode
-
-# SYNC: 继续前写入磁盘（最安全，较慢）
-engine = Engine(agent, checkpoint_store=store, checkpoint_durability=DurabilityMode.SYNC)
-
-# 默认: 检查点已保存，但持久化取决于存储实现
-```
-
-## Step 6: 状态版本追踪
-
-追踪检查点之间哪些状态字段发生了变化：
-
-```python
-from qitos.checkpoint import StateVersionTracker
-
-tracker = StateVersionTracker()
-
-# 每步之后，追踪变化
-config = CheckpointConfig(thread_id="my-run-001")
-tuple_ = store.get_tuple(config)
-versions = tuple_.checkpoint.state_versions
-print(f"State field versions: {versions}")
-# 例如 {'scratchpad': 3, 'current_step': 5, 'final_result': 1}
-```
-
----
-
-<CardGroup cols={2}>
-  <Card href="/zh/tutorials/critic-system" title="Critic 系统" description="运行时控制 Agent 行为质量" />
-  <Card href="/zh/tutorials/hook-lifecycle" title="Hook 生命周期" description="观察和扩展 Engine 循环" />
-</CardGroup>
+[学习目录](/zh/tutorials/index) · [迁移与排障](/zh/reference/g5-migration)

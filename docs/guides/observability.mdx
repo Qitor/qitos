@@ -1,255 +1,55 @@
 ---
-title: "Observability"
-description: "Inspect, replay, and export agent runs with the qita web board."
+title: "Trajectory and qita"
+description: "QitOS G5 · Trajectory and qita"
 ---
 
-Every `agent.run()` call writes a trace (the structured log of decisions, actions, and observations recorded during a run) to `./runs/<run_id>/` by default. The `qita` CLI tool reads these traces and exposes them through a local web board with run inspection, step-by-step replay, and standalone HTML export.
+## Learning goal
 
-## Trace artifacts (persistent output files from a run)
+Read the canonical journal through default_reader, inspect steering and fork lineage, export a redacted public projection and reimport that projection.
 
-Each run directory contains three files:
+## Prerequisites
 
-| File | Contents |
-|---|---|
-| `manifest.json` | Run metadata: `run_id`, `model_id`, `status`, `stop_reason`, `step_count`, `event_count`, `schema_version`, `prompt_hash`, `run_config_hash`, `seed`, `summary` |
-| `events.jsonl` | One JSON object per line; each line is a `RuntimeEvent` with `step_id`, `phase`, `ts`, `ok`, `error`, and `payload` |
-| `steps.jsonl` | One JSON object per line; each line is a `StepRecord` with `step_id`, `decision` (the model's structured output), `actions` (the tool calls dispatched), `action_results`, `observation` (the environment's response), and `critic_outputs` |
+Complete the [Quickstart](/quickstart) installation and lessons copy; base package, Python 3.12.7 tested, no real model requests.
 
-`manifest.json` is written on initialization and finalized when the Engine exits. `events.jsonl` and `steps.jsonl` are append-only and grow one entry at a time during the run.
+## Complete runnable example
 
----
+[`examples/tutorials/session_walkthrough.py`](https://github.com/Qitor/qitos/blob/feat/campaign-absorption/examples/tutorials/session_walkthrough.py)
 
-## qita board
-
-`qita board` starts a local HTTP server that discovers all run directories under a log root and renders a card grid.
-
-<Steps>
-
-<Step title="Start the board">
+The complete directory is the execution source. Sibling session_walkthrough.py is a public teaching dependency, not a repository test helper.
 
 ```bash
-qita board --logdir ./runs
+python lessons/session_walkthrough.py create --root ./observe-run
+python lessons/session_walkthrough.py restore --root ./observe-run
+qita board --logdir ./observe-run
 ```
 
-The board starts at `http://127.0.0.1:8765` by default. Open it in a browser.
+## Expected output and assertions
 
-Available flags:
+`records>0; public_export_lossless=false; board opens locally`
 
-| Flag | Default | Description |
-|---|---|---|
-| `--logdir` | `./runs` | Root directory containing run subdirectories |
-| `--host` | `127.0.0.1` | Bind address |
-| `--port` | `8765` | Bind port |
+Assertions in the file verify the result; generated IDs vary. Commands exit zero; stop the board with Ctrl-C.
+
+## HTML export and replay
+
+--run uses a logical run ID path under the log directory, not the journal filename. Replay starts a read-only local server; stop it with Ctrl-C.
 
 ```bash
-# bind to all interfaces on a different port
-qita board --logdir ./runs --host 0.0.0.0 --port 9000
+run_id=$(python -c 'import json; print(json.load(open("observe-run/control.json"))["run_id"])')
+mkdir -p "./observe-run/$run_id"
+qita export --run "./observe-run/$run_id" --html ./observe-run/replay.html
+qita replay --run "./observe-run/$run_id"
 ```
 
-</Step>
+## Support boundaries
 
-<Step title="Browse runs">
+qita is read-only and owns no execution semantics. Default discovery reads journal and historical trace. Whole reads are complete but currently load all frames; query limits are not total memory bounds. Public export is not a lossless raw backup. CLI qita export produces HTML, while CanonicalTrajectoryExporter produces canonical JSON. Keep private runs out of Git.
 
-The board auto-refreshes every 2.5 seconds. Each run appears as a card showing:
+## Common errors
 
-- Run ID
-- Status badge
-- Step count and event count
-- Stop reason
-- Last updated timestamp
-- Manifest metadata: model ID, schema version, seed, prompt hash
+Choose a new root if the directory already exists. For missing imports verify the installed source. Inspect Trajectory and the migration page for config mismatch, missing extensions or typed failures; never silently retry unknown external effects.
 
-Use the toolbar to search, filter, and sort:
+## Next step
 
-- **Search** — filters run ID, stop reason, and final result text
-- **Status filter** — show only runs with a given status (`completed`, `failed`, etc.)
-- **Sort** — by updated time (desc/asc), event count, or step count
-- **Auto refresh** — toggle the 2.5-second polling on or off
+[Learning path](/tutorials/index) · [Migration and troubleshooting](/reference/g5-migration)
 
-The summary strip above the cards shows: success rate, average steps, average events, and the top-3 failure stop reasons across all visible runs.
-
-This board view is the primary way to compare runs:
-
-![qita board overview](/images/qita-board.png)
-
-</Step>
-
-<Step title="Open a run">
-
-Click **view** on any run card to open the run detail page. The page has two tabs:
-
-**Traj tab**
-
-The trajectory (the ordered sequence of steps the agent took) view shows every step as a card with five collapsible sections:
-
-- **State** — scalar fields from the observation output
-- **Thought** -- the model's rationale (from `decision.rationale` or parsed `Thought:` line)
-- **Action** -- the tool call that was dispatched based on the decision
-- **Direct Observation** -- action results (the data returned after the tool executes); search hits render as a table, errors are highlighted
-- **Critic** -- critic (a step-level validator) output (`action`, `reason`, `score`) if critics were attached
-- **Trace Events** — raw `RuntimeEvent` list for the step (collapsed by default)
-
-The **Step Navigator** sidebar lets you jump to any step. Use the controls to:
-- Filter by text across all step content
-- Filter by event phase
-- Sort steps ascending or descending
-- Toggle observation and critic sections
-- Fold or expand all sections at once
-- Adjust font size with `A-` / `A` / `A+`
-
-A gantt-like **phase timeline** at the top of the traj view shows phase durations for each step as color-coded segments.
-
-**Manifest tab**
-
-Displays the raw `manifest.json` as formatted JSON.
-
-The trajectory view is where parser (raw-output-to-Decision converter) behavior, tool calls, and step timing become easy to inspect:
-
-![qita trajectory view](/images/qita-traj.png)
-
-</Step>
-
-</Steps>
-
----
-
-## qita replay
-
-`qita replay` opens a single run in playback mode, stepping through events in time order.
-
-```bash
-qita replay --run ./runs/my_agent_20260407_120000_000001
-```
-
-Available flags:
-
-| Flag | Default | Description |
-|---|---|---|
-| `--run` | required | Path to the run directory |
-| `--host` | `127.0.0.1` | Bind address |
-| `--port` | `8765` | Bind port |
-
-The replay page adds a playback bar with configurable speed. Pass `?speed=300` in the URL to set the millisecond interval between frames (minimum 100 ms).
-
----
-
-## qita export
-
-`qita export` produces a single standalone HTML file that embeds all run data. Share it without running a server.
-
-```bash
-qita export --run ./runs/my_agent_20260407_120000_000001 --html out.html
-```
-
-| Flag | Description |
-|---|---|
-| `--run` | Path to the run directory (required) |
-| `--html` | Output HTML file path (required) |
-
-The exported file is self-contained — all CSS, JavaScript, and run data are inlined. It renders the same trajectory view as the board's run detail page.
-
-You can also export directly from the board UI using the **export html** and **export raw** links on each run card, which download the file or the raw JSON payload respectively.
-
----
-
-## Configuring trace output
-
-By default, `agent.run()` writes traces to `./runs/` under a run ID constructed from the agent class name and a UTC timestamp. Override the output directory and prefix:
-
-```python
-result = agent.run(
-    task="...",
-    max_steps=10,
-    trace_logdir="./my_experiments",
-    trace_prefix="react_v2",
-    return_state=True,
-)
-```
-
-To disable tracing entirely, pass `trace=False`:
-
-```python
-result = agent.run(task="...", trace=False, return_state=True)
-```
-
-To pass a pre-configured `TraceWriter` (for example, to share a run ID across multiple agents), construct it explicitly:
-
-```python
-from qitos.trace import TraceWriter
-
-writer = TraceWriter(
-    output_dir="./runs",
-    run_id="my_custom_run_id",
-    strict_validate=True,
-    metadata={"model_id": "Qwen3-8B"},
-)
-
-result = agent.run(task="...", trace=writer, return_state=True)
-```
-
-<Note>
-Three files are required per run for `qita` to discover it: `manifest.json`, `events.jsonl`, and `steps.jsonl`. A run directory missing `manifest.json` is silently skipped by `qita board`.
-</Note>
-
----
-
-## Real-time streaming with SSE
-
-qita provides a Server-Sent Events (SSE) endpoint for each run that streams step events in real time. This is useful for building custom dashboards or integrating with external monitoring.
-
-### SSE endpoint
-
-```
-GET /api/stream/{run_id}
-```
-
-The endpoint emits events in SSE format with typed event names:
-
-| Event type | When emitted |
-|---|---|
-| `run_start` | Run begins (includes `run_id`, `task`, `agent_name`) |
-| `step_start` | A step begins (includes `step_id`, `agent_id`) |
-| `step_end` | A step completes |
-| `phase` | A runtime phase event (decide, act, reduce, etc.) |
-| `handoff` | An agent handoff event |
-| `delegate` | A delegate event (1:1 sub-task) |
-| `fanout` | A fanout event (1:N parallel sub-tasks) |
-| `run_end` | Run finishes (includes `step_count`, `stop_reason`) |
-
-### Client-side consumption
-
-From any web page:
-
-```javascript
-const es = new EventSource('/api/stream/my_run_id');
-es.addEventListener('step_start', e => {
-    const data = JSON.parse(e.data);
-    console.log('Step', data.step_id, 'agent:', data.agent_id);
-});
-es.addEventListener('handoff', e => {
-    console.log('Handoff:', JSON.parse(e.data));
-});
-es.addEventListener('run_end', e => {
-    es.close();
-});
-```
-
-### Live stream button
-
-The qita run detail page includes a **live stream** button that connects to the SSE endpoint and logs events to the browser console. This is useful for debugging and understanding the event flow of a completed run.
-
-### Streaming with AsyncEngine
-
-For live runs, use `AsyncEngine.arun_stream()` to consume events programmatically:
-
-```python
-from qitos import AsyncEngine
-
-engine = AsyncEngine(agent=agent, budget=RuntimeBudget(max_steps=10))
-
-async for event in engine.arun_stream("analyze the data"):
-    if event.event_type == "step_end":
-        print(f"Step {event.step_id} done")
-    elif event.event_type == "handoff":
-        print(f"Handoff: {event.payload}")
-```
+G5 CLI still requires the --run path to exist, so create the empty selector directory first. Actual data is read from the parent journal. This is a CLI compatibility limitation, not a new trace format.

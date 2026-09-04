@@ -48,6 +48,8 @@ task -> state -> prepare -> llm -> parser -> Decision -> tools -> reduce -> trac
 
 ## The public v0.4 surface
 
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
+
 ```python
 from qitos.harness import (
     FamilyPreset,
@@ -57,8 +59,8 @@ from qitos.harness import (
     ContextPolicy,
     resolve_family_preset,
     build_harness_policy,
-    build_model_for_preset,
-)
+ )
+from qitos.models import build_model_for_preset
 ```
 
 ## Gold presets in v0.4
@@ -129,6 +131,8 @@ without inventing a second trace format.
 ## Override a preset
 
 When a built-in preset does not match your needs, use `preset.override()` to create a customized copy without editing source:
+
+Illustrative fragment (not a standalone program; use the complete example linked on this page).
 
 ```python
 from dataclasses import replace

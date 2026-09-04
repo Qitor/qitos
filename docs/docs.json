@@ -2,7 +2,7 @@
   "$schema": "https://mintlify.com/docs.json",
   "name": "QitOS",
   "theme": "luma",
-  "favicon": "https://media.brand.dev/288cc7c4-5cef-4376-950b-bdf0083eedae.png",
+  "favicon": "/images/logo.png",
   "colors": {
     "primary": "#fcaa21",
     "light": "#38d3da"
@@ -20,123 +20,145 @@
         "default": true,
         "tabs": [
           {
-            "tab": "Getting Started",
-            "icon": "rocket",
+            "tab": "Getting started",
             "groups": [
               {
-                "group": "Get Started",
+                "group": "Start here",
                 "pages": [
                   "introduction",
                   "prerequisites",
-                  "quickstart",
-                  "installation"
+                  "installation",
+                  "quickstart"
                 ]
               },
               {
-                "group": "Tutorials",
-                "root": "tutorials/index",
+                "group": "Core learning units",
                 "pages": [
                   "tutorials/index",
-                  "tutorials/react",
-                  "tutorials/planact",
-                  "tutorials/claude-code",
-                  "tutorials/code-security-audit",
-                  "tutorials/critic-system",
-                  "tutorials/hook-lifecycle",
-                  "tutorials/func-api",
-                  "tutorials/mcp-integration",
+                  "guides/build-your-first-agent",
+                  "concepts/tools-and-registry",
                   "tutorials/checkpoint-and-fork",
-                  "tutorials/switch-model-families",
-                  "tutorials/reproducible-benchmark-runs",
-                  "tutorials/replay-and-inspect-failed-runs",
-                  "tutorials/run-your-first-desktop-benchmark",
-                  "tutorials/inspect-a-gui-failure-in-qita"
+                  "guides/memory-and-history",
+                  "guides/sandbox-and-artifacts",
+                  "guides/multi-agent-patterns",
+                  "guides/observability",
+                  "guides/third-party-extensions"
                 ]
               }
             ]
           },
           {
-            "tab": "Docs",
-            "icon": "book-open",
+            "tab": "Advanced and reference",
             "groups": [
               {
-                "group": "Core Concepts",
+                "group": "benchmarks",
+                "pages": [
+                  "benchmarks/cybench",
+                  "benchmarks/cybergym",
+                  "benchmarks/desktop-starter",
+                  "benchmarks/gaia",
+                  "benchmarks/osworld",
+                  "benchmarks/overview",
+                  "benchmarks/tau-bench"
+                ]
+              },
+              {
+                "group": "community",
+                "pages": [
+                  "community"
+                ]
+              },
+              {
+                "group": "concepts",
                 "pages": [
                   "concepts/agent-module",
+                  "concepts/domestic-model-ecosystem",
                   "concepts/engine",
-                  "concepts/state-and-task",
-                  "concepts/tools-and-registry",
                   "concepts/family-presets",
-                  "concepts/tracing",
+                  "concepts/glossary",
                   "concepts/official-runs",
-                  "concepts/glossary"
+                  "concepts/state-and-task",
+                  "concepts/tracing"
                 ]
               },
               {
-                "group": "Guides",
-              "pages": [
-                "guides/build-your-first-agent",
-                "guides/computer-use-desktop",
-                "guides/multimodal-core",
-                "guides/agent-patterns",
-                "guides/desktop-benchmark-starter",
-                "guides/benchmarks-and-recipes",
-                "guides/third-party-benchmark-integration",
-                  "guides/add-a-family-preset",
-                  "guides/qwen-family-best-practice",
-                  "guides/memory-and-history",
-                  "guides/critics-and-stop-criteria",
-                  "guides/method-templates",
-                  "guides/observability",
-                  "guides/wandb-integration",
-                  "guides/mlflow-integration",
-                  "guides/snowl-integration"
-                ]
-              },
-              {
-                "group": "Benchmarks",
-                "pages": [
-                  "benchmarks/overview",
-                  "benchmarks/desktop-starter",
-                  "benchmarks/osworld",
-                  "benchmarks/gaia",
-                  "benchmarks/tau-bench",
-                  "benchmarks/cybench"
-                ]
-              },
-              {
-                "group": "Reference",
-                "pages": [
-                  "reference/api",
-                  "reference/kit",
-                  "reference/model-family-matrix",
-                  "reference/cli",
-                  "reference/configuration",
-                  "reference/g5-migration"
-                ]
-              },
-              {
-                "group": "Contributing",
+                "group": "contributing",
                 "pages": [
                   "contributing/development",
                   "contributing/writing-a-method-template"
                 ]
+              },
+              {
+                "group": "guides",
+                "pages": [
+                  "guides/add-a-family-preset",
+                  "guides/agent-patterns",
+                  "guides/benchmarks-and-recipes",
+                  "guides/computer-use-desktop",
+                  "guides/critics-and-stop-criteria",
+                  "guides/desktop-benchmark-starter",
+                  "guides/financial-analysis-agent",
+                  "guides/legal-consulting-agent",
+                  "guides/method-templates",
+                  "guides/mlflow-integration",
+                  "guides/multi-agent-handoff",
+                  "guides/multimodal-core",
+                  "guides/qwen-family-best-practice",
+                  "guides/third-party-benchmark-integration",
+                  "guides/wandb-integration"
+                ]
+              },
+              {
+                "group": "index",
+                "pages": [
+                  "index"
+                ]
+              },
+              {
+                "group": "reference",
+                "pages": [
+                  "reference/api",
+                  "reference/cli",
+                  "reference/configuration",
+                  "reference/g5-migration",
+                  "reference/kit",
+                  "reference/model-family-matrix"
+                ]
+              },
+              {
+                "group": "tutorials",
+                "pages": [
+                  "tutorials/claude-code",
+                  "tutorials/code-security-audit",
+                  "tutorials/critic-system",
+                  "tutorials/func-api",
+                  "tutorials/hook-lifecycle",
+                  "tutorials/inspect-a-gui-failure-in-qita",
+                  "tutorials/mcp-integration",
+                  "tutorials/multi-agent",
+                  "tutorials/planact",
+                  "tutorials/react",
+                  "tutorials/replay-and-inspect-failed-runs",
+                  "tutorials/reproducible-benchmark-runs",
+                  "tutorials/run-your-first-desktop-benchmark",
+                  "tutorials/switch-model-families"
+                ]
               }
             ]
           },
           {
-            "tab": "Blog",
-            "icon": "newspaper",
+            "tab": "History and compatibility",
             "groups": [
               {
-                "group": "QitOS Blog",
-                "root": "blog/index",
+                "group": "History",
                 "pages": [
-                  "blog/index",
-                  "blog/single-kernel",
-                  "blog/reproducible-runs",
+                  "blog/desktop-osworld-starter",
                   "blog/gold-presets-preview",
-                  "blog/desktop-osworld-starter"
+                  "blog/index",
+                  "blog/reproducible-runs",
+                  "blog/single-kernel",
+                  "concepts/function-tool-migration",
+                  "guides/snowl-integration"
                 ]
               }
             ]
@@ -148,123 +170,144 @@
         "tabs": [
           {
             "tab": "开始使用",
-            "icon": "rocket",
             "groups": [
               {
                 "group": "开始使用",
                 "pages": [
                   "zh/introduction",
                   "zh/prerequisites",
-                  "zh/quickstart",
-                  "zh/installation"
+                  "zh/installation",
+                  "zh/quickstart"
                 ]
               },
               {
-                "group": "教程",
-                "root": "zh/tutorials/index",
+                "group": "核心学习单元",
                 "pages": [
                   "zh/tutorials/index",
-                  "zh/tutorials/react",
-                  "zh/tutorials/planact",
-                  "zh/tutorials/claude-code",
-                  "zh/tutorials/code-security-audit",
-                  "zh/tutorials/critic-system",
-                  "zh/tutorials/hook-lifecycle",
-                  "zh/tutorials/func-api",
-                  "zh/tutorials/mcp-integration",
+                  "zh/guides/build-your-first-agent",
+                  "zh/concepts/tools-and-registry",
                   "zh/tutorials/checkpoint-and-fork",
-                  "zh/tutorials/switch-model-families",
-                  "zh/tutorials/reproducible-benchmark-runs",
-                  "zh/tutorials/replay-and-inspect-failed-runs",
-                  "zh/tutorials/run-your-first-desktop-benchmark",
-                  "zh/tutorials/inspect-a-gui-failure-in-qita"
+                  "zh/guides/memory-and-history",
+                  "zh/guides/sandbox-and-artifacts",
+                  "zh/guides/multi-agent-patterns",
+                  "zh/guides/observability",
+                  "zh/guides/third-party-extensions"
                 ]
               }
             ]
           },
           {
-            "tab": "文档",
-            "icon": "book-open",
+            "tab": "高级与参考",
             "groups": [
               {
-                "group": "核心概念",
+                "group": "benchmarks",
+                "pages": [
+                  "zh/benchmarks/cybench",
+                  "zh/benchmarks/cybergym",
+                  "zh/benchmarks/desktop-starter",
+                  "zh/benchmarks/gaia",
+                  "zh/benchmarks/osworld",
+                  "zh/benchmarks/overview",
+                  "zh/benchmarks/tau-bench"
+                ]
+              },
+              {
+                "group": "community",
+                "pages": [
+                  "zh/community"
+                ]
+              },
+              {
+                "group": "concepts",
                 "pages": [
                   "zh/concepts/agent-module",
+                  "zh/concepts/domestic-model-ecosystem",
                   "zh/concepts/engine",
-                  "zh/concepts/state-and-task",
-                  "zh/concepts/tools-and-registry",
                   "zh/concepts/family-presets",
-                  "zh/concepts/tracing",
+                  "zh/concepts/glossary",
                   "zh/concepts/official-runs",
-                  "zh/concepts/glossary"
+                  "zh/concepts/state-and-task",
+                  "zh/concepts/tracing"
                 ]
               },
               {
-                "group": "指南",
-                "pages": [
-                "zh/guides/build-your-first-agent",
-                "zh/guides/computer-use-desktop",
-                "zh/guides/multimodal-core",
-                "zh/guides/agent-patterns",
-                "zh/guides/desktop-benchmark-starter",
-                "zh/guides/benchmarks-and-recipes",
-                "zh/guides/third-party-benchmark-integration",
-                  "zh/guides/add-a-family-preset",
-                  "zh/guides/qwen-family-best-practice",
-                  "zh/guides/memory-and-history",
-                  "zh/guides/critics-and-stop-criteria",
-                  "zh/guides/method-templates",
-                  "zh/guides/observability",
-                  "zh/guides/wandb-integration",
-                  "zh/guides/snowl-integration",
-                  "zh/guides/multi-agent-patterns"
-                ]
-              },
-              {
-                "group": "基准测试",
-                "pages": [
-                  "zh/benchmarks/overview",
-                  "zh/benchmarks/desktop-starter",
-                  "zh/benchmarks/osworld",
-                  "zh/benchmarks/gaia",
-                  "zh/benchmarks/tau-bench",
-                  "zh/benchmarks/cybench",
-                  "zh/benchmarks/cybergym"
-                ]
-              },
-              {
-                "group": "参考",
-                "pages": [
-                  "zh/reference/api",
-                  "zh/reference/kit",
-                  "zh/reference/model-family-matrix",
-                  "zh/reference/cli",
-                  "zh/reference/configuration",
-                  "zh/reference/g5-migration"
-                ]
-              },
-              {
-                "group": "贡献",
+                "group": "contributing",
                 "pages": [
                   "zh/contributing/development",
                   "zh/contributing/writing-a-method-template"
                 ]
+              },
+              {
+                "group": "guides",
+                "pages": [
+                  "zh/guides/add-a-family-preset",
+                  "zh/guides/agent-patterns",
+                  "zh/guides/benchmarks-and-recipes",
+                  "zh/guides/computer-use-desktop",
+                  "zh/guides/critics-and-stop-criteria",
+                  "zh/guides/desktop-benchmark-starter",
+                  "zh/guides/financial-analysis-agent",
+                  "zh/guides/legal-consulting-agent",
+                  "zh/guides/method-templates",
+                  "zh/guides/mlflow-integration",
+                  "zh/guides/multi-agent-handoff",
+                  "zh/guides/multimodal-core",
+                  "zh/guides/qwen-family-best-practice",
+                  "zh/guides/third-party-benchmark-integration",
+                  "zh/guides/wandb-integration"
+                ]
+              },
+              {
+                "group": "index",
+                "pages": [
+                  "zh/index"
+                ]
+              },
+              {
+                "group": "reference",
+                "pages": [
+                  "zh/reference/api",
+                  "zh/reference/cli",
+                  "zh/reference/configuration",
+                  "zh/reference/g5-migration",
+                  "zh/reference/kit",
+                  "zh/reference/model-family-matrix"
+                ]
+              },
+              {
+                "group": "tutorials",
+                "pages": [
+                  "zh/tutorials/claude-code",
+                  "zh/tutorials/code-security-audit",
+                  "zh/tutorials/critic-system",
+                  "zh/tutorials/func-api",
+                  "zh/tutorials/hook-lifecycle",
+                  "zh/tutorials/inspect-a-gui-failure-in-qita",
+                  "zh/tutorials/mcp-integration",
+                  "zh/tutorials/multi-agent",
+                  "zh/tutorials/planact",
+                  "zh/tutorials/react",
+                  "zh/tutorials/replay-and-inspect-failed-runs",
+                  "zh/tutorials/reproducible-benchmark-runs",
+                  "zh/tutorials/run-your-first-desktop-benchmark",
+                  "zh/tutorials/switch-model-families"
+                ]
               }
             ]
           },
           {
-            "tab": "博客",
-            "icon": "newspaper",
+            "tab": "历史与兼容",
             "groups": [
               {
-                "group": "QitOS 博客",
-                "root": "zh/blog/index",
+                "group": "历史",
                 "pages": [
-                  "zh/blog/index",
-                  "zh/blog/single-kernel",
-                  "zh/blog/reproducible-runs",
+                  "zh/blog/desktop-osworld-starter",
                   "zh/blog/gold-presets-preview",
-                  "zh/blog/desktop-osworld-starter"
+                  "zh/blog/index",
+                  "zh/blog/reproducible-runs",
+                  "zh/blog/single-kernel",
+                  "zh/concepts/function-tool-migration",
+                  "zh/guides/snowl-integration"
                 ]
               }
             ]

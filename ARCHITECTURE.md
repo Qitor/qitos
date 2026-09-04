@@ -42,13 +42,13 @@ qitos.kit           concrete implementations: tools, toolsets, parsers, prompts,
 qitos.trace         frozen historical trace format and explicit compatibility writer
 qitos.tracing       canonical Trajectory journal/readers plus separate diagnostic span processors
 qitos.render        Rich terminal rendering + EngineHooks
-qitos.qita          trajectory CLI (board/replay/export); reads v1 artifacts
+qitos.qita          trajectory CLI (board/replay/export); default journal + historical trace reader
 qitos.checkpoint    v2 checkpoint stores (memory/SQLite, versioning, durability, fork)
 qitos.evaluate/metric  thin evaluation/metric contracts (implementations in kit)
 qitos.recipes       canonical recipes: method templates + benchmarks (migration target)
 qitos.benchmark     deprecated benchmark adapters, migrating to recipes.benchmarks
 qitos.mcp/func/cache/debug/…  integration & deprecated leaves (see audit)
-qitos.config       strict qitos.agent/v1 loader, credential references/resolvers,
+qitos.config       strict canonical qitos.agent loader, credential references/resolvers,
                    and the sole declarative model/tool/Env/Session/Engine composition root
 qitos.cli.py        `qit` CLI — thin dispatch over the packages above
 ```
@@ -116,9 +116,9 @@ Headlines (full inventory with exit plans in [architecture-debt.md](docs/archite
 1. `benchmark ↔ recipes.benchmarks` dual implementations with a module-level cycle (deprecated adapters still alive).
 2. `core` mixes contracts with the `AgentModule.run()` convenience layer (lazy reverse imports).
 3. Engine reaches kit/mcp/cache via lazy imports — kernel knows implementations.
-4. Three event schemas / artifact paths (engine states, trace v1, tracing v2 + render jsonl); qita reads only v1.
+4. Historical trace and diagnostic spans remain distinct compatibility/diagnostic surfaces; authoritative Trajectory defaults to the journal, read by qita.
 5. Whole-package lint/type coverage is narrower than the shipped surface.
-6. Runtime failure, timeout, durability, and hook receipts do not yet share trustworthy semantics.
+6. G5 qualified truthful failure/durability receipts; unknown effects, hard thread cancellation and fully materialized journal reads remain explicit limits.
 7. `qitos.harness` name collision; `evaluate`/`metric` contract-vs-kit-mirror split; god objects in the kernel.
 
 The `harness ↔ models` module-level cycle is resolved; concrete model construction
@@ -126,8 +126,9 @@ now lives in `qitos.models.harness_adapter`. The next architecture and quality
 steps are planned in `docs/v4/`: canonical model/action/context/trajectory
 contracts in Tasks 02–05 and quality gates, lifecycle semantics, and
 consolidation in Tasks 08–10, durable Session/work ownership in Tasks 12–13,
-and safe-by-default sandboxed agent execution in Task 14. The existing Docker
-Env is an execution backend, not yet an untrusted-code security qualification.
+and safe-by-default sandboxed agent execution in Task 14. The G5 Docker reference uses attested private staging, bounded execution and
+explicit publication. Qualification is platform-scoped, not a VM or universal
+untrusted-code security guarantee.
 Multi-agent delivery follows the
 [four-lane execution playbook](docs/v4/11-four-lane-execution-playbook.md), which
 assigns one semantic owner per contract and shared-file leases for integration.

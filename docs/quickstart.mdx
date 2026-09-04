@@ -1,107 +1,80 @@
 ---
 title: "Quickstart"
-description: "Run your first QitOS minimal coding agent in under 2 minutes, then inspect it with qita."
+description: "QitOS G5 · Quickstart"
 ---
 
-## Session-first project path
+## Goal and prerequisites
 
-For a new durable, sandboxed agent project, start with:
+Install the specified runtime → create a project → configure model references,
+tools and resources → run a Session → inspect result, artifacts and Trajectory
+→ restore or extend your Agent. Start with [Installation](/installation).
+Python 3.12.7 is the tested interpreter. No model key or Docker is needed for
+this first arithmetic lesson.
+
+## Create and execute a project
+
+Install **before** using `qit`:
 
 ```bash
-qit new --agent-name my_agent --output-dir . --no-input
-python -m pip install ./my_agent
-python -m pytest my_agent/tests
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install "qitos @ git+https://github.com/Qitor/qitos.git@717b4cf1b23f2ed252cd03234ffd8605038d9567"
+python -m pip install pytest
+qit --help
+qita --help
 ```
 
-The generated test uses a deterministic provider in its temporary test workspace;
-configured execution uses the Docker sandbox and explicit credential resolution.
-See [G5 migration](/reference/g5-migration) for restore, immutable fork, retained
-artifacts, explicit publication and journal inspection. The older minimal demo
-below operates on its seeded host workspace; it is not the isolation reference.
+Download the complete teaching files, generate an installable project, then run:
 
-This guide takes you from a fresh environment to a model-backed minimal coding agent and a live trace view in under 2 minutes.
+```bash
+git clone --branch feat/campaign-absorption --single-branch https://github.com/Qitor/qitos.git qitos-lessons
+cp -R qitos-lessons/examples/tutorials ./lessons
+qit new --agent-name my_agent --output-dir . --no-input
+python -m pip install ./my_agent
+python -m pytest -q my_agent/tests
+python lessons/session_walkthrough.py create --root ./arithmetic-run
+python lessons/session_walkthrough.py restore --root ./arithmetic-run
+```
 
-Here is what the runtime looks like when you watch it work:
+The generated `my_agent/agent.yaml` is canonical configuration. Its packaged
+test substitutes a fake provider and a temporary unisolated host workspace;
+it checks composition/Session wiring and performs no model-selected shell work.
+The complete `lessons/session_walkthrough.py` registers only a trusted pure
+`add` function. It uses a clearly named fake provider, SQLite and the real
+Trajectory writer. **This is not sandbox isolation or autonomous task success.**
 
-![QitOS runtime snapshot](/images/qitos-cli.png)
+The first process prints `lifecycle: paused` and `tool_output: 42`; the second
+prints `final_result: arithmetic complete`, a distinct child Session ID and a
+positive record count. Both exit 0. Assertion failure is failure, not a usable
+result. Use a new root for a second execution to avoid overwriting retained evidence.
 
-<Note>
-Need a provider first? Read [Prerequisites](/prerequisites). It explains how to get an OpenAI-compatible API key and validate your endpoint before running QitOS.
-</Note>
+## Inspect your result
 
-## Prerequisites
+The script writes `arithmetic-run/control.json`, `sessions.sqlite3`,
+`trajectory.journal`, and `public-trajectory.json`.
 
-- Python 3.10 or later
-- `pip`
-- An OpenAI-compatible API key
+```bash
+qita board --logdir ./arithmetic-run
+qit session inspect --help
+qita inspect --help
+```
 
-## Steps
+The board is read-only; Ctrl-C stops its local server. The
+[Session lesson](/tutorials/checkpoint-and-fork) provides CLI inspection using
+the actual Session ID and matching configuration.
+A public export is redacted and loss-declaring, not a raw backup.
 
-<Steps>
-  <Step title="Install QitOS">
-    ```bash
-    pip install "qitos[models]"
-    ```
-  </Step>
+## A typed failure is actionable
 
-  <Step title="Set your provider config">
-    ```bash
-    export OPENAI_API_KEY="sk-..."
-    export OPENAI_BASE_URL="https://api.siliconflow.cn/v1/"
-    export QITOS_MODEL="Qwen/Qwen3-8B"
-    ```
+A malformed configuration is rejected before execution. Missing Docker on the
+coding path gives `sandbox_unavailable`; start the daemon and rerun preflight.
+Do not change coding tools to host execution as a workaround. A missing
+credential or unsupported codec is not a successful model call. See
+[migration and troubleshooting](/reference/g5-migration).
 
-    <Tip>
-      Any OpenAI-compatible endpoint works. Point `OPENAI_BASE_URL` at your provider if you're not using OpenAI directly.
-    </Tip>
-  </Step>
+## Use a real provider or extend the Agent
 
-  <Step title="Run the minimal coding agent">
-    ```bash
-    qit demo minimal
-    ```
-
-    This demo creates a small workspace with a buggy file, configures a real model, asks a minimal coding agent to fix the bug, runs verification, and writes a qita-ready trace. You should see output similar to:
-
-    ```
-    model_name: Qwen/Qwen3-8B
-    workspace: .../playground/minimal_coding_agent
-    target_file: buggy_module.py
-    trace_run: .../runs/trajectory.journal
-    final_result: Patch applied and verification passed.
-    stop_reason: final
-    next_step: qita board --logdir runs
-    ```
-  </Step>
-
-  <Step title="Inspect the run with qita">
-    ```bash
-    qita board --logdir runs
-    ```
-
-    Open [http://127.0.0.1:8765](http://127.0.0.1:8765) in your browser. The board shows every run in your log directory with step counts, stop reasons, and final results. Click **view** on any run to inspect its step-by-step trajectory (the temporal sequence of prompts, decisions, tool calls, and observations), or **replay** to play it back.
-
-    <Tip>
-      The packaged demo and [`examples/quickstart/minimal_agent.py`](https://github.com/Qitor/qitos/blob/main/examples/quickstart/minimal_agent.py) follow the same minimal coding-agent path. Start from the example file when you want to read or customize the code directly.
-    </Tip>
-  </Step>
-</Steps>
-
-## What's next
-
-You've run a minimal coding agent and inspected its trace. Here's where to go from here:
-
-<CardGroup cols={2}>
-  <Card title="Build your first agent" icon="code" href="/guides/build-your-first-agent">
-    A walkthrough of the minimal coding-agent shape: state, model, tools, run, and qita
-  </Card>
-  <Card title="Tutorial track" icon="graduation-cap" href="/tutorials">
-    Learn agent design step by step through ReAct, PlanAct, Claude Code-style, and security audit lessons
-  </Card>
-  <Card title="Observability" icon="chart-line" href="/guides/observability">
-    Everything qita can do: board, replay, and export
-  </Card>
-  <Card title="Benchmarks" icon="trophy" href="/benchmarks/overview">
-    Run GAIA, Tau-Bench, and CyBench on the QitOS kernel
-  </Card>
-</CardGroup>
+Follow [Configuration](/reference/configuration) to create the complete private
+credential file and explicit resolver. That step sends requests only when you
+explicitly run the real launch. This documentation qualification runs no real
+model requests. Continue through the [eight learning units](/tutorials/index).

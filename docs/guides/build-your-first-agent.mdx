@@ -1,200 +1,40 @@
 ---
-title: "First Agent"
-description: "Build a working QitOS minimal coding agent from scratch: state, model, tools, run, and qita inspection."
+title: "Custom Agent"
+description: "QitOS G5 · Custom Agent"
 ---
 
-Every QitOS agent follows one execution path: `AgentModule + Engine + Trace` (a trace is the structured log of decisions, actions, and observations recorded during a run). You define the strategy; the Engine owns the loop. This guide walks through that path using the minimal coding agent from `examples/quickstart/minimal_agent.py`.
+## Learning goal
+
+Write a StateSchema, AgentModule.decide/reduce and a final stopping decision. The example squares 3 and 4 through a two-action batch.
 
 ## Prerequisites
 
-- Python 3.10+
-- An API key for any OpenAI-compatible endpoint
+Complete the [Quickstart](/quickstart) installation and lessons copy; base package, Python 3.12.7 tested, no real model requests.
 
-<Steps>
+## Complete runnable example
 
-<Step title="Install qitos and set your model config">
+[`examples/tutorials/custom_agent.py`](https://github.com/Qitor/qitos/blob/feat/campaign-absorption/examples/tutorials/custom_agent.py)
 
-```bash
-pip install "qitos[models]"
-export OPENAI_API_KEY="sk-..."
-export OPENAI_BASE_URL="https://api.siliconflow.cn/v1/"
-export QITOS_MODEL="Qwen/Qwen3-8B"
-```
-
-</Step>
-
-<Step title="Define state around a coding task">
-
-Every minimal QitOS coding agent still starts from a typed `StateSchema`:
-
-```python
-from dataclasses import dataclass, field
-
-from qitos import StateSchema
-
-
-@dataclass
-class MinimalCodingState(StateSchema):
-    scratchpad: list[str] = field(default_factory=list)
-    target_file: str = "buggy_module.py"
-    test_command: str = 'python -c "import buggy_module; assert buggy_module.add(20, 22) == 42"'
-```
-
-The key mindset is that the task, scratchpad, and verification contract all live in state, not in hidden runtime glue.
-
-</Step>
-
-<Step title="Attach a real model and a real coding toolset">
-
-The minimal example is intentionally model-backed. It uses an OpenAI-compatible model plus the canonical coding tool preset:
-
-```python
-from typing import Any
-
-from qitos import Action, AgentModule, Decision
-from qitos.kit import REACT_SYSTEM_PROMPT, ReActTextParser, format_action, render_prompt
-from qitos.kit.toolset import coding_tools
-from qitos.models import OpenAICompatibleModel
-
-
-class MinimalCodingAgent(AgentModule[MinimalCodingState, dict[str, Any], Action]):
-    def __init__(self, llm: OpenAICompatibleModel, workspace_root: str) -> None:
-        super().__init__(
-            toolset=[coding_tools(workspace_root=workspace_root, shell_timeout=20, include_notebook=False)],
-            llm=llm,
-            model_parser=ReActTextParser(),
-        )
-
-    def init_state(self, task: str, **kwargs: Any) -> MinimalCodingState:
-        return MinimalCodingState(
-            task=task,
-            max_steps=int(kwargs.get("max_steps", 8)),
-            target_file=str(kwargs.get("target_file", "buggy_module.py")),
-            test_command=str(kwargs.get("test_command")),
-        )
-
-    def build_system_prompt(self, state: MinimalCodingState) -> str | None:
-        _ = state
-        return render_prompt(
-            REACT_SYSTEM_PROMPT,
-            {"tool_schema": self.tool_registry.get_tool_descriptions()},
-        )
-```
-
-</Step>
-
-<Step title="Reduce trajectory back into state">
-
-`reduce()` (the method that folds the latest observation and decision back into agent state) is where QitOS turns tool results into agent progress:
-
-```python
-    def reduce(
-        self,
-        state: MinimalCodingState,
-        observation: dict[str, Any],
-        decision: Decision[Action],  # the structured output from the model
-    ) -> MinimalCodingState:
-        action_results = observation.get("action_results", [])
-        if decision.rationale:
-            state.scratchpad.append(f"Thought: {decision.rationale}")
-        if decision.actions:
-            state.scratchpad.append(f"Action: {format_action(decision.actions[0])}")
-        if action_results:
-            first = action_results[0]
-            state.scratchpad.append(f"Observation: {first}")
-            if isinstance(first, dict) and int(first.get("returncode", 1)) == 0:
-                state.final_result = "Patch applied and verification passed."
-        return state
-```
-
-<Warning>
-You must return `state` from `reduce`. Forgetting to return it is still the most common mistake.
-</Warning>
-
-</Step>
-
-<Step title="Seed a workspace and run the agent">
-
-The minimal example creates one tiny buggy file, then asks the agent to fix it:
-
-```python
-from pathlib import Path
-
-WORKSPACE = Path("./playground/minimal_coding_agent")
-TARGET_FILE = "buggy_module.py"
-TASK = "Fix the bug in buggy_module.py and make the verification command pass."
-
-
-def seed_workspace() -> None:
-    WORKSPACE.mkdir(parents=True, exist_ok=True)
-    target = WORKSPACE / TARGET_FILE
-    if not target.exists():
-        target.write_text("def add(a, b):\n    return a - b\n", encoding="utf-8")
-
-
-def main() -> None:
-    seed_workspace()
-    agent = MinimalCodingAgent(llm=build_model(), workspace_root=str(WORKSPACE))
-    result = agent.run(
-        task=TASK,
-        workspace=str(WORKSPACE),
-        max_steps=8,
-        target_file=TARGET_FILE,
-        return_state=True,
-    )
-    print("final_result:", result.state.final_result)
-    print("stop_reason:", result.state.stop_reason)
-```
-
-</Step>
-
-<Step title="Inspect the run with qita">
+The complete directory is the execution source. Sibling session_walkthrough.py is a public teaching dependency, not a repository test helper.
 
 ```bash
-qita board --logdir ./runs
+python lessons/custom_agent.py
 ```
 
-The board starts on `http://127.0.0.1:8765`. Use it to inspect the patching trajectory (the ordered sequence of steps the agent took), replay the run, and export the trace as HTML.
+## Expected output and assertions
 
-</Step>
+`squares complete; completed=2; process_local=true`
 
-</Steps>
+Assertions in the file verify the result; generated IDs vary. Commands exit zero; stop the board with Ctrl-C.
 
-## Complete example
+## Support boundaries
 
-The full minimal coding-agent example lives here:
+This advanced Python path uses Engine with RuntimeComposition and a process-local Memory store. AgentComposition creates ConfiguredAgent; it has no arbitrary agent_override argument. Use this public Engine path for a custom AgentModule, and configure durable stores/resolvers for cross-process recovery.
 
-- [`examples/quickstart/minimal_agent.py`](https://github.com/Qitor/qitos/blob/main/examples/quickstart/minimal_agent.py)
+## Common errors
 
-You can also run the packaged version directly:
+Choose a new root if the directory already exists. For missing imports verify the installed source. Inspect Trajectory and the migration page for config mismatch, missing extensions or typed failures; never silently retry unknown external effects.
 
-```bash
-qit demo minimal
-```
+## Next step
 
-## Common mistakes
-
-| Mistake | Symptom | Fix |
-|---|---|---|
-| Forget `return state` in `reduce` | `StateValidationError` or `None` state | Always end `reduce()` with `return state` |
-| Skip provider config | `OPENAI_API_KEY` / `QITOS_API_KEY` error before the run starts | Export the API key and base URL before running the demo |
-| Never run verification | The agent edits code but finishes without proof | Keep a concrete `test_command` in state and treat passing it as success |
-| Wrong prompt-parser pairing | Parse errors every step | Match your system prompt format to `ReActTextParser` (a parser that extracts structured Decisions from ReAct-formatted text) or another explicit parser |
-| Toolset too broad for the task | The run wanders through unnecessary tools | Start with the minimal coding preset and add tools only when the task really needs them |
-
-## Next steps
-
-<CardGroup cols={2}>
-  <Card title="Tutorial track" icon="graduation-cap" href="/tutorials">
-    Continue with the four-lesson research path: ReAct, PlanAct, Claude Code-style, and code security audit.
-  </Card>
-  <Card title="Agent patterns" icon="diagram-project" href="/guides/agent-patterns">
-    Compare the high-level tradeoffs between QitOS pattern families before choosing one.
-  </Card>
-  <Card title="Observability" icon="chart-line" href="/guides/observability">
-    Inspect every run with qita board, replay, and export.
-  </Card>
-  <Card title="Kit reference" icon="toolbox" href="/reference/kit">
-    Look up the parsers, planners, toolsets, and helpers used in the lessons.
-  </Card>
-</CardGroup>
+[Learning path](/tutorials/index) · [Migration and troubleshooting](/reference/g5-migration)

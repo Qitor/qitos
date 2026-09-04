@@ -1,64 +1,38 @@
 ---
-title: "G5 framework migration"
+title: "G5 migration and limits"
+description: "QitOS G5 · G5 migration and limits"
 ---
 
-Use `qit new --agent-name my_agent --output-dir . --no-input` to generate an
-out-of-tree project. Its test uses a deterministic provider; install the project,
-run pytest, build its wheel, and reinstall normally. Product strategy stays in
-that project, not in qitos.
+## Current status
 
-Declarative launches default to durable SQLite and a required private Trajectory
-journal. An omitted Session path derives from an explicit runtime data root or
-project configuration/workspace. An omitted trajectory output resolves beside
-that store. Unavailable locations fail before execution. Explicit memory stores
-are process-local; ephemeral mode does not promise restore. CLI inspect and
-capabilities read only the Session store, require no provider credentials or
-Docker, and report the persisted configuration digest.
+G5 runtime `717b4cf1b23f2ed252cd03234ffd8605038d9567` passed framework qualification; S4 local integration is complete. Historical 2663 passed / 50 skipped belongs to that SHA, not documentation successors. Remote sync awaits this task; default branch and release are not performed.
 
-Use the existing composition context manager, `composition.session(task)`,
-`session.run()`, `session.pause()`, `composition.restore(identity)` and
-`restored.run(steering=...)`. `composition.fork(identity, snapshot=...)` forks an
-immutable source without acquiring its owner. Child execution and join use the
-same durable work runtime; transfer fences the old owner. CLI live pause/steer
-and durable approval-response resume remain typed unsupported. Steering does
-not grant tool permission.
+| Boundary | Supported behavior |
+|---|---|
+| Durable Session / Memory | SQLite survives process exit; Memory is process-local; ephemeral promises no restore. |
+| inspect / pause / steer | CLI inspect needs no provider, credentials or Docker. Live CLI pause/steer is unsupported; Python safe-boundary pause and restore-time steering are supported. |
+| approval / fork | Unresolved approval blocks restore. Steering does not authorize tools. Fork reads an immutable snapshot without changing source head. |
+| timeout / unknown | Timeout is not hard cancellation. Unknown effects are not automatically replayed; reconcile externally. |
+| sandbox / publication | Cleanup retains output but never publishes. Explicit publication supports limited top-level regular files and supported POSIX platforms; macOS was qualified, Linux host publication was not independently qualified. |
+| Trajectory / historical trace | Journal is the default. Historical wire IDs and explicit TraceWriter remain compatible. qita is read-only. Complete reads currently materialize all frames. |
+| export / privacy | Public redacted export is a declared-loss projection, not a lossless copy of raw data. |
 
-Configured context contributors, memory sources, selectors and compactors are
-resolved through explicit composition registries. Continuation and artifact
-resolvers are caller-injected. Unsupported lifecycle/failure settings reject.
-Native parallel execution requires tool declarations, permissions and policy.
-A dispatched provider request remains counted on decode/capture failure and is
-not automatically retried after restore.
+## Migration actions
 
-Docker is the supported isolation reference: non-root, read-only rootfs,
-cap-drop/NNP, network-none, bounded CPU/memory/pids and task-owned storage.
-Cleanup retains outputs and does not publish them into source. Explicit
-`SandboxPublicationTool` from `qitos.kit.tool.internal.publication` restricts
-publication to caller-selected paths and an input digest, through the existing
-permission/effect boundary. Current publication supports regular top-level
-files using Darwin/Linux exchange primitives (this round qualifies the Darwin host); nested paths and unsupported
-platforms reject. Source conflicts, links and protected names reject. An
-unconfirmed worker remains unknown, and Python threads/remote requests are not
-claimed to support hard cancellation.
+1. Install by source identity, not only version 0.6.0.
+2. Replace environment-first setup with agent.yaml + CredentialRef + explicit resolver.
+3. Use AgentComposition.session for configured launches; custom AgentModule still uses public Engine/RuntimeComposition.
+4. Move host file tools to attested Docker Env and explicitly select publication files.
+5. Keep old traces; default_reader reads both formats.
 
-`qita board --logdir DATA_DIRECTORY` discovers journal and historical trace.
-`qita inspect session SESSION_ID --logdir DATA_DIRECTORY` uses the default reader.
-The minimal demo returns a journal path plus run identity, not a manifest directory.
-Explicit TraceWriter remains compatible. Rollback uses trajectory.enabled=false
-(or trace=False for AgentModule.run) and `default_reader(root, selector="trace")`;
-`candidate_file_reader(path)` still reads new data. Selection never deletes data
-or re-executes effects. Explicit RuntimeComposition controls its own sink.
+## Troubleshooting
 
-Canonical artifact references resolve to retained content. Missing content is a
-typed failure. Public export redacts private data, binds content and declares
-loss; exact re-import preserves that public projection. Whole reads/exports are
-complete, but current journal queries reload all frames and materialize data.
-A query limit is not a total-memory bound. See the measured costs and contract
-in the repository's architecture/trajectory-contract document.
+`sandbox_unavailable`: start the daemon, verify image/resources; do not switch to unsafe host.
 
-G5 remains a local integration candidate until final combined gates and main
-worktree revalidation pass. No remote sync, release or deployment is implied.
+Credential file errors: check the credentials root, matching ref, 0600 file, 0700 directory and outside-repository location. G5 scaffold omits the root key; replace it with the configuration reference example.
 
+Codec loss: a tool may have executed before the next request is rejected for unpreservable semantics. Keep request_sent, budgets, tool outcomes and loss reports. Do not disable checks or blame model intelligence.
 
-Local qualification and primary revalidation passed on c9d9e40; closing
-evidence is verified separately. Remote sync and release remain disabled.
+Required sink failure: resolve storage/permissions and reconcile durable facts; final text alone is not success.
+
+[Configuration](/reference/configuration) · [Quickstart](/quickstart).

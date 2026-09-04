@@ -32,6 +32,8 @@ QitOS 提供 `GaiaAdapter` 将 GAIA 数据行转换为标准 `Task`。官方执�
 
 ## 加载任务
 
+示意片段（非独立程序；完整执行文件见本页链接）。
+
 ```python
 from qitos.benchmark import GaiaAdapter
 
@@ -41,6 +43,8 @@ tasks = adapter.to_tasks(records, split="validation", limit=10)
 ```
 
 也可以使用一行式加载器：
+
+示意片段（非独立程序；完整执行文件见本页链接）。
 
 ```python
 from qitos.benchmark.gaia.adapter import load_gaia_tasks
