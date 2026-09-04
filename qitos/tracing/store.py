@@ -43,6 +43,12 @@ class StoreIntegrityError(TrajectoryStoreError):
 class StoreIOError(TrajectoryStoreError):
     """A durable store operation failed without echoing host details."""
 
+    def __init__(self, code: str, *, bytes_written: int = 0,
+                 durability_unknown: bool = False) -> None:
+        super().__init__(code)
+        self.bytes_written = bytes_written
+        self.durability_unknown = durability_unknown
+
 
 @dataclass(frozen=True)
 class StoreCapabilities:

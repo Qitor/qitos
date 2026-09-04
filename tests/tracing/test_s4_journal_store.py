@@ -177,7 +177,9 @@ def test_index_is_derived_rebuildable_and_query_is_bounded(tmp_path: Path) -> No
     assert report.run_count == 1
     index = json.loads(index_path.read_text(encoding="utf-8"))
     assert index["record_count"] == 3
-    assert len(store.query(TrajectoryQuery())) == 2
+    assert len(store.query(TrajectoryQuery(limit=2))) == 2
+    with pytest.raises(TrajectoryStoreError, match="query_requires_pagination"):
+        store.query(TrajectoryQuery())
     with pytest.raises(TrajectoryStoreError, match="query_limit_exceeded"):
         store.query(TrajectoryQuery(limit=3))
 

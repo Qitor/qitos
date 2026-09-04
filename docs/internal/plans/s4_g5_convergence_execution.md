@@ -115,3 +115,26 @@ A preliminary edit had an indentation error and an expanded test mistakenly
 called a nonexistent exception decoder; both were corrected before acceptance.
 JSON failure facts round-trip; full persisted Session recovery qualification
 remains pending. No new export or Engine constructor argument.
+
+### G5-D1/D2 journal repair
+
+Write-all now checks short/zero writes; only newline-complete frames are committed.
+`StoreIOError` preserves observed bytes and durability uncertainty after any
+attempted write, including exceptions that may follow an unreported write.
+Fsync precedes persisted receipts. Exact duplicate retry verifies content and
+fsyncs the existing frame; conflicting or partial duplicate batches reject.
+
+Unbounded query requests beyond the configured page size raise
+`query_requires_pagination`; explicit `limit` plus `after_sequence` is the
+existing paging contract. Whole run/Session/replay APIs consume all pages under
+one store lock; qita discovery uses full replay. No query cap was removed.
+A 64 MiB frame limit now bounds individual frame input, not total store memory.
+Current implementation reloads/scans all journal records per operation and
+materializes whole trajectories. Memory/scaling qualification is pending.
+
+Original D1/D2 probes passed after repair. Journal suites: 14 passed in 8.28 s,
+including 10,003 records, page boundary/order, qita inspection and exact export/
+reimport. Initial retry comparison incorrectly compared fresh recorded_at;
+failed run retained (4 failed, 10 passed), then corrected to compare all producer
+content while excluding only store-assigned sequence/time/digest. This is not
+yet the final complete-tree gate or readiness/default qualification.

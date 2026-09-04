@@ -94,6 +94,8 @@ How to update:
 
 ### Fixed
 
+- Check complete journal writes and fsync before acknowledgement; preserve uncertain writes and read complete trajectories across bounded query pages.
+
 - Preserve sent-request facts through continuation capture, attachment and assistant finalization failures, including a failing provider error normalizer.
 
 - Fixed reusable Engine runtime state leaking conversation, continuation, steering, tool satisfaction, partial batch, and last request facts into independent Sessions; fixed fan-out/delegate children inheriting unselected parent history; and fixed child model-request declarations being advisory instead of a pre-dispatch, restart-stable limit.

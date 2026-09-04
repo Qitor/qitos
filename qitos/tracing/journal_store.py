@@ -31,6 +31,7 @@ from .store import (
     MemoryTrajectoryStore,
     StorageMeasurement,
     StoreCapabilities,
+    StoreConflictError,
     StoreIOError,
     StoreIntegrityError,
     StoreIntegrityReport,
@@ -44,14 +45,13 @@ from .trajectory import (
     TrajectoryQuery,
     TrajectoryRecord,
     canonical_json_bytes,
-    filter_records,
     integrity_digest,
-    records_to_tuple,
 )
 
 
 JOURNAL_SCHEMA_VERSION = "qitos.trajectory-journal/candidate-1"
 INDEX_SCHEMA_VERSION = "qitos.trajectory-index/candidate-1"
+_MAX_FRAME_BYTES = 64 * 1024 * 1024
 
 
 class JournalTrajectoryStore:
@@ -180,32 +180,34 @@ class JournalTrajectoryStore:
         return records, supplied_digest
 
     def _load(self, *, recover: bool) -> None:
-        try:
-            data = self._path.read_bytes()
-        except OSError as exc:
-            raise StoreIOError("store_read_failed") from exc
         records: List[TrajectoryRecord] = []
         previous_digest: Optional[str] = None
         valid_end = 0
-        lines = data.splitlines(keepends=True)
-        for index, line in enumerate(lines):
-            complete = line.endswith((b"\n", b"\r"))
-            try:
-                value = json.loads(line)
-            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-                is_tail = index == len(lines) - 1 and not complete
-                if recover and is_tail:
-                    self._recovered_tail_bytes += len(data) - valid_end
-                    self._truncate(valid_end)
-                    break
-                raise StoreIntegrityError("invalid_journal_frame") from exc
-            frame_records, previous_digest = self._decode_frame(
-                value,
-                expected_sequence=len(records),
-                previous_digest=previous_digest,
-            )
-            records.extend(frame_records)
-            valid_end += len(line)
+        try:
+            with self._path.open("rb") as handle:
+                while line := handle.readline(_MAX_FRAME_BYTES + 1):
+                    if len(line) > _MAX_FRAME_BYTES:
+                        raise StoreIntegrityError("journal_frame_limit_exceeded")
+                    # The delimiter is part of the commit frame, even when the
+                    # unterminated JSON happens to be syntactically complete.
+                    if not line.endswith(b"\n"):
+                        if not recover:
+                            raise StoreIntegrityError("incomplete_journal_frame")
+                        self._recovered_tail_bytes += len(line)
+                        self._truncate(valid_end)
+                        break
+                    try:
+                        value = json.loads(line)
+                    except (UnicodeDecodeError, json.JSONDecodeError):
+                        raise StoreIntegrityError("invalid_journal_frame") from None
+                    frame_records, previous_digest = self._decode_frame(
+                        value, expected_sequence=len(records),
+                        previous_digest=previous_digest,
+                    )
+                    records.extend(frame_records)
+                    valid_end += len(line)
+        except OSError:
+            raise StoreIOError("store_read_failed") from None
         self._memory._restore(records)
         report = self._memory.validate_integrity()
         if not report.valid:
@@ -223,12 +225,25 @@ class JournalTrajectoryStore:
 
     def _append_frame(self, document: Mapping[str, Any]) -> None:
         data = canonical_json_bytes(document) + b"\n"
+        if len(data) > _MAX_FRAME_BYTES:
+            raise TrajectoryStoreError("journal_frame_limit_exceeded")
+        written = 0
+        attempted = False
         try:
             with self._path.open("ab", buffering=0) as handle:
-                handle.write(data)
+                while written < len(data):
+                    attempted = True
+                    count = handle.write(memoryview(data)[written:])
+                    if count is None or count <= 0 or count > len(data) - written:
+                        raise OSError("journal write made no valid progress")
+                    written += count
                 os.fsync(handle.fileno())
-        except OSError as exc:
-            raise StoreIOError("store_append_failed") from exc
+        except OSError:
+            raise StoreIOError(
+                "store_append_uncertain" if attempted else "store_append_failed",
+                bytes_written=written,
+                durability_unknown=attempted,
+            ) from None
 
     def _index_document(self) -> Dict[str, Any]:
         records = self._memory.snapshot()
@@ -300,6 +315,29 @@ class JournalTrajectoryStore:
                     operation_id=str(uuid.uuid4()),
                 )
             before = self._memory.snapshot()
+            existing = {record.record_id: record for record in before}
+            repeated = [record for record in batch if record.record_id in existing]
+            if repeated:
+                if len(repeated) != len(batch) or len({r.record_id for r in batch}) != len(batch):
+                    raise StoreConflictError("partial_duplicate_batch")
+                for record in repeated:
+                    stored = existing[record.record_id]
+                    if not record.validate_integrity():
+                        raise StoreIntegrityError("record_integrity_mismatch")
+                    supplied, persisted = record.to_dict(), stored.to_dict()
+                    for assigned_field in ("sequence", "recorded_at", "digest"):
+                        supplied.pop(assigned_field, None)
+                        persisted.pop(assigned_field, None)
+                    if supplied != persisted:
+                        raise StoreConflictError("record_id_already_exists")
+                # A previous append may have written a full frame before fsync
+                # failed. Confirm durability now without duplicating its effects.
+                self._flush_unlocked()
+                return DurabilityReceipt(
+                    status=DurabilityStatus.PERSISTED,
+                    accepted_count=len(batch), persisted_count=len(batch),
+                    detail_code="already_persisted",
+                )
             receipt = self._memory.append_batch(batch)
             after = self._memory.snapshot()
             assigned = after[len(before) :]
@@ -330,10 +368,15 @@ class JournalTrajectoryStore:
     ) -> Tuple[TrajectoryRecord, ...]:
         if query.limit is not None and query.limit > self._max_query_records:
             raise TrajectoryStoreError("query_limit_exceeded")
+        if query.limit is not None and query.limit <= 0:
+            raise TrajectoryStoreError("query_limit_invalid")
         effective = query
         if effective.limit is None:
-            effective = replace(effective, limit=self._max_query_records)
-        return records_to_tuple(filter_records(self._memory.snapshot(), effective))
+            effective = replace(effective, limit=self._max_query_records + 1)
+        records = self._memory.query(effective)
+        if query.limit is None and len(records) > self._max_query_records:
+            raise TrajectoryStoreError("query_requires_pagination")
+        return records
 
     def query(self, query: TrajectoryQuery) -> Tuple[TrajectoryRecord, ...]:
         with self._exclusive_lock():
@@ -342,9 +385,23 @@ class JournalTrajectoryStore:
             return self._query_unlocked(query)
 
     def _trajectory(self, query: TrajectoryQuery) -> Trajectory:
+        # A whole-trajectory API returns a complete materialized snapshot. Page
+        # limits still apply to individual queries; the read holds one lock so
+        # a concurrent append cannot shift page boundaries.
+        with self._exclusive_lock():
+            self._ensure_open()
+            self._load(recover=self._recover_partial_tail)
+            records: List[TrajectoryRecord] = []
+            page_query = replace(query, limit=self._max_query_records)
+            while True:
+                page = self._query_unlocked(page_query)
+                records.extend(page)
+                if len(page) < self._max_query_records:
+                    break
+                page_query = replace(page_query, after_sequence=page[-1].sequence)
         return Trajectory(
-            records=self.query(query),
-            metadata={"store_id": self.capabilities.store_id},
+            records=tuple(records),
+            metadata={"store_id": self.capabilities.store_id, "complete": True},
             provenance={"source": "trajectory_journal"},
             privacy_view=PrivacyView.RAW_PRIVATE,
             loss=LossReport(policy_id="qitos.loss/none"),
@@ -357,7 +414,7 @@ class JournalTrajectoryStore:
         return self._trajectory(TrajectoryQuery(session_id=session_id))
 
     def replay(self, query: TrajectoryQuery) -> Tuple[TrajectoryRecord, ...]:
-        return self.query(query)
+        return self.query(query) if query.limit is not None else self._trajectory(query).records
 
     def artifact_refs(self, query: TrajectoryQuery) -> Tuple[ArtifactRef, ...]:
         refs: Dict[str, ArtifactRef] = {}

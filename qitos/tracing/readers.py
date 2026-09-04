@@ -473,7 +473,7 @@ class StoreTrajectoryReader:
         return TraceCompatibilityReader._project(trajectory, view)
 
     def discover_runs(self) -> Tuple[RunSummary, ...]:
-        records = self._store.query(TrajectoryQuery())
+        records = self._store.replay(TrajectoryQuery())
         run_ids = tuple(
             dict.fromkeys(record.run_id for record in records if record.run_id)
         )
