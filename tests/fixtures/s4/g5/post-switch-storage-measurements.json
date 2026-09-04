@@ -1,0 +1,201 @@
+{
+  "claims": [],
+  "environment": {
+    "implementation": "CPython",
+    "machine": "arm64",
+    "platform": "macOS-15.7.3-arm64-arm-64bit",
+    "process_peak_rss_platform_units": 343998464,
+    "python": "3.12.7",
+    "tracemalloc_peak_bytes": 91758700
+  },
+  "fixture_raw_bytes": 5792772,
+  "measurements": [
+    {
+      "artifact_deduplication": {
+        "reference_count": 3,
+        "referenced_bytes": 62340,
+        "unique_bytes": 62340,
+        "unique_count": 3
+      },
+      "canonical_bytes": 5119930,
+      "gzip_bytes": 390370,
+      "median_ns": {
+        "exact_export_ns": 304743125,
+        "exact_reimport_ns": 212629875,
+        "full_read_ns": 825647250,
+        "index_rebuild_ns": 888954416,
+        "journal_append_ns": 902682292,
+        "memory_append_ns": 249211958,
+        "query_ns": 868254500,
+        "reopen_ns": 886518958,
+        "replay_ns": 806291583
+      },
+      "memory_boundary": "Full journal and exact trajectory are materialized; query limit bounds returned records only.",
+      "raw_measurements": [
+        {
+          "complete_run_records": 200,
+          "exact_export_bytes": 4400798,
+          "exact_export_ns": 304986666,
+          "exact_reimport_ns": 210652833,
+          "full_read_ns": 819087250,
+          "index_bytes": 3783,
+          "index_rebuild_ns": 882500709,
+          "index_records": 307,
+          "journal_append_ns": 801239083,
+          "journal_bytes": 5120231,
+          "memory_append_ns": 213947500,
+          "query_ns": 855309666,
+          "query_records": 307,
+          "reopen_ns": 873315667,
+          "repetition": 0,
+          "replay_ns": 799091583,
+          "replay_records": 200
+        },
+        {
+          "complete_run_records": 200,
+          "exact_export_bytes": 4400798,
+          "exact_export_ns": 301088792,
+          "exact_reimport_ns": 226208834,
+          "full_read_ns": 838334000,
+          "index_bytes": 3783,
+          "index_rebuild_ns": 891475041,
+          "index_records": 307,
+          "journal_append_ns": 910614084,
+          "journal_bytes": 5120231,
+          "memory_append_ns": 249211958,
+          "query_ns": 874382625,
+          "query_records": 307,
+          "reopen_ns": 892294625,
+          "repetition": 1,
+          "replay_ns": 806291583,
+          "replay_records": 200
+        },
+        {
+          "complete_run_records": 200,
+          "exact_export_bytes": 4400798,
+          "exact_export_ns": 304743125,
+          "exact_reimport_ns": 212629875,
+          "full_read_ns": 825647250,
+          "index_bytes": 3783,
+          "index_rebuild_ns": 888954416,
+          "index_records": 307,
+          "journal_append_ns": 902682292,
+          "journal_bytes": 5120231,
+          "memory_append_ns": 250830875,
+          "query_ns": 868254500,
+          "query_records": 307,
+          "reopen_ns": 886518958,
+          "repetition": 2,
+          "replay_ns": 815934375,
+          "replay_records": 200
+        }
+      ],
+      "record_count": 307,
+      "run_count": 2,
+      "scan_behavior": "Each journal query/read reloads all frames; append reloads and rebuilds the index.",
+      "session_count": 1,
+      "source": "coding-tool-agent",
+      "work_item_count": 2,
+      "zstd": {
+        "bytes": 73473,
+        "status": "measured",
+        "version": "0.23.0"
+      }
+    },
+    {
+      "artifact_deduplication": {
+        "reference_count": 3,
+        "referenced_bytes": 50670,
+        "unique_bytes": 16890,
+        "unique_count": 1
+      },
+      "canonical_bytes": 2018966,
+      "gzip_bytes": 157594,
+      "median_ns": {
+        "exact_export_ns": 188633834,
+        "exact_reimport_ns": 125676583,
+        "full_read_ns": 650350125,
+        "index_rebuild_ns": 732830958,
+        "journal_append_ns": 751503083,
+        "memory_append_ns": 210887959,
+        "query_ns": 736510542,
+        "reopen_ns": 732162167,
+        "replay_ns": 653018958
+      },
+      "memory_boundary": "Full journal and exact trajectory are materialized; query limit bounds returned records only.",
+      "raw_measurements": [
+        {
+          "complete_run_records": 159,
+          "exact_export_bytes": 1199156,
+          "exact_export_ns": 198030500,
+          "exact_reimport_ns": 125676583,
+          "full_read_ns": 657081750,
+          "index_bytes": 3702,
+          "index_rebuild_ns": 734169959,
+          "index_records": 309,
+          "journal_append_ns": 759257833,
+          "journal_bytes": 2019267,
+          "memory_append_ns": 215278042,
+          "query_ns": 736510542,
+          "query_records": 309,
+          "reopen_ns": 759665084,
+          "repetition": 0,
+          "replay_ns": 644127709,
+          "replay_records": 159
+        },
+        {
+          "complete_run_records": 159,
+          "exact_export_bytes": 1199156,
+          "exact_export_ns": 188633834,
+          "exact_reimport_ns": 125336042,
+          "full_read_ns": 650031375,
+          "index_bytes": 3702,
+          "index_rebuild_ns": 726812917,
+          "index_records": 309,
+          "journal_append_ns": 751503083,
+          "journal_bytes": 2019267,
+          "memory_append_ns": 210887959,
+          "query_ns": 732670542,
+          "query_records": 309,
+          "reopen_ns": 732162167,
+          "repetition": 1,
+          "replay_ns": 656887834,
+          "replay_records": 159
+        },
+        {
+          "complete_run_records": 159,
+          "exact_export_bytes": 1199156,
+          "exact_export_ns": 186695625,
+          "exact_reimport_ns": 125989417,
+          "full_read_ns": 650350125,
+          "index_bytes": 3702,
+          "index_rebuild_ns": 732830958,
+          "index_records": 309,
+          "journal_append_ns": 751266584,
+          "journal_bytes": 2019267,
+          "memory_append_ns": 209165834,
+          "query_ns": 744394042,
+          "query_records": 309,
+          "reopen_ns": 731506875,
+          "repetition": 2,
+          "replay_ns": 653018958,
+          "replay_records": 159
+        }
+      ],
+      "record_count": 309,
+      "run_count": 2,
+      "scan_behavior": "Each journal query/read reloads all frames; append reloads and rebuilds the index.",
+      "session_count": 1,
+      "source": "research-tool-agent",
+      "work_item_count": 1,
+      "zstd": {
+        "bytes": 41681,
+        "status": "measured",
+        "version": "0.23.0"
+      }
+    }
+  ],
+  "repetitions": 3,
+  "schema_version": "qitos.s4.lane_d.storage_measurements/1",
+  "status": "measured_not_release_qualified"
+}

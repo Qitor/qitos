@@ -1,12 +1,12 @@
 {
   "lanes": {
     "A": {
-      "exact_commit": "511013acfd18efcc0d25901e8a7641c4ee731d93",
+      "exact_commit": "d01ea9ebc266ffdd451732fd2bf9d0eb4a40547c",
       "producer_authority": "qitos.s4.g5.exact_source/1",
       "replay_commit": "96f504b0f018584bf46eb065ba1029f98cce8b70",
       "requirements": [
         {
-          "artifact_commit": "56a9d1974cc5a851fcc8e77d9dcf18d3bb9faaa9",
+          "artifact_commit": "5f36d4b04c61a9778469d40095bde06d7d42dbc4",
           "committed_path": "tests/fixtures/s4/g5/current-facts/a-public_composition.json",
           "consumer_test_node": "tests/test_g5_session_public.py::test_default_sqlite_location_is_derived_and_unwritable_location_fails_before_model",
           "current_writer": "qitos.config.builder.AgentComposition",
@@ -14,10 +14,10 @@
           "producer_authority": "qitos.s4.g5.exact_source/1",
           "requirement_id": "public_composition",
           "schema": "qitos.g5.runtime_fact/v1",
-          "sha256": "99e0e74c79f5af6e0d55826fb8a6fbb1492b10de2d60b943a4e4892087cdc8f6"
+          "sha256": "1903be52882a8e1afaa60d937a49d8ec18f1031bec6da267a421fe40db48d39a"
         },
         {
-          "artifact_commit": "56a9d1974cc5a851fcc8e77d9dcf18d3bb9faaa9",
+          "artifact_commit": "5f36d4b04c61a9778469d40095bde06d7d42dbc4",
           "committed_path": "tests/fixtures/s4/g5/current-facts/a-session_default.json",
           "consumer_test_node": "tests/test_g5_audit_regressions.py::test_g5_a2_default_durable_store_is_cross_process",
           "current_writer": "qitos.engine.session_runtime.Session",
@@ -25,10 +25,10 @@
           "producer_authority": "qitos.s4.g5.exact_source/1",
           "requirement_id": "session_default",
           "schema": "qitos.g5.runtime_fact/v1",
-          "sha256": "9422394a9f4d1e9062cf1a8a360086f36f6fae7846d26b00e6be458e24188886"
+          "sha256": "fc38ec41cbe99090c1a6f22fddcde56cf967b53e9b0e86c8ea87f70f6afac716"
         },
         {
-          "artifact_commit": "56a9d1974cc5a851fcc8e77d9dcf18d3bb9faaa9",
+          "artifact_commit": "5f36d4b04c61a9778469d40095bde06d7d42dbc4",
           "committed_path": "tests/fixtures/s4/g5/current-facts/a-cli_programmatic_equivalence.json",
           "consumer_test_node": "tests/test_g5_audit_regressions.py::test_g5_a1_cli_fork_preserves_source_head",
           "current_writer": "qitos.config.builder.AgentComposition",
@@ -36,10 +36,10 @@
           "producer_authority": "qitos.s4.g5.exact_source/1",
           "requirement_id": "cli_programmatic_equivalence",
           "schema": "qitos.g5.runtime_fact/v1",
-          "sha256": "50245c4df21fcaf762996f5fc924e753293279158db56f12fd38f998019453b4"
+          "sha256": "c8d6d0cbe1cf7964ed235703a0b14774286741a3a8f759c73c4cc5c63e145bee"
         },
         {
-          "artifact_commit": "56a9d1974cc5a851fcc8e77d9dcf18d3bb9faaa9",
+          "artifact_commit": "5f36d4b04c61a9778469d40095bde06d7d42dbc4",
           "committed_path": "tests/fixtures/s4/g5/current-facts/a-cleanup_ownership.json",
           "consumer_test_node": "tests/test_s4_lane_a_public_authoring.py::test_context_manager_closes_owned_resources_after_body_failure",
           "current_writer": "qitos.config.builder.AgentComposition",
@@ -47,10 +47,10 @@
           "producer_authority": "qitos.s4.g5.exact_source/1",
           "requirement_id": "cleanup_ownership",
           "schema": "qitos.g5.runtime_fact/v1",
-          "sha256": "6dc99ecbb5cad1b694f2404331fd6e7ce4a3eff62d9da0f36227590eba4ed132"
+          "sha256": "e359b32ab6ccaedbb7947575144b6fe175cc566c4b6597819909e1c46fd99084"
         },
         {
-          "artifact_commit": "56a9d1974cc5a851fcc8e77d9dcf18d3bb9faaa9",
+          "artifact_commit": "5f36d4b04c61a9778469d40095bde06d7d42dbc4",
           "committed_path": "tests/fixtures/s4/g5/current-facts/a-config_extension_slots.json",
           "consumer_test_node": "tests/test_g5_composition_extensions.py::test_configured_context_memory_and_selector_reach_the_provider",
           "current_writer": "qitos.config.builder.AgentComposition",
@@ -58,19 +58,19 @@
           "producer_authority": "qitos.s4.g5.exact_source/1",
           "requirement_id": "config_extension_slots",
           "schema": "qitos.g5.runtime_fact/v1",
-          "sha256": "6e816610e15c9135b804534832770b39efb73a46414c68a7366e342b753023af"
+          "sha256": "925643f57f1f8197b3c6bc34ba6c9e20557faa7fd3ae629a193b66aa2046e275"
         }
       ],
       "source_commit": "f670e551f0bd5d88501182c2d24a5037fa0aebb9",
       "source_wave": "S4"
     },
     "B": {
-      "exact_commit": "511013acfd18efcc0d25901e8a7641c4ee731d93",
+      "exact_commit": "d01ea9ebc266ffdd451732fd2bf9d0eb4a40547c",
       "producer_authority": "qitos.s4.g5.exact_source/1",
       "replay_commit": "d278c44dd414690ccd5eee988bcc5c601c090e84",
       "requirements": [
         {
-          "artifact_commit": "56a9d1974cc5a851fcc8e77d9dcf18d3bb9faaa9",
+          "artifact_commit": "5f36d4b04c61a9778469d40095bde06d7d42dbc4",
           "committed_path": "tests/fixtures/s4/g5/current-facts/b-provider_transaction.json",
           "consumer_test_node": "tests/test_g5_audit_regressions.py::test_g5_b1_missing_capture_preserves_dispatch_fact",
           "current_writer": "qitos.models.provider.execute_provider_request",
@@ -78,10 +78,10 @@
           "producer_authority": "qitos.s4.g5.exact_source/1",
           "requirement_id": "provider_transaction",
           "schema": "qitos.g5.runtime_fact/v1",
-          "sha256": "57eec91e4fb9b27443e2680a2fc96beed8e50a958529a74f6b92c05785397a26"
+          "sha256": "d004ad97921ed1d158d0b4c1d1043bd7427a83e6d3bad3e0ff9b5fa686581a52"
         },
         {
-          "artifact_commit": "56a9d1974cc5a851fcc8e77d9dcf18d3bb9faaa9",
+          "artifact_commit": "5f36d4b04c61a9778469d40095bde06d7d42dbc4",
           "committed_path": "tests/fixtures/s4/g5/current-facts/b-message_ordering.json",
           "consumer_test_node": "tests/models/test_s4_provider_conformance.py::test_standalone_third_party_adapter_passes_reusable_conformance_runner",
           "current_writer": "qitos.core.conversation.ExchangeLog",
@@ -89,10 +89,10 @@
           "producer_authority": "qitos.s4.g5.exact_source/1",
           "requirement_id": "message_ordering",
           "schema": "qitos.g5.runtime_fact/v1",
-          "sha256": "c2245d0a5456d54bac78d20f9a5d45cd64285eaf21c2289e35486af3e0a5d1e8"
+          "sha256": "6eba42cb27e56405e872f3c799b65491c2f9c301695ce2d091cb5b6f77db68f6"
         },
         {
-          "artifact_commit": "56a9d1974cc5a851fcc8e77d9dcf18d3bb9faaa9",
+          "artifact_commit": "5f36d4b04c61a9778469d40095bde06d7d42dbc4",
           "committed_path": "tests/fixtures/s4/g5/current-facts/b-reasoning_continuation.json",
           "consumer_test_node": "tests/test_g5_audit_regressions.py::test_g5_b1_missing_capture_preserves_dispatch_fact",
           "current_writer": "qitos.models.provider.execute_provider_request",
@@ -100,10 +100,10 @@
           "producer_authority": "qitos.s4.g5.exact_source/1",
           "requirement_id": "reasoning_continuation",
           "schema": "qitos.g5.runtime_fact/v1",
-          "sha256": "38e0bcf78b7e164e9a9fddb8a1d3242beb143be5f4c821fb15065f9d84a09c87"
+          "sha256": "41c31b3d216f7b2ab9ebfecd573313f3bb968d8f4f2475bfd4dada159b7c67a9"
         },
         {
-          "artifact_commit": "56a9d1974cc5a851fcc8e77d9dcf18d3bb9faaa9",
+          "artifact_commit": "5f36d4b04c61a9778469d40095bde06d7d42dbc4",
           "committed_path": "tests/fixtures/s4/g5/current-facts/b-context_compaction_artifact.json",
           "consumer_test_node": "tests/test_g5_composition_extensions.py::test_configured_compactor_runs_on_closed_exchange_omission",
           "current_writer": "qitos.core.context",
@@ -111,10 +111,10 @@
           "producer_authority": "qitos.s4.g5.exact_source/1",
           "requirement_id": "context_compaction_artifact",
           "schema": "qitos.g5.runtime_fact/v1",
-          "sha256": "24de21e9b1f5483db3054a007742b9ac1d9e11376bb1ba2c2af71cf018355a55"
+          "sha256": "47d66000d98cb94526a0d2266a9ff9f28fb8455c5b50d5ee0de528305c4b048c"
         },
         {
-          "artifact_commit": "56a9d1974cc5a851fcc8e77d9dcf18d3bb9faaa9",
+          "artifact_commit": "5f36d4b04c61a9778469d40095bde06d7d42dbc4",
           "committed_path": "tests/fixtures/s4/g5/current-facts/b-usage_loss_failure.json",
           "consumer_test_node": "tests/test_g5_audit_regressions.py::test_g5_b1_capture_failure_persists_budget_without_resend",
           "current_writer": "qitos.models.provider.execute_provider_request",
@@ -122,19 +122,19 @@
           "producer_authority": "qitos.s4.g5.exact_source/1",
           "requirement_id": "usage_loss_failure",
           "schema": "qitos.g5.runtime_fact/v1",
-          "sha256": "9759ccb032c9d2315fc453c7a1efce00670a527db019370ec634b353052e8c7e"
+          "sha256": "62c347f6a486c0d701e793a980cc07cec534fdc73c18e27c6964358dbd4ad93d"
         }
       ],
       "source_commit": "c834ce76b939e86b33019719d5b212b1c7a38bdd",
       "source_wave": "S4"
     },
     "C": {
-      "exact_commit": "511013acfd18efcc0d25901e8a7641c4ee731d93",
+      "exact_commit": "d01ea9ebc266ffdd451732fd2bf9d0eb4a40547c",
       "producer_authority": "qitos.s4.g5.exact_source/1",
       "replay_commit": "6b08da3188317810a4fb17b2aaa5553d062c84c7",
       "requirements": [
         {
-          "artifact_commit": "56a9d1974cc5a851fcc8e77d9dcf18d3bb9faaa9",
+          "artifact_commit": "5f36d4b04c61a9778469d40095bde06d7d42dbc4",
           "committed_path": "tests/fixtures/s4/g5/current-facts/c-tool_result_aci.json",
           "consumer_test_node": "tests/s4/lane_c/test_safe_execution.py::test_native_aci_is_small_env_only_and_permissions_are_split",
           "current_writer": "qitos.kit.toolset.env_coding",
@@ -142,10 +142,10 @@
           "producer_authority": "qitos.s4.g5.exact_source/1",
           "requirement_id": "tool_result_aci",
           "schema": "qitos.g5.runtime_fact/v1",
-          "sha256": "1460a155ab5e584d8e9a6b6b05c7b61754b962bbbb4c2c821c2d896dcc728808"
+          "sha256": "e14d7f2ff34b4ad59bef2ab83720348eb4eea836de9699874f30ce4a4461ad56"
         },
         {
-          "artifact_commit": "56a9d1974cc5a851fcc8e77d9dcf18d3bb9faaa9",
+          "artifact_commit": "5f36d4b04c61a9778469d40095bde06d7d42dbc4",
           "committed_path": "tests/fixtures/s4/g5/current-facts/c-sandbox_attestation.json",
           "consumer_test_node": "tests/test_g5_docker_owned.py::test_g5_real_docker_process_group_and_cleanup",
           "current_writer": "qitos.kit.env.sandbox.DockerSandboxBackend",
@@ -153,10 +153,10 @@
           "producer_authority": "qitos.s4.g5.exact_source/1",
           "requirement_id": "sandbox_attestation",
           "schema": "qitos.g5.runtime_fact/v1",
-          "sha256": "266f0b16910dff8be0018017c5ed7ad40f0d710ef597480c449c319cdf6ae49a"
+          "sha256": "17e07edf747197768a9ff6ad2f181ef28db1cac9394e7a7030d7c1951963fd07"
         },
         {
-          "artifact_commit": "56a9d1974cc5a851fcc8e77d9dcf18d3bb9faaa9",
+          "artifact_commit": "5f36d4b04c61a9778469d40095bde06d7d42dbc4",
           "committed_path": "tests/fixtures/s4/g5/current-facts/c-effect_lifecycle.json",
           "consumer_test_node": "tests/test_g5_docker_owned.py::test_g5_unknown_backend_exit_keeps_ownership_and_cleanup_failure",
           "current_writer": "qitos.engine.tool_runtime.ReferenceEffectPolicy",
@@ -164,10 +164,10 @@
           "producer_authority": "qitos.s4.g5.exact_source/1",
           "requirement_id": "effect_lifecycle",
           "schema": "qitos.g5.runtime_fact/v1",
-          "sha256": "f9eb59eaa1dacb9a5f61d27d2e9c348e2bc5376778eccee1a62b8c3b245bdd0d"
+          "sha256": "a982ed0c56bb54166d03954b70847ed94fb50a329ee3075872ea48ce6b5652ef"
         },
         {
-          "artifact_commit": "56a9d1974cc5a851fcc8e77d9dcf18d3bb9faaa9",
+          "artifact_commit": "5f36d4b04c61a9778469d40095bde06d7d42dbc4",
           "committed_path": "tests/fixtures/s4/g5/current-facts/c-mcp.json",
           "consumer_test_node": "tests/mcp/test_g5_mcp_contract.py::test_mcp_large_result_is_retrievable_and_runtime_context_stays_local",
           "current_writer": "qitos.mcp",
@@ -175,10 +175,10 @@
           "producer_authority": "qitos.s4.g5.exact_source/1",
           "requirement_id": "mcp",
           "schema": "qitos.g5.runtime_fact/v1",
-          "sha256": "ad36c5f9a352b066ee7ceed0ba9a9513d6fef971889caf720400edf971cfe7ab"
+          "sha256": "ce1cab8881e498f0d62bebc7154b4a878bbd535c8fb328165cc02d3050386244"
         },
         {
-          "artifact_commit": "56a9d1974cc5a851fcc8e77d9dcf18d3bb9faaa9",
+          "artifact_commit": "5f36d4b04c61a9778469d40095bde06d7d42dbc4",
           "committed_path": "tests/fixtures/s4/g5/current-facts/c-work_graph_operations.json",
           "consumer_test_node": "tests/engine/test_g5_real_work.py::test_real_child_session_completion_closes_durable_join",
           "current_writer": "qitos.engine.session_runtime.Session",
@@ -186,10 +186,10 @@
           "producer_authority": "qitos.s4.g5.exact_source/1",
           "requirement_id": "work_graph_operations",
           "schema": "qitos.g5.runtime_fact/v1",
-          "sha256": "14e152bc054714ab9d2eb9599b522d6ec20d83741834f498b27775f24c720249"
+          "sha256": "5379d9ed21ec22812a986716a220cb39fad09aa714555d4ee2764fc770c2db6a"
         },
         {
-          "artifact_commit": "56a9d1974cc5a851fcc8e77d9dcf18d3bb9faaa9",
+          "artifact_commit": "5f36d4b04c61a9778469d40095bde06d7d42dbc4",
           "committed_path": "tests/fixtures/s4/g5/current-facts/c-cleanup_unknown.json",
           "consumer_test_node": "tests/test_g5_docker_owned.py::test_g5_unknown_backend_exit_keeps_ownership_and_cleanup_failure",
           "current_writer": "qitos.kit.env.docker_env.DockerProcessControlCapability",
@@ -197,7 +197,7 @@
           "producer_authority": "qitos.s4.g5.exact_source/1",
           "requirement_id": "cleanup_unknown",
           "schema": "qitos.g5.runtime_fact/v1",
-          "sha256": "5b05d6ca7ffd3bf44c225d9c5553dc2bea5397cd2f8fd4110473e46b71639436"
+          "sha256": "bb3644cdbafadfc045c356d3aef312ac0e3112470d2bc290d189ba31f7195e3d"
         }
       ],
       "source_commit": "a1958fe620f9a80017d80aca702711991b80c8e6",

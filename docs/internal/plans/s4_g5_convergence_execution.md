@@ -844,3 +844,17 @@ license audit. Exact package scan review and profile reports accompany facts.
 Measurement fixture now uses these post-switch exports; repeats are workloads,
 not additional runtime executions. Final evidence/pin changes still require a
 clean final-tree full gate before promotion.
+
+### Post-switch registry pins and measurement
+
+Registry now binds code d01ea9e to committed execution/artifacts 5f36d4b,
+including actual default-reader consumer sources and the rebuilt wheel digest.
+Actual readiness returned ready_for_g5_review for A/B/C with zero findings;
+16 adversarial binding tests passed in 1.50 s. This registry decision does not
+self-authorize release or replace final integration gates.
+Required measure_trajectory_store command ran three repetitions on the
+regenerated fixture committed at 5f36d4b; raw results are
+post-switch-storage-measurements.json. The earlier current-storage and 10003-
+record large measurements remain separate historical results. Journal scans
+and complete reads still materialize records; no bounded-memory or speedup
+claim is made.
