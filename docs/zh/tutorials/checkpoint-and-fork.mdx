@@ -1,51 +1,312 @@
 ---
-title: "Session 生命周期"
-description: "QitOS G5 · Session 生命周期"
+title: "暂停、恢复与 fork"
+description: "从网页完整代码学习 QitOS 资料整理项目。"
 ---
 
-## 学习目标
+## 目标与前置条件
 
-在真实纯函数工具完成后暂停并退出进程；从不可变 paused head fork，然后 restore 和 steer。parent 与 child 都通过 Session 执行。
+第一个进程在处理 Session 资料后，于生命周期边界暂停，保存 Session ID 与匹配配置，然后退出。第二个进程读取 SQLite，对暂停快照执行 fork，运行子 Session，再恢复并运行父 Session。
 
-## 前置条件
+fake provider 的游标显式从 1 开始，因为该固定 fixture 总是在第 0 个响应后暂停。这不是 provider continuation 的持久化。Session 状态、所有权和 journal 由 QitOS 恢复。父执行使用独立 composition，避免复用子执行已经前进的 fake 游标。
 
-完成[Quickstart](/zh/quickstart)的安装与 lessons 复制；基础包，Python 3.12.7 实测，无真实请求。
+比较子执行前后的 parent head，再检查父 Trajectory 中的 steering 记录。父 Session 必须实际执行剩余的 Artifact 工具，不能仅收到一句固定结论。
 
-## 完整可运行示例
+需要 Python 基础；声明支持 Python ≥3.10，本轮本地验证使用 Python 3.12.7。每章可独立运行；继续已有项目时可复用环境和同名文件。以下命令为 macOS/Linux shell。
 
-[`examples/tutorials/session_walkthrough.py`](https://github.com/WhitzardAgent/WhitzardOS/blob/master/examples/tutorials/session_walkthrough.py)
-
-完整目录是唯一执行来源；同目录的 session_walkthrough.py 是公开教学依赖，不依赖仓库 tests。
+## 准备项目
 
 ```bash
-python lessons/session_walkthrough.py create --root ./session-run
-python lessons/session_walkthrough.py restore --root ./session-run
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install "qitos @ git+https://github.com/WhitzardAgent/WhitzardOS.git@60809b3be388d22ea40ea41b4aaa1f5540c76fda"
+mkdir notes_lesson
+cd notes_lesson
 ```
 
-## 预期输出与断言
+将下方完整文件保存到当前目录。无需 clone 仓库、安装 editable 包或复制 tests。
 
-`tool_output=42; lifecycle=paused; final_result=arithmetic complete; parent head unchanged by fork`
+### 第一个进程：暂停
 
-文件内的 assert 验证结果；ID 每次不同。除 board 由 Ctrl-C 关闭外，命令应退出 0。
+{/* tutorial-snippet:lifecycle.py:create */}
+```python
+def create(root):
+    root.mkdir(parents=True, exist_ok=False)
+    with compose(root, pause=True) as composition:
+        session = composition.session("Index the two notes")
+        result = session.run()
+        assert session.lifecycle.value == "paused"
+        assert result.records[0].action_results[0].output["title"] == "Session"
+        document = composition.config.to_dict()
+        document["runtime"]["environment"] = {"type": "unsafe_host", "workspace": str(root)}
+        (root / "agent.json").write_text(json.dumps(document), encoding="utf-8")
+        (root / "control.json").write_text(json.dumps({"session_id": session.session_id.value}), encoding="utf-8")
+        print("paused after first note; exit this process before restore")
+```
+{/* tutorial-snippet:end */}
 
-## CLI 检查
+### 第二个进程：恢复
 
-脚本还写入可加载的 agent.json。inspect 只读 SQLite，不解析凭据或创建 Docker。
+{/* tutorial-snippet:lifecycle.py:restore */}
+```python
+def restore(root):
+    identity = json.loads((root / "control.json").read_text())["session_id"]
+    # This fixture always pauses after its first response. Only the fake cursor
+    # is supplied here; QitOS restores the real Session state from SQLite.
+    with compose(root, start=1, pause=True) as composition:
+        before = composition.runtime.checkpoint_store.get_session_head(identity)
+        child = composition.fork(identity)
+        child.run(steering="Finish an independent index.")
+        assert child.session_id.value != identity
+        assert composition.runtime.checkpoint_store.get_session_head(identity) == before
+    with compose(root, start=1, pause=True) as composition:
+        session = composition.restore(identity)
+        result = session.run(steering="Finish the index concisely.")
+        assert any(a.tool_name == "summarize_note" and a.output["title"] == "Artifact"
+                   for record in result.records for a in record.action_results)
+        assert result.state.final_result == "Indexed 2 notes: Session, Artifact."
+        trajectory = default_reader(root).read_session(identity, view=PrivacyView.RAW_PRIVATE)
+        assert any(record.kind.value == "steering" for record in trajectory.records)
+        (root / "control.json").write_text(json.dumps({"session_id": identity, "run_id": result.run_id}), encoding="utf-8")
+        print("restored; steering recorded; fork left parent head unchanged")
+```
+{/* tutorial-snippet:end */}
+
+## 运行并验证
+
+```bash
+python lifecycle.py create --root session-run
+python lifecycle.py restore --root session-run
+```
+
+预期出现以下输出片段（随机 ID 不固定）。每次运行都检查工具结果或持久化断言，成功退出码为 0。
+
+```text
+paused after first note
+fork left parent head unchanged
+```
+
+### 检查保存的 Session
 
 ```bash
 session_id=$(python -c 'import json; print(json.load(open("session-run/control.json"))["session_id"])')
-qit session inspect --config ./session-run/agent.json --session-id "$session_id"
+qit session inspect --config session-run/agent.json --session-id "$session_id"
 qita inspect session "$session_id" --logdir ./session-run
 ```
 
-## 支持边界
+## 行为与支持边界
 
-SQLite 是持久存储；Memory 即使在 Session 模式也只在当前进程有效。ephemeral 不承诺恢复。先 fork，再用 restore 获取 source 所有权；不能任意 fork restoring/running head。CLI live pause/steer、未解决 approval 的 restore 当前 unsupported。steering 不授予工具权限。
+应在 restore 取得所有权前 fork 已持久化的暂停 head。ephemeral 与进程内 Memory 不承诺跨进程恢复。CLI live pause/steer、未解决 approval 的 restore 当前 unsupported。Steering 改变指令，不授予权限。
 
-## 常见错误
+## 练习与参考答案
 
-目录已存在时选一个新 root；导入失败核对安装来源。配置不匹配、缺失扩展或 typed failure 应检查 Trajectory 和迁移页，不能静默重试 unknown 外部效果。
+修改子 Session 的 steering 文本，确认 parent head 断言仍通过；分别检查父子不同的 Session ID。
 
-## 下一步
+## 常见错误与清理
 
-[学习目录](/zh/tutorials/index) · [迁移与排障](/zh/reference/g5-migration)
+`ModuleNotFoundError`：确认已激活安装指定 wheel/源码版本的环境，并保存本页所有文件。root 已存在：换一个新 `--root`，不要覆盖需要保留的证据。断言失败：检查第一个失败的工具或 typed error；不要只依赖最终文字。退出所有进程、停止 board 后，可自行删除本章新建且不再需要的运行目录；保留要调试的 SQLite、journal 和报告。
+
+{/* tutorial-files:start */}
+
+## 完整文件：复制到项目根目录
+
+```python title="notes.py"
+"""Synthetic notes; fake model, real tools, composition, Session and journal."""
+import argparse
+from dataclasses import replace
+import json
+from pathlib import Path
+
+from qitos.config import build_agent_composition, load_agent_config
+from qitos.core.function_tool_decorator import function_tool
+from qitos.engine.runtime import LifecyclePolicy
+
+# docs:start fixture
+NOTES = (
+    "Session: A durable session can resume after a process exits.",
+    "Artifact: Large tool outputs can be retained outside model context.",
+)
+
+
+@function_tool(read_only=True, concurrency_safe=True)
+def summarize_note(index: int) -> dict:
+    """Extract a title and word count from a synthetic in-memory note."""
+    text = NOTES[index]
+    return {"title": text.split(":", 1)[0], "words": len(text.split())}
+# docs:end fixture
+
+
+# docs:start provider
+class FakeProvider:
+    """Scripted responses; this does not summarize or reason like a real model."""
+    model = "notes-fake"
+    qitos_protocol = "react_text_v1"
+
+    def __init__(self, start=0):
+        self.stage = start
+
+    def call_raw(self, messages, **options):
+        if self.stage < len(NOTES):
+            content = f"Thought: inspect a note\nAction: summarize_note(index={self.stage})"
+        else:
+            content = "Final Answer: Indexed 2 notes: Session, Artifact."
+        self.stage += 1
+        return {"choices": [{"message": {"content": content}}]}
+# docs:end provider
+
+
+class PauseAfterTool(LifecyclePolicy):
+    policy_id = "notes.pause_after_tool"
+
+    def should_pause(self, context):
+        return context.step_id == 0
+
+
+# docs:start composition
+def configuration(root):
+    config = load_agent_config(Path(__file__).with_name("agent.yaml"))
+    return replace(config, runtime=replace(
+        config.runtime, data_root=str(root / "data"),
+        environment=replace(config.runtime.environment, workspace=str(root)),
+        session=replace(config.runtime.session, path=str(root / "sessions.sqlite3")),
+        trajectory=replace(config.runtime.trajectory, output=str(root / "trajectory.journal")),
+    ))
+
+
+def compose(root, *, start=0, pause=False):
+    config = configuration(root)
+    if pause:
+        config = replace(config, lifecycle={"policy": "pause"})
+    composition = build_agent_composition(
+        config, model_override=FakeProvider(start), extensions={"pause": PauseAfterTool},
+    )
+    composition.tool_registry.register(summarize_note)
+    return composition
+# docs:end composition
+
+
+# docs:start run
+def run(root):
+    root.mkdir(parents=True, exist_ok=False)
+    with compose(root) as composition:
+        session = composition.session("Index both synthetic notes")
+        result = session.run()
+        outputs = [action.output for record in result.records for action in record.action_results
+                   if action.tool_name == "summarize_note"]
+        assert [output["title"] for output in outputs] == ["Session", "Artifact"]
+        assert result.state.final_result == "Indexed 2 notes: Session, Artifact."
+        config = composition.config.to_dict()
+        config["runtime"]["environment"] = {"type": "unsafe_host", "workspace": str(root)}
+        (root / "agent.json").write_text(json.dumps(config), encoding="utf-8")
+        control = {"session_id": session.session_id.value, "run_id": result.run_id}
+        (root / "control.json").write_text(json.dumps(control), encoding="utf-8")
+        print(json.dumps({**control, "result": result.state.final_result, "outputs": outputs}))
+# docs:end run
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=Path("notes-run"))
+    run(parser.parse_args().root.resolve())
+```
+
+```yaml title="agent.yaml"
+schema: qitos.agent
+agent:
+  name: notes_agent
+  protocol: react_text_v1
+model:
+  provider: openai_compatible
+  model: notes-fake
+  credential:
+    ref: notes-provider
+  request:
+    max_tokens: 512
+    timeout_seconds: 30
+    retries: 0
+tools:
+  preset: none
+runtime:
+  environment:
+    type: unsafe_host
+    workspace: .
+  session:
+    mode: durable
+    store: sqlite
+    path: ./notes-run/sessions.sqlite3
+  trajectory:
+    enabled: true
+    output: ./notes-run/trajectory.journal
+budgets:
+  max_steps: 6
+  max_requests: 6
+  max_runtime_seconds: 30
+failure_policy:
+  tool: fail_closed
+```
+
+```python title="lifecycle.py"
+"""Two processes, a durable checkpoint, steering and independent fork."""
+import argparse
+import json
+from pathlib import Path
+
+from notes import compose
+from qitos.qita.reader import default_reader
+from qitos.tracing.trajectory import PrivacyView
+
+
+# docs:start create
+def create(root):
+    root.mkdir(parents=True, exist_ok=False)
+    with compose(root, pause=True) as composition:
+        session = composition.session("Index the two notes")
+        result = session.run()
+        assert session.lifecycle.value == "paused"
+        assert result.records[0].action_results[0].output["title"] == "Session"
+        document = composition.config.to_dict()
+        document["runtime"]["environment"] = {"type": "unsafe_host", "workspace": str(root)}
+        (root / "agent.json").write_text(json.dumps(document), encoding="utf-8")
+        (root / "control.json").write_text(json.dumps({"session_id": session.session_id.value}), encoding="utf-8")
+        print("paused after first note; exit this process before restore")
+# docs:end create
+
+
+# docs:start restore
+def restore(root):
+    identity = json.loads((root / "control.json").read_text())["session_id"]
+    # This fixture always pauses after its first response. Only the fake cursor
+    # is supplied here; QitOS restores the real Session state from SQLite.
+    with compose(root, start=1, pause=True) as composition:
+        before = composition.runtime.checkpoint_store.get_session_head(identity)
+        child = composition.fork(identity)
+        child.run(steering="Finish an independent index.")
+        assert child.session_id.value != identity
+        assert composition.runtime.checkpoint_store.get_session_head(identity) == before
+    with compose(root, start=1, pause=True) as composition:
+        session = composition.restore(identity)
+        result = session.run(steering="Finish the index concisely.")
+        assert any(a.tool_name == "summarize_note" and a.output["title"] == "Artifact"
+                   for record in result.records for a in record.action_results)
+        assert result.state.final_result == "Indexed 2 notes: Session, Artifact."
+        trajectory = default_reader(root).read_session(identity, view=PrivacyView.RAW_PRIVATE)
+        assert any(record.kind.value == "steering" for record in trajectory.records)
+        (root / "control.json").write_text(json.dumps({"session_id": identity, "run_id": result.run_id}), encoding="utf-8")
+        print("restored; steering recorded; fork left parent head unchanged")
+# docs:end restore
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("phase", choices=("create", "restore"))
+    parser.add_argument("--root", type=Path, required=True)
+    args = parser.parse_args()
+    {"create": create, "restore": restore}[args.phase](args.root.resolve())
+```
+
+{/* tutorial-files:end */}
+
+## 下一步与 API
+
+[API Reference](/zh/reference/api) · [Configuration](/zh/reference/configuration) · [Learning path](/zh/tutorials/index) · [Next](/zh/guides/memory-and-history)
+
+[Source file](https://github.com/WhitzardAgent/WhitzardOS/blob/master/examples/tutorials/notes/lifecycle.py) (可选；全部所需代码已在本页)

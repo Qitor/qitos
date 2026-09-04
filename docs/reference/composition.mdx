@@ -1,0 +1,467 @@
+---
+title: "Configuration and composition"
+description: "QitOS public API: composition"
+---
+
+Load canonical configuration without credentials or Docker first. At composition, explicitly resolve CredentialRef or inject the teaching provider. Use the composition as a context manager: it owns environment, store and scheduler cleanup. Session methods return the public Session facade. Ephemeral configuration cannot restore or fork. Invalid config, missing extensions or a closed composition fail before useful execution.
+
+[完整可运行教程 / Complete tutorial](/quickstart) · [API index](/reference/api)
+
+Signatures and fields below are extracted from the pinned source. Signatures are reference material, not standalone programs. Source links bind the same runtime baseline. Any does not imply arbitrary objects are supported; use the behavioral contract above and the linked tutorial.
+
+{/* api-reference:start */}
+
+<span id="qitos-config-agentcomposition" />
+## AgentComposition
+
+```python
+from qitos.config import AgentComposition
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/builder.py#L134)
+[Usage and executable example](/quickstart)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+# After loading config and creating the explicit provider:
+with build_agent_composition(config, model_override=provider) as composition:
+    session = composition.session("Index the notes")
+    result = session.run()
+```
+
+```text
+Resource-owning composition root for the existing Engine and Session.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `config` | `AgentConfig` | `required` |
+| `model` | `Any` | `required` |
+| `tool_registry` | `ToolRegistry` | `required` |
+| `env` | `Any` | `required` |
+| `runtime` | `RuntimeComposition` | `required` |
+| `agent` | `ConfiguredAgent` | `required` |
+| `engine` | `Engine[Any, Any, Any]` | `required` |
+| `credential_receipt` | `Dict[str, Any]` | `required` |
+| `sandbox_backend` | `Any` | `None` |
+| `sandbox_receipt` | `Dict[str, Any]` | `field(default_factory=dict)` |
+| `trajectory_path` | `Optional[Path]` | `None` |
+
+<span id="qitos-config-agentcomposition-session" />
+### AgentComposition.session
+
+```text
+session(task: Optional[str]=None, *, session_id: Any=None) -> Any
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `task` | `Optional[str]` | `None` |
+| `session_id` | `Any` | `None` |
+
+```text
+Create the existing durable Session from this composition.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/builder.py#L172)
+
+<span id="qitos-config-agentcomposition-restore" />
+### AgentComposition.restore
+
+```text
+restore(session_id: Any=None) -> Any
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `session_id` | `Any` | `None` |
+
+```text
+Restore with this composition's resolver registry and canonical Engine.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/builder.py#L188)
+
+<span id="qitos-config-agentcomposition-fork" />
+### AgentComposition.fork
+
+```text
+fork(session_id: Any, snapshot: Any=None, *, operation_id: Optional[str]=None) -> Any
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `session_id` | `Any` | `required` |
+| `snapshot` | `Any` | `None` |
+| `operation_id` | `Optional[str]` | `None` |
+
+```text
+Fork immutable persisted state without claiming the source owner.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/builder.py#L211)
+
+<span id="qitos-config-agentcomposition-close" />
+### AgentComposition.close
+
+```text
+close() -> Dict[str, Any]
+```
+
+```text
+Close every framework-owned resource once and return a stable receipt.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/builder.py#L222)
+
+
+<span id="qitos-config-build_agent_composition" />
+## build_agent_composition
+
+```python
+from qitos.config import build_agent_composition
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/builder.py#L659)
+[Usage and executable example](/quickstart)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+composition = build_agent_composition(config, model_override=provider)
+try:
+    result = composition.session("Index the notes").run()
+finally:
+    composition.close()
+```
+
+```text
+Compose the existing model/tools/Env/runtime/AgentModule/Engine stack.
+```
+
+```text
+build_agent_composition(config: AgentConfig, *, credential_resolver: Optional[CredentialResolver]=None, model_override: Any=None, env_override: Any=None, extensions: Optional[Mapping[str, Any]]=None) -> AgentComposition
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `config` | `AgentConfig` | `required` |
+| `credential_resolver` | `Optional[CredentialResolver]` | `None` |
+| `model_override` | `Any` | `None` |
+| `env_override` | `Any` | `None` |
+| `extensions` | `Optional[Mapping[str, Any]]` | `None` |
+
+
+<span id="qitos-config-load_agent_config" />
+## load_agent_config
+
+```python
+from qitos.config import load_agent_config
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L500)
+[Usage and executable example](/quickstart)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+config = load_agent_config("agent.yaml")
+print(config.digest())
+```
+
+```text
+Load one strict canonical configuration from YAML.
+```
+
+```text
+load_agent_config(path: str | Path, *, compatibility: bool=False, environment_interpolation: bool=False) -> AgentConfig
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `path` | `str &#124; Path` | `required` |
+| `compatibility` | `bool` | `False` |
+| `environment_interpolation` | `bool` | `False` |
+
+
+<span id="qitos-config-agentconfig" />
+## AgentConfig
+
+```python
+from qitos.config import AgentConfig
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L232)
+[Usage and executable example](/quickstart)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+config = load_agent_config("agent.yaml")
+assert config.runtime.session.store == "sqlite"
+print(config.to_dict()["model"]["credential"])
+```
+
+```text
+The one canonical declarative agent launch configuration.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `name` | `str` | `'agent'` |
+| `max_steps` | `int` | `10` |
+| `model` | `ModelConfig` | `field(default_factory=ModelConfig)` |
+| `dataset` | `Sequence[DatasetItem]` | `field(default_factory=tuple)` |
+| `tools` | `Sequence[str]` | `field(default_factory=tuple)` |
+| `tool_preset` | `str` | `'none'` |
+| `tool_options` | `Mapping[str, Any]` | `field(default_factory=dict)` |
+| `tool_use_policy` | `str` | `'auto'` |
+| `protocol` | `str` | `'auto'` |
+| `parser` | `str` | `'auto'` |
+| `environment` | `Mapping[str, Any]` | `field(default_factory=dict)` |
+| `seed` | `int` | `0` |
+| `metadata` | `Mapping[str, Any]` | `field(default_factory=dict)` |
+| `context` | `Mapping[str, Any]` | `field(default_factory=dict)` |
+| `memory` | `Mapping[str, Any]` | `field(default_factory=dict)` |
+| `compaction` | `Mapping[str, Any]` | `field(default_factory=dict)` |
+| `lifecycle` | `Mapping[str, Any]` | `field(default_factory=dict)` |
+| `failure_policy` | `Mapping[str, Any]` | `field(default_factory=dict)` |
+| `runtime` | `RuntimeConfig` | `field(default_factory=RuntimeConfig)` |
+| `budgets` | `Optional[BudgetConfig]` | `None` |
+| `schema` | `str` | `CANONICAL_SCHEMA` |
+| `source` | `Mapping[str, Any]` | `field(default_factory=dict)` |
+| `compatibility` | `Sequence[Mapping[str, Any]]` | `field(default_factory=tuple)` |
+| `loss` | `Sequence[Mapping[str, Any]]` | `field(default_factory=tuple)` |
+
+<span id="qitos-config-agentconfig-to-dict" />
+### AgentConfig.to_dict
+
+```text
+to_dict() -> Dict[str, Any]
+```
+
+```text
+Return deterministic JSON/YAML-safe canonical launch data.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L294)
+
+<span id="qitos-config-agentconfig-digest" />
+### AgentConfig.digest
+
+```text
+digest() -> str
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L338)
+
+
+<span id="qitos-config-credentialref" />
+## CredentialRef
+
+```python
+from qitos.config import CredentialRef
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/credentials.py#L25)
+[Usage and executable example](/quickstart)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+reference = CredentialRef("notes-provider")
+print(reference)
+```
+
+```text
+Serializable logical identity of one credential.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `ref` | `str` | `required` |
+
+
+<span id="qitos-config-localcredentialfileresolver" />
+## LocalCredentialFileResolver
+
+```python
+from qitos.config import LocalCredentialFileResolver
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/credentials.py#L113)
+[Usage and executable example](/quickstart)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+from pathlib import Path
+resolver = LocalCredentialFileResolver(
+    Path.home() / ".config/qitos/credentials.yaml",
+    repository_root=Path.cwd(),
+)
+# Pass resolver as credential_resolver to build_agent_composition.
+```
+
+```text
+Resolve one logical credential from a hardened local YAML file.
+```
+
+```text
+LocalCredentialFileResolver(path: str | Path, *, repository_root: str | Path) -> None
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `path` | `str &#124; Path` | `required` |
+| `repository_root` | `str &#124; Path` | `required` |
+
+<span id="qitos-config-localcredentialfileresolver-resolve" />
+### LocalCredentialFileResolver.resolve
+
+```text
+resolve(ref: CredentialRef) -> CredentialResolution
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `ref` | `CredentialRef` | `required` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/credentials.py#L155)
+
+
+<span id="qitos-config-budgetconfig" />
+## BudgetConfig
+
+```python
+from qitos.config import BudgetConfig
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L218)
+[Usage and executable example](/quickstart)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+budget = BudgetConfig(max_steps=6, max_requests=6, max_runtime_seconds=30)
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `max_steps` | `int` | `10` |
+| `max_runtime_seconds` | `float` | `600.0` |
+| `max_requests` | `int` | `12` |
+
+
+<span id="qitos-config-environmentconfig" />
+## EnvironmentConfig
+
+```python
+from qitos.config import EnvironmentConfig
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L112)
+[Usage and executable example](/quickstart)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+environment = EnvironmentConfig(workspace="./source", image="python:3.12-slim")
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `type` | `str` | `'docker'` |
+| `image` | `str` | `'python:3.12-slim'` |
+| `workspace` | `str` | `'.'` |
+| `container_workspace` | `str` | `'/workspace'` |
+| `network` | `str` | `'none'` |
+| `read_only_root` | `bool` | `True` |
+| `cap_drop` | `bool` | `True` |
+| `no_new_privileges` | `bool` | `True` |
+| `pids_limit` | `Optional[int]` | `256` |
+| `memory_mb` | `Optional[int]` | `2048` |
+| `cpus` | `Optional[float]` | `2.0` |
+| `cleanup_required` | `bool` | `True` |
+
+
+<span id="qitos-config-modelconfig" />
+## ModelConfig
+
+```python
+from qitos.config import ModelConfig
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L60)
+[Usage and executable example](/quickstart)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+model = ModelConfig(provider="openai_compatible", model="notes-fake")
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `provider` | `str` | `'openai'` |
+| `model` | `str` | `''` |
+| `model_name` | `str` | `''` |
+| `credential` | `Optional[CredentialRef]` | `None` |
+| `base_url` | `str` | `''` |
+| `context_window` | `Optional[int]` | `None` |
+| `api_mode` | `str` | `'chat_completions'` |
+| `request` | `ModelRequestConfig` | `field(default_factory=ModelRequestConfig)` |
+| `api_key` | `str` | `field(default='', repr=False, compare=False)` |
+| `temperature` | `Optional[float]` | `None` |
+| `max_tokens` | `Optional[int]` | `None` |
+
+
+<span id="qitos-config-runtimeconfig" />
+## RuntimeConfig
+
+```python
+from qitos.config import RuntimeConfig
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L202)
+[Usage and executable example](/quickstart)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+runtime = RuntimeConfig(environment=EnvironmentConfig(workspace="./source"))
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `environment` | `EnvironmentConfig` | `field(default_factory=EnvironmentConfig)` |
+| `session` | `SessionConfig` | `field(default_factory=SessionConfig)` |
+| `trajectory` | `TrajectoryConfig` | `field(default_factory=TrajectoryConfig)` |
+| `data_root` | `str` | `''` |
+
+
+<span id="qitos-config-trajectoryconfig" />
+## TrajectoryConfig
+
+```python
+from qitos.config import TrajectoryConfig
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L186)
+[Usage and executable example](/quickstart)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+trajectory = TrajectoryConfig(output="./notes-run/trajectory.journal")
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `enabled` | `bool` | `True` |
+| `output` | `str` | `''` |
+| `privacy` | `str` | `'private'` |
+| `failure_policy` | `str` | `'required'` |
+
+{/* api-reference:end */}

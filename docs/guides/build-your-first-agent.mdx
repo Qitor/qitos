@@ -1,40 +1,298 @@
 ---
-title: "Custom Agent"
-description: "QitOS G5 · Custom Agent"
+title: "Write your own AgentModule"
+description: "Learn QitOS with complete, executable notes-project code."
 ---
 
-## Learning goal
+## Goal and prerequisites
 
-Write a StateSchema, AgentModule.decide/reduce and a final stopping decision. The example squares 3 and 4 through a two-action batch.
+A custom Agent makes the decision policy explicit. `NotesState.titles` starts empty. `decide` declares two actions, `reduce` folds their observations into state, and the next `decide` returns a final decision. This example needs no model.
 
-## Prerequisites
+The same notes fixture is used in the Quickstart. Here you replace the decision policy rather than the configured provider. `AgentComposition` builds its configured Agent; it does not accept an arbitrary `agent_override`. Construct the public Engine with your own AgentModule and RuntimeComposition, then create a Session.
 
-Complete the [Quickstart](/quickstart) installation and lessons copy; base package, Python 3.12.7 tested, no real model requests.
+Run both execution modes. They must produce the same declaration-ordered title list. In `reduce`, action observations are dictionaries; `EngineResult.records` contains typed ToolResult objects. Do not confuse those two representations.
 
-## Complete runnable example
+Basic Python is required. The package declares Python ≥3.10; local qualification uses Python 3.12.7. Each chapter runs independently; reuse the environment and matching files when continuing your project. Commands below use a macOS/Linux shell.
 
-[`examples/tutorials/custom_agent.py`](https://github.com/WhitzardAgent/WhitzardOS/blob/master/examples/tutorials/custom_agent.py)
-
-The complete directory is the execution source. Sibling session_walkthrough.py is a public teaching dependency, not a repository test helper.
+## Prepare the project
 
 ```bash
-python lessons/custom_agent.py
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install "qitos @ git+https://github.com/WhitzardAgent/WhitzardOS.git@60809b3be388d22ea40ea41b4aaa1f5540c76fda"
+mkdir notes_lesson
+cd notes_lesson
 ```
 
-## Expected output and assertions
+Save the complete files below in this directory. No repository clone, editable install, or copied tests are needed.
 
-`squares complete; completed=2; process_local=true`
+### State and decisions
 
-Assertions in the file verify the result; generated IDs vary. Commands exit zero; stop the board with Ctrl-C.
+{/* tutorial-snippet:custom_agent.py:agent */}
+```python
+@dataclass
+class NotesState(StateSchema):
+    titles: list[str] = field(default_factory=list)
 
-## Support boundaries
 
-This advanced Python path uses Engine with RuntimeComposition and a process-local Memory store. AgentComposition creates ConfiguredAgent; it has no arbitrary agent_override argument. Use this public Engine path for a custom AgentModule, and configure durable stores/resolvers for cross-process recovery.
+class NotesAgent(AgentModule):
+    def __init__(self):
+        registry = ToolRegistry()
+        registry.register(summarize_note)
+        super().__init__(tool_registry=registry)
 
-## Common errors
+    def init_state(self, task, **kwargs):
+        return NotesState(task=task, max_steps=3)
 
-Choose a new root if the directory already exists. For missing imports verify the installed source. Inspect Trajectory and the migration page for config mismatch, missing extensions or typed failures; never silently retry unknown external effects.
+    def decide(self, state, observation):
+        if state.titles:
+            return Decision.final(", ".join(state.titles))
+        return Decision.act([
+            Action(name="summarize_note", args={"index": index}) for index in (0, 1)
+        ])
 
-## Next step
+    def reduce(self, state, observation, decision):
+        state.titles.extend(item["output"]["title"] for item in observation.get("action_results", []))
+        return state
+```
+{/* tutorial-snippet:end */}
 
-[Learning path](/tutorials/index) · [Migration and troubleshooting](/reference/g5-migration)
+### Run and assertions
+
+{/* tutorial-snippet:custom_agent.py:run */}
+```python
+def main():
+    for mode in ("sequential", "parallel"):
+        engine = Engine(NotesAgent(), runtime=RuntimeComposition(),
+                        action_execution_policy=ActionExecutionPolicy(mode=mode, max_concurrency=2))
+        result = engine.session("Index the two notes").run()
+        assert result.state.titles == ["Session", "Artifact"]
+        assert result.state.final_result == "Session, Artifact"
+        print(f"{mode}: Session, Artifact; process_local=true")
+```
+{/* tutorial-snippet:end */}
+
+## Run and verify
+
+```bash
+python custom_agent.py
+```
+
+Expected output fragments (generated IDs vary). Each run verifies tool results or persistence assertions and exits 0 on success.
+
+```text
+sequential: Session, Artifact
+parallel: Session, Artifact
+```
+
+## Behavior and support boundaries
+
+The default RuntimeComposition uses a process-local Memory checkpoint store. A Session identity alone does not make that store durable. Use the composition/SQLite lifecycle lesson for cross-process recovery.
+
+## Exercise and answer
+
+Process only the first note: change the action indices to `(0,)` and expect `Session` in both modes.
+
+## Common errors and cleanup
+
+`ModuleNotFoundError`: activate the environment with the specified installation and save every file on this page. Existing run root: choose a new `--root` instead of overwriting evidence. Assertion failure: inspect the first failed tool or typed error, not only the final text. After all processes and the board stop, remove only this lesson’s newly created run directories if no longer needed; retain SQLite, journals and reports you want to debug.
+
+{/* tutorial-files:start */}
+
+## Complete files: save in the project root
+
+```python title="notes.py"
+"""Synthetic notes; fake model, real tools, composition, Session and journal."""
+import argparse
+from dataclasses import replace
+import json
+from pathlib import Path
+
+from qitos.config import build_agent_composition, load_agent_config
+from qitos.core.function_tool_decorator import function_tool
+from qitos.engine.runtime import LifecyclePolicy
+
+# docs:start fixture
+NOTES = (
+    "Session: A durable session can resume after a process exits.",
+    "Artifact: Large tool outputs can be retained outside model context.",
+)
+
+
+@function_tool(read_only=True, concurrency_safe=True)
+def summarize_note(index: int) -> dict:
+    """Extract a title and word count from a synthetic in-memory note."""
+    text = NOTES[index]
+    return {"title": text.split(":", 1)[0], "words": len(text.split())}
+# docs:end fixture
+
+
+# docs:start provider
+class FakeProvider:
+    """Scripted responses; this does not summarize or reason like a real model."""
+    model = "notes-fake"
+    qitos_protocol = "react_text_v1"
+
+    def __init__(self, start=0):
+        self.stage = start
+
+    def call_raw(self, messages, **options):
+        if self.stage < len(NOTES):
+            content = f"Thought: inspect a note\nAction: summarize_note(index={self.stage})"
+        else:
+            content = "Final Answer: Indexed 2 notes: Session, Artifact."
+        self.stage += 1
+        return {"choices": [{"message": {"content": content}}]}
+# docs:end provider
+
+
+class PauseAfterTool(LifecyclePolicy):
+    policy_id = "notes.pause_after_tool"
+
+    def should_pause(self, context):
+        return context.step_id == 0
+
+
+# docs:start composition
+def configuration(root):
+    config = load_agent_config(Path(__file__).with_name("agent.yaml"))
+    return replace(config, runtime=replace(
+        config.runtime, data_root=str(root / "data"),
+        environment=replace(config.runtime.environment, workspace=str(root)),
+        session=replace(config.runtime.session, path=str(root / "sessions.sqlite3")),
+        trajectory=replace(config.runtime.trajectory, output=str(root / "trajectory.journal")),
+    ))
+
+
+def compose(root, *, start=0, pause=False):
+    config = configuration(root)
+    if pause:
+        config = replace(config, lifecycle={"policy": "pause"})
+    composition = build_agent_composition(
+        config, model_override=FakeProvider(start), extensions={"pause": PauseAfterTool},
+    )
+    composition.tool_registry.register(summarize_note)
+    return composition
+# docs:end composition
+
+
+# docs:start run
+def run(root):
+    root.mkdir(parents=True, exist_ok=False)
+    with compose(root) as composition:
+        session = composition.session("Index both synthetic notes")
+        result = session.run()
+        outputs = [action.output for record in result.records for action in record.action_results
+                   if action.tool_name == "summarize_note"]
+        assert [output["title"] for output in outputs] == ["Session", "Artifact"]
+        assert result.state.final_result == "Indexed 2 notes: Session, Artifact."
+        config = composition.config.to_dict()
+        config["runtime"]["environment"] = {"type": "unsafe_host", "workspace": str(root)}
+        (root / "agent.json").write_text(json.dumps(config), encoding="utf-8")
+        control = {"session_id": session.session_id.value, "run_id": result.run_id}
+        (root / "control.json").write_text(json.dumps(control), encoding="utf-8")
+        print(json.dumps({**control, "result": result.state.final_result, "outputs": outputs}))
+# docs:end run
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=Path("notes-run"))
+    run(parser.parse_args().root.resolve())
+```
+
+```yaml title="agent.yaml"
+schema: qitos.agent
+agent:
+  name: notes_agent
+  protocol: react_text_v1
+model:
+  provider: openai_compatible
+  model: notes-fake
+  credential:
+    ref: notes-provider
+  request:
+    max_tokens: 512
+    timeout_seconds: 30
+    retries: 0
+tools:
+  preset: none
+runtime:
+  environment:
+    type: unsafe_host
+    workspace: .
+  session:
+    mode: durable
+    store: sqlite
+    path: ./notes-run/sessions.sqlite3
+  trajectory:
+    enabled: true
+    output: ./notes-run/trajectory.journal
+budgets:
+  max_steps: 6
+  max_requests: 6
+  max_runtime_seconds: 30
+failure_policy:
+  tool: fail_closed
+```
+
+```python title="custom_agent.py"
+"""A custom notes AgentModule through the public Engine/Session path."""
+from dataclasses import dataclass, field
+
+from qitos import Action, AgentModule, Decision, Engine, StateSchema, ToolRegistry
+from qitos.engine.action_executor import ActionExecutionPolicy
+from qitos.engine.runtime import RuntimeComposition
+from notes import summarize_note
+
+
+# docs:start agent
+@dataclass
+class NotesState(StateSchema):
+    titles: list[str] = field(default_factory=list)
+
+
+class NotesAgent(AgentModule):
+    def __init__(self):
+        registry = ToolRegistry()
+        registry.register(summarize_note)
+        super().__init__(tool_registry=registry)
+
+    def init_state(self, task, **kwargs):
+        return NotesState(task=task, max_steps=3)
+
+    def decide(self, state, observation):
+        if state.titles:
+            return Decision.final(", ".join(state.titles))
+        return Decision.act([
+            Action(name="summarize_note", args={"index": index}) for index in (0, 1)
+        ])
+
+    def reduce(self, state, observation, decision):
+        state.titles.extend(item["output"]["title"] for item in observation.get("action_results", []))
+        return state
+# docs:end agent
+
+
+# docs:start run
+def main():
+    for mode in ("sequential", "parallel"):
+        engine = Engine(NotesAgent(), runtime=RuntimeComposition(),
+                        action_execution_policy=ActionExecutionPolicy(mode=mode, max_concurrency=2))
+        result = engine.session("Index the two notes").run()
+        assert result.state.titles == ["Session", "Artifact"]
+        assert result.state.final_result == "Session, Artifact"
+        print(f"{mode}: Session, Artifact; process_local=true")
+# docs:end run
+
+
+if __name__ == "__main__":
+    main()
+```
+
+{/* tutorial-files:end */}
+
+## Next step and API
+
+[API Reference](/reference/api) · [Configuration](/reference/configuration) · [Learning path](/tutorials/index) · [Next](/concepts/tools-and-registry)
+
+[Source file](https://github.com/WhitzardAgent/WhitzardOS/blob/master/examples/tutorials/notes/custom_agent.py) (optional; all required code is already on this page).
