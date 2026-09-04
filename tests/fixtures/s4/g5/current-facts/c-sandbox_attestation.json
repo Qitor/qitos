@@ -1,0 +1,87 @@
+{
+  "code_commit": "511013acfd18efcc0d25901e8a7641c4ee731d93",
+  "identity": {
+    "attempt_id": "attempt_39fd0075bfc7447f98c5e4e4b1cb2080",
+    "owner_generation": 36,
+    "run_id": "run_f11d64f048644b778c3e384830c221cd",
+    "session_id": "session_5c2167728ced4600ac363258bb568399",
+    "work_item_id": "work_item_d63a0be5bd4345b8be77e891bc6a922c"
+  },
+  "requirement_id": "sandbox_attestation",
+  "runtime_facts": {
+    "artifact_count": 6,
+    "attempt_id": "attempt_39fd0075bfc7447f98c5e4e4b1cb2080",
+    "child_ids": [
+      "session_6f940fccba7e498ca561a0b3fdf648d2"
+    ],
+    "cleanup": {
+      "container_absent": true,
+      "output_retained": true,
+      "output_retention_failed": false,
+      "process_cleanup_confirmed": true,
+      "repeated": true,
+      "sandbox_id": "sandbox-8fe711a09e1449b197c63be657635dbe",
+      "staging_absent": true
+    },
+    "fork_id": "session_bd9fbf4e09a549d2a6fea4aef9c1b55b",
+    "installed_distribution": true,
+    "join_closed": true,
+    "owner_generation": 36,
+    "public_export_lossless": false,
+    "public_export_sha256": "8821c8873c1755d1ab2e11276bde737467848ba3468bf2556b6d3a55b3637308",
+    "run_id": "run_f11d64f048644b778c3e384830c221cd",
+    "session_id": "session_5c2167728ced4600ac363258bb568399",
+    "source_fork_unchanged": true,
+    "tool_calls": {
+      "edit_file": 1,
+      "poll_process": 1,
+      "publish_workspace": 1,
+      "run_command": 1,
+      "run_test": 1,
+      "start_process": 1,
+      "terminate_process": 1
+    },
+    "tool_outcomes": {
+      "edit_file": [
+        "success"
+      ],
+      "env": [
+        "success"
+      ],
+      "grep_file": [
+        "success"
+      ],
+      "list_files": [
+        "success"
+      ],
+      "poll_process": [
+        "timed_out"
+      ],
+      "publish_workspace": [
+        "success"
+      ],
+      "read_file": [
+        "success"
+      ],
+      "run_command": [
+        "success"
+      ],
+      "run_test": [
+        "success"
+      ],
+      "start_process": [
+        "success"
+      ],
+      "terminate_process": [
+        "success"
+      ],
+      "write_file": [
+        "success"
+      ]
+    },
+    "trajectory_records": 307,
+    "work_item_id": "work_item_d63a0be5bd4345b8be77e891bc6a922c"
+  },
+  "schema": "qitos.g5.runtime_fact/v1",
+  "writer": "qitos.kit.env.sandbox.DockerSandboxBackend"
+}

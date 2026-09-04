@@ -661,3 +661,18 @@ The initial attempt passed failure cleanup but used nonexistent add_hook for
 cancellation; it remains recorded as failed-cancelled-docker-01.
 Consumer installation checks use importlib.find_spec package origin, avoiding
 a packaging scanner false positive for a private-field access.
+
+### Controlled installed execution on 511013a
+
+Code identity 511013acfd18efcc0d25901e8a7641c4ee731d93 passed the fixed
+19-node integration selection in 14.55 seconds and both fresh installed
+consumers through scripts/qualify_g5_composition.py. The wheel was checked
+against every committed qitos Python byte before execution. Coding produced
+307 records and research 103, each with independent sandbox cleanup and real
+artifact retrieval. Actual current facts and public exact exports are committed
+separately from their source code; the following binding commit will pin their
+committed bytes, avoiding self-referential digests. The controlled command's
+interpreter and JUnit output path are normalized to avoid local path disclosure;
+raw execution logs and JUnit remain /tmp/qitos-g5-controlled-511013a.
+The report retains original log/JUnit digests. Readiness/default switches and
+final-tree full gates remain distinct pending operations.
