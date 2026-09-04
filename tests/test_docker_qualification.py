@@ -181,6 +181,14 @@ def test_fake_provider_executes_parallel_read_grep_edit_and_test_in_same_env(
     composition = build_agent_composition(config, model_override=model)
     try:
         result = composition.engine.run("write result.py with VALUE = 42 and test it")
+        from qitos.core.action import Action
+        from qitos.kit.tool.internal.publication import SandboxPublicationTool
+        assert not (workspace / "result.py").exists()
+        composition.tool_registry.register(SandboxPublicationTool(
+            composition.env, paths=["result.py"], expected_input_digest=composition.env.input_digest,
+        ))
+        published = composition.engine.executor.execute_one(Action("publish_workspace", {}), env=composition.env)
+        assert published.status == "success", published.to_dict()
     finally:
         composition.close()
 

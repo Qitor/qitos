@@ -162,9 +162,11 @@ def test_builtin_coding_tool_keeps_canonical_output_but_bounds_model_projection(
     (tmp_path / "large.txt").write_text(body, encoding="utf-8")
     env = HostEnv(workspace_root=str(tmp_path))
     tools = {item.name: item for item in EnvCodingToolSet().tools()}
+    from qitos.kit.artifact.store import FileArtifactStore
+    resolver = FileArtifactStore(tmp_path / "artifacts")
     result = tools["read_file"].run(
         path="large.txt",
-        runtime_context={"env": env, "ops": {"file": env.fs}},
+        runtime_context={"env": env, "ops": {"file": env.fs}, "artifact_resolver": resolver},
     )
 
     assert isinstance(result, ToolResult)
@@ -174,6 +176,7 @@ def test_builtin_coding_tool_keeps_canonical_output_but_bounds_model_projection(
     receipt = result.model_output["selection_receipt"]
     assert receipt["omitted_characters"] > 0
     assert result.artifact_refs[0].byte_length == len(body)
+    assert resolver.resolve(result.artifact_refs[0]).body == body.encode()
     assert projection["projection_loss"]["truncated"] is False
 
 

@@ -721,6 +721,8 @@ def build_agent_composition(
         runtime.lifecycle_policy = lifecycle_policy
         if "artifact_resolver" not in services:
             services["artifact_resolver"] = FileArtifactStore(_session_store_path(config).parent / "artifacts")
+        if isinstance(env, DockerEnv):
+            env._artifact_resolver = services["artifact_resolver"]
         agent = ConfiguredAgent(
             name=config.name,
             llm=model,

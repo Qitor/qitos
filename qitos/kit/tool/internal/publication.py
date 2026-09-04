@@ -36,21 +36,27 @@ class SandboxPublicationTool(BaseTool):
         try:
             if args or context.get("env") is not self._env:
                 raise EnvCapabilityError("publication_authority_mismatch", "publication authority is invalid")
-            if self._env._closed or self._env.processes.generation != self._generation:
+            if self._env.processes.generation != self._generation:
                 raise EnvCapabilityError("stale_generation", "publication owner is stale")
-            if not self._digest or self._digest != self._env.input_digest or not self._env._owns_container():
+            retained = self._env._closed and self._env.cleanup_receipt.get("container_absent") is True
+            if not self._digest or self._digest != self._env.input_digest or not (retained or self._env._owns_container()):
                 raise EnvCapabilityError("publication_input_mismatch", "publication input identity is invalid")
             resolver = context.get("artifact_resolver")
-            if not callable(getattr(resolver, "put", None)):
+            if resolver is None or not callable(getattr(resolver, "put", None)):
                 raise EnvCapabilityError("artifact_store_unavailable", "publication requires retained output artifacts")
             outputs = {}
             for name in self._paths:
-                snapshot = self._env.fs.snapshot(name)
-                body = self._env.fs.read_text(name).encode("utf-8")
-                if hashlib.sha256(body).hexdigest() != snapshot.sha256:
-                    raise EnvCapabilityError("publication_output_conflict", "sandbox output changed during capture")
-                reference = ArtifactRef(artifact_id=f"sha256:{snapshot.sha256}",
-                                        resolver_key=resolver.resolver_key, sha256=snapshot.sha256,
+                if retained:
+                    from qitos.kit.env._workspace_artifact import selected_output
+                    body = selected_output(self._env, name)
+                else:
+                    snapshot = self._env.fs.snapshot(name)
+                    body = self._env.fs.read_text(name).encode("utf-8")
+                    if hashlib.sha256(body).hexdigest() != snapshot.sha256:
+                        raise EnvCapabilityError("publication_output_conflict", "sandbox output changed during capture")
+                digest = hashlib.sha256(body).hexdigest()
+                reference = ArtifactRef(artifact_id=f"sha256:{digest}",
+                                        resolver_key=resolver.resolver_key, sha256=digest,
                                         byte_length=len(body), media_type="text/plain")
                 resolver.put(reference, body)
                 artifacts.append(reference)

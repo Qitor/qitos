@@ -249,3 +249,28 @@ and the original process regression passed four tests (4.83 s), including timeou
 after shell exit with a living child, actual descendant completion, and byte
 counts. These are intermediate gates; required sandbox restore/fork/fencing,
 full consumer work runtime and final qualification remain pending.
+
+### First full-tree gate and retained output follow-up
+
+At f9dfc98: full pytest (live-model endpoint/key unset) completed in 396.32 s:
+2592 passed, 50 skipped, 5 failed. All 50 skips are live-credential E2E nodes;
+no G5 node skipped. Raw local logs: /tmp/qitos-g5-first-full.log and XML alongside.
+Failures: S3 configured Docker recovery and Docker model route expected implicit
+cleanup publication; B S4 fixture compared historical bytes to current source;
+large-output projection fixture lacked its artifact resolver; cleanup fixture
+lacked explicit durable root. Stable-surface flake8 and mypy (94 files) passed.
+Ratchet found two new Optional resolver type errors plus nine stale C allowances.
+
+Rebound historical B bytes to its original producer commit without changing any
+historical hashes. Supplied explicit resolver/root in the affected contract tests.
+The two publication adaptations first failed because Engine teardown had already
+destroyed Env before caller publication. This exposed a real output-retention gap.
+Added bounded content-addressed workspace retention before owned cleanup and
+publication from retained artifacts after verified container absence. Six serial
+Docker tests then passed in 14.58 s, preserving the original output assertions.
+
+A new sandbox Session regression now demonstrates the remaining actual gap:
+paused, unpublished code is retained, but fresh composition restore reads the
+original input instead of the snapshot output (1 failed, 1.99 s). The earlier
+invalid fork-operation test setup was corrected before recording that failure.
+This is a red G5-I1 test, not a passing restore qualification.

@@ -441,6 +441,9 @@ class DockerEnv(HostEnv):
         self._created_here = False
         self._create_attempted = False
         self._closed = False
+        self._artifact_resolver: Any = None
+        self.output_artifact: Any = None
+        self._artifact_error: Optional[EnvCapabilityError] = None
         self._sandbox_id = f"sandbox-{uuid4().hex}"
         self._private_staging_root = ""
         self._source_workspace = self.host_workspace
@@ -540,11 +543,19 @@ class DockerEnv(HostEnv):
         if self._closed:
             if self.cleanup_receipt:
                 self.cleanup_receipt["repeated"] = True
+            if self._artifact_error is not None:
+                raise self._artifact_error
             return
         try:
             if self._wall_timer is not None:
                 self._wall_timer.cancel()
             self.processes.close()
+            if self._artifact_resolver is not None and self._owns_container():
+                from ._workspace_artifact import retain_workspace
+                try:
+                    retain_workspace(self)
+                except EnvCapabilityError as exc:
+                    self._artifact_error = exc
         finally:
             ownership_ok = self._owns_container()
             if (
@@ -573,8 +584,12 @@ class DockerEnv(HostEnv):
                 "container_absent": absent,
                 "staging_absent": staging_absent,
                 "repeated": False,
+                "output_retained": self.output_artifact is not None,
+                "output_retention_failed": self._artifact_error is not None,
             }
             self._closed = absent and staging_absent
+        if self._artifact_error is not None:
+            raise self._artifact_error
 
     def _ensure_container(self) -> None:
         if not self.container:
@@ -738,8 +753,10 @@ class DockerEnv(HostEnv):
             ignored = {
                 name for name in names
                 if (base / name).is_symlink()
-                or name in {".git", ".env", ".ssh", ".gnupg", ".aws", ".qitos"}
-                or name.endswith((".pem", ".key"))
+                or name.lower() in {".git", ".ssh", ".gnupg", ".aws", ".qitos", ".azure", ".netrc", ".gitconfig"}
+                or name.lower().startswith(".env")
+                or "secret" in name.lower() or "credential" in name.lower()
+                or name.lower().endswith((".pem", ".key", ".p12"))
             }
             return ignored
 

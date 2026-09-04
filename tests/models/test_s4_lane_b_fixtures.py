@@ -119,7 +119,10 @@ def test_lane_b_producer_manifest_binds_current_bytes_and_test_nodes() -> None:
     for item in manifest["producer_files"]:
         path = REPOSITORY_ROOT / item["path"]
         assert path.is_file()
-        assert hashlib.sha256(path.read_bytes()).hexdigest() == item["sha256"]
+        historical_bytes = subprocess.check_output(
+            ["git", "show", f"{commit}:{item['path']}"], cwd=REPOSITORY_ROOT,
+        )
+        assert hashlib.sha256(historical_bytes).hexdigest() == item["sha256"]
         subprocess.run(
             ["git", "cat-file", "-e", f"{commit}:{item['path']}"],
             cwd=REPOSITORY_ROOT,

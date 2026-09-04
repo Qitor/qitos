@@ -138,6 +138,13 @@ def create() -> None:
         "Read and grep calculator.py, fix clamp, run pytest, pause safely, then finish."
     )
     result = session.run()
+    from qitos.core.action import Action
+    from qitos.kit.tool.internal.publication import SandboxPublicationTool
+    composition.tool_registry.register(SandboxPublicationTool(
+        composition.env, paths=["calculator.py"], expected_input_digest=composition.env.input_digest,
+    ))
+    publication = composition.engine.executor.execute_one(Action("publish_workspace", {}), env=composition.env)
+    assert publication.status == "success", publication.to_dict()
     payload = {
         "session_id": session.session_id.value,
         "run_id": result.run_id,

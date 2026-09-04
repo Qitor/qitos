@@ -172,9 +172,10 @@ def test_docker_cleanup_must_prove_container_absence(
 
 def test_composition_failure_cleans_prepared_backend(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Any,
 ) -> None:
     from qitos.config import builder as builder_module
-    from qitos.config.loader import AgentConfig
+    from qitos.config.loader import AgentConfig, RuntimeConfig
 
     backend = ThirdPartyBackend()
     cleanup_calls = 0
@@ -198,7 +199,7 @@ def test_composition_failure_cleans_prepared_backend(
 
     with pytest.raises(RuntimeError, match="boom"):
         builder_module.build_agent_composition(
-            AgentConfig(protocol="react_text_v1", parser="auto"),
+            AgentConfig(protocol="react_text_v1", parser="auto", runtime=RuntimeConfig(data_root=str(tmp_path))),
             model_override=object(),
         )
 
@@ -207,7 +208,7 @@ def test_composition_failure_cleans_prepared_backend(
 
 def test_composition_close_cleans_backend_when_event_flush_fails() -> None:
     from qitos.config.builder import AgentComposition
-    from qitos.config.loader import AgentConfig
+    from qitos.config.loader import AgentConfig, RuntimeConfig
 
     backend = ThirdPartyBackend()
     cleanup_calls = 0
