@@ -1,0 +1,169 @@
+{
+  "artifacts": {
+    "qitos-g5-final-base.json": "bfccfd0714a7a82c7de77620fbe44a0b07bf7581b3221fe956cb05ef31a3b2f9",
+    "qitos-g5-final-extras.json": "f150e25fb267bfaaa30cbeafc4ab62a640c3d73eed579073d57fcf6d083b23c8",
+    "qitos-g5-final-package-scan.json": "2dce713a6af2896964c75d72ef6f64f8a8446ce1c30b13d91d705245b795ef34",
+    "qitos-g5-final-validation.json": "8dcf8416c46f89991cd3f823864e327a653bfb167b9b65a2b0dcbb3f27abad4d"
+  },
+  "consumers": {
+    "coding": {
+      "identity": {
+        "attempt_id": "attempt_48ea54d5978f48c28907a89f162aad68",
+        "owner_generation": 36,
+        "run_id": "run_76bed31ae59f4741af4a79d270a1d26f",
+        "session_id": "session_81d96e57be614ea99c2fb150562b2180",
+        "work_item_id": "work_item_f9728417f6d74530a9b75a11f410733c"
+      },
+      "outcome": "passed",
+      "runtime_facts": {
+        "artifact_count": 6,
+        "attempt_id": "attempt_48ea54d5978f48c28907a89f162aad68",
+        "child_ids": [
+          "session_fcb5d0b6e1c24b668fad96648ae113f9"
+        ],
+        "cleanup": {
+          "container_absent": true,
+          "output_retained": true,
+          "output_retention_failed": false,
+          "process_cleanup_confirmed": true,
+          "repeated": true,
+          "sandbox_id": "sandbox-a3a2dbd2129b4d7ba888e7a5ee5abc2c",
+          "staging_absent": true
+        },
+        "fork_id": "session_457c81b450424919a074ddd1bb27fae2",
+        "installed_distribution": true,
+        "join_closed": true,
+        "owner_generation": 36,
+        "public_export_lossless": false,
+        "public_export_sha256": "17236e896156d46169d68ef37b34228e101179e139da3bd4f665e657502bc4c7",
+        "qita_default_inspection": true,
+        "run_id": "run_76bed31ae59f4741af4a79d270a1d26f",
+        "session_id": "session_81d96e57be614ea99c2fb150562b2180",
+        "source_fork_unchanged": true,
+        "tool_calls": {
+          "edit_file": 1,
+          "poll_process": 1,
+          "publish_workspace": 1,
+          "run_command": 1,
+          "run_test": 1,
+          "start_process": 1,
+          "terminate_process": 1
+        },
+        "tool_outcomes": {
+          "edit_file": [
+            "success"
+          ],
+          "env": [
+            "success"
+          ],
+          "grep_file": [
+            "success"
+          ],
+          "list_files": [
+            "success"
+          ],
+          "poll_process": [
+            "timed_out"
+          ],
+          "publish_workspace": [
+            "success"
+          ],
+          "read_file": [
+            "success"
+          ],
+          "run_command": [
+            "success"
+          ],
+          "run_test": [
+            "success"
+          ],
+          "start_process": [
+            "success"
+          ],
+          "terminate_process": [
+            "success"
+          ],
+          "write_file": [
+            "success"
+          ]
+        },
+        "trajectory_records": 307,
+        "work_item_id": "work_item_f9728417f6d74530a9b75a11f410733c"
+      }
+    },
+    "research": {
+      "identity": {
+        "attempt_id": "attempt_5da7b5f6e9524574a303bb972299caba",
+        "owner_generation": 16,
+        "run_id": "run_e6e7c75f14b840acabf184d7c5cd8935",
+        "session_id": "session_2bd90abdbdc5473887b446244d6ab9c0",
+        "work_item_id": "work_item_4200c23616174e9bb373f02bd4801a80"
+      },
+      "outcome": "passed",
+      "runtime_facts": {
+        "artifact_count": 3,
+        "attempt_id": "attempt_5da7b5f6e9524574a303bb972299caba",
+        "canonical_notes_retained": true,
+        "cleanup": {
+          "container_absent": true,
+          "output_retained": true,
+          "output_retention_failed": false,
+          "process_cleanup_confirmed": true,
+          "repeated": true,
+          "sandbox_id": "sandbox-0b6996fd43f84b39987593ba9010b061",
+          "staging_absent": true
+        },
+        "compactions": 2,
+        "continuation_resolutions": 2,
+        "installed_distribution": true,
+        "old_run_id": "run_3d253b62fb6c452ab020951b6a938d46",
+        "opaque_state_isolated": true,
+        "owner_generation": 16,
+        "public_export_lossless": false,
+        "public_export_sha256": "0ac87bb7cd6db3a32edabe1e9d01eaaeb2ffd177059d7024e32c59d3dcca9439",
+        "qita_default_inspection": true,
+        "run_id": "run_e6e7c75f14b840acabf184d7c5cd8935",
+        "session_id": "session_2bd90abdbdc5473887b446244d6ab9c0",
+        "source_fenced": true,
+        "source_snapshot_id": "snapshot_7c92c66ba78a420d80933501822f2a05",
+        "timeout_unknown": true,
+        "trajectory_records": 103,
+        "transfer_count": 1,
+        "work_item_id": "work_item_4200c23616174e9bb373f02bd4801a80",
+        "worker_eventually_finished": true
+      }
+    }
+  },
+  "controlled_nodes": 14,
+  "controlled_outcome": "passed",
+  "full_suite": {
+    "passed": 2663,
+    "seconds": 548.76,
+    "skipped": 50
+  },
+  "main_targeted": {
+    "log": "qitos-g5-main-targeted.log",
+    "passed": 94,
+    "seconds": 56.37
+  },
+  "main_verification": {
+    "junit_sha256": "eab90e28203e2a8c96d34110e401c476f45939d3e82baea151b39a42684f6618",
+    "log_sha256": "e535d57b203c218960409cd2965004d9a5ae5cd8ca463c0039a150a42bdad76f",
+    "passed": 2663,
+    "ratchet": "passed 356",
+    "readiness": "ready_for_g5_review A/B/C; zero findings",
+    "seconds": 551.69,
+    "skipped": 50,
+    "stable_flake8": "passed",
+    "stable_mypy": "passed"
+  },
+  "packaging_profiles": 20,
+  "promotion": {
+    "method": "fast-forward only",
+    "new": "c9d9e4018aab25d351b4a0f5871a902c1cae8d54",
+    "old": "306e689ab19665678b6de644045d374c5ec05102"
+  },
+  "remote_sync": "not_performed",
+  "source_commit": "c9d9e4018aab25d351b4a0f5871a902c1cae8d54",
+  "wheel_sha256": "4d9b46240977e53ed66b2304ba8dcc8937dd73ba6f2943f682671b14954ac290"
+}

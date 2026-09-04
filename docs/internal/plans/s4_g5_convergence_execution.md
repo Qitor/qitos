@@ -1,6 +1,8 @@
 # S4 G5 convergence execution
 
-Status: in progress; not qualified; no promotion authorized until all gates pass.
+Status: runtime qualification and local fast-forward passed on c9d9e40;
+main revalidation passed. Closing evidence commit receives its own final-tree
+verification. Remote sync, default-branch readiness and release remain disabled.
 
 ## Source lock
 
@@ -875,3 +877,41 @@ Results are kept outside the tree to avoid a self-referential evidence commit.
 Only a passed exact candidate may be fast-forwarded into unchanged primary;
 primary then runs the complete required verification again. This entry records
 the procedure and prior facts, not a claim that future checks already passed.
+
+### Local fast-forward and primary revalidation completed
+
+Candidate c9d9e4018aab25d351b4a0f5871a902c1cae8d54 passed its exact-tree
+full suite (2663 passed, 50 live opt-in skips, 548.76 s), stable and expanded
+modified-surface flake8/mypy, 356-finding ratchet, actual readiness, build/twine,
+all 20 profiles, fresh installed coding/research consumers, generated-project
+install/test/build/reinstall, and reviewed package privacy/license checks.
+Wheel SHA256: 4d9b46240977e53ed66b2304ba8dcc8937dd73ba6f2943f682671b14954ac290.
+Sdist SHA256: e776335341bae88cc803c13fefbc379947ef1623fccc7ba8841d6e6ee11b6acd.
+
+Rechecked clean primary branch feat/campaign-absorption and exact old HEAD
+306e689ab19665678b6de644045d374c5ec05102, clean G5 and ancestry; executed
+git merge --ff-only codex/v4-s4-g5-convergence. New primary HEAD is c9d9e40
+(full identity above). No merge commit, reset, push or source-tree mutation.
+Primary complete pytest passed 2663/50 in 551.69 s. Primary stable flake8/mypy,
+ratchet and actual readiness passed. Separate primary audit/publication/Session/
+real Docker/context/readiness/schema/journal/default-reader/interface sweep
+passed 94 tests in 56.37 s. git diff --check passed; both trees remained clean.
+Exact promotion and source-bound summaries are local-promotion-c9d9e40.json.
+
+This closing evidence commit changes documentation/receipts only. It will be
+verified as a clean final candidate, rebuilt, consumer-qualified and fast-
+forwarded from c9d9e40, followed by final primary verification. That final
+result stays outside the tree to avoid recursively self-referencing receipts.
+All six worktrees and all refs remain. Source tasks remain completed; G5 stays
+active until final verification ends. Remote identity remains unverified and
+retirement requires later push authorization and verified remote baseline.
+
+Qualified boundaries: Darwin Docker backend and regular-file top-level explicit
+publication; unsupported publication shapes/platforms typed reject. Python
+threads and remote requests cannot be hard-cancelled; unknown is retained. CLI
+live pause/steer and unresolved approval restore remain typed unsupported.
+Journal complete reads are correct but materialize full data; large measurement
+peaked near 196 MB for 10003 records. No bounded-total-memory, exactly-once
+external effects, Docker-as-VM, distributed scheduler or live-task-success
+claim is made. Three authorized live requests remain informational: two real
+tool executions then codec-policy rejection, one connection/TLS failure.

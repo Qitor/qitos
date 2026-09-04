@@ -463,3 +463,13 @@ tests/fixtures/s4/g5/lane-c-skip-reconciliation.json. There are no evidenced
 additional 49 skip nodes to explain. The erroneous historical report is not
 rewritten, and its six failures remain failures. Current 50 skips are live E2E
 credential opt-ins; required offline/Docker probes must not skip.
+
+
+### G5 local qualification closure (2026-09-04)
+
+All required candidate gates and first local primary revalidation passed on
+c9d9e4018aab25d351b4a0f5871a902c1cae8d54. Primary advanced by pure fast-forward
+from 306e689; full primary suite 2663 passed / 50 opt-in live skips, plus 94
+targeted regressions. See execution ledger and local-promotion-c9d9e40.json.
+Original audit failures remain historical facts. Closing evidence receives
+final-tree verification. No push/release/default-branch readiness is implied.

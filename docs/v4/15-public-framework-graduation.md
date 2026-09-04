@@ -356,3 +356,10 @@ pause/steer and durable approval-response resume reject. Publication is explicit
 and restricted to supported regular top-level files. Unknown workers retain
 uncertainty; external effects are not exactly-once. Journal complete reads are
 complete but materialized, not bounded-memory streaming.
+
+
+G5 local closure: c9d9e40 passed installed consumers, defaults/rollback and
+full candidate gates; pure fast-forward and full primary revalidation passed.
+The execution ledger records identities, limits and retained worktrees. Remote
+sync, default-branch readiness and release remain disabled. Closing evidence
+is separately verified before its final fast-forward.

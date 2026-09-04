@@ -1430,3 +1430,13 @@ ratchet, all 20 wheel profiles and both fresh installed consumers with default
 qita inspection. Current registry evidence is 5f36d4b, pinned by f977eb6.
 Final evidence-inclusive candidate and primary post-FF validation remain
 separate required gates; remote sync and release are not authorized.
+
+
+### G5 local qualification closure (2026-09-04)
+
+All required candidate gates and first local primary revalidation passed on
+c9d9e4018aab25d351b4a0f5871a902c1cae8d54. Primary advanced by pure fast-forward
+from 306e689; full primary suite 2663 passed / 50 opt-in live skips, plus 94
+targeted regressions. See execution ledger and local-promotion-c9d9e40.json.
+Original audit failures remain historical facts. Closing evidence receives
+final-tree verification. No push/release/default-branch readiness is implied.
