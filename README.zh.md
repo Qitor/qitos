@@ -25,6 +25,7 @@ store、sink 和 sandbox 可扩展；qita 只读检查 Trajectory。
 
 ## What's New
 
+- master 修复 Python 3.10 publication 的哈希兼容性；这是独立验证的 G5 后继修复，不改写历史资格。
 - G5 框架资格通过，S4 本地集成完成，runtime 身份固定为 `717b4cf1b23f2ed252cd03234ffd8605038d9567`。
 - 双语文档统一到安装 → 项目 → 配置 → Session → 检查 → 恢复/扩展。
 - 默认开发分支为 `master`，push 和 PR 执行 CI/docs 门禁；发布仍须显式触发。

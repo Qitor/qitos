@@ -51,4 +51,4 @@ Both help commands must exit zero. A missing G5 import usually means a different
 interpreter or an older installed distribution; verify `python -m pip show qitos`
 and recreate the venv from the exact source. Continue to [Quickstart](/quickstart).
 
-<Warning>Remote CI found that Python 3.10 publication calls an unavailable hashlib.file_digest. Use Python 3.11+ for publication; the historical local G5 qualification covers 3.12.7 specifically. The Python 3.10 CI job remains failing visibly until a separately authorized runtime fix.</Warning>
+<Warning>Remote CI found that Python 3.10 publication calls an unavailable hashlib.file_digest. Use Python 3.11+ for publication; the historical local G5 qualification covers 3.12.7 specifically. The G5-pinned source retains this limitation; master now replaces that call with bounded descriptor hashing, verified separately from the historical G5 result.</Warning>

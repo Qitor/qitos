@@ -17,6 +17,10 @@ How to update:
 
 ## Unreleased
 
+### Fixed
+
+- Restore Python 3.10 explicit publication by hashing validated file descriptors in bounded chunks; containment, special-file rejection, source-conflict checks and rollback remain enforced.
+
 ### Changed
 
 - Make CI prerequisites explicit (build tools, asyncio plugin, full history and owned Docker fixtures), preserve the qualified typing context, and remove test-only interpreter and queue-scheduling assumptions. Remote Python 3.10 publication failures remain visible under the runtime freeze.

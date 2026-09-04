@@ -25,6 +25,8 @@ read-only qita. Framework correctness does not guarantee arbitrary model task su
 
 ## What's New
 
+- Master fixes Python 3.10 publication with bounded descriptor hashing; this is a separately tested successor to the historical G5 runtime.
+
 - G5 framework qualification passed; S4 local integration complete. Runtime identity: `717b4cf1b23f2ed252cd03234ffd8605038d9567`.
 - Bilingual docs converge on installation → project → configuration → Session → inspection → recovery/extension.
 - The default development branch is `master`, with CI/docs checks on pushes and PRs. Publication remains explicit.

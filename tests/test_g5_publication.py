@@ -126,3 +126,15 @@ def test_publication_preserves_executable_mode(tmp_path):
     target.chmod(0o755)
     publish_files(tmp_path, {"script.py": digest(b"original")}, {"script.py": b"changed"})
     assert target.stat().st_mode & 0o777 == 0o755
+
+
+@pytest.mark.parametrize("original", [b"", b"bounded-hash-input" * 100000], ids=["empty", "multi-chunk"])
+def test_publication_hashing_works_without_python_311_file_digest(tmp_path, monkeypatch, original):
+    """Exercise existing-file exchange with the Python 3.10 hashlib surface."""
+    monkeypatch.delattr(hashlib, "file_digest", raising=False)
+    target = tmp_path / "data.bin"
+    target.write_bytes(original)
+    result = publish_files(tmp_path, {"data.bin": digest(original)}, {"data.bin": b"published"})
+    assert result["output_digests"] == {"data.bin": digest(b"published")}
+    assert target.read_bytes() == b"published"
+    assert [path.name for path in tmp_path.iterdir()] == ["data.bin"]

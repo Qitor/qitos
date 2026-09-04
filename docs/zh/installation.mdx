@@ -47,4 +47,4 @@ W&B `[wandb]`，MLflow `[mlflow]`。初次运行不需要全部 extras。
 用 `python -m pip show qitos` 核对，并按准确源码重建 venv。
 接着阅读[快速开始](/zh/quickstart)。
 
-<Warning>远端 CI 发现 Python 3.10 的 publication 调用了不存在的 hashlib.file_digest。此路径请使用 Python 3.11+；历史本地 G5 资格具体覆盖 3.12.7。Python 3.10 CI 保留失败，等待另行授权的运行时修复。</Warning>
+<Warning>远端 CI 发现 Python 3.10 的 publication 调用了不存在的 hashlib.file_digest。此路径请使用 Python 3.11+；历史本地 G5 资格具体覆盖 3.12.7。固定安装 G5 源码时仍有此限制；master 已将该调用修复为有界的文件描述符分块哈希，并独立验证，不冒称历史 G5 已覆盖修复。</Warning>

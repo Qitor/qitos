@@ -62,7 +62,11 @@ def _digest_at(directory: int, name: str) -> str | None:
         facts = os.fstat(handle.fileno())
         if not stat.S_ISREG(facts.st_mode) or facts.st_nlink != 1:
             raise _reject("publication_special_file")
-        digest = hashlib.file_digest(handle, "sha256").hexdigest()
+        # Keep the validated descriptor and bounded memory on Python 3.10 too.
+        hasher = hashlib.sha256()
+        for chunk in iter(lambda: handle.read(256 * 1024), b""):
+            hasher.update(chunk)
+        digest = hasher.hexdigest()
         after = os.fstat(handle.fileno())
         if (facts.st_size, facts.st_mtime_ns, facts.st_ctime_ns) != (after.st_size, after.st_mtime_ns, after.st_ctime_ns):
             raise _reject("publication_source_conflict")
