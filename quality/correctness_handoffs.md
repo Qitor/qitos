@@ -45,8 +45,6 @@ the gate; the named semantic lane owns the reproducer and fix.
 - `qitos/kit/skill/injector.py:164:34` — `mypy:name-defined` / `undefined-name`: Name "SkillRegistry" is not defined
 - `qitos/kit/tool/cron/scheduler.py:156:17` — `mypy:attr-defined` / `unbound-resource`: "None" has no attribute "start"
 - `qitos/kit/tool/cron/scheduler.py:172:13` — `mypy:attr-defined` / `unbound-resource`: "None" has no attribute "add_job"
-- `qitos/kit/tool/delegate.py:155:17` — `mypy:attr-defined` / `impossible-import`: Module "qitos.models.profile_registry" has no attribute "resolve_model"
-- `qitos/kit/tool/fanout.py:97:28` — `mypy:operator` / `explicit-runtime-error`: Unsupported operand types for + ("float" and "None")
 
 ## Lane D / Tasks 05/10
 

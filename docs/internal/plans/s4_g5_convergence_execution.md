@@ -601,3 +601,15 @@ Thirty-eight adjacent offline tests passed in 0.40 s; 14 combined real Docker,
 sandbox Session and staging regressions passed in 33.19 s
 (`/tmp/qitos-g5-staging-docker-01.log`). Changed-module flake8/mypy passed.
 The chunked digest preserves the existing input digest definition.
+
+### Shrink-only quality baseline
+
+On bd62dcc, the pinned toolchain found no new whole-package findings and exactly
+11 resolved allowances: the nine Lane C findings plus two G5 MCP unused imports
+(server Optional and filter field). `static_quality.py update` ran without an
+exception argument: removed 11, added 0, total 356. A set-difference check
+confirmed no added IDs; every removed finding is preserved in
+`tests/fixtures/s4/g5/ratchet-removed-findings.json`. The two correctness handoffs
+for legacy delegate/fan-out shrink with their resolved source findings.
+Logs: `/tmp/qitos-g5-ratchet-{04,shrink-01}.log`. This is a baseline maintenance
+step; the final full check is still required on the promoted candidate identity.
