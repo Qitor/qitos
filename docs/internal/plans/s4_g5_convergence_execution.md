@@ -104,3 +104,14 @@ Regression nodes: `tests/test_g5_audit_regressions.py::test_g5_*`.
 Raw logs retained in the task's temporary evidence directory; committed red
 summary records the source and assertions without treating historical audit
 text as a fresh run. Fixing commits and passing evidence follow below.
+
+### G5-B1 transaction repair
+
+The post-dispatch decode/capture/attachment/assistant/response boundary now
+normalizes all failures with sent=true; failure normalizer exceptions cannot
+escape transport accounting. Red probe: `1a1cb30` test commit against replay
+code. The expanded nine-stage matrix and original probe pass (10 tests).
+A preliminary edit had an indentation error and an expanded test mistakenly
+called a nonexistent exception decoder; both were corrected before acceptance.
+JSON failure facts round-trip; full persisted Session recovery qualification
+remains pending. No new export or Engine constructor argument.

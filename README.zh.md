@@ -18,6 +18,8 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 
 ## 最新进展
 
+- G5 融合进行中：模型请求发出后的失败保留准确计数；整体集成与默认切换尚未验收。
+
 - **S4 候选已审计，G5 需要修复后融合**：四条独立产线已交付公共入口、provider/context、安全执行和 Trajectory/发行候选。独立复核通过 198 项定向测试，但复现了宿主输出回写、进程生命周期、fork、请求计数、journal、loss 报告和 readiness 缺陷。S4 尚未提升；详见[审计与融合计划](docs/internal/plans/s4_g5_convergence_audit.md)。
 - **S4 已拆分为四条面向用户能力的产线**：[可直接派发的执行计划](docs/v4/16-s4-parallel-wave-instructions.md)将公共开发入口/Session/配置、模型事务/上下文/provider、安全工具/sandbox/MCP/工作图，以及 Trajectory/qita/评测/发行分配给互不重叠的分支。质量和证据是每条线的共同门禁；只有后续 G5 融合才能冻结默认值或声明新的框架基线。
 - **S3/G4 框架基线已提升，S4 可启动**：代码头 `901e972...` 通过 2436 项测试，以及确定性 Session 隔离、持久请求预算恢复、有界 10 MB 投影、40 轮多智能体进程丢失恢复、Docker、隐私、打包与接口门禁。Informational GLM round `s3-g4-l3-a1146482fb3295ff` 发出两次精确计数的请求，未发现框架不变量失败；`malformed_structured_response` 属于模型能力证据，而不是框架发布阻断。功能分支已纯 fast-forward 并完成远端核验，五个 clean S3 worktree 在保留 refs 的前提下完成清理；`f07b386...` 仍是 S4 规划 successor 之下已经提升的 runtime baseline。

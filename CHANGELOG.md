@@ -94,6 +94,8 @@ How to update:
 
 ### Fixed
 
+- Preserve sent-request facts through continuation capture, attachment and assistant finalization failures, including a failing provider error normalizer.
+
 - Fixed reusable Engine runtime state leaking conversation, continuation, steering, tool satisfaction, partial batch, and last request facts into independent Sessions; fixed fan-out/delegate children inheriting unselected parent history; and fixed child model-request declarations being advisory instead of a pre-dispatch, restart-stable limit.
 - Fixed provider failures collapsing encode, projection, connection, timeout, authentication, rate-limit, rejection, server, cancellation, and response-decode stages into one transport label, while preserving accurate dispatch accounting and excluding raw exception text.
 

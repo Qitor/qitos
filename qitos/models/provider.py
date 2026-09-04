@@ -604,7 +604,10 @@ def execute_provider_request(
             codec_report=failure.codec_report or report,
         ) from None
     except BaseException as exc:
-        normalized = adapter.qitos_normalize_failure(exc, report=report)
+        try:
+            normalized = adapter.qitos_normalize_failure(exc, report=report)
+        except BaseException:
+            normalized = None
         if not isinstance(normalized, ProviderFailure):
             normalized = normalize_provider_failure(
                 exc, target=request.target, report=report
@@ -647,91 +650,111 @@ def execute_provider_request(
             provider_request_sent=True,
         ) from None
 
-    resolver = continuation_resolver
-    refs: tuple[ContinuationRef, ...] = ()
-    attachments: list[OpaqueContinuationAttachment] = []
-    if decoded.continuation_payload is not None:
-        attachment_id = decoded.continuation_attachment_id or (
-            f"continuation_attachment_{request.request_id}"
+    try:
+        resolver = continuation_resolver
+        refs: tuple[ContinuationRef, ...] = ()
+        attachments: list[OpaqueContinuationAttachment] = []
+        if decoded.continuation_payload is not None:
+            attachment_id = decoded.continuation_attachment_id or (
+                f"continuation_attachment_{request.request_id}"
+            )
+            if resolver is None:
+                resolver = getattr(adapter, "qitos_continuation_resolver", None)
+            if resolver is None or not isinstance(resolver, ContinuationResolver):
+                raise ProviderFailure(
+                    category="unsupported_request",
+                    message="Provider returned continuation state but no resolver is configured.",
+                    provider=request.target.provider,
+                    api_mode=request.target.api_mode,
+                    error_code="continuation_capture_unavailable",
+                    codec_report=report,
+                )
+            try:
+                reference = resolver.capture(
+                    target=request.target,
+                    payload=decoded.continuation_payload,
+                    attachment_id=attachment_id,
+                )
+            except ProviderFailure as failure:
+                raise replace(
+                    failure,
+                    stage="decode",
+                    provider_request_sent=True,
+                    codec_report=failure.codec_report or report,
+                ) from None
+            except BaseException as exc:
+                raise ProviderFailure(
+                    category="decode",
+                    message="Provider continuation could not be captured safely.",
+                    provider=request.target.provider,
+                    api_mode=request.target.api_mode,
+                    error_code="continuation_capture_failed",
+                    redacted_details={"exception_type": exc.__class__.__name__},
+                    codec_report=report,
+                    stage="decode",
+                    provider_request_sent=True,
+                ) from None
+            refs = (reference,)
+            attachments.append(
+                OpaqueContinuationAttachment(
+                    attachment_id=attachment_id,
+                    provider_scope=(
+                        f"{request.target.provider}:{request.target.api_mode}"
+                    ),
+                    api_mode=request.target.api_mode,
+                    opaque_payload={"resolver_ref": reference.reference_id.to_dict()},
+                    metadata={"payload_digest": reference.payload_digest},
+                )
+            )
+        item = AssistantItem(
+            item_id=f"assistant_{_digest({'request': request.request_id, 'parts': [_part_identity(p) for p in decoded.parts]})[:24]}",
+            exchange_id=f"exchange_{request.request_id}",
+            parts=list(decoded.parts),
+            continuation_attachments=attachments,
+            metadata={
+                "provider": request.target.provider,
+                "model": request.target.model,
+                "api_mode": request.target.api_mode,
+                "finish_reason": decoded.finish_reason,
+                "provider_metadata": dict(decoded.provider_metadata),
+            },
         )
-        if resolver is None:
-            resolver = getattr(adapter, "qitos_continuation_resolver", None)
-        if resolver is None or not isinstance(resolver, ContinuationResolver):
-            raise ProviderFailure(
-                category="unsupported_request",
-                message="Provider returned continuation state but no resolver is configured.",
-                provider=request.target.provider,
-                api_mode=request.target.api_mode,
-                error_code="continuation_capture_unavailable",
-                codec_report=report,
-            )
-        try:
-            reference = resolver.capture(
-                target=request.target,
-                payload=decoded.continuation_payload,
-                attachment_id=attachment_id,
-            )
-        except ProviderFailure as failure:
-            raise replace(
-                failure,
-                stage="decode",
-                provider_request_sent=True,
-                codec_report=failure.codec_report or report,
-            ) from None
-        except BaseException as exc:
-            raise ProviderFailure(
-                category="decode",
-                message="Provider continuation could not be captured safely.",
-                provider=request.target.provider,
-                api_mode=request.target.api_mode,
-                error_code="continuation_capture_failed",
-                redacted_details={"exception_type": exc.__class__.__name__},
-                codec_report=report,
-                stage="decode",
-                provider_request_sent=True,
-            ) from None
-        refs = (reference,)
-        attachments.append(
-            OpaqueContinuationAttachment(
-                attachment_id=attachment_id,
-                provider_scope=(
-                    f"{request.target.provider}:{request.target.api_mode}"
-                ),
-                api_mode=request.target.api_mode,
-                opaque_payload={"resolver_ref": reference.reference_id.to_dict()},
-                metadata={"payload_digest": reference.payload_digest},
-            )
+        item.validate()
+        response = model_response_from_assistant(
+            item,
+            usage=decoded.usage,
+            finish_reason=decoded.finish_reason,
+            model_name=decoded.model_name or request.target.model,
+            provider=request.target.provider,
+            request_id=request.request_id,
+            codec_report=report,
         )
-    item = AssistantItem(
-        item_id=f"assistant_{_digest({'request': request.request_id, 'parts': [_part_identity(p) for p in decoded.parts]})[:24]}",
-        exchange_id=f"exchange_{request.request_id}",
-        parts=list(decoded.parts),
-        continuation_attachments=attachments,
-        metadata={
-            "provider": request.target.provider,
-            "model": request.target.model,
-            "api_mode": request.target.api_mode,
-            "finish_reason": decoded.finish_reason,
-            "provider_metadata": dict(decoded.provider_metadata),
-        },
-    )
-    item.validate()
-    response = model_response_from_assistant(
-        item,
-        usage=decoded.usage,
-        finish_reason=decoded.finish_reason,
-        model_name=decoded.model_name or request.target.model,
-        provider=request.target.provider,
-        request_id=request.request_id,
-        codec_report=report,
-    )
-    return ProviderTransaction(
-        request=request,
-        codec_report=report,
-        assistant_item=item,
-        model_response=response,
-        continuation_refs=refs,
-    )
+        return ProviderTransaction(
+            request=request,
+            codec_report=report,
+            assistant_item=item,
+            model_response=response,
+            continuation_refs=refs,
+        )
+    except ProviderFailure as failure:
+        # Once transport was invoked, later failures cannot release admission.
+        raise replace(
+            failure,
+            stage="decode",
+            provider_request_sent=True,
+            codec_report=failure.codec_report or report,
+        ) from None
+    except BaseException:
+        raise ProviderFailure(
+            category="decode",
+            message="Provider response could not be finalized safely.",
+            provider=request.target.provider,
+            api_mode=request.target.api_mode,
+            error_code="provider_response_finalization_failed",
+            codec_report=report,
+            stage="decode",
+            provider_request_sent=True,
+        ) from None
 
 
 def _part_identity(part: AssistantPart) -> Dict[str, Any]:

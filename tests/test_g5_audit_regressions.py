@@ -185,6 +185,48 @@ def test_g5_b1_missing_capture_preserves_dispatch_fact():
     assert raised.value.stage == "decode"
 
 
+@pytest.mark.parametrize("stage", ["admission", "cancel", "transport", "normalizer",
+                                   "decode", "capture", "attachment", "assistant", "response"])
+def test_g5_b1_failure_accounting_is_conserved(stage, monkeypatch):
+    import qitos.models.provider as module
+
+    adapter, request = _provider_request()
+    calls = []
+    original = adapter.qitos_transport
+    adapter.qitos_transport = lambda payload: (calls.append(1), original(payload))[1]
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("PRIVATE_PROVIDER_BODY")
+
+    options = {}
+    if stage == "admission":
+        options["request_admission"] = fail
+    elif stage == "cancel":
+        options["cancellation_check"] = lambda: True
+    elif stage in {"transport", "normalizer"}:
+        adapter.qitos_transport = lambda payload: (calls.append(1), fail())[1]
+        if stage == "normalizer":
+            adapter.qitos_normalize_failure = fail
+    elif stage == "decode":
+        codec = adapter.qitos_provider_codec()
+        codec.decode = fail
+        adapter.qitos_provider_codec = lambda: codec
+    elif stage == "capture":
+        adapter.qitos_continuation_resolver.capture = fail
+    elif stage == "attachment":
+        monkeypatch.setattr(module, "OpaqueContinuationAttachment", fail)
+    elif stage == "assistant":
+        monkeypatch.setattr(module.AssistantItem, "validate", fail)
+    elif stage == "response":
+        monkeypatch.setattr(module, "model_response_from_assistant", fail)
+    with pytest.raises(ProviderFailure) as raised:
+        execute_provider_request(adapter, request, **options)
+    assert len(calls) == int(stage not in {"admission", "cancel"})
+    assert raised.value.provider_request_sent == bool(calls)
+    assert "PRIVATE_PROVIDER_BODY" not in json.dumps(raised.value.to_dict())
+    assert json.loads(json.dumps(raised.value.to_dict()))["provider_request_sent"] == bool(calls)
+
+
 def _record(index):
     return TrajectoryRecord.create(RecordKind.RUN, record_id=f"g5-{index}",
                                    run_id="g5-run", session_id="g5-session",
