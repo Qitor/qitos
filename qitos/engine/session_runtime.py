@@ -1258,6 +1258,8 @@ class Session:
                         "final_result": agent.state.get("final_result"),
                         "stop_reason": agent.state.get("stop_reason")},
                 error=None if head.lifecycle == "completed" else "child Session terminated without success",
+                error_kind=None if head.lifecycle == "completed" else "execution",
+                error_code=None if head.lifecycle == "completed" else f"child_session_{head.lifecycle}",
             )
             graph.record_completion(completion_id=f"session_terminal:{head.checkpoint_id}", work_item_id=identity,
                                     owner_generation=work.owner.generation, outcome=outcome)

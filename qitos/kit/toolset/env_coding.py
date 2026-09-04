@@ -425,13 +425,16 @@ def _command_result(tool_name: str, command: str, timeout: int, raw: Dict[str, A
     }
     if raw.get("worker_still_running") or raw.get("outcome_unknown"):
         return ToolResult(
-            status="error" if raw.get("outcome_unknown") else "success",
+            status="timed_out",
             output=raw, model_output=model_output, tool_name=tool_name,
-            error="process completion is unknown" if raw.get("outcome_unknown") else None,
-            error_kind="execution" if raw.get("outcome_unknown") else None,
-            error_code="process_outcome_unknown" if raw.get("outcome_unknown") else None,
+            error="process has no terminal receipt within this polling interval",
+            error_kind="execution",
+            error_code="process_outcome_unknown" if raw.get("outcome_unknown") else "process_still_running",
             worker_still_running=bool(raw.get("worker_still_running")),
             outcome_unknown=bool(raw.get("outcome_unknown")),
+            effect_ref=f"process:{hashlib.sha256(command.encode()).hexdigest()[:24]}",
+            effect_state="unknown" if raw.get("outcome_unknown") else "started",
+            retry_disposition="blocked_worker_running" if raw.get("worker_still_running") else "requires_reconciliation",
         )
     artifacts = (
         (_artifact(raw, kind="command output", summary="narrow the command for context", runtime_context=runtime_context),)
@@ -583,12 +586,15 @@ def terminate_process(
         )
         terminal = raw.get("status") == "terminal" and not raw.get("worker_still_running", True)
         return ToolResult(
-            status="success" if terminal else "error", output=raw, model_output=raw,
+            status="success" if terminal else "cancelled", output=raw, model_output=raw,
             tool_name="terminate_process", worker_still_running=not terminal,
             outcome_unknown=not terminal,
             error=None if terminal else "owned process termination remains unknown",
             error_code=None if terminal else "process_termination_unknown",
             error_kind=None if terminal else "execution",
+            effect_ref=None if terminal else f"process-control:{process_id[:64]}",
+            effect_state="no_effect_declared" if terminal else "unknown",
+            retry_disposition="not_evaluated" if terminal else "blocked_worker_running",
         )
     except Exception as exc:
         return _semantic("terminate_process", exc)

@@ -1,6 +1,8 @@
 """Real canonical child Sessions must drive WorkGraph completion and joins."""
 import time
 
+import pytest
+
 from qitos.engine.engine import Engine
 from qitos.engine.runtime import RuntimeComposition
 from qitos.engine.work_runtime import DurableWorkRuntime, LocalWorkScheduler
@@ -8,7 +10,8 @@ from qitos.core.work_graph import WorkGraph
 from test_work_runtime import _Agent, _PauseAtFirstBoundary
 
 
-def test_real_child_session_completion_closes_durable_join():
+@pytest.mark.parametrize("child_fails", [False, True])
+def test_real_child_session_completion_closes_durable_join(child_fails):
     root = RuntimeComposition(lifecycle_policy=_PauseAtFirstBoundary())
 
     class Resolver:
@@ -26,7 +29,13 @@ def test_real_child_session_completion_closes_durable_join():
             return run
 
     root.work_runtime = DurableWorkRuntime(LocalWorkScheduler(Resolver(), max_workers=1))
-    session = Engine(_Agent(), runtime=root).session("parent")
+    class Agent(_Agent):
+        def decide(self, state, observation):
+            if child_fails and state.task == "child task":
+                raise RuntimeError("controlled child failure")
+            return super().decide(state, observation)
+
+    session = Engine(Agent(), runtime=root).session("parent")
     session.run()
 
     def wait(operation_id):
@@ -46,6 +55,7 @@ def test_real_child_session_completion_closes_durable_join():
         joined = session.join([child.operation_id], operation_id="join:g5-real")
         graph = wait(joined.operation_id)
         assert len(graph.completions) == 1
+        assert graph.completions[0].outcome["status"] == ("error" if child_fails else "success")
         assert graph.joins[0].state == "closed"
         assert len(graph.joins[0].accepted_child_ids) == 1
     finally:

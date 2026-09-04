@@ -71,4 +71,6 @@ class SandboxPublicationTool(BaseTool):
             return ToolResult.execution_error(
                 code=code, error="explicit publication failed", tool_name=self.name,
                 artifact_refs=tuple(artifacts), outcome_unknown=code == "publication_rollback_unknown",
+                effect_ref=f"publication:{self._digest}" if code == "publication_rollback_unknown" else None,
+                effect_state="unknown" if code == "publication_rollback_unknown" else "no_effect_declared",
             )

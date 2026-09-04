@@ -331,3 +331,23 @@ After repair, tracing/qita/composition/interface-budget tests: 134 passed, 79.93
 A whole trajectory is still materialized and scanned in memory: read-only does
 not imply bounded memory. Installed consumer and default qualification remain
 pending.
+
+### Installed coding attempt 1: failure-path integration repairs
+
+Intermediate wheel from a13f650 code installed in a fresh external venv (no
+editable install / PYTHONPATH). Consumer attempt failed: its native-tool-required
+child returned only text; the resulting failed child exposed a missing canonical
+error_kind/error_code in Session completion collection. An independent real-child
+regression reproduced the latter (1 failed / 1 passed, 5.48 s). The consumer now
+uses a real native tool before finalizing; the framework records failed child
+completion with execution error facts.
+
+Three process-tool regressions also failed: live/unknown worker results violated
+ToolResult invariants and were replaced by generic semantic errors. Bounded poll
+now reports timed_out with process_still_running/process_outcome_unknown; an
+unconfirmed terminate reports cancelled with a still-running flag. Both carry
+explicit effect uncertainty and non-retryable worker facts. No hard cancellation
+is claimed. Explicit publication rollback uncertainty also preserves its effect
+reference. After repair: 46 passed, 1.45 s (work runtime, real child failure,
+process tool truth, publication); prior 3-failure intermediate output retained.
+Installed consumers have NOT passed yet.
