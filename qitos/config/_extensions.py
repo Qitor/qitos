@@ -24,11 +24,15 @@ def resolve_extensions(config: Any, registry: Mapping[str, Any]) -> tuple[dict[s
 
     context = dict(config.context)
     fields = set(ContextConfig.__dataclass_fields__)
-    service_keys = {"contributors", "selector", "artifact_resolver", "continuation_resolver"}
+    service_keys = {"contributors", "selector", "artifact_resolver", "continuation_resolver", "allow_codec_loss"}
     if set(context) - fields - service_keys:
         reject("context")
     engine_context = {key: value for key, value in context.items() if key in fields}
     services: dict[str, Any] = {}
+    if "allow_codec_loss" in context:
+        if not isinstance(context["allow_codec_loss"], bool):
+            reject("context.allow_codec_loss")
+        services["allow_codec_loss"] = context["allow_codec_loss"]
     contributors = context.get("contributors", ())
     if not isinstance(contributors, (list, tuple)):
         reject("context.contributors")

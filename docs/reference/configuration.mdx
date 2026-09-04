@@ -374,3 +374,16 @@ qita board --logdir ./runs
 <Note>
 Tracing is enabled by default in `AgentModule.run()`. Set `trace=False` only for quick interactive experiments — disabling tracing means runs cannot be replayed or inspected with `qita`.
 </Note>
+
+### G5 explicit projection loss and restored execution settings
+
+`context.allow_codec_loss: true` opts into a codec's declared lossy request
+projection. It defaults to false. For a generic Chat Completions endpoint that
+returns reasoning but cannot replay it, the opt-in permits the codec to omit
+reasoning from subsequent model requests while retaining the canonical reasoning
+in the Session conversation and recording `assistant.reasoning` in the codec loss
+report. It does not assert native reasoning replay or authorize silent loss.
+
+New Session snapshots persist the existing approval setting, action execution
+policy, and context settings, so restore does not silently reset these controls.
+A changed declarative configuration still fails its persisted digest check.

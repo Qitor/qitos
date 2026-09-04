@@ -91,3 +91,42 @@ def test_default_sqlite_location_is_derived_and_unwritable_location_fails_before
     with pytest.raises(CompositionError):
         build_agent_composition(invalid)
     assert blocked.read_text() == "input"
+
+
+def test_restore_keeps_explicit_tool_approval_and_execution_policy(tmp_path):
+    from qitos.core.function_tool_decorator import function_tool
+    from qitos.engine.runtime import LifecyclePolicy
+
+    effects = []
+    @function_tool(needs_approval=True)
+    def approved_output():
+        effects.append("explicitly authorized")
+        return "published"
+
+    class Model(_FinalModel):
+        def __init__(self, phase):
+            self.phase = phase
+
+        def call_raw(self, messages, **options):
+            self.phase += 1
+            if self.phase == 1:
+                return {"choices": [{"message": {"content": 'Thought: pause\nAction: approved_output()'}}]}
+            if self.phase == 2:
+                return {"choices": [{"message": {"content": 'Thought: authorized\nAction: approved_output()'}}]}
+            return super().call_raw(messages, **options)
+
+    config = replace(_persisted_config(tmp_path), tool_options={"auto_approve": True, "max_concurrency": 2},
+                     failure_policy={"tool": "fail_closed"}, context={"conversation_max_rounds": 20})
+    with build_agent_composition(config, model_override=Model(0)) as first:
+        first.tool_registry.register(approved_output)
+        first.runtime.lifecycle_policy = _PauseAfterFirstStep()
+        parent = first.session("approved output")
+        parent.run()
+        identity = parent.session_id
+        assert effects == ["explicitly authorized"]
+    with build_agent_composition(config, model_override=Model(1)) as second:
+        second.tool_registry.register(approved_output)
+        second.runtime.lifecycle_policy = LifecyclePolicy()
+        result = second.restore(identity).run()
+        assert result.state.final_result == "done"
+        assert effects == ["explicitly authorized", "explicitly authorized"]

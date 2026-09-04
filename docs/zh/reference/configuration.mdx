@@ -318,3 +318,14 @@ qita board --logdir ./runs
 ```
 
 来查看这些结果。
+
+### G5：显式投影损失与执行配置恢复
+
+`context.allow_codec_loss: true` 显式允许 codec 声明的有损请求投影，默认值为 false。
+通用 Chat Completions 端点返回 reasoning、但其 codec 不支持回放时，此选项允许
+后续模型请求省略 reasoning；Session 的 canonical conversation 仍保留原始内容，
+codec loss report 记录 `assistant.reasoning`。这不表示支持原生 reasoning 回放，
+也不允许静默丢失数据。
+
+新 Session 快照保存已有的批准设置、动作执行策略和 context 设置，restore 不再
+静默恢复默认配置。声明式配置变化仍会触发 persisted config digest 检查。

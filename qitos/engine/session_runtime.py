@@ -2277,11 +2277,41 @@ class Session:
             max_tokens=budget_payload.get("max_tokens"),
             max_model_requests=budget_payload.get("max_model_requests"),
         )
+        execution_options: dict[str, Any] = {}
+        saved_options = progress.get("execution_options")
+        if saved_options is not None:
+            from ..core.action import ActionExecutionPolicy
+            from .states import ContextConfig
+            try:
+                if (not isinstance(saved_options, Mapping)
+                        or set(saved_options) != {"auto_approve", "context_config", "action_execution_policy"}
+                        or not isinstance(saved_options["auto_approve"], bool)):
+                    raise ValueError("invalid execution options")
+                policy = dict(saved_options["action_execution_policy"])
+                names = policy.get("parallel_tool_names")
+                if names is not None:
+                    if not isinstance(names, list) or any(not isinstance(name, str) for name in names):
+                        raise ValueError("invalid parallel admission restriction")
+                    policy["parallel_tool_names"] = frozenset(names)
+                if (policy.get("mode") not in {"serial", "parallel"}
+                        or not isinstance(policy.get("fail_fast"), bool)
+                        or type(policy.get("max_concurrency")) is not int
+                        or policy["max_concurrency"] < 1):
+                    raise ValueError("invalid execution policy")
+                execution_options = {
+                    "auto_approve": saved_options["auto_approve"],
+                    "context_config": ContextConfig(**dict(saved_options["context_config"])),
+                    "action_execution_policy": ActionExecutionPolicy(**policy),
+                }
+            except (KeyError, TypeError, ValueError):
+                raise _session_error(SessionErrorCode.INCOMPATIBLE_CHECKPOINT,
+                                     "Persisted execution policy is invalid.", recoverable=False) from None
         engine = engine_type(
             agent=agent,
             budget=budget,
             env=environment.resource if environment is not None else None,
             runtime=runtime,
+            **execution_options,
         )
         task = _task_from_progress(progress)
         task_text = task.objective if isinstance(task, Task) else str(task)
@@ -2558,6 +2588,7 @@ class Session:
         pause_safety: Any,
     ) -> tuple[SnapshotComponent, ...]:
         from ..core.session import CORE_SNAPSHOT_COMPONENT_CODECS
+        from ..core.action import ActionExecutionPolicy
 
         codecs = {codec.slot: codec for codec in CORE_SNAPSHOT_COMPONENT_CODECS}
         graph = getattr(self._engine, "_qitos_work_graph", None)
@@ -2568,11 +2599,26 @@ class Session:
             state=state.to_dict(),
         )
         last_runtime_error = getattr(self._engine, "_last_runtime_error", None)
+        executor = self._engine.executor
+        execution_policy = executor.policy if executor is not None else ActionExecutionPolicy()
         progress = {
             "task": _task_payload(task),
             "next_step": int(step_id),
             "lifecycle": lifecycle.value,
             "engine_config": self._engine.export_config().to_dict(),
+            "execution_options": {
+                "auto_approve": self._engine.auto_approve,
+                "context_config": asdict(self._engine.context_config),
+                "action_execution_policy": {
+                    "mode": execution_policy.mode,
+                    "fail_fast": execution_policy.fail_fast,
+                    "max_concurrency": execution_policy.max_concurrency,
+                    "parallel_tool_names": (
+                        sorted(execution_policy.parallel_tool_names)
+                        if execution_policy.parallel_tool_names is not None else None
+                    ),
+                },
+            },
             "runtime_composition": self._runtime.export_config(
                 self._snapshot_references()
             ).to_dict(),

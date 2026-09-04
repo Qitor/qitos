@@ -376,3 +376,29 @@ The source table's nonexistent ToolRuntime writer was corrected to the existing
 ReferenceEffectPolicy. Existing readiness/audit checks passed: 21 passed, 2.09 s.
 Qualification pins remain empty; no producer is claimed qualified. Additional
 negative binding cases and actual current consumer facts remain required.
+
+### Live attempts 1–2 and restored policy repair
+
+Two bounded live attempts against the user-authorized model each sent one request,
+received a native tool call and executed the survey tool once (814 provider tokens
+each). Both stopped before a second dispatch with CodecCapabilityError /
+provider_capability_loss: the generic Chat Completions codec cannot replay the
+returned reasoning under the default loss-rejecting policy. No SDK retry or
+persisted/diagnostic secret was detected. These are failed capability attempts,
+not framework qualification passes. Sanitized receipts remain under
+/tmp/qitos-g5-live-result{,-02}.json.
+
+The public config now wires the existing allow_codec_loss extension, false by
+default. The regression initially failed at config admission. Corrected native
+protocol fixtures verify two dispatched requests, real tool execution, canonical
+reasoning retention in the persisted conversation, and explicit projection loss
+in Trajectory. Earlier test setup mistakenly used a text protocol and disabled
+trajectory; those intermediate failures are retained, not counted as regressions.
+
+Installed coding attempt 3 separately revealed that fresh restore discarded
+approval, parallel/failure and context settings. A public restore regression
+failed (1 failed, 0.80 s). Existing execution settings are now captured in the
+Engine progress component and validated/restored via the same Engine constructor.
+No constructor parameter or public versioned API was added. Thirty-nine adjacent
+Session/fork/context tests passed (2.94 s); changed-module flake8 and mypy passed.
+Required approval-interrupt closure remains a separate pending investigation.
