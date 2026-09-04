@@ -25,8 +25,6 @@ store、sink 和 sandbox 可扩展；qita 只读检查 Trajectory。
 
 ## What's New
 
-- [v5 迭代路线](docs/v5/README.md)形成五组待实现任务：真实 Agent 闭环、长任务上下文与记忆、工具/API 收敛、研究数据、交互式 Session 与沙箱；规划发布不代表这些后续能力已经完成。
-
 - master 修复 Python 3.10 publication、journal 重复解析和历史证据可移植核验；这些后继修复独立验证，不改写 G5 历史资格。
 - G5 框架资格通过，S4 本地集成完成，runtime 身份固定为 `717b4cf1b23f2ed252cd03234ffd8605038d9567`。
 - 双语文档统一到安装 → 项目 → 配置 → Session → 检查 → 恢复/扩展。

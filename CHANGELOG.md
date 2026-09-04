@@ -31,8 +31,6 @@ How to update:
 
 ### Documentation consolidation
 
-- Add the v5 residual-goal roadmap and five actionable task groups, with v4 goal mapping, implementation/consumer acceptance, ownership leases and bounded live-test policy. These are plans, not new runtime capabilities or release qualification.
-
 - Correct current G5 status: framework qualification passed and S4 locally integrated
   at `717b4cf1b23f2ed252cd03234ffd8605038d9567`; runtime identity is unchanged by the later master promotion.
 - Add bilingual Session-first installation/configuration and runnable learning units,

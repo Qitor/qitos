@@ -25,8 +25,6 @@ read-only qita. Framework correctness does not guarantee arbitrary model task su
 
 ## What's New
 
-- The [v5 iteration roadmap](docs/v5/README.md) defines five planned capability groups: real Agent workflows, long-task context/memory, tool/API consolidation, research data, and interactive Sessions/sandboxes. It does not claim those follow-ups are implemented.
-
 - Master fixes Python 3.10 publication, repeated journal parsing and portable historical evidence verification; these are separately tested successors to the historical G5 runtime.
 
 - G5 framework qualification passed; S4 local integration complete. Runtime identity: `717b4cf1b23f2ed252cd03234ffd8605038d9567`.
