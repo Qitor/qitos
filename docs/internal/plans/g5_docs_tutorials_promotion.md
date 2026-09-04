@@ -1,6 +1,6 @@
 # G5 documentation, tutorials and promotion
 
-Status: local docs/tutorial checks passed; promotion/push held for historical local-path review; no release/default-branch change.
+Status: local promotion passed; user authorized the reviewed historical-path push and default-branch migration to master. Remote CI and promotion are in progress; no release or deployment.
 
 ## Source identity and scope
 
@@ -86,3 +86,18 @@ successor edits cannot remove historical blobs. Push and retirement are held
 pending resolution of the user's privacy/no-history-rewrite constraints.
 No original values are repeated in this report. No secret or private endpoint
 has been identified outside the explicitly reviewed synthetic fixtures.
+
+
+## Authorized remote continuation
+
+The user accepted the historical-path disclosure hold and requested ordinary
+push, followed by moving the remote default to the qualified lineage. The later
+instruction explicitly selects `master`, superseding the proposed `dev` name.
+No dev branch was created. Existing refs and G5 runtime identity remain intact.
+Remote main had no unique commits (0/267 against documentation HEAD 73ec7d9),
+so ordinary fast-forward suffices without rewriting history. Local feature
+fast-forward: 717b4cf → 73ec7d9; primary recheck: 506 passed in 50.58 seconds.
+CI now triggers for master/main/the feature branch and PRs, with read-only token
+permissions, bounded jobs and obsolete-run concurrency cancellation. Existing
+quality, coverage, audit and package gates remain. Release workflow is unchanged;
+no PyPI publication or documentation deployment is requested or performed.

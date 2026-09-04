@@ -17,6 +17,10 @@ How to update:
 
 ## Unreleased
 
+### Changed
+
+- Prepare `master` as the default development branch; run CI/docs checks on master, main, the integration branch and PRs, with bounded jobs and retained test/build artifacts. Publication remains explicit.
+
 ### Documentation consolidation
 
 - Correct current G5 status: framework qualification passed and S4 locally integrated

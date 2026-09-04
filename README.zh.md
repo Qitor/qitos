@@ -27,6 +27,7 @@ store、sink 和 sandbox 可扩展；qita 只读检查 Trajectory。
 
 - G5 框架资格通过，S4 本地集成完成，runtime 身份固定为 `717b4cf1b23f2ed252cd03234ffd8605038d9567`。
 - 双语文档统一到安装 → 项目 → 配置 → Session → 检查 → 恢复/扩展。
+- 开发分支正在迁移为 `master`，push 和 PR 执行 CI/docs 门禁；发布仍须显式触发。
 - 本轮文档与运行教程的验收结果单独记录；远端同步尚待本任务验证。
   默认分支、package release 和文档部署未执行。
 

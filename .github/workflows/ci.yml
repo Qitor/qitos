@@ -5,10 +5,22 @@ on:
   push:
     branches:
       - main
+      - master
+      - feat/campaign-absorption
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -28,10 +40,19 @@ jobs:
           python -m pip install -e ".[dev,models,benchmarks]"
 
       - name: Run tests
-        run: pytest -q
+        run: pytest -q --junitxml=test-results.xml
+
+      - name: Preserve test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-${{ matrix.python-version }}
+          path: test-results.xml
+          retention-days: 14
 
   coverage:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,6 +72,7 @@ jobs:
 
   package:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -71,8 +93,17 @@ jobs:
       - name: Twine check
         run: python -m twine check dist/*
 
+      - name: Preserve candidate distributions without publishing
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-distributions
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
   lint-stable:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -92,6 +123,7 @@ jobs:
 
   type-stable:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -113,6 +145,7 @@ jobs:
   static-ratchet:
     name: full-package no-regression ratchet
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       QUALITY_BASELINE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
     steps:
@@ -138,6 +171,7 @@ jobs:
   architecture-boundaries:
     name: architecture boundaries
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -157,6 +191,7 @@ jobs:
 
   audit:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4

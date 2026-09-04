@@ -27,6 +27,7 @@ read-only qita. Framework correctness does not guarantee arbitrary model task su
 
 - G5 framework qualification passed; S4 local integration complete. Runtime identity: `717b4cf1b23f2ed252cd03234ffd8605038d9567`.
 - Bilingual docs converge on installation → project → configuration → Session → inspection → recovery/extension.
+- The development branch is moving to `master`, with CI/docs checks on pushes and PRs. Publication remains explicit.
 - Documentation/tutorial qualification is recorded separately. Remote synchronization awaits this task's verification; default branch, package release and docs deployment are not performed.
 
 ## Start developing

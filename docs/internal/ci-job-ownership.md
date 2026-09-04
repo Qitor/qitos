@@ -1,7 +1,7 @@
 # CI job ownership and evidence
 
 Status: repository-intent inventory for Lane A / Task 08E
-Updated: 2026-08-29
+Updated: 2026-09-04
 
 This table records the role expressed by repository configuration. It is not
 evidence of GitHub branch-protection settings: those settings are external and
@@ -48,3 +48,17 @@ deleting any configured check.
   masked/rerun commands, missing pytest/docs paths, bilingual documentation
   drift, loss of the distinct stable and ratchet commands, and undocumented
   workflow files.
+
+
+## Master promotion
+
+The user selected `master` as the next default branch. `ci.yml` and `docs.yml`
+run on pushes to master, retained main, and feat/campaign-absorption, plus PRs
+and explicit workflow dispatch. Jobs are bounded to 30 minutes, use a read-only
+contents token, and cancel superseded runs of the same workflow/ref. Pytest
+reports and built distributions are retained as CI artifacts; they are not releases.
+The existing 80% coverage floor, Python matrix, static ratchet, audit and package
+checks remain blocking job results. PyPI remains release/manual-only. No secrets
+are supplied to ordinary CI. No branch ruleset is changed by this task.
+Remote CI status must be read for the exact promotion SHA; local G5 qualification
+is not evidence that a later GitHub run passed.

@@ -174,3 +174,28 @@ def test_docs_workflow_navigation_and_translation_paths_exist() -> None:
     }
     missing_zh = [docs_root / "zh" / path for path in sorted(english)]
     assert not [path for path in missing_zh if not path.exists()]
+
+
+def test_primary_branch_ci_is_read_only_bounded_and_keeps_release_manual() -> None:
+    for name in ("ci.yml", "docs.yml"):
+        path = WORKFLOW_DIR / name
+        # BaseLoader preserves the YAML key `on` instead of YAML 1.1 boolean coercion.
+        document = yaml.load(path.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+        events = document["on"]
+        assert {"main", "master", "feat/campaign-absorption"} <= set(
+            events["push"]["branches"]
+        )
+        assert "pull_request" in events and "workflow_dispatch" in events
+        assert "pull_request_target" not in events
+        assert document["permissions"] == {"contents": "read"}
+        assert document["concurrency"]["cancel-in-progress"] == "true"
+        for job in document["jobs"].values():
+            assert 1 <= int(job["timeout-minutes"]) <= 30
+        assert "secrets." not in path.read_text(encoding="utf-8")
+
+    release = yaml.load(
+        (WORKFLOW_DIR / "pypi.yml").read_text(encoding="utf-8"), Loader=yaml.BaseLoader
+    )
+    assert set(release["on"]) == {"workflow_dispatch", "release"}
+    assert release["on"]["release"]["types"] == ["published"]
+    assert release["jobs"]["publish"]["needs"] == "build"
