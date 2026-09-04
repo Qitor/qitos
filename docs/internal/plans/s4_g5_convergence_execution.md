@@ -558,3 +558,32 @@ A separate post-dispatch continuation-capture failure test passed in 0.67 s:
 exactly one request remained consumed in SQLite after closing/reopening the
 composition; terminal restore did not resend it. The original stage, sent flag
 and typed failure remained visible. Log: `/tmp/qitos-g5-budget-persistence-01.log`.
+
+### Second installed consumer pair and bounded resource pressure
+
+The 9f6856a wheel was rebuilt at the explicit path
+`/tmp/qitos-g5-9f6856a-dist/qitos-0.6.0-py3-none-any.whl`
+(sha256 decb7425cedb72ee0132dc7aeb063f7af8dd08bf5c9670194ec474124eed2e64);
+sdist sha256 9e6a533feaa1c40ecfe302f0da6afaa497938ae1a809a5c4b2e66848e85c742e.
+Both passed twine check. A regular reinstall into the external consumer env
+ran coding attempt 07 successfully (307 records), including the authenticated
+process channel, all ten ACI tools, explicit publication, real child join and
+cleanup. Research attempt 04 passed (103 records), with a caller-owned structural
+codec and durable continuation resolver, two continuation resolutions, two
+compactions, preserved canonical reasoning, opaque-state isolation, handoff
+fencing, timeout/late completion and exact public export/re-import.
+Research attempt 03 checked the bounded transferred projection for complete
+source text and failed; the corrected assertion verifies the unchanged original
+immutable source snapshot through its persisted identity. Target omission is
+separately represented by compaction/transfer facts, not canonical deletion.
+These scripts are outside qitos; no Agent strategy or second runtime was added.
+Logs: `/tmp/qitos-g5-installed-{coding-07,research-03,research-04}.log`.
+The final-wheel fresh-environment pair remains required after default switches.
+
+A newly owned container with .5 CPU, 256 MiB memory and 32 pids passed the
+bounded pressure probe in 2.27 s. It verified cgroup values, non-root/NNP/zero
+capabilities, no mounts or credential environment/socket, denied network routing,
+pid-limit rejection and self-reaping children, bounded RLIMIT_AS memory pressure,
+and label-scoped absence after cleanup. Memory pressure was intentionally
+limited below the cgroup OOM boundary; it does not claim an OOM-kill experiment.
+Log: `/tmp/qitos-g5-resource-docker-01.log`. All Docker runs were serial.
