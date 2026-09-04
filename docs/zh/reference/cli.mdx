@@ -3,6 +3,24 @@ title: "CLI 参考"
 description: "QitOS 的 qita 与 qit 命令行参考，包括最小编码智能体演示和 v0.3 中加入的基准测试官方入口。"
 ---
 
+当前推荐 `qit new` → canonical config → Python composition/Session。自定义 Python 工具不会由 CLI 自动导入。先读 Quickstart，再使用下面的 inspect 命令。旧 demo 是高级兼容入口。 [Quickstart](/zh/quickstart)
+
+## 当前 Session 命令
+
+```bash
+qit --help
+qita --help
+qit new --agent-name notes_agent --output-dir . --no-input
+qit session inspect --help
+qit session restore --help
+qit session fork --help
+qita inspect --help
+```
+
+inspect 无需模型或 Docker。真实 Session ID、matching config 及完整运行命令见生命周期教程。replay 与 board 启动本地服务器，需 Ctrl-C 停止后才能在同一终端执行后续命令。 [Session](/zh/tutorials/checkpoint-and-fork)
+
+
+
 QitOS 提供两个顶层命令行工具：
 
 - `qita`：追踪记录检查与回放

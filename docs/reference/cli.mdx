@@ -3,6 +3,24 @@ title: "CLI Reference"
 description: "Reference for qita and qit, including the minimal coding-agent demo and the official benchmark CLI added in QitOS v0.3."
 ---
 
+The recommended path is qit new → canonical config → Python composition/Session. The CLI does not auto-import custom Python tools. Start with Quickstart, then use inspection commands below. Older demos are advanced compatibility entrypoints. [Quickstart](/quickstart)
+
+## Current Session commands
+
+```bash
+qit --help
+qita --help
+qit new --agent-name notes_agent --output-dir . --no-input
+qit session inspect --help
+qit session restore --help
+qit session fork --help
+qita inspect --help
+```
+
+Inspect needs no model or Docker. The lifecycle lesson supplies actual Session IDs, matching configuration and complete commands. Replay and board start local servers; stop with Ctrl-C before the next command in the same terminal. [Session](/tutorials/checkpoint-and-fork)
+
+
+
 QitOS ships two top-level CLIs:
 
 - `qita` for trace inspection
@@ -10,7 +28,7 @@ QitOS ships two top-level CLIs:
 
 ## qit demo
 
-Use `qit demo` when you want the fastest path to a real model-backed QitOS run.
+`qit demo` is an advanced compatibility path. Use the Quickstart for the canonical beginner setup.
 
 ### `qit demo minimal`
 

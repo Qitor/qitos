@@ -1,0 +1,379 @@
+{
+  "baseline": "60809b3be388d22ea40ea41b4aaa1f5540c76fda",
+  "groups": [
+    {
+      "slug": "composition",
+      "tutorial": "quickstart",
+      "symbols": [
+        {
+          "module": "qitos.config",
+          "name": "AgentComposition",
+          "methods": [
+            "session",
+            "restore",
+            "fork",
+            "close"
+          ],
+          "example": "# After loading config and creating the explicit provider:\nwith build_agent_composition(config, model_override=provider) as composition:\n    session = composition.session(\"Index the notes\")\n    result = session.run()"
+        },
+        {
+          "module": "qitos.config",
+          "name": "build_agent_composition",
+          "methods": [],
+          "example": "composition = build_agent_composition(config, model_override=provider)\ntry:\n    result = composition.session(\"Index the notes\").run()\nfinally:\n    composition.close()"
+        },
+        {
+          "module": "qitos.config",
+          "name": "load_agent_config",
+          "methods": [],
+          "example": "config = load_agent_config(\"agent.yaml\")\nprint(config.digest())"
+        },
+        {
+          "module": "qitos.config",
+          "name": "AgentConfig",
+          "methods": [
+            "to_dict",
+            "digest"
+          ],
+          "example": "config = load_agent_config(\"agent.yaml\")\nassert config.runtime.session.store == \"sqlite\"\nprint(config.to_dict()[\"model\"][\"credential\"])"
+        },
+        {
+          "module": "qitos.config",
+          "name": "CredentialRef",
+          "methods": [],
+          "example": "reference = CredentialRef(\"notes-provider\")\nprint(reference)"
+        },
+        {
+          "module": "qitos.config",
+          "name": "LocalCredentialFileResolver",
+          "methods": [
+            "resolve"
+          ],
+          "example": "from pathlib import Path\nresolver = LocalCredentialFileResolver(\n    Path.home() / \".config/qitos/credentials.yaml\",\n    repository_root=Path.cwd(),\n)\n# Pass resolver as credential_resolver to build_agent_composition."
+        },
+        {
+          "module": "qitos.config",
+          "name": "BudgetConfig",
+          "methods": [],
+          "example": "budget = BudgetConfig(max_steps=6, max_requests=6, max_runtime_seconds=30)"
+        },
+        {
+          "module": "qitos.config",
+          "name": "EnvironmentConfig",
+          "methods": [],
+          "example": "environment = EnvironmentConfig(workspace=\"./source\", image=\"python:3.12-slim\")"
+        },
+        {
+          "module": "qitos.config",
+          "name": "ModelConfig",
+          "methods": [],
+          "example": "model = ModelConfig(provider=\"openai_compatible\", model=\"notes-fake\")"
+        },
+        {
+          "module": "qitos.config",
+          "name": "RuntimeConfig",
+          "methods": [],
+          "example": "runtime = RuntimeConfig(environment=EnvironmentConfig(workspace=\"./source\"))"
+        },
+        {
+          "module": "qitos.config",
+          "name": "TrajectoryConfig",
+          "methods": [],
+          "example": "trajectory = TrajectoryConfig(output=\"./notes-run/trajectory.journal\")"
+        }
+      ]
+    },
+    {
+      "slug": "agent-runtime",
+      "tutorial": "guides/build-your-first-agent",
+      "symbols": [
+        {
+          "module": "qitos",
+          "name": "AgentModule",
+          "methods": [
+            "init_state",
+            "decide",
+            "reduce",
+            "should_stop",
+            "run"
+          ],
+          "example": "# NotesAgent subclasses AgentModule in the complete tutorial.\nagent = NotesAgent()\nresult = Engine(agent, runtime=RuntimeComposition()).session(\"Index notes\").run()"
+        },
+        {
+          "module": "qitos",
+          "name": "StateSchema",
+          "methods": [],
+          "example": "from dataclasses import dataclass\n@dataclass\nclass MyState(StateSchema):\n    completed: int = 0\nstate = MyState(task=\"Index notes\", max_steps=3)"
+        },
+        {
+          "module": "qitos",
+          "name": "Task",
+          "methods": [],
+          "example": "task = Task(objective=\"Index the notes\")\nprint(task.objective)"
+        },
+        {
+          "module": "qitos",
+          "name": "Decision",
+          "methods": [
+            "act",
+            "final"
+          ],
+          "example": "decision = Decision.act([Action(name=\"summarize_note\", args={\"index\": 0})])\nfinished = Decision.final(\"Session\")"
+        },
+        {
+          "module": "qitos",
+          "name": "Action",
+          "methods": [],
+          "example": "action = Action(name=\"summarize_note\", args={\"index\": 0})\nprint(action.name)"
+        },
+        {
+          "module": "qitos",
+          "name": "Engine",
+          "methods": [
+            "session",
+            "run",
+            "restore"
+          ],
+          "example": "engine = Engine(NotesAgent(), runtime=RuntimeComposition())\nresult = engine.session(\"Index notes\").run()"
+        },
+        {
+          "module": "qitos.engine.engine",
+          "name": "EngineResult",
+          "methods": [],
+          "example": "result = session.run()\nprint(result.state.final_result, result.state.stop_reason)\nfor record in result.records:\n    for tool_result in record.action_results:\n        print(tool_result.tool_name, tool_result.status)"
+        },
+        {
+          "module": "qitos.engine.states",
+          "name": "RuntimeBudget",
+          "methods": [],
+          "example": "budget = RuntimeBudget(max_steps=3)\nengine = Engine(NotesAgent(), budget=budget)"
+        },
+        {
+          "module": "qitos",
+          "name": "StopReason",
+          "methods": [],
+          "example": "print([reason.value for reason in StopReason])"
+        },
+        {
+          "module": "qitos.engine.runtime",
+          "name": "RuntimeComposition",
+          "methods": [],
+          "example": "runtime = RuntimeComposition()\nengine = Engine(NotesAgent(), runtime=runtime)\n# The default checkpoint store is process-local."
+        }
+      ]
+    },
+    {
+      "slug": "sessions",
+      "tutorial": "tutorials/checkpoint-and-fork",
+      "symbols": [
+        {
+          "module": "qitos.engine.session_runtime",
+          "name": "Session",
+          "methods": [
+            "run",
+            "inspect",
+            "pause",
+            "steer",
+            "fork",
+            "capabilities"
+          ],
+          "example": "session = composition.session(\"Index notes\")\nresult = session.run()\ninspection = session.inspect()\nprint(session.session_id.value, result.state.final_result)"
+        },
+        {
+          "module": "qitos.engine.session_runtime",
+          "name": "SessionInspection",
+          "methods": [],
+          "example": "inspection = session.inspect()\nprint(inspection.work_graph)"
+        },
+        {
+          "module": "qitos.checkpoint.store",
+          "name": "CheckpointStore",
+          "methods": [
+            "get_session_head",
+            "commit_session_snapshot"
+          ],
+          "example": "# From an open composition configured with SQLite:\nstore = composition.runtime.checkpoint_store\nhead = store.get_session_head(session.session_id.value)\nprint(head)"
+        }
+      ]
+    },
+    {
+      "slug": "tools",
+      "tutorial": "concepts/tools-and-registry",
+      "symbols": [
+        {
+          "module": "qitos",
+          "name": "ToolRegistry",
+          "methods": [
+            "register"
+          ],
+          "example": "registry = ToolRegistry()\nregistry.register(summarize_note)"
+        },
+        {
+          "module": "qitos.core.function_tool_decorator",
+          "name": "function_tool",
+          "methods": [],
+          "example": "@function_tool(read_only=True, concurrency_safe=True)\ndef title(text: str) -> str:\n    return text.split(\":\", 1)[0]"
+        },
+        {
+          "module": "qitos.core.tool",
+          "name": "BaseTool",
+          "methods": [
+            "execute"
+          ],
+          "example": "# Class tools implement execute, not the compatibility run method.\nclass EchoTool(BaseTool):\n    name = \"echo\"\n    description = \"Return a trusted input\"\n    def execute(self, args, runtime_context=None):\n        return ToolResult(output=args)"
+        },
+        {
+          "module": "qitos.core.tool_result",
+          "name": "ToolResult",
+          "methods": [],
+          "example": "result = ToolResult(output={\"title\": \"Session\"})\nprint(result.status, result.output, result.outcome_unknown)"
+        },
+        {
+          "module": "qitos.core.artifact",
+          "name": "ArtifactRef",
+          "methods": [
+            "from_dict"
+          ],
+          "example": "# ref is an ArtifactRef obtained from a tool result.\nprint(ref.sha256)\nbody = composition.agent.config[\"artifact_resolver\"].resolve(ref).body"
+        },
+        {
+          "module": "qitos.engine.action_executor",
+          "name": "ActionExecutionPolicy",
+          "methods": [],
+          "example": "policy = ActionExecutionPolicy(mode=\"parallel\", max_concurrency=2)\nengine = Engine(NotesAgent(), runtime=RuntimeComposition(), action_execution_policy=policy)"
+        },
+        {
+          "module": "qitos.kit.tool.internal.publication",
+          "name": "SandboxPublicationTool",
+          "methods": [
+            "execute"
+          ],
+          "example": "# Only after sandbox execution, with explicit publication authority:\npublication = SandboxPublicationTool(\n    composition.env, paths=[\"report.txt\"],\n    expected_input_digest=composition.env.input_digest,\n)\ncomposition.tool_registry.register(publication)"
+        }
+      ]
+    },
+    {
+      "slug": "context",
+      "tutorial": "guides/memory-and-history",
+      "symbols": [
+        {
+          "module": "qitos.core.context",
+          "name": "StaticContextContributor",
+          "methods": [],
+          "example": "contributor = StaticContextContributor(\"notes.project\", \"project\", \"Use supplied notes only.\")"
+        },
+        {
+          "module": "qitos.core.context",
+          "name": "PriorityContextSelectionPolicy",
+          "methods": [
+            "select"
+          ],
+          "example": "class AuditedSelector(PriorityContextSelectionPolicy):\n    def select(self, contributions, **options):\n        contributions = tuple(contributions)\n        print([item.contribution_id for item in contributions])\n        return super().select(contributions, **options)"
+        },
+        {
+          "module": "qitos.core.context",
+          "name": "DeclaredContextBudgetPolicy",
+          "methods": [],
+          "example": "policy = DeclaredContextBudgetPolicy(default_max_input_units=4096)"
+        },
+        {
+          "module": "qitos.core.request_view",
+          "name": "CompactionReceipt",
+          "methods": [],
+          "example": "# receipt is returned by the compactor in the context tutorial.\nprint(receipt.declared_losses, receipt.output_digest)"
+        },
+        {
+          "module": "qitos.engine.runtime",
+          "name": "LifecyclePolicy",
+          "methods": [
+            "should_pause"
+          ],
+          "example": "class PauseFirstTool(LifecyclePolicy):\n    policy_id = \"notes.pause\"\n    def should_pause(self, context):\n        return context.step_id == 0"
+        }
+      ]
+    },
+    {
+      "slug": "work-graph",
+      "tutorial": "guides/multi-agent-patterns",
+      "symbols": [
+        {
+          "module": "qitos.engine.session_runtime",
+          "name": "Session",
+          "methods": [
+            "delegate",
+            "spawn",
+            "fan_out",
+            "join",
+            "handoff"
+          ],
+          "example": "session = composition.session(\"Index notes\")\nresult = session.run()\ninspection = session.inspect()\nprint(session.session_id.value, result.state.final_result)"
+        },
+        {
+          "module": "qitos.core.work_graph",
+          "name": "WorkGraph",
+          "methods": [
+            "from_canonical_dict"
+          ],
+          "example": "graph = WorkGraph.from_canonical_dict(session.inspect().work_graph)\nprint(len(graph.completions), len(graph.joins))"
+        },
+        {
+          "module": "qitos.core.work_graph",
+          "name": "WorkItem",
+          "methods": [],
+          "example": "work = graph.work_items[session.work_item_id]\nprint(work.owner)"
+        },
+        {
+          "module": "qitos.core.work_graph",
+          "name": "WorkAttempt",
+          "methods": [],
+          "example": "from dataclasses import fields\nprint([field.name for field in fields(WorkAttempt)])"
+        },
+        {
+          "module": "qitos.engine.work_runtime",
+          "name": "DurableWorkRuntime",
+          "methods": [],
+          "example": "runtime = DurableWorkRuntime(LocalWorkScheduler(Resolver(), max_workers=2))\ncomposition.runtime.work_runtime = runtime"
+        },
+        {
+          "module": "qitos.engine.work_runtime",
+          "name": "LocalWorkScheduler",
+          "methods": [],
+          "example": "scheduler = LocalWorkScheduler(Resolver(), max_workers=2)\n# Resolver.resolve(descriptor) returns a bounded callable; see the full lesson."
+        },
+        {
+          "module": "qitos.engine.work_runtime",
+          "name": "WorkRuntimeError",
+          "methods": [],
+          "example": "try:\n    source.spawn(\"notes_agent\", task=\"Attempt after handoff\")\nexcept WorkRuntimeError as error:\n    print(error.code)"
+        }
+      ]
+    },
+    {
+      "slug": "trajectory",
+      "tutorial": "guides/observability",
+      "symbols": [
+        {
+          "module": "qitos.qita.reader",
+          "name": "default_reader",
+          "methods": [],
+          "example": "reader = default_reader(root)\ntrajectory = reader.read_session(identity, view=PrivacyView.RAW_PRIVATE)\nprint(len(trajectory.records))"
+        },
+        {
+          "module": "qitos.tracing.exporter",
+          "name": "CanonicalTrajectoryExporter",
+          "methods": [
+            "export",
+            "reimport"
+          ],
+          "example": "exporter = CanonicalTrajectoryExporter()\nexported = exporter.export(trajectory, view=PrivacyView.REDACTED_PUBLIC)\nprint(exported.loss.is_lossless)"
+        },
+        {
+          "module": "qitos.tracing.trajectory",
+          "name": "PrivacyView",
+          "methods": [],
+          "example": "view = PrivacyView.REDACTED_PUBLIC\nprint(view.value)"
+        }
+      ]
+    }
+  ]
+}

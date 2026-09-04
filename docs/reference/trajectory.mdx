@@ -1,0 +1,120 @@
+---
+title: "Trajectory and readers"
+description: "QitOS public API: trajectory"
+---
+
+default_reader selects the canonical journal and supported historical readers. Reading and replay are observation operations, not execution or recovery. Export with REDACTED_PUBLIC explicitly declares loss; reimporting the same count of records is not a raw-data equivalence proof. Reads currently materialize the full journal. The qit/qita command reference documents exact CLI usage and exit behavior.
+
+[完整可运行教程 / Complete tutorial](/guides/observability) · [API index](/reference/api)
+
+Signatures and fields below are extracted from the pinned source. Signatures are reference material, not standalone programs. Source links bind the same runtime baseline. Any does not imply arbitrary objects are supported; use the behavioral contract above and the linked tutorial.
+
+{/* api-reference:start */}
+
+<span id="qitos-qita-reader-default_reader" />
+## default_reader
+
+```python
+from qitos.qita.reader import default_reader
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/qita/reader.py#L12)
+
+[Usage and executable example](/guides/observability)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+reader = default_reader(root)
+trajectory = reader.read_session(identity, view=PrivacyView.RAW_PRIVATE)
+print(len(trajectory.records))
+```
+
+```text
+Select canonical data with bounded trace compatibility, or explicit rollback.
+```
+
+```text
+default_reader(root: str | Path, *, selector: str='trajectory') -> Any
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `root` | `str &#124; Path` | `required` |
+| `selector` | `str` | `'trajectory'` |
+
+
+<span id="qitos-tracing-exporter-canonicaltrajectoryexporter" />
+## CanonicalTrajectoryExporter
+
+```python
+from qitos.tracing.exporter import CanonicalTrajectoryExporter
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/tracing/exporter.py#L95)
+
+[Usage and executable example](/guides/observability)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+exporter = CanonicalTrajectoryExporter()
+exported = exporter.export(trajectory, view=PrivacyView.REDACTED_PUBLIC)
+print(exported.loss.is_lossless)
+```
+
+```text
+Canonical JSON exporter; exact for the selected projection.
+```
+
+<span id="qitos-tracing-exporter-canonicaltrajectoryexporter-export" />
+### CanonicalTrajectoryExporter.export
+
+```text
+export(trajectory: Trajectory, *, view: PrivacyView=PrivacyView.REDACTED_PUBLIC) -> ExportArtifact
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `trajectory` | `Trajectory` | `required` |
+| `view` | `PrivacyView` | `PrivacyView.REDACTED_PUBLIC` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/tracing/exporter.py#L111)
+
+<span id="qitos-tracing-exporter-canonicaltrajectoryexporter-reimport" />
+### CanonicalTrajectoryExporter.reimport
+
+```text
+reimport(artifact: ExportArtifact) -> Trajectory
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `artifact` | `ExportArtifact` | `required` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/tracing/exporter.py#L141)
+
+
+<span id="qitos-tracing-trajectory-privacyview" />
+## PrivacyView
+
+```python
+from qitos.tracing.trajectory import PrivacyView
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/tracing/trajectory.py#L91)
+
+[Usage and executable example](/guides/observability)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+view = PrivacyView.REDACTED_PUBLIC
+print(view.value)
+```
+
+```text
+Named projections over canonical raw data.
+```
+
+{/* api-reference:end */}

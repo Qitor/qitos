@@ -61,7 +61,7 @@ def symbol_text(item, baseline, chinese, tutorial):
     node, relative = definition(obj)
     title = anchor(module, name)
     text = [f'<span id="{title}" />', f"## {name}", "", f"```python\nfrom {module} import {name}\n```", "",
-            f"[Source @ {baseline[:7]}](https://github.com/WhitzardAgent/WhitzardOS/blob/{baseline}/{relative.as_posix()}#L{node.lineno})",
+            f"[Source @ {baseline[:7]}](https://github.com/WhitzardAgent/WhitzardOS/blob/{baseline}/{relative.as_posix()}#L{node.lineno})", "",
             f"[{'用法与可执行示例' if chinese else 'Usage and executable example'}]({'/zh/' if chinese else '/'}{tutorial})", ""]
     if item.get("example"):
         text += [("用法片段：接续上方完整教程中的对象，不是独立程序。" if chinese else

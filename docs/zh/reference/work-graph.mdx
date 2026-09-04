@@ -1,0 +1,350 @@
+---
+title: "多 Agent 工作"
+description: "QitOS public API: work-graph"
+---
+
+delegate/spawn/fan_out 返回 operation receipt，join 引用 operation ID。WorkGraph 记录所有权与 attempt，本身不执行 worker。LocalWorkScheduler 通过应用提供的 callable 解析 descriptor。handoff 改变同一 work item 的 owner 并阻止旧 source；fork 独立分支。转交接收不等于目标完成；教程在目标 restore 前串行完成同 head 的源回调，避开已记录的 owner CAS 冲突。
+
+[完整可运行教程 / Complete tutorial](/zh/guides/multi-agent-patterns) · [API index](/zh/reference/api)
+
+以下签名和字段由固定源码提取；签名是参考，不是可直接运行的程序。每个条目的源码链接绑定同一 runtime baseline。类型中的 Any 不代表任意对象均受支持，应结合上述行为契约和教程使用。
+
+{/* api-reference:start */}
+
+<span id="qitos-engine-session_runtime-session" />
+## Session
+
+```python
+from qitos.engine.session_runtime import Session
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/session_runtime.py#L119)
+
+[用法与可执行示例](/zh/guides/multi-agent-patterns)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+session = composition.session("Index notes")
+result = session.run()
+inspection = session.inspect()
+print(session.session_id.value, result.state.final_result)
+```
+
+```text
+Scoped client for one durable Session identity.
+
+The facade stores identifiers and cooperative control only. Agent state is
+reconstructed from the canonical snapshot and executed by ``Engine.run``.
+```
+
+```text
+Session(*, engine: 'Engine[Any, Any, Any]', session_id: SessionIdentity, run_id: RunIdentity, agent_id: AgentIdentity, references: Iterable[ResolverReference], created_at: str, state_type: type[StateSchema], work_item_id: WorkItemIdentity, attempt_id: AttemptIdentity, fork_receipt: Optional[SessionForkReceipt]=None) -> None
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `engine` | `'Engine[Any, Any, Any]'` | `required` |
+| `session_id` | `SessionIdentity` | `required` |
+| `run_id` | `RunIdentity` | `required` |
+| `agent_id` | `AgentIdentity` | `required` |
+| `references` | `Iterable[ResolverReference]` | `required` |
+| `created_at` | `str` | `required` |
+| `state_type` | `type[StateSchema]` | `required` |
+| `work_item_id` | `WorkItemIdentity` | `required` |
+| `attempt_id` | `AttemptIdentity` | `required` |
+| `fork_receipt` | `Optional[SessionForkReceipt]` | `None` |
+
+<span id="qitos-engine-session_runtime-session-delegate" />
+### Session.delegate
+
+```text
+delegate(agent: str, *, task: str, operation_id: str | None=None) -> Any
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `agent` | `str` | `required` |
+| `task` | `str` | `required` |
+| `operation_id` | `str &#124; None` | `None` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/session_runtime.py#L1122)
+
+<span id="qitos-engine-session_runtime-session-spawn" />
+### Session.spawn
+
+```text
+spawn(agent: str, *, task: str, operation_id: str | None=None) -> Any
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `agent` | `str` | `required` |
+| `task` | `str` | `required` |
+| `operation_id` | `str &#124; None` | `None` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/session_runtime.py#L1129)
+
+<span id="qitos-engine-session_runtime-session-fan-out" />
+### Session.fan_out
+
+```text
+fan_out(specs: Iterable[Mapping[str, Any]], *, operation_id: str | None=None) -> Any
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `specs` | `Iterable[Mapping[str, Any]]` | `required` |
+| `operation_id` | `str &#124; None` | `None` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/session_runtime.py#L1136)
+
+<span id="qitos-engine-session_runtime-session-join" />
+### Session.join
+
+```text
+join(children: Iterable[str], *, policy: str='all', quorum: int | None=None, reducer_ref: str | None=None, reducer_digest: str | None=None, operation_id: str | None=None) -> Any
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `children` | `Iterable[str]` | `required` |
+| `policy` | `str` | `'all'` |
+| `quorum` | `int &#124; None` | `None` |
+| `reducer_ref` | `str &#124; None` | `None` |
+| `reducer_digest` | `str &#124; None` | `None` |
+| `operation_id` | `str &#124; None` | `None` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/session_runtime.py#L1157)
+
+<span id="qitos-engine-session_runtime-session-handoff" />
+### Session.handoff
+
+```text
+handoff(agent: str, *, rationale: str='handoff', operation_id: str | None=None) -> Any
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `agent` | `str` | `required` |
+| `rationale` | `str` | `'handoff'` |
+| `operation_id` | `str &#124; None` | `None` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/session_runtime.py#L1148)
+
+
+<span id="qitos-core-work_graph-workgraph" />
+## WorkGraph
+
+```python
+from qitos.core.work_graph import WorkGraph
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/work_graph.py#L754)
+
+[用法与可执行示例](/zh/guides/multi-agent-patterns)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+graph = WorkGraph.from_canonical_dict(session.inspect().work_graph)
+print(len(graph.completions), len(graph.joins))
+```
+
+```text
+Versioned ownership graph and generation-checked record builder.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `graph_id` | `str` | `required` |
+| `work_items` | `Dict[WorkItemIdentity, WorkItem]` | `field(default_factory=dict)` |
+| `attempts` | `list[WorkAttempt]` | `field(default_factory=list)` |
+| `edges` | `list[WorkEdge]` | `field(default_factory=list)` |
+| `transfers` | `list[OwnershipTransfer]` | `field(default_factory=list)` |
+| `delegations` | `list[DelegationRecord]` | `field(default_factory=list)` |
+| `spawns` | `list[SpawnRecord]` | `field(default_factory=list)` |
+| `fan_out_groups` | `list[FanOutGroup]` | `field(default_factory=list)` |
+| `joins` | `list[JoinDependency]` | `field(default_factory=list)` |
+| `cancellations` | `list[CancellationRequest]` | `field(default_factory=list)` |
+| `detachments` | `list[DetachmentRecord]` | `field(default_factory=list)` |
+| `completions` | `list[WorkCompletion]` | `field(default_factory=list)` |
+| `late_results` | `list[LateResult]` | `field(default_factory=list)` |
+| `budget_allocations` | `list[BudgetAllocation]` | `field(default_factory=list)` |
+| `capability_allocations` | `list[CapabilityAllocation]` | `field(default_factory=list)` |
+| `operation_receipts` | `list[WorkOperationReceipt]` | `field(default_factory=list)` |
+| `schema_version` | `str` | `WORK_GRAPH_SCHEMA_VERSION` |
+
+<span id="qitos-core-work_graph-workgraph-from-canonical-dict" />
+### WorkGraph.from_canonical_dict
+
+```text
+from_canonical_dict(payload: Mapping[str, Any]) -> 'WorkGraph'
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `payload` | `Mapping[str, Any]` | `required` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/work_graph.py#L1263)
+
+
+<span id="qitos-core-work_graph-workitem" />
+## WorkItem
+
+```python
+from qitos.core.work_graph import WorkItem
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/work_graph.py#L214)
+
+[用法与可执行示例](/zh/guides/multi-agent-patterns)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+work = graph.work_items[session.work_item_id]
+print(work.owner)
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `work_item_id` | `WorkItemIdentity` | `required` |
+| `session_ref` | `SessionIdentity` | `required` |
+| `task_ref` | `str` | `required` |
+| `lifecycle` | `WorkLifecycle` | `required` |
+| `owner` | `WorkOwner` | `required` |
+| `parent_work_item_id` | `WorkItemIdentity \| None` | `None` |
+| `detached` | `bool` | `False` |
+| `budget_allocation_ref` | `str \| None` | `None` |
+| `capability_allocation_ref` | `str \| None` | `None` |
+| `context_transfer_ref` | `str \| None` | `None` |
+
+
+<span id="qitos-core-work_graph-workattempt" />
+## WorkAttempt
+
+```python
+from qitos.core.work_graph import WorkAttempt
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/work_graph.py#L193)
+
+[用法与可执行示例](/zh/guides/multi-agent-patterns)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+from dataclasses import fields
+print([field.name for field in fields(WorkAttempt)])
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `attempt_id` | `AttemptIdentity` | `required` |
+| `work_item_id` | `WorkItemIdentity` | `required` |
+| `owner_generation` | `int` | `required` |
+| `state` | `AttemptState` | `required` |
+| `worker_ref` | `str \| None` | `None` |
+
+
+<span id="qitos-engine-work_runtime-durableworkruntime" />
+## DurableWorkRuntime
+
+```python
+from qitos.engine.work_runtime import DurableWorkRuntime
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/work_runtime.py#L202)
+
+[用法与可执行示例](/zh/guides/multi-agent-patterns)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+runtime = DurableWorkRuntime(LocalWorkScheduler(Resolver(), max_workers=2))
+composition.runtime.work_runtime = runtime
+```
+
+```text
+Idempotent declaration/dispatch protocol over one canonical WorkGraph.
+```
+
+```text
+DurableWorkRuntime(scheduler: WorkScheduler, *, policy: WorkRuntimePolicy | None=None) -> None
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `scheduler` | `WorkScheduler` | `required` |
+| `policy` | `WorkRuntimePolicy &#124; None` | `None` |
+
+
+<span id="qitos-engine-work_runtime-localworkscheduler" />
+## LocalWorkScheduler
+
+```python
+from qitos.engine.work_runtime import LocalWorkScheduler
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/work_runtime.py#L134)
+
+[用法与可执行示例](/zh/guides/multi-agent-patterns)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+scheduler = LocalWorkScheduler(Resolver(), max_workers=2)
+# Resolver.resolve(descriptor) returns a bounded callable; see the full lesson.
+```
+
+```text
+Bounded local reference scheduler; futures are never persisted.
+```
+
+```text
+LocalWorkScheduler(resolver: WorkResolver, *, max_workers: int=4, queue_capacity: int=64) -> None
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `resolver` | `WorkResolver` | `required` |
+| `max_workers` | `int` | `4` |
+| `queue_capacity` | `int` | `64` |
+
+
+<span id="qitos-engine-work_runtime-workruntimeerror" />
+## WorkRuntimeError
+
+```python
+from qitos.engine.work_runtime import WorkRuntimeError
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/work_runtime.py#L24)
+
+[用法与可执行示例](/zh/guides/multi-agent-patterns)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+try:
+    source.spawn("notes_agent", task="Attempt after handoff")
+except WorkRuntimeError as error:
+    print(error.code)
+```
+
+```text
+Typed scheduler/admission/idempotency failure.
+```
+
+```text
+WorkRuntimeError(code: str, message: str, *, operation_id: str='') -> None
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `code` | `str` | `required` |
+| `message` | `str` | `required` |
+| `operation_id` | `str` | `''` |
+
+{/* api-reference:end */}

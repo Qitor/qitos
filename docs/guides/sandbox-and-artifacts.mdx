@@ -1,43 +1,314 @@
 ---
-title: "Sandbox and artifacts"
-description: "QitOS G5 · Sandbox and artifacts"
+title: "Sandbox, artifacts and publication"
+description: "Learn QitOS with complete, executable notes-project code."
 ---
 
-## Learning goal
+## Goal and prerequisites
 
-Run real Docker Env file/command tools, retain and resolve a large output by digest, then opt in to publication of answer.txt in a separate fixture.
+This chapter adds actual file and command tools. It therefore requires the Docker CLI, a running daemon, and the `python:3.12-slim` image. The fake model declares tool calls, but QitOS really executes them in Docker. The Python client runs on the host; its container has networking disabled.
 
-## Prerequisites
+Run once without publication. A source `report.txt` initially contains `original`; the sandbox writes `Session, Artifact`, generates 20,000 characters of output, pauses and restores. Artifact references are resolved and checked against their SHA-256 digests. The source report must remain unchanged after cleanup.
 
-Complete the [Quickstart](/quickstart) installation and lessons copy; base package, Python 3.12.7 tested, no real model requests.
+Run again in a different root with `--publish`. Only this invocation registers SandboxPublicationTool for the existing top-level `report.txt` and the attested input digest. Now the source report must change. The final assertion checks the container was removed in both cases.
 
-## Complete runnable example
+Basic Python is required. The package declares Python ≥3.10; local qualification uses Python 3.12.7. Each chapter runs independently; reuse the environment and matching files when continuing your project. Commands below use a macOS/Linux shell.
 
-[`examples/tutorials/sandbox_artifacts.py`](https://github.com/WhitzardAgent/WhitzardOS/blob/master/examples/tutorials/sandbox_artifacts.py)
+## Prepare the project
 
-The complete directory is the execution source. Sibling session_walkthrough.py is a public teaching dependency, not a repository test helper.
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install "qitos @ git+https://github.com/WhitzardAgent/WhitzardOS.git@60809b3be388d22ea40ea41b4aaa1f5540c76fda"
+mkdir notes_lesson
+cd notes_lesson
+```
+
+Save the complete files below in this directory. No repository clone, editable install, or copied tests are needed.
+
+## Run and verify
 
 ```bash
 docker info
 docker pull python:3.12-slim
-python lessons/sandbox_artifacts.py --root ./sandbox-retained
-python lessons/sandbox_artifacts.py --root ./sandbox-published --publish
+python sandbox.py --root sandbox-private
+python sandbox.py --root sandbox-published --publish
 ```
 
-## Expected output and assertions
+Expected output fragments (generated IDs vary). Each run verifies tool results or persistence assertions and exits 0 on success.
 
-`docker=true; artifacts>0; container_absent=true; published=false then true`
+```text
+"published": false
+"published": true
+```
 
-Assertions in the file verify the result; generated IDs vary. Commands exit zero; stop the board with Ctrl-C.
+## Behavior and support boundaries
 
-## Support boundaries
+Cleanup never implies publication. Publication is limited to the supported existing top-level regular-file shape on the qualified Docker platform; it is not arbitrary directory synchronization. Missing Docker is a preflight/environment failure; never switch these file tools to unsafe host.
 
-Docker CLI/daemon and python:3.12-slim are required; [docker] does not install a daemon. These commands create only new tutorial directories. Cleanup retains output and never publishes it. --publish explicitly registers authority for one top-level regular file and its expected input digest; the composition approval policy applies. Current publication requires supported POSIX descriptor operations (qualified here on macOS), rejects links/nested/special/protected paths and source conflicts. Docker is not a VM guarantee.
+## Exercise and answer
 
-## Common errors
+Change the report text and its assertions together. The private run must still preserve `original`, while the explicitly published run must match the new text.
 
-Choose a new root if the directory already exists. For missing imports verify the installed source. Inspect Trajectory and the migration page for config mismatch, missing extensions or typed failures; never silently retry unknown external effects.
+## Common errors and cleanup
 
-## Next step
+`ModuleNotFoundError`: activate the environment with the specified installation and save every file on this page. Existing run root: choose a new `--root` instead of overwriting evidence. Assertion failure: inspect the first failed tool or typed error, not only the final text. After all processes and the board stop, remove only this lesson’s newly created run directories if no longer needed; retain SQLite, journals and reports you want to debug.
 
-[Learning path](/tutorials/index) · [Migration and troubleshooting](/reference/g5-migration)
+{/* tutorial-files:start */}
+
+## Complete files: save in the project root
+
+```python title="notes.py"
+"""Synthetic notes; fake model, real tools, composition, Session and journal."""
+import argparse
+from dataclasses import replace
+import json
+from pathlib import Path
+
+from qitos.config import build_agent_composition, load_agent_config
+from qitos.core.function_tool_decorator import function_tool
+from qitos.engine.runtime import LifecyclePolicy
+
+# docs:start fixture
+NOTES = (
+    "Session: A durable session can resume after a process exits.",
+    "Artifact: Large tool outputs can be retained outside model context.",
+)
+
+
+@function_tool(read_only=True, concurrency_safe=True)
+def summarize_note(index: int) -> dict:
+    """Extract a title and word count from a synthetic in-memory note."""
+    text = NOTES[index]
+    return {"title": text.split(":", 1)[0], "words": len(text.split())}
+# docs:end fixture
+
+
+# docs:start provider
+class FakeProvider:
+    """Scripted responses; this does not summarize or reason like a real model."""
+    model = "notes-fake"
+    qitos_protocol = "react_text_v1"
+
+    def __init__(self, start=0):
+        self.stage = start
+
+    def call_raw(self, messages, **options):
+        if self.stage < len(NOTES):
+            content = f"Thought: inspect a note\nAction: summarize_note(index={self.stage})"
+        else:
+            content = "Final Answer: Indexed 2 notes: Session, Artifact."
+        self.stage += 1
+        return {"choices": [{"message": {"content": content}}]}
+# docs:end provider
+
+
+class PauseAfterTool(LifecyclePolicy):
+    policy_id = "notes.pause_after_tool"
+
+    def should_pause(self, context):
+        return context.step_id == 0
+
+
+# docs:start composition
+def configuration(root):
+    config = load_agent_config(Path(__file__).with_name("agent.yaml"))
+    return replace(config, runtime=replace(
+        config.runtime, data_root=str(root / "data"),
+        environment=replace(config.runtime.environment, workspace=str(root)),
+        session=replace(config.runtime.session, path=str(root / "sessions.sqlite3")),
+        trajectory=replace(config.runtime.trajectory, output=str(root / "trajectory.journal")),
+    ))
+
+
+def compose(root, *, start=0, pause=False):
+    config = configuration(root)
+    if pause:
+        config = replace(config, lifecycle={"policy": "pause"})
+    composition = build_agent_composition(
+        config, model_override=FakeProvider(start), extensions={"pause": PauseAfterTool},
+    )
+    composition.tool_registry.register(summarize_note)
+    return composition
+# docs:end composition
+
+
+# docs:start run
+def run(root):
+    root.mkdir(parents=True, exist_ok=False)
+    with compose(root) as composition:
+        session = composition.session("Index both synthetic notes")
+        result = session.run()
+        outputs = [action.output for record in result.records for action in record.action_results
+                   if action.tool_name == "summarize_note"]
+        assert [output["title"] for output in outputs] == ["Session", "Artifact"]
+        assert result.state.final_result == "Indexed 2 notes: Session, Artifact."
+        config = composition.config.to_dict()
+        config["runtime"]["environment"] = {"type": "unsafe_host", "workspace": str(root)}
+        (root / "agent.json").write_text(json.dumps(config), encoding="utf-8")
+        control = {"session_id": session.session_id.value, "run_id": result.run_id}
+        (root / "control.json").write_text(json.dumps(control), encoding="utf-8")
+        print(json.dumps({**control, "result": result.state.final_result, "outputs": outputs}))
+# docs:end run
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=Path("notes-run"))
+    run(parser.parse_args().root.resolve())
+```
+
+```yaml title="agent.yaml"
+schema: qitos.agent
+agent:
+  name: notes_agent
+  protocol: react_text_v1
+model:
+  provider: openai_compatible
+  model: notes-fake
+  credential:
+    ref: notes-provider
+  request:
+    max_tokens: 512
+    timeout_seconds: 30
+    retries: 0
+tools:
+  preset: none
+runtime:
+  environment:
+    type: unsafe_host
+    workspace: .
+  session:
+    mode: durable
+    store: sqlite
+    path: ./notes-run/sessions.sqlite3
+  trajectory:
+    enabled: true
+    output: ./notes-run/trajectory.journal
+budgets:
+  max_steps: 6
+  max_requests: 6
+  max_runtime_seconds: 30
+failure_policy:
+  tool: fail_closed
+```
+
+```python title="sandbox.py"
+"""Real Docker lesson: retained output and opt-in top-level file publication.
+
+Uses a fake provider but real Env tools, Session, artifact store and reader.
+Only --publish registers publication authority over report.txt in a new fixture.
+"""
+import argparse
+import hashlib
+import json
+from pathlib import Path
+
+from qitos.config import (
+    AgentConfig, BudgetConfig, EnvironmentConfig, ModelConfig, RuntimeConfig,
+    TrajectoryConfig, build_agent_composition,
+)
+from qitos.core.artifact import ArtifactRef
+from notes import PauseAfterTool
+from qitos.kit.tool.internal.publication import SandboxPublicationTool
+from qitos.qita.reader import default_reader
+from qitos.tracing.trajectory import PrivacyView
+
+
+class FakeProvider:
+    model = "sandbox-tutorial-fake"
+    qitos_protocol = "json_decision_multi_v1"
+
+    def __init__(self, publish, stage=0):
+        self.actions = [
+            ("write_file", {"path": "report.txt", "content": "Session, Artifact\n"}),
+            ("run_command", {"command": "python3 -c 'print(\"x\" * 20000)'", "timeout": 10}),
+        ]
+        if publish:
+            self.actions.append(("publish_workspace", {}))
+        self.stage = stage
+
+    def call_raw(self, messages, **options):
+        if self.stage == len(self.actions):
+            return {"choices": [{"message": {"content": "Final Answer: sandbox lesson complete"}}]}
+        name, args = self.actions[self.stage]
+        self.stage += 1
+        return {"choices": [{"message": {"content": None, "tool_calls": [{
+            "id": f"lesson-{self.stage}", "type": "function",
+            "function": {"name": name, "arguments": json.dumps(args)},
+        }]}}]}
+
+
+def references(value):
+    if isinstance(value, dict):
+        if value.get("schema_version") == "qitos.artifact_ref/v1":
+            yield ArtifactRef.from_dict(value)
+        for item in value.values():
+            yield from references(item)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            yield from references(item)
+
+
+def run(root: Path, image: str, publish: bool):
+    root.mkdir(parents=True, exist_ok=False)
+    source = root / "source"
+    source.mkdir()
+    (source / "report.txt").write_text("original\n", encoding="utf-8")
+    config = AgentConfig(
+        lifecycle={"policy": "pause"},
+        name="sandbox-lesson", protocol="json_decision_multi_v1", tool_preset="env_coding",
+        model=ModelConfig(provider="openai_compatible", model="sandbox-tutorial-fake"),
+        tool_options={"native_tool_calls_required": True},
+        budgets=BudgetConfig(max_steps=6, max_requests=6, max_runtime_seconds=60),
+        runtime=RuntimeConfig(
+            data_root=str(root / "data"),
+            trajectory=TrajectoryConfig(output=str(root / "trajectory.journal")),
+            environment=EnvironmentConfig(workspace=str(source), image=image,
+                                          cpus=0.5, memory_mb=256, pids_limit=32)),
+    )
+    with build_agent_composition(config, model_override=FakeProvider(publish),
+                                 extensions={"pause": PauseAfterTool}) as composition:
+        session = composition.session("Write the notes report and retain a large output")
+        session.run()
+        assert session.lifecycle.value == "paused"
+        identity = session.session_id.value
+    assert (source / "report.txt").read_text() == "original\n"
+    with build_agent_composition(config, model_override=FakeProvider(publish, stage=1),
+                                 extensions={"pause": PauseAfterTool}) as composition:
+        session = composition.restore(identity)
+        if publish:
+            composition.tool_registry.register(SandboxPublicationTool(
+                composition.env, paths=["report.txt"],
+                expected_input_digest=composition.env.input_digest,
+            ))
+        result = session.run()
+        assert result.state.final_result == "sandbox lesson complete", repr(result.state.final_result)
+        trajectory = default_reader(root).read_session(session.session_id.value, view=PrivacyView.RAW_PRIVATE)
+        artifacts = [ref for record in trajectory.records for ref in references(record.payload)]
+        assert artifacts
+        for ref in artifacts:
+            body = composition.agent.config["artifact_resolver"].resolve(ref).body
+            assert body is not None and hashlib.sha256(body).hexdigest() == ref.sha256
+        assert (source / "report.txt").read_text() == ("Session, Artifact\n" if publish else "original\n")
+    assert composition.env.cleanup_receipt["container_absent"] is True
+    assert (source / "report.txt").read_text() == ("Session, Artifact\n" if publish else "original\n")
+    print(json.dumps({"docker": True, "published": publish, "artifacts": len(artifacts),
+                      "container_absent": True, "session_id": session.session_id.value}))
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, required=True)
+    parser.add_argument("--image", default="python:3.12-slim")
+    parser.add_argument("--publish", action="store_true")
+    args = parser.parse_args()
+    run(args.root.resolve(), args.image, args.publish)
+```
+
+{/* tutorial-files:end */}
+
+## Next step and API
+
+[API Reference](/reference/api) · [Configuration](/reference/configuration) · [Learning path](/tutorials/index) · [Next](/guides/multi-agent-patterns)
+
+[Source file](https://github.com/WhitzardAgent/WhitzardOS/blob/master/examples/tutorials/notes/sandbox.py) (optional; all required code is already on this page).

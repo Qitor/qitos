@@ -143,3 +143,13 @@ Legend: **P0** structural risk (blocks refactors / can break imports), **P1** im
 - No removal of the v1 trace format before the trajectory data plane (v4/05) lands a versioned replacement.
 - No repository-wide mechanical lint/type cleanup in the same PR as runtime behavior changes; Task 08 uses a ratchet.
 - No generic `utils.py`/`common.py`; consolidation follows a named contract owner.
+
+## Documentation-discovered handoff scheduling boundary
+
+At runtime source 60809b3, a same-Session handoff destination that restores inside
+the source LocalWorkScheduler callback can claim the head before the source
+terminal callback persists, causing an owner CAS conflict. The teaching example
+serializes transfer admission, source cleanup and destination execution. Concurrent
+same-head dispatch requires separate runtime investigation; see
+[reproduction and scope](../internal/plans/docs_self_contained_learning.md).
+No runtime or ownership checks were weakened for the tutorial.

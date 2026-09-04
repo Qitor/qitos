@@ -1,40 +1,240 @@
 ---
-title: "Third-party extensions"
-description: "QitOS G5 · Third-party extensions"
+title: "Replace a provider and add context"
+description: "Learn QitOS with complete, executable notes-project code."
 ---
 
-## Learning goal
+## Goal and prerequisites
 
-Replace context selection and compaction through structural extension factories; inspect the fake provider and pure tool in session_walkthrough.py as minimal teaching adapters.
+A composition accepts a public model override and explicitly named extension factories. `ObservedFakeProvider` preserves the callable interface, counts actual requests and asserts the selected project context appears in each request. It then delegates to the visible deterministic provider.
 
-## Prerequisites
+The project contributor is a factory returning StaticContextContributor. Its registration name matches `context.contributors`. This avoids imports from arbitrary names embedded in YAML and keeps executable extension selection under application control.
 
-Complete the [Quickstart](/quickstart) installation and lessons copy; base package, Python 3.12.7 tested, no real model requests.
+This is a complete provider substitution and context integration example, not a new transport client. For a real provider, use the matching configuration and explicit credential resolver described in Configuration. Consult the extension index before replacing stores, sinks or sandboxes: preserving a Python method signature alone does not preserve their durability and security contracts.
 
-## Complete runnable example
+Basic Python is required. The package declares Python ≥3.10; local qualification uses Python 3.12.7. Each chapter runs independently; reuse the environment and matching files when continuing your project. Commands below use a macOS/Linux shell.
 
-[`examples/tutorials/context_memory.py`](https://github.com/WhitzardAgent/WhitzardOS/blob/master/examples/tutorials/context_memory.py)
-
-The complete directory is the execution source. Sibling session_walkthrough.py is a public teaching dependency, not a repository test helper.
+## Prepare the project
 
 ```bash
-python lessons/context_memory.py --root ./extensions-run
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install "qitos @ git+https://github.com/WhitzardAgent/WhitzardOS.git@60809b3be388d22ea40ea41b4aaa1f5540c76fda"
+mkdir notes_lesson
+cd notes_lesson
 ```
 
-## Expected output and assertions
+Save the complete files below in this directory. No repository clone, editable install, or copied tests are needed.
 
-`context selected; memory selected; compaction loss recorded`
+## Run and verify
 
-Assertions in the file verify the result; generated IDs vary. Commands exit zero; stop the board with Ctrl-C.
+```bash
+python provider_extension.py --root extension-run
+```
 
-## Support boundaries
+Expected output fragments (generated IDs vary). Each run verifies tool results or persistence assertions and exits 0 on success.
 
-A fake call_raw adapter proves only the compatibility teaching path. A real provider must declare target/capabilities, codec, transport, failure normalization and supported continuation/streaming. Replace CheckpointStore and EventSink through RuntimeComposition, sandbox through its conformance contract, and evaluator through its public protocol. Each replacement needs its own conformance tests; changing a class name does not establish security or durability.
+```text
+provider replaced; context observed; requests=3
+```
 
-## Common errors
+## Behavior and support boundaries
 
-Choose a new root if the directory already exists. For missing imports verify the installed source. Inspect Trajectory and the migration page for config mismatch, missing extensions or typed failures; never silently retry unknown external effects.
+No provider is universally compatible. Codec, continuation, tool schema and loss policy must agree. Inspect typed failures; do not disable loss checks to accept an incompatible response.
 
-## Next step
+## Exercise and answer
 
-[Learning path](/tutorials/index) · [Migration and troubleshooting](/reference/g5-migration)
+Rename the contributor key in both config and extensions. Leaving only one side changed must produce a configuration/extension failure.
+
+## Common errors and cleanup
+
+`ModuleNotFoundError`: activate the environment with the specified installation and save every file on this page. Existing run root: choose a new `--root` instead of overwriting evidence. Assertion failure: inspect the first failed tool or typed error, not only the final text. After all processes and the board stop, remove only this lesson’s newly created run directories if no longer needed; retain SQLite, journals and reports you want to debug.
+
+{/* tutorial-files:start */}
+
+## Complete files: save in the project root
+
+```python title="notes.py"
+"""Synthetic notes; fake model, real tools, composition, Session and journal."""
+import argparse
+from dataclasses import replace
+import json
+from pathlib import Path
+
+from qitos.config import build_agent_composition, load_agent_config
+from qitos.core.function_tool_decorator import function_tool
+from qitos.engine.runtime import LifecyclePolicy
+
+# docs:start fixture
+NOTES = (
+    "Session: A durable session can resume after a process exits.",
+    "Artifact: Large tool outputs can be retained outside model context.",
+)
+
+
+@function_tool(read_only=True, concurrency_safe=True)
+def summarize_note(index: int) -> dict:
+    """Extract a title and word count from a synthetic in-memory note."""
+    text = NOTES[index]
+    return {"title": text.split(":", 1)[0], "words": len(text.split())}
+# docs:end fixture
+
+
+# docs:start provider
+class FakeProvider:
+    """Scripted responses; this does not summarize or reason like a real model."""
+    model = "notes-fake"
+    qitos_protocol = "react_text_v1"
+
+    def __init__(self, start=0):
+        self.stage = start
+
+    def call_raw(self, messages, **options):
+        if self.stage < len(NOTES):
+            content = f"Thought: inspect a note\nAction: summarize_note(index={self.stage})"
+        else:
+            content = "Final Answer: Indexed 2 notes: Session, Artifact."
+        self.stage += 1
+        return {"choices": [{"message": {"content": content}}]}
+# docs:end provider
+
+
+class PauseAfterTool(LifecyclePolicy):
+    policy_id = "notes.pause_after_tool"
+
+    def should_pause(self, context):
+        return context.step_id == 0
+
+
+# docs:start composition
+def configuration(root):
+    config = load_agent_config(Path(__file__).with_name("agent.yaml"))
+    return replace(config, runtime=replace(
+        config.runtime, data_root=str(root / "data"),
+        environment=replace(config.runtime.environment, workspace=str(root)),
+        session=replace(config.runtime.session, path=str(root / "sessions.sqlite3")),
+        trajectory=replace(config.runtime.trajectory, output=str(root / "trajectory.journal")),
+    ))
+
+
+def compose(root, *, start=0, pause=False):
+    config = configuration(root)
+    if pause:
+        config = replace(config, lifecycle={"policy": "pause"})
+    composition = build_agent_composition(
+        config, model_override=FakeProvider(start), extensions={"pause": PauseAfterTool},
+    )
+    composition.tool_registry.register(summarize_note)
+    return composition
+# docs:end composition
+
+
+# docs:start run
+def run(root):
+    root.mkdir(parents=True, exist_ok=False)
+    with compose(root) as composition:
+        session = composition.session("Index both synthetic notes")
+        result = session.run()
+        outputs = [action.output for record in result.records for action in record.action_results
+                   if action.tool_name == "summarize_note"]
+        assert [output["title"] for output in outputs] == ["Session", "Artifact"]
+        assert result.state.final_result == "Indexed 2 notes: Session, Artifact."
+        config = composition.config.to_dict()
+        config["runtime"]["environment"] = {"type": "unsafe_host", "workspace": str(root)}
+        (root / "agent.json").write_text(json.dumps(config), encoding="utf-8")
+        control = {"session_id": session.session_id.value, "run_id": result.run_id}
+        (root / "control.json").write_text(json.dumps(control), encoding="utf-8")
+        print(json.dumps({**control, "result": result.state.final_result, "outputs": outputs}))
+# docs:end run
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=Path("notes-run"))
+    run(parser.parse_args().root.resolve())
+```
+
+```yaml title="agent.yaml"
+schema: qitos.agent
+agent:
+  name: notes_agent
+  protocol: react_text_v1
+model:
+  provider: openai_compatible
+  model: notes-fake
+  credential:
+    ref: notes-provider
+  request:
+    max_tokens: 512
+    timeout_seconds: 30
+    retries: 0
+tools:
+  preset: none
+runtime:
+  environment:
+    type: unsafe_host
+    workspace: .
+  session:
+    mode: durable
+    store: sqlite
+    path: ./notes-run/sessions.sqlite3
+  trajectory:
+    enabled: true
+    output: ./notes-run/trajectory.journal
+budgets:
+  max_steps: 6
+  max_requests: 6
+  max_runtime_seconds: 30
+failure_policy:
+  tool: fail_closed
+```
+
+```python title="provider_extension.py"
+"""Replace the provider and inject context, without changing the kernel."""
+import argparse
+from dataclasses import replace
+from pathlib import Path
+
+from notes import FakeProvider, configuration, summarize_note
+from qitos.config import build_agent_composition
+from qitos.core.context import StaticContextContributor
+
+
+class ObservedFakeProvider(FakeProvider):
+    """Keep the public provider call shape and validate selected context."""
+    def __init__(self):
+        super().__init__()
+        self.requests = 0
+
+    def call_raw(self, messages, **options):
+        assert "notes-project-context" in str(messages)
+        self.requests += 1
+        return super().call_raw(messages, **options)
+
+
+def run(root):
+    root.mkdir(parents=True, exist_ok=False)
+    config = replace(configuration(root), context={"contributors": ["project"]})
+    provider = ObservedFakeProvider()
+    with build_agent_composition(config, model_override=provider, extensions={
+        "project": lambda: StaticContextContributor("notes.project", "project", "notes-project-context"),
+    }) as composition:
+        composition.tool_registry.register(summarize_note)
+        result = composition.session("Index both notes").run()
+        assert result.state.final_result == "Indexed 2 notes: Session, Artifact."
+        assert provider.requests == 3
+    print("provider replaced; context observed; requests=3")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, required=True)
+    run(parser.parse_args().root.resolve())
+```
+
+{/* tutorial-files:end */}
+
+## Next step and API
+
+[API Reference](/reference/api) · [Configuration](/reference/configuration) · [Learning path](/tutorials/index) · [Next](/quickstart)
+
+[Source file](https://github.com/WhitzardAgent/WhitzardOS/blob/master/examples/tutorials/notes/provider_extension.py) (optional; all required code is already on this page).

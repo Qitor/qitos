@@ -1,388 +1,88 @@
 ---
-title: "API 参考"
-description: "QitOS 公开 Python API 的完整参考。这里列出的符号都从 `qitos` 顶层导出。"
+title: "API Reference"
+description: "Core public Python API, CLI and extension contracts."
 ---
 
-本页列出的符号都可以直接这样导入：
-
-Signature reference (not executable):
-
-```text
-from qitos import AgentModule, Engine, Decision, ...
-```
-
----
-
-<AccordionGroup>
-
-<Accordion title="AgentModule">
-
-`AgentModule` 是 QitOS 的策略层。你通过继承它来定义智能体的状态形状、系统提示词、决策逻辑与归约规则；真正的执行循环由 `Engine`（执行内核）驱动。
-
-Signature reference (not executable):
-
-```text
-class AgentModule(ABC, Generic[StateT, ObservationT, ActionT])
-```
-
-**构造函数**
-
-Signature reference (not executable):
-
-```text
-def __init__(
-    self,
-    tool_registry: Any = None,
-    llm: Any = None,
-    model_parser: Any = None,
-    memory: Memory | None = None,
-    history: History | None = None,
-    **config: Any,
-)
-```
-
-| 参数 | 类型 | 说明 |
-|---|---|---|
-| `tool_registry` | `ToolRegistry \| None` | 智能体可调用的工具注册表 |
-| `llm` | `Any` | 用于默认模型决策路径的大模型可调用对象 |
-| `model_parser` | `Any` | 解析器，把输出解析成 `Decision`（智能体每步的结构化决策） |
-| `memory` | `Memory \| None` | 可选记忆适配器 |
-| `history` | `History \| None` | 可选历史适配器 |
-| `**config` | `Any` | 额外关键字参数，保存在 `self.config` |
-
-**钩子**
-
-只要求实现 `init_state` 与 `reduce`；其余钩子全部可选。
-
-<AccordionGroup>
-<Accordion title="init_state（必需）">
-
-Signature reference (not executable):
-
-```text
-def init_state(self, task: str, **kwargs: Any) -> StateT
-```
-
-创建并返回本次运行的初始状态。
-
-</Accordion>
-
-<Accordion title="reduce（必需）">
-
-Signature reference (not executable):
-
-```text
-def reduce(
-    self,
-    state: StateT,
-    observation: ObservationT,
-    decision: Decision[ActionT],
-) -> StateT
-```
-
-把当前观测结果（每步后智能体接收的结构化观察结果）与决策（智能体每步的结构化决策）折叠进下一步状态。
-
-</Accordion>
-
-<Accordion title="build_system_prompt">
-
-Signature reference (not executable):
-
-```text
-def build_system_prompt(self, state: StateT) -> str | None
-```
-
-返回动态系统提示词；默认返回 `None`。
-
-</Accordion>
-
-<Accordion title="prepare">
-
-Signature reference (not executable):
-
-```text
-def prepare(self, state: StateT) -> str
-```
-
-把状态转成模型输入文本；默认是 `str(state)`。
-
-</Accordion>
-
-<Accordion title="decide">
-
-Signature reference (not executable):
-
-```text
-def decide(
-    self,
-    state: StateT,
-    observation: ObservationT,
-) -> Decision[ActionT] | None
-```
-
-自定义决策钩子。返回 `Decision` 时跳过默认模型调用；返回 `None` 时继续走 Engine 的模型路径。
-
-</Accordion>
-
-<Accordion title="should_stop">
-
-Signature reference (not executable):
-
-```text
-def should_stop(self, state: StateT) -> bool
-```
-
-额外停止条件；默认返回 `False`。
-
-</Accordion>
-</AccordionGroup>
-
-**`.run()` 方法**
-
-Signature reference (not executable):
-
-```text
-def run(
-    self,
-    task: str | Task,
-    return_state: bool = False,
-    hooks: List[Any] | None = None,
-    render_hooks: List[Any] | None = None,
-    engine_kwargs: Dict[str, Any] | None = None,
-    workspace: str | None = None,
-    max_steps: int | None = None,
-    env: Any = None,
-    parser: Any = None,
-    search: Any = None,
-    critics: List[Any] | None = None,
-    stop_criteria: List[Any] | None = None,
-    history_policy: Any = None,
-    trace: Any = None,
-    render: Any = None,
-    trace_logdir: str = "./runs",
-    trace_prefix: str | None = None,
-    theme: str = "research",
-    **state_kwargs: Any,
-) -> Any
-```
-
-这是最常用入口。它会构建 `Engine`、执行任务，并默认返回 `state.final_result`；当 `return_state=True` 时，返回完整 `EngineResult`。
-
-</Accordion>
-
-<Accordion title="Engine">
-
-`Engine` 是执行内核，负责阶段循环、工具执行、恢复、追踪与停止条件评估。
-
-Signature reference (not executable):
-
-```text
-class Engine(Generic[StateT, ObservationT, ActionT])
-```
-
-核心构造参数包括：
-
-- `agent`
-- `budget`（预算）
-- `parser`
-- `stop_criteria`
-- `critics`（评估器）
-- `env`
-- `history_policy`
-- `trace_writer`
-- `hooks`（钩子）
-
-最常用方法：
-
-Signature reference (not executable):
-
-```text
-def run(self, task: str | Task, **kwargs: Any) -> EngineResult[StateT]
-```
-
-</Accordion>
-
-<Accordion title="EngineResult">
-
-示意片段（非独立程序；完整执行文件见本页链接）。
-
-```python
-@dataclass
-class EngineResult(Generic[StateT]):
-    state: StateT
-    records: List[StepRecord]
-    events: List[RuntimeEvent]
-    step_count: int
-    task_result: Optional[TaskResult] = None
-```
-
-其中：
-
-- `state`：最终强类型状态
-- `records`：每步 `StepRecord`
-- `events`：所有运行时事件
-- `step_count`：执行步数
-- `task_result`：结构化任务结果
-
-</Accordion>
-
-<Accordion title="AsyncEngine">
-
-`AsyncEngine` 提供非阻塞的智能体执行能力。它封装了同样的 `Engine` 循环，但把阻塞调用放到线程池中执行，适用于 `asyncio` 事件循环。
-
-Signature reference (not executable):
-
-```text
-class AsyncEngine(Generic[StateT, ObservationT, ActionT])
-```
-
-**构造函数**
-
-Signature reference (not executable):
-
-```text
-def __init__(
-    self,
-    agent: AgentModule[StateT, ObservationT, ActionT],
-    **engine_kwargs: Any,
-)
-```
-
-所有关键字参数会转发给内部的 `Engine` 构造函数（参数与 `Engine.__init__` 相同）。
-
-**方法**
-
-Signature reference (not executable):
-
-```text
-async def arun(self, task: str | Task, **kwargs: Any) -> EngineResult[StateT]
-```
-
-异步执行智能体循环，返回与 `Engine.run()` 相同的 `EngineResult`。
-
----
-
-Signature reference (not executable):
-
-```text
-async def arun_stream(self, task: str | Task, **kwargs: Any) -> AsyncIterator[EngineEvent]
-```
-
-异步执行智能体循环，并实时产出 `EngineEvent` 对象。流以 `run_start` 开始，以 `run_end` 结束。
-
----
-
-Signature reference (not executable):
-
-```text
-def run(self, task: str | Task, **kwargs: Any) -> EngineResult[StateT]
-```
-
-同步回退——委托给底层 `Engine.run()`。
-
-**属性**
-
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| `engine` | `Engine` | 底层同步 Engine 实例 |
-| `agent` | `AgentModule` | 等同于 `engine.agent` |
-| `event_stream` | `EventStream \| None` | `arun_stream()` 运行期间的活动事件流，否则为 `None` |
-
-</Accordion>
-
-<Accordion title="EngineEvent / EngineEventType / EventStream">
-
-`EngineEvent` 是 `AsyncEngine.arun_stream()` 产出的结构化事件。
-
-示意片段（非独立程序；完整执行文件见本页链接）。
-
-```python
-class EngineEventType(str, Enum):
-    STEP_START = "step_start"
-    STEP_END = "step_end"
-    DECIDE = "decide"
-    ACT = "act"
-    REDUCE = "reduce"
-    CRITIC = "critic"
-    CHECK_STOP = "check_stop"
-    HANDOFF = "handoff"
-    DELEGATE = "delegate"
-    FANOUT = "fanout"
-    ERROR = "error"
-    RUN_START = "run_start"
-    RUN_END = "run_end"
-    # ... 完整列表见 EngineEventType
-```
-
-示意片段（非独立程序；完整执行文件见本页链接）。
-
-```python
-@dataclass
-class EngineEvent:
-    event_type: EngineEventType
-    step_id: int = 0
-    agent_id: Optional[str] = None
-    phase: Optional[RuntimePhase] = None
-    ok: bool = True
-    payload: Dict[str, Any] = field(default_factory=dict)
-    error: Optional[str] = None
-    ts: str
-```
-
-`EventStream` 是一个异步兼容的事件队列，用于消费引擎事件：
-
-Signature reference (not executable):
-
-```text
-class EventStream:
-    def emit(self, event: EngineEvent) -> None       # 线程安全发送
-    def emit_sync(self, event: EngineEvent) -> None   # 同步调用者别名
-    def close(self) -> None                            # 发出流结束信号
-    async def __aiter__(self) -> AsyncIterator[EngineEvent]
-    def subscribe(self) -> asyncio.Queue               # 扇出消费
-```
-
-</Accordion>
-
-<Accordion title="Decision">
-
-`Decision` 是决策阶段的规范输出（智能体每步的结构化决策）。推荐用工厂方法构造：
-
-示意片段（非独立程序；完整执行文件见本页链接）。
-
-```python
-Decision.act(...)
-Decision.final(...)
-Decision.wait(...)
-Decision.branch(...)
-```
-
-四种模式分别对应：
-
-- `"act"`：执行动作（标准化工具调用）
-- `"final"`：给出最终答案并结束
-- `"wait"`：本步不执行动作
-- `"branch"`：提出多个候选决策
-
-</Accordion>
-
-<Accordion title="Task / State / Action">
-
-常用基础数据结构包括：
-
-- `StateSchema`
-- `Task`
-- `TaskBudget`
-- `TaskResource`
-- `Action`
-- `StopReason`
-
-它们共同定义了一次运行的输入、状态与输出语义。
-
-当 Engine 已识别立即取消请求时，`StopReason.CANCELLED_IMMEDIATE` 会把
-`"cancelled_immediate"` 同步写入最终 State、任务/运行结果与 END event；对应的
-trace manifest 使用终态 `status="stopped"`，而不是正常完成状态。
-
-</Accordion>
-
-</AccordionGroup>
+按用户任务查找当前公共 API。每个分类包含固定源码签名、参数类型与默认值、用法片段、行为边界，以及对应完整教程。并非所有符号都从 `qitos` 根包导出，请使用条目显示的准确 import。
+
+- [配置与组合](/zh/reference/composition)
+- [Agent 与执行](/zh/reference/agent-runtime)
+- [Session 与持久化](/zh/reference/sessions)
+- [工具、结果与 artifact](/zh/reference/tools)
+- [Context 与 memory 契约](/zh/reference/context)
+- [多 Agent 工作](/zh/reference/work-graph)
+- [Trajectory 与 reader](/zh/reference/trajectory)
+- [CLI](/zh/reference/cli)
+- [Configuration](/zh/reference/configuration)
+- [Extension index](/zh/reference/extensions)
+
+## 符号索引
+
+- [`qitos.config.AgentComposition`](/zh/reference/composition#qitos-config-agentcomposition)
+- [`qitos.config.build_agent_composition`](/zh/reference/composition#qitos-config-build_agent_composition)
+- [`qitos.config.load_agent_config`](/zh/reference/composition#qitos-config-load_agent_config)
+- [`qitos.config.AgentConfig`](/zh/reference/composition#qitos-config-agentconfig)
+- [`qitos.config.CredentialRef`](/zh/reference/composition#qitos-config-credentialref)
+- [`qitos.config.LocalCredentialFileResolver`](/zh/reference/composition#qitos-config-localcredentialfileresolver)
+- [`qitos.config.BudgetConfig`](/zh/reference/composition#qitos-config-budgetconfig)
+- [`qitos.config.EnvironmentConfig`](/zh/reference/composition#qitos-config-environmentconfig)
+- [`qitos.config.ModelConfig`](/zh/reference/composition#qitos-config-modelconfig)
+- [`qitos.config.RuntimeConfig`](/zh/reference/composition#qitos-config-runtimeconfig)
+- [`qitos.config.TrajectoryConfig`](/zh/reference/composition#qitos-config-trajectoryconfig)
+- [`qitos.AgentModule`](/zh/reference/agent-runtime#qitos-agentmodule)
+- [`qitos.StateSchema`](/zh/reference/agent-runtime#qitos-stateschema)
+- [`qitos.Task`](/zh/reference/agent-runtime#qitos-task)
+- [`qitos.Decision`](/zh/reference/agent-runtime#qitos-decision)
+- [`qitos.Action`](/zh/reference/agent-runtime#qitos-action)
+- [`qitos.Engine`](/zh/reference/agent-runtime#qitos-engine)
+- [`qitos.engine.engine.EngineResult`](/zh/reference/agent-runtime#qitos-engine-engine-engineresult)
+- [`qitos.engine.states.RuntimeBudget`](/zh/reference/agent-runtime#qitos-engine-states-runtimebudget)
+- [`qitos.StopReason`](/zh/reference/agent-runtime#qitos-stopreason)
+- [`qitos.engine.runtime.RuntimeComposition`](/zh/reference/agent-runtime#qitos-engine-runtime-runtimecomposition)
+- [`qitos.engine.session_runtime.Session`](/zh/reference/sessions#qitos-engine-session_runtime-session)
+- [`qitos.engine.session_runtime.SessionInspection`](/zh/reference/sessions#qitos-engine-session_runtime-sessioninspection)
+- [`qitos.checkpoint.store.CheckpointStore`](/zh/reference/sessions#qitos-checkpoint-store-checkpointstore)
+- [`qitos.ToolRegistry`](/zh/reference/tools#qitos-toolregistry)
+- [`qitos.core.function_tool_decorator.function_tool`](/zh/reference/tools#qitos-core-function_tool_decorator-function_tool)
+- [`qitos.core.tool.BaseTool`](/zh/reference/tools#qitos-core-tool-basetool)
+- [`qitos.core.tool_result.ToolResult`](/zh/reference/tools#qitos-core-tool_result-toolresult)
+- [`qitos.core.artifact.ArtifactRef`](/zh/reference/tools#qitos-core-artifact-artifactref)
+- [`qitos.engine.action_executor.ActionExecutionPolicy`](/zh/reference/tools#qitos-engine-action_executor-actionexecutionpolicy)
+- [`qitos.kit.tool.internal.publication.SandboxPublicationTool`](/zh/reference/tools#qitos-kit-tool-internal-publication-sandboxpublicationtool)
+- [`qitos.core.context.StaticContextContributor`](/zh/reference/context#qitos-core-context-staticcontextcontributor)
+- [`qitos.core.context.PriorityContextSelectionPolicy`](/zh/reference/context#qitos-core-context-prioritycontextselectionpolicy)
+- [`qitos.core.context.DeclaredContextBudgetPolicy`](/zh/reference/context#qitos-core-context-declaredcontextbudgetpolicy)
+- [`qitos.core.request_view.CompactionReceipt`](/zh/reference/context#qitos-core-request_view-compactionreceipt)
+- [`qitos.engine.runtime.LifecyclePolicy`](/zh/reference/context#qitos-engine-runtime-lifecyclepolicy)
+- [`qitos.engine.session_runtime.Session`](/zh/reference/work-graph#qitos-engine-session_runtime-session)
+- [`qitos.core.work_graph.WorkGraph`](/zh/reference/work-graph#qitos-core-work_graph-workgraph)
+- [`qitos.core.work_graph.WorkItem`](/zh/reference/work-graph#qitos-core-work_graph-workitem)
+- [`qitos.core.work_graph.WorkAttempt`](/zh/reference/work-graph#qitos-core-work_graph-workattempt)
+- [`qitos.engine.work_runtime.DurableWorkRuntime`](/zh/reference/work-graph#qitos-engine-work_runtime-durableworkruntime)
+- [`qitos.engine.work_runtime.LocalWorkScheduler`](/zh/reference/work-graph#qitos-engine-work_runtime-localworkscheduler)
+- [`qitos.engine.work_runtime.WorkRuntimeError`](/zh/reference/work-graph#qitos-engine-work_runtime-workruntimeerror)
+- [`qitos.qita.reader.default_reader`](/zh/reference/trajectory#qitos-qita-reader-default_reader)
+- [`qitos.tracing.exporter.CanonicalTrajectoryExporter`](/zh/reference/trajectory#qitos-tracing-exporter-canonicaltrajectoryexporter)
+- [`qitos.tracing.trajectory.PrivacyView`](/zh/reference/trajectory#qitos-tracing-trajectory-privacyview)
+
+## 兼容与历史
+
+[Migration](/zh/reference/g5-migration) · [Previous reference archive](/zh/reference/legacy-api)
+
+<span id="agentmodule" />
+
+<span id="engine" />
+
+<span id="asyncengine" />
+
+<span id="decision" />
+
+<span id="action" />
+
+<span id="stateschema" />
+
+<span id="task" />
+
+<span id="toolregistry" />
+
+<span id="toolresult" />

@@ -1,0 +1,120 @@
+---
+title: "Trajectory 与 reader"
+description: "QitOS public API: trajectory"
+---
+
+default_reader 选择 canonical journal 和支持的历史 reader。读取与回放是观察，不执行或恢复 Agent。REDACTED_PUBLIC 导出明确声明损失；重新导入后记录数相同不能证明 raw 数据等价。当前读取会全量加载 journal。qit/qita 命令参考说明 CLI 的实际用法与退出行为。
+
+[完整可运行教程 / Complete tutorial](/zh/guides/observability) · [API index](/zh/reference/api)
+
+以下签名和字段由固定源码提取；签名是参考，不是可直接运行的程序。每个条目的源码链接绑定同一 runtime baseline。类型中的 Any 不代表任意对象均受支持，应结合上述行为契约和教程使用。
+
+{/* api-reference:start */}
+
+<span id="qitos-qita-reader-default_reader" />
+## default_reader
+
+```python
+from qitos.qita.reader import default_reader
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/qita/reader.py#L12)
+
+[用法与可执行示例](/zh/guides/observability)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+reader = default_reader(root)
+trajectory = reader.read_session(identity, view=PrivacyView.RAW_PRIVATE)
+print(len(trajectory.records))
+```
+
+```text
+Select canonical data with bounded trace compatibility, or explicit rollback.
+```
+
+```text
+default_reader(root: str | Path, *, selector: str='trajectory') -> Any
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `root` | `str &#124; Path` | `required` |
+| `selector` | `str` | `'trajectory'` |
+
+
+<span id="qitos-tracing-exporter-canonicaltrajectoryexporter" />
+## CanonicalTrajectoryExporter
+
+```python
+from qitos.tracing.exporter import CanonicalTrajectoryExporter
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/tracing/exporter.py#L95)
+
+[用法与可执行示例](/zh/guides/observability)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+exporter = CanonicalTrajectoryExporter()
+exported = exporter.export(trajectory, view=PrivacyView.REDACTED_PUBLIC)
+print(exported.loss.is_lossless)
+```
+
+```text
+Canonical JSON exporter; exact for the selected projection.
+```
+
+<span id="qitos-tracing-exporter-canonicaltrajectoryexporter-export" />
+### CanonicalTrajectoryExporter.export
+
+```text
+export(trajectory: Trajectory, *, view: PrivacyView=PrivacyView.REDACTED_PUBLIC) -> ExportArtifact
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `trajectory` | `Trajectory` | `required` |
+| `view` | `PrivacyView` | `PrivacyView.REDACTED_PUBLIC` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/tracing/exporter.py#L111)
+
+<span id="qitos-tracing-exporter-canonicaltrajectoryexporter-reimport" />
+### CanonicalTrajectoryExporter.reimport
+
+```text
+reimport(artifact: ExportArtifact) -> Trajectory
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `artifact` | `ExportArtifact` | `required` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/tracing/exporter.py#L141)
+
+
+<span id="qitos-tracing-trajectory-privacyview" />
+## PrivacyView
+
+```python
+from qitos.tracing.trajectory import PrivacyView
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/tracing/trajectory.py#L91)
+
+[用法与可执行示例](/zh/guides/observability)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+view = PrivacyView.REDACTED_PUBLIC
+print(view.value)
+```
+
+```text
+Named projections over canonical raw data.
+```
+
+{/* api-reference:end */}

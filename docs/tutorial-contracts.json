@@ -1,37 +1,363 @@
 {
-  "runtime_baseline": "717b4cf1b23f2ed252cd03234ffd8605038d9567",
+  "runtime_baseline": "60809b3be388d22ea40ea41b4aaa1f5540c76fda",
+  "historical_g5_baseline": "717b4cf1b23f2ed252cd03234ffd8605038d9567",
   "units": [
     {
+      "page": "quickstart",
+      "example": "examples/tutorials/notes/notes.py",
+      "source_dir": "examples/tutorials/notes",
+      "files": [
+        {
+          "source": "examples/tutorials/notes/notes.py",
+          "target": "notes.py"
+        },
+        {
+          "source": "examples/tutorials/notes/agent.yaml",
+          "target": "agent.yaml"
+        }
+      ],
+      "commands": [
+        [
+          "python",
+          "notes.py",
+          "--root",
+          "notes-run"
+        ]
+      ],
+      "expected": [
+        "Indexed 2 notes: Session, Artifact."
+      ],
+      "runtime": "offline",
+      "scaffold": true
+    },
+    {
       "page": "guides/build-your-first-agent",
-      "example": "examples/tutorials/custom_agent.py"
+      "example": "examples/tutorials/notes/custom_agent.py",
+      "source_dir": "examples/tutorials/notes",
+      "files": [
+        {
+          "source": "examples/tutorials/notes/notes.py",
+          "target": "notes.py"
+        },
+        {
+          "source": "examples/tutorials/notes/agent.yaml",
+          "target": "agent.yaml"
+        },
+        {
+          "source": "examples/tutorials/notes/custom_agent.py",
+          "target": "custom_agent.py"
+        }
+      ],
+      "commands": [
+        [
+          "python",
+          "custom_agent.py"
+        ]
+      ],
+      "expected": [
+        "sequential: Session, Artifact",
+        "parallel: Session, Artifact"
+      ],
+      "runtime": "offline",
+      "scaffold": false
     },
     {
       "page": "concepts/tools-and-registry",
-      "example": "examples/tutorials/custom_agent.py"
+      "example": "examples/tutorials/notes/parallel.py",
+      "source_dir": "examples/tutorials/notes",
+      "files": [
+        {
+          "source": "examples/tutorials/notes/notes.py",
+          "target": "notes.py"
+        },
+        {
+          "source": "examples/tutorials/notes/agent.yaml",
+          "target": "agent.yaml"
+        },
+        {
+          "source": "examples/tutorials/notes/custom_agent.py",
+          "target": "custom_agent.py"
+        },
+        {
+          "source": "examples/tutorials/notes/parallel.py",
+          "target": "parallel.py"
+        }
+      ],
+      "commands": [
+        [
+          "python",
+          "custom_agent.py"
+        ],
+        [
+          "python",
+          "parallel.py"
+        ]
+      ],
+      "expected": [
+        "completion=[1, 0]; declaration=[0, 1]"
+      ],
+      "runtime": "offline",
+      "scaffold": false
     },
     {
       "page": "tutorials/checkpoint-and-fork",
-      "example": "examples/tutorials/session_walkthrough.py"
+      "example": "examples/tutorials/notes/lifecycle.py",
+      "source_dir": "examples/tutorials/notes",
+      "files": [
+        {
+          "source": "examples/tutorials/notes/notes.py",
+          "target": "notes.py"
+        },
+        {
+          "source": "examples/tutorials/notes/agent.yaml",
+          "target": "agent.yaml"
+        },
+        {
+          "source": "examples/tutorials/notes/lifecycle.py",
+          "target": "lifecycle.py"
+        }
+      ],
+      "commands": [
+        [
+          "python",
+          "lifecycle.py",
+          "create",
+          "--root",
+          "session-run"
+        ],
+        [
+          "python",
+          "lifecycle.py",
+          "restore",
+          "--root",
+          "session-run"
+        ]
+      ],
+      "expected": [
+        "paused after first note",
+        "fork left parent head unchanged"
+      ],
+      "runtime": "offline",
+      "scaffold": false
     },
     {
       "page": "guides/memory-and-history",
-      "example": "examples/tutorials/context_memory.py"
+      "example": "examples/tutorials/notes/context.py",
+      "source_dir": "examples/tutorials/notes",
+      "files": [
+        {
+          "source": "examples/tutorials/notes/notes.py",
+          "target": "notes.py"
+        },
+        {
+          "source": "examples/tutorials/notes/agent.yaml",
+          "target": "agent.yaml"
+        },
+        {
+          "source": "examples/tutorials/notes/context.py",
+          "target": "context.py"
+        }
+      ],
+      "commands": [
+        [
+          "python",
+          "context.py",
+          "--root",
+          "context-run"
+        ]
+      ],
+      "expected": [
+        "compaction loss recorded"
+      ],
+      "runtime": "offline",
+      "scaffold": false
     },
     {
       "page": "guides/sandbox-and-artifacts",
-      "example": "examples/tutorials/sandbox_artifacts.py"
+      "example": "examples/tutorials/notes/sandbox.py",
+      "source_dir": "examples/tutorials/notes",
+      "files": [
+        {
+          "source": "examples/tutorials/notes/notes.py",
+          "target": "notes.py"
+        },
+        {
+          "source": "examples/tutorials/notes/agent.yaml",
+          "target": "agent.yaml"
+        },
+        {
+          "source": "examples/tutorials/notes/sandbox.py",
+          "target": "sandbox.py"
+        }
+      ],
+      "commands": [
+        [
+          "python",
+          "sandbox.py",
+          "--root",
+          "sandbox-private"
+        ],
+        [
+          "python",
+          "sandbox.py",
+          "--root",
+          "sandbox-published",
+          "--publish"
+        ]
+      ],
+      "expected": [
+        "\"published\": false",
+        "\"published\": true"
+      ],
+      "runtime": "docker",
+      "scaffold": false
     },
     {
       "page": "guides/multi-agent-patterns",
-      "example": "examples/tutorials/work_graph.py"
+      "example": "examples/tutorials/notes/handoff.py",
+      "source_dir": "examples/tutorials/notes",
+      "files": [
+        {
+          "source": "examples/tutorials/notes/notes.py",
+          "target": "notes.py"
+        },
+        {
+          "source": "examples/tutorials/notes/agent.yaml",
+          "target": "agent.yaml"
+        },
+        {
+          "source": "examples/tutorials/notes/multi_agent.py",
+          "target": "multi_agent.py"
+        },
+        {
+          "source": "examples/tutorials/notes/handoff.py",
+          "target": "handoff.py"
+        }
+      ],
+      "commands": [
+        [
+          "python",
+          "multi_agent.py",
+          "--root",
+          "work-run"
+        ],
+        [
+          "python",
+          "handoff.py",
+          "--root",
+          "handoff-run"
+        ]
+      ],
+      "expected": [
+        "durable children=4; join=closed",
+        "handoff destination ran"
+      ],
+      "runtime": "offline",
+      "scaffold": false
     },
     {
       "page": "guides/observability",
-      "example": "examples/tutorials/session_walkthrough.py"
+      "example": "examples/tutorials/notes/inspect_run.py",
+      "source_dir": "examples/tutorials/notes",
+      "files": [
+        {
+          "source": "examples/tutorials/notes/notes.py",
+          "target": "notes.py"
+        },
+        {
+          "source": "examples/tutorials/notes/agent.yaml",
+          "target": "agent.yaml"
+        },
+        {
+          "source": "examples/tutorials/notes/inspect_run.py",
+          "target": "inspect_run.py"
+        }
+      ],
+      "commands": [
+        [
+          "python",
+          "notes.py",
+          "--root",
+          "notes-run"
+        ],
+        [
+          "python",
+          "inspect_run.py",
+          "--root",
+          "notes-run"
+        ]
+      ],
+      "expected": [
+        "\"records\":"
+      ],
+      "runtime": "offline",
+      "scaffold": false
     },
     {
       "page": "guides/third-party-extensions",
-      "example": "examples/tutorials/context_memory.py"
+      "example": "examples/tutorials/notes/provider_extension.py",
+      "source_dir": "examples/tutorials/notes",
+      "files": [
+        {
+          "source": "examples/tutorials/notes/notes.py",
+          "target": "notes.py"
+        },
+        {
+          "source": "examples/tutorials/notes/agent.yaml",
+          "target": "agent.yaml"
+        },
+        {
+          "source": "examples/tutorials/notes/provider_extension.py",
+          "target": "provider_extension.py"
+        }
+      ],
+      "commands": [
+        [
+          "python",
+          "provider_extension.py",
+          "--root",
+          "extension-run"
+        ]
+      ],
+      "expected": [
+        "provider replaced; context observed; requests=3"
+      ],
+      "runtime": "offline",
+      "scaffold": false
+    },
+    {
+      "page": "reference/configuration",
+      "example": "examples/tutorials/notes/real_notes.py",
+      "source_dir": "examples/tutorials/notes",
+      "files": [
+        {
+          "source": "examples/tutorials/notes/agent.yaml",
+          "target": "agent.yaml"
+        },
+        {
+          "source": "examples/tutorials/notes/notes.py",
+          "target": "notes.py"
+        },
+        {
+          "source": "examples/tutorials/notes/real_agent.yaml",
+          "target": "real_agent.yaml"
+        },
+        {
+          "source": "examples/tutorials/notes/real_notes.py",
+          "target": "real_notes.py"
+        }
+      ],
+      "commands": [
+        [
+          "python",
+          "real_notes.py"
+        ]
+      ],
+      "expected": [
+        "configuration valid; no credentials read; no model request"
+      ],
+      "runtime": "offline",
+      "scaffold": false
     }
   ]
 }

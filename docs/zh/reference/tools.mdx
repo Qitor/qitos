@@ -1,0 +1,356 @@
+---
+title: "工具、结果与 artifact"
+description: "QitOS public API: tools"
+---
+
+运行前注册工具。类工具契约是 execute(args, runtime_context)，run 仅兼容。检查 ToolResult 的 status、error_code、output、artifact_refs、outcome_unknown 和 worker_still_running，不能只看文本。并行需要真实的并发安全声明；完成顺序不等于声明顺序。publication 需显式授权并受平台和文件形状限制，cleanup 不发布。SandboxPublicationTool 虽位于 internal 模块，但在本教程作为显式注册的高级适配器使用，不是默认工具。
+
+[完整可运行教程 / Complete tutorial](/zh/concepts/tools-and-registry) · [API index](/zh/reference/api)
+
+以下签名和字段由固定源码提取；签名是参考，不是可直接运行的程序。每个条目的源码链接绑定同一 runtime baseline。类型中的 Any 不代表任意对象均受支持，应结合上述行为契约和教程使用。
+
+{/* api-reference:start */}
+
+<span id="qitos-toolregistry" />
+## ToolRegistry
+
+```python
+from qitos import ToolRegistry
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/tool_registry.py#L20)
+
+[用法与可执行示例](/zh/concepts/tools-and-registry)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+registry = ToolRegistry()
+registry.register(summarize_note)
+```
+
+```text
+Registry for function tools, bound methods, tool objects, and ToolSets.
+```
+
+```text
+ToolRegistry(*, auto_short_aliases: bool=True) -> Any (see behavior contract)
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `auto_short_aliases` | `bool` | `True` |
+
+<span id="qitos-toolregistry-register" />
+### ToolRegistry.register
+
+```text
+register(item: Any, name: Optional[str]=None, meta: Optional[ToolMeta]=None) -> 'ToolRegistry'
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `item` | `Any` | `required` |
+| `name` | `Optional[str]` | `None` |
+| `meta` | `Optional[ToolMeta]` | `None` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/tool_registry.py#L32)
+
+
+<span id="qitos-core-function_tool_decorator-function_tool" />
+## function_tool
+
+```python
+from qitos.core.function_tool_decorator import function_tool
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/function_tool_decorator.py#L11)
+
+[用法与可执行示例](/zh/concepts/tools-and-registry)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+@function_tool(read_only=True, concurrency_safe=True)
+def title(text: str) -> str:
+    return text.split(":", 1)[0]
+```
+
+```text
+Decorator that creates a :class:`FunctionTool` from a plain function.
+
+Can be used with or without parentheses::
+
+    @function_tool
+    def greet(name: str) -> str: ...
+
+    @function_tool(name="custom", needs_approval=True)
+    def greet(name: str) -> str: ...
+
+Returns a :class:`FunctionTool` instance.
+```
+
+```text
+function_tool(func: Optional[Callable[..., Any]]=None, *, name: Optional[str]=None, description: Optional[str]=None, timeout_s: Optional[float]=None, max_retries: int=0, retry_policy: Optional[RetryPolicy]=None, on_failure: Optional[Callable]=None, read_only: bool=False, concurrency_safe: Optional[bool]=None, needs_approval: bool=False, **extra_meta: Any) -> Any
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `func` | `Optional[Callable[..., Any]]` | `None` |
+| `name` | `Optional[str]` | `None` |
+| `description` | `Optional[str]` | `None` |
+| `timeout_s` | `Optional[float]` | `None` |
+| `max_retries` | `int` | `0` |
+| `retry_policy` | `Optional[RetryPolicy]` | `None` |
+| `on_failure` | `Optional[Callable]` | `None` |
+| `read_only` | `bool` | `False` |
+| `concurrency_safe` | `Optional[bool]` | `None` |
+| `needs_approval` | `bool` | `False` |
+
+
+<span id="qitos-core-tool-basetool" />
+## BaseTool
+
+```python
+from qitos.core.tool import BaseTool
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/tool.py#L611)
+
+[用法与可执行示例](/zh/concepts/tools-and-registry)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+# Class tools implement execute, not the compatibility run method.
+class EchoTool(BaseTool):
+    name = "echo"
+    description = "Return a trusted input"
+    def execute(self, args, runtime_context=None):
+        return ToolResult(output=args)
+```
+
+```text
+Base abstraction for callable tools.
+```
+
+```text
+BaseTool(spec: ToolSpec) -> Any (see behavior contract)
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `spec` | `ToolSpec` | `required` |
+
+<span id="qitos-core-tool-basetool-execute" />
+### BaseTool.execute
+
+```text
+execute(args: Dict[str, Any], runtime_context: Optional[Dict[str, Any]]=None) -> Any
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `args` | `Dict[str, Any]` | `required` |
+| `runtime_context` | `Optional[Dict[str, Any]]` | `None` |
+
+```text
+Execute tool with optional runtime context.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/tool.py#L706)
+
+
+<span id="qitos-core-tool_result-toolresult" />
+## ToolResult
+
+```python
+from qitos.core.tool_result import ToolResult
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/tool_result.py#L547)
+
+[用法与可执行示例](/zh/concepts/tools-and-registry)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+result = ToolResult(output={"title": "Session"})
+print(result.status, result.output, result.outcome_unknown)
+```
+
+```text
+Lossless terminal outcome for one declared action/tool slot.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `status` | `ToolResultStatus` | `'success'` |
+| `output` | `Any` | `None` |
+| `error` | `str \| None` | `None` |
+| `metadata` | `Dict[str, Any]` | `field(default_factory=dict)` |
+| `tool_name` | `str \| None` | `None` |
+| `action_id` | `str \| None` | `None` |
+| `model_output` | `Any` | `None` |
+| `error_kind` | `ToolErrorKind \| None` | `None` |
+| `error_code` | `str \| None` | `None` |
+| `recoverable` | `bool` | `False` |
+| `recovery_hint` | `str \| None` | `None` |
+| `next_action` | `Dict[str, Any] \| None` | `None` |
+| `complete` | `bool` | `True` |
+| `truncated` | `bool` | `False` |
+| `omitted` | `Dict[str, int]` | `field(default_factory=dict)` |
+| `attempts` | `int` | `1` |
+| `latency_ms` | `float` | `0.0` |
+| `declared_effects` | `list[Dict[str, Any]]` | `field(default_factory=list)` |
+| `filesystem_changes` | `list[Dict[str, Any]]` | `field(default_factory=list)` |
+| `artifact_refs` | `tuple[ArtifactRef, ...]` | `()` |
+| `normalized_request` | `Dict[str, Any]` | `field(default_factory=dict)` |
+| `provenance` | `Dict[str, Any]` | `field(default_factory=dict)` |
+| `worker_still_running` | `bool` | `False` |
+| `attempt_id` | `AttemptIdentity \| None` | `None` |
+| `effect_ref` | `str \| None` | `None` |
+| `effect_state` | `EffectState` | `'no_effect_declared'` |
+| `idempotency_ref` | `str \| None` | `None` |
+| `retry_disposition` | `RetryDisposition` | `'not_evaluated'` |
+| `reconciliation_required` | `bool` | `False` |
+| `outcome_unknown` | `bool` | `False` |
+| `late_result` | `bool` | `False` |
+| `owner_generation` | `int \| None` | `None` |
+| `stale_owner` | `bool` | `False` |
+| `batch_closure` | `Dict[str, Any]` | `field(default_factory=dict)` |
+| `schema_version` | `str` | `TOOL_RESULT_SCHEMA_VERSION` |
+
+
+<span id="qitos-core-artifact-artifactref" />
+## ArtifactRef
+
+```python
+from qitos.core.artifact import ArtifactRef
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/artifact.py#L78)
+
+[用法与可执行示例](/zh/concepts/tools-and-registry)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+# ref is an ArtifactRef obtained from a tool result.
+print(ref.sha256)
+body = composition.agent.config["artifact_resolver"].resolve(ref).body
+```
+
+```text
+Portable content-addressed pointer; never an artifact body or host path.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `artifact_id` | `str` | `required` |
+| `resolver_key` | `str` | `required` |
+| `sha256` | `str` | `required` |
+| `media_type` | `str` | `required` |
+| `byte_length` | `int` | `required` |
+| `encoding` | `str` | `'binary'` |
+| `sensitivity` | `str` | `'internal'` |
+| `provenance_digest` | `Optional[str]` | `None` |
+| `model_summary` | `Optional[str]` | `None` |
+| `required` | `bool` | `True` |
+| `schema_version` | `str` | `ARTIFACT_REF_SCHEMA_VERSION` |
+
+<span id="qitos-core-artifact-artifactref-from-dict" />
+### ArtifactRef.from_dict
+
+```text
+from_dict(value: Any) -> 'ArtifactRef'
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `value` | `Any` | `required` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/artifact.py#L159)
+
+
+<span id="qitos-engine-action_executor-actionexecutionpolicy" />
+## ActionExecutionPolicy
+
+```python
+from qitos.engine.action_executor import ActionExecutionPolicy
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/action.py#L145)
+
+[用法与可执行示例](/zh/concepts/tools-and-registry)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+policy = ActionExecutionPolicy(mode="parallel", max_concurrency=2)
+engine = Engine(NotesAgent(), runtime=RuntimeComposition(), action_execution_policy=policy)
+```
+
+```text
+Executor policy for action batches.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `mode` | `str` | `'serial'` |
+| `fail_fast` | `bool` | `False` |
+| `max_concurrency` | `int` | `4` |
+| `parallel_tool_names` | `FrozenSet[str] \| None` | `None` |
+
+
+<span id="qitos-kit-tool-internal-publication-sandboxpublicationtool" />
+## SandboxPublicationTool
+
+```python
+from qitos.kit.tool.internal.publication import SandboxPublicationTool
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/kit/tool/internal/publication.py#L15)
+
+[用法与可执行示例](/zh/concepts/tools-and-registry)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+# Only after sandbox execution, with explicit publication authority:
+publication = SandboxPublicationTool(
+    composition.env, paths=["report.txt"],
+    expected_input_digest=composition.env.input_digest,
+)
+composition.tool_registry.register(publication)
+```
+
+```text
+Opt-in tool restricted to paths and input digest approved by its caller.
+```
+
+```text
+SandboxPublicationTool(env: Any, *, paths: Iterable[str], expected_input_digest: str) -> Any (see behavior contract)
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `env` | `Any` | `required` |
+| `paths` | `Iterable[str]` | `required` |
+| `expected_input_digest` | `str` | `required` |
+
+<span id="qitos-kit-tool-internal-publication-sandboxpublicationtool-execute" />
+### SandboxPublicationTool.execute
+
+```text
+execute(args: Any, runtime_context: Any=None) -> ToolResult
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `args` | `Any` | `required` |
+| `runtime_context` | `Any` | `None` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/kit/tool/internal/publication.py#L33)
+
+{/* api-reference:end */}
