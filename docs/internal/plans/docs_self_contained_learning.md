@@ -27,7 +27,8 @@ No real model requests. Browser rendering and deployment are separate gates.
 ## Progress
 
 - Isolated worktree created from the accepted baseline; concurrent V5 drafts retained.
-- Implementation in progress; no qualification or deployment claimed yet.
+- Implementation and local qualification complete; see docs_self_contained_qualification.md.
+- PR checks and live publication are the remaining promotion gates.
 
 ## Discovered boundary: handoff callback versus destination restore
 
@@ -47,3 +48,14 @@ cleanup, and destination restore. It never labels admission as destination task
 completion; a separate subprocess assertion proves destination execution.
 Runtime was not changed. Concurrent same-head handoff scheduling needs a separate
 framework investigation; do not claim this lesson qualifies that behavior.
+
+## Documentation design sources
+
+- https://docs.pytorch.org/tutorials/beginner/basics/quickstart_tutorial.html:
+  task progression, adjacent code/results and complete source.
+- https://docs.pytorch.org/docs/2.14/generated/torch.nn.Module.html:
+  symbol signatures, arguments, examples and source links.
+- https://fastapi.tiangolo.com/tutorial/first-steps/: complete named files,
+  startup commands and user-visible verification.
+- https://docs.sqlalchemy.org/en/20/tutorial/: unified learning sequence with
+  explicit relationships between high-level composition and lower-level APIs.
