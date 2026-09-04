@@ -63,30 +63,35 @@ class JournalTrajectoryStore:
         *,
         recover_partial_tail: bool = True,
         max_query_records: int = 10_000,
+        read_only: bool = False,
     ) -> None:
         if max_query_records <= 0:
             raise ValueError("max_query_records must be positive")
         self._path = Path(path)
         self._index_path = self._path.with_name(self._path.name + ".index.json")
         self._lock_path = self._path.with_name(self._path.name + ".lock")
-        self._path.parent.mkdir(parents=True, exist_ok=True)
+        self._read_only = read_only
+        if not read_only:
+            self._path.parent.mkdir(parents=True, exist_ok=True)
         self._thread_lock = threading.RLock()
         self._memory = MemoryTrajectoryStore(
             store_id="qitos.journal_trajectory_store.memory"
         )
         self._closed = False
-        self._recover_partial_tail = recover_partial_tail
+        self._recover_partial_tail = recover_partial_tail and not read_only
         self._max_query_records = max_query_records
         self._last_frame_digest: Optional[str] = None
         self._recovered_tail_bytes = 0
         try:
-            self._path.touch(exist_ok=True)
-            self._lock_path.touch(exist_ok=True)
+            if not read_only:
+                self._path.touch(exist_ok=True)
+                self._lock_path.touch(exist_ok=True)
         except OSError as exc:
             raise StoreIOError("store_open_failed") from exc
         with self._exclusive_lock():
-            self._load(recover=recover_partial_tail)
-            self._write_index(best_effort=True)
+            self._load(recover=self._recover_partial_tail)
+            if not read_only:
+                self._write_index(best_effort=True)
 
     @property
     def capabilities(self) -> StoreCapabilities:
@@ -100,24 +105,29 @@ class JournalTrajectoryStore:
                 else "single_process_serialized"
             ),
             max_query_records=self._max_query_records,
-            partial_tail_recovery=True,
-            index_rebuild=True,
+            partial_tail_recovery=not self._read_only,
+            index_rebuild=not self._read_only,
         )
 
     def _ensure_open(self) -> None:
         if self._closed:
             raise TrajectoryStoreError("trajectory store is closed")
 
+    def _ensure_writable(self) -> None:
+        self._ensure_open()
+        if self._read_only:
+            raise TrajectoryStoreError("read_only_store")
+
     @contextmanager
     def _exclusive_lock(self) -> Iterator[None]:
         with self._thread_lock:
             try:
-                handle = self._lock_path.open("a+b")
+                handle = self._lock_path.open("rb" if self._read_only else "a+b")
             except OSError as exc:
                 raise StoreIOError("store_lock_failed") from exc
             try:
                 if fcntl is not None:
-                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_SH if self._read_only else fcntl.LOCK_EX)
                 yield
             finally:
                 if fcntl is not None:
@@ -305,6 +315,7 @@ class JournalTrajectoryStore:
     def append_batch(
         self, records: Iterable[TrajectoryRecord]
     ) -> DurabilityReceipt:
+        self._ensure_writable()
         batch = tuple(records)
         with self._exclusive_lock():
             self._ensure_open()
@@ -443,6 +454,7 @@ class JournalTrajectoryStore:
             )
 
     def rebuild_index(self) -> IndexRebuildReport:
+        self._ensure_writable()
         with self._exclusive_lock():
             self._ensure_open()
             self._load(recover=self._recover_partial_tail)
@@ -475,6 +487,7 @@ class JournalTrajectoryStore:
         )
 
     def flush(self) -> DurabilityReceipt:
+        self._ensure_writable()
         with self._exclusive_lock():
             self._ensure_open()
             return self._flush_unlocked()
@@ -483,7 +496,8 @@ class JournalTrajectoryStore:
         with self._exclusive_lock():
             if self._closed:
                 return DurabilityReceipt(status=DurabilityStatus.PERSISTED)
-            receipt = self._flush_unlocked()
+            receipt = (DurabilityReceipt(status=DurabilityStatus.ACCEPTED)
+                       if self._read_only else self._flush_unlocked())
             self._memory.close()
             self._closed = True
             return receipt

@@ -313,3 +313,21 @@ subset passed 41 tests (7.42 s). Flake8 changed modules passed; mypy stable plus
 changed composition/sandbox modules passed, 107 files. Full-tree, installed-wheel
 consumers, all Docker adversarial cases, readiness and default switches are still
 required; these focused results are not substituted for those gates.
+
+### Explicit shared journal composition before default switching
+
+The installed-consumer preparation exposed a missing composition path: `.journal`
+outputs were interpreted as directories and qita could only parse JSON. A new
+read-only inspection regression failed on cbf9b4b plus the test (1 failed, 0.19 s;
+`/tmp/qitos-g5-journal-reader-red.log`). Explicit `.journal` configuration now
+selects the existing JournalTrajectoryStore; its read-only mode acquires a shared
+existing lock and performs no tail recovery, index rewrite or file creation.
+qita uses the same frame validator in this mode. Defaults remain unchanged.
+The new constructor flag is necessary for inspection without mutation, introduces
+no root export, and does not change Engine's interface budget.
+
+After repair, tracing/qita/composition/interface-budget tests: 134 passed, 79.93 s
+(`/tmp/qitos-g5-explicit-journal.log`); mypy on the three changed modules passed.
+A whole trajectory is still materialized and scanned in memory: read-only does
+not imply bounded memory. Installed consumer and default qualification remain
+pending.

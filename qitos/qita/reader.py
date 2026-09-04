@@ -25,6 +25,10 @@ def candidate_file_reader(path: str | Path) -> Any:
     source = Path(path)
     if not source.is_file():
         raise FileNotFoundError("candidate_store_unavailable")
+    if source.suffix == ".journal":
+        from qitos.tracing.journal_store import JournalTrajectoryStore
+
+        return StoreTrajectoryReader(JournalTrajectoryStore(source, read_only=True))
     value = json.loads(source.read_text(encoding="utf-8"))
     if not isinstance(value, dict) or not isinstance(value.get("records"), list):
         raise ValueError("candidate_store_invalid")

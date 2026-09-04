@@ -543,11 +543,13 @@ def build_runtime(
     if config.runtime.trajectory.enabled:
         from ..tracing.sinks import FailurePolicy, TrajectoryStoreEventSink
         from ..tracing.store import JsonTrajectoryStore
+        from ..tracing.journal_store import JournalTrajectoryStore
         from ..tracing.trajectory import PrivacyView, RecordKind, RecordRole, TrajectoryRecord
 
         output = Path(config.runtime.trajectory.output).expanduser().resolve()
-        trajectory_path = output if output.suffix == ".json" else output / "trajectory.json"
-        event_store = JsonTrajectoryStore(trajectory_path)
+        trajectory_path = output if output.suffix in {".json", ".journal"} else output / "trajectory.json"
+        event_store = (JournalTrajectoryStore(trajectory_path)
+                       if trajectory_path.suffix == ".journal" else JsonTrajectoryStore(trajectory_path))
         event_sink = TrajectoryStoreEventSink(event_store)
         event_view = (
             PrivacyView.RAW_PRIVATE

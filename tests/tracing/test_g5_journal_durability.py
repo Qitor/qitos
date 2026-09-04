@@ -19,6 +19,23 @@ def record(index):
                                    payload={"index": index})
 
 
+def test_qita_journal_inspection_does_not_write_or_recover(tmp_path):
+    from qitos.qita.reader import candidate_file_reader
+
+    path = tmp_path / "trajectory.journal"
+    store = JournalTrajectoryStore(path)
+    store.append(record(0))
+    store.close()
+    before = {p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in tmp_path.iterdir()}
+    assert len(candidate_file_reader(path).read_run("run").records) == 1
+    assert before == {p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in tmp_path.iterdir()}
+    path.write_bytes(path.read_bytes() + b'{"partial":')
+    damaged = path.read_bytes()
+    with pytest.raises(StoreIntegrityError, match="incomplete_journal_frame"):
+        candidate_file_reader(path)
+    assert path.read_bytes() == damaged
+
+
 @pytest.mark.parametrize("mode", ["zero", "partial_error", "complete_error", "fsync"])
 def test_interrupted_write_reports_uncertainty_and_retry_never_duplicates(tmp_path, monkeypatch, mode):
     path = tmp_path / "journal"
