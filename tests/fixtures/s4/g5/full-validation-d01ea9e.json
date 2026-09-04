@@ -1,0 +1,213 @@
+{
+  "schema": "qitos.g5.full_validation/v1",
+  "code_commit": "d01ea9ebc266ffdd451732fd2bf9d0eb4a40547c",
+  "command": "/opt/anaconda3/bin/python -m pytest -q -rs --junitxml=full-06.xml",
+  "passed": 2663,
+  "skipped": [
+    {
+      "node": "tests/e2e/test_auditor_pipeline.py::test_auditor_single_agent_audit",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_auditor_pipeline.py::test_auditor_with_memory",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_auditor_pipeline.py::test_auditor_critic_triggers",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_checkpoint_resume.py::test_checkpoint_save_and_load",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_checkpoint_resume.py::test_checkpoint_resume",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_checkpoint_resume.py::test_checkpoint_state_preserved",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_critic_system.py::test_critic_continue_allows_run_to_complete",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_critic_system.py::test_critic_stop_halts_execution",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_critic_system.py::test_critic_retry_with_instruction_patch",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_critic_system.py::test_critic_retry_with_state_patch",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_critic_system.py::test_multiple_critics_evaluated",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_delegation_and_fanout.py::test_delegate_tool_sub_agent_runs",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_delegation_and_fanout.py::test_fanout_parallel_execution",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_delegation_and_fanout.py::test_shared_memory_across_delegated_agents",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_delegation_and_fanout.py::test_delegate_depth_limit",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_engine_metrics_and_recovery.py::test_engine_result_metrics_are_accurate",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_engine_metrics_and_recovery.py::test_stagnation_criteria_stops_run",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_engine_metrics_and_recovery.py::test_recovery_policy_continues_after_tool_error",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_framework.py::test_e2e_endpoint_connectivity",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_framework.py::test_e2e_llm_creates_successfully",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_framework.py::test_e2e_engine_creates_with_agent",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_function_tool_agent.py::test_read_only_tool_no_approval_needed",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_function_tool_agent.py::test_needs_approval_auto_approve",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_function_tool_agent.py::test_needs_approval_rejected_without_auto_approve",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_handoff_agent.py::test_handoff_single_delegation",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_handoff_agent.py::test_handoff_tools_registered",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_handoff_agent.py::test_handoff_auditor_pipeline",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_handoff_agent.py::test_handoff_cyber_pipeline",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_handoff_live.py::test_handoff_to_math_worker_completes",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_handoff_live.py::test_handoff_to_string_worker_completes",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_handoff_live.py::test_handoff_loop_detected",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_hooks_lifecycle.py::test_hook_on_run_start_and_end_fire",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_hooks_lifecycle.py::test_hook_step_lifecycle_ordering",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_hooks_lifecycle.py::test_hook_tool_use_lifecycle",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_hooks_lifecycle.py::test_hook_context_has_state_and_step_id",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_hooks_lifecycle.py::test_hook_on_recover_fires_on_tool_error",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_react_agent.py::test_react_simple_tool_call",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_react_agent.py::test_react_multi_step_reasoning",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_react_agent.py::test_react_direct_answer",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_react_agent.py::test_react_max_steps_limit",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_step_by_step_repl.py::test_init_session_returns_valid_state",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_step_by_step_repl.py::test_step_produces_decision_and_advances",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_step_by_step_repl.py::test_multi_step_manual_loop",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_step_by_step_repl.py::test_submit_turn_enables_multi_turn",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_tool_correctness.py::test_tool_called_with_correct_args",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_tool_correctness.py::test_multi_tool_sequential_calls",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_tool_correctness.py::test_tool_result_propagates_to_final_answer",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_tool_correctness.py::test_read_only_tool_executes_without_approval",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_tool_correctness.py::test_needs_approval_tool_blocked_without_auto_approve",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    },
+    {
+      "node": "tests/e2e/test_tool_correctness.py::test_tool_result_in_step_records",
+      "reason": "E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables"
+    }
+  ],
+  "failed": 0,
+  "junit_sha256": "1655f75f923e2f5c489c35a43a636610efeeca77b791c763d8a7f2275f401264",
+  "log_sha256": "82a56849fe9faa1155a7970ca5e2843c5cce8ef5611bc25e34bdb1c7b85ddf6a",
+  "duration_seconds": 534.85,
+  "required_g5_skipped": false
+}

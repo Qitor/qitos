@@ -820,3 +820,27 @@ command whose stdout actually contains 50 skips; report 99 was a transcription
 error, not an unqualified set of 49 hidden tests. The task transcript was read
 only; no message was sent to a source task and no source tree was changed.
 Documentation/public/architecture/scaffold checks passed 28 tests in 1.34 s.
+
+### Post-switch qualification on d01ea9ebc266ffdd451732fd2bf9d0eb4a40547c
+
+Clean full attempt 06 passed: 2663 passed, 50 skipped in 534.85 s. Exact skip
+nodes/reasons and log/JUnit digests are in full-validation-d01ea9e.json; all
+50 are opt-in live E2E, no required G5 scenario skipped. Stable/config/reader/
+minimal-demo flake8 and mypy passed (105 files); shrink-only ratchet passed
+356 findings (334 active, 22 vendored/generated). No new allowance.
+Build and twine passed. Wheel SHA256 is
+33658c184526067acb2c901e2cd8ab1d78efecd5801935c43359ab76eb208a65;
+sdist SHA256 is 20f5e6fc3950c62ea510fe140a4de8abf2292a6eb181623fad90fe011b3de9a9.
+All 20 packaging profiles passed on this exact wheel; base separately ran both
+installed consumers serially. Controlled qualification passed 19 tests plus
+coding (307 records) and research (103 records), each in a fresh environment,
+including default qita CLI inspection and label-scoped Docker cleanup. Current
+facts and public exports now bind this execution, not the pre-switch receipt.
+Generated qit-new project installed, tested, built, passed twine, reinstalled
+and imported outside its project (scaffold-d01ea9e log). Package scan reviewed
+synthetic privacy fixture paths and single key-header strings in sdist; no real
+credential/private endpoint/local user path found. This is not a transitive
+license audit. Exact package scan review and profile reports accompany facts.
+Measurement fixture now uses these post-switch exports; repeats are workloads,
+not additional runtime executions. Final evidence/pin changes still require a
+clean final-tree full gate before promotion.

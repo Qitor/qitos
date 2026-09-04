@@ -1,0 +1,115 @@
+{
+  "qitos-0.6.0-py3-none-any.whl": {
+    "sha256": "33658c184526067acb2c901e2cd8ab1d78efecd5801935c43359ab76eb208a65",
+    "file_count": 512,
+    "license_files": [
+      "qitos-0.6.0.dist-info/licenses/LICENSE"
+    ],
+    "findings": {
+      "local_user_path": [],
+      "private_endpoint": [],
+      "private_key_material": []
+    },
+    "scope": "Package MIT metadata/license inclusion and targeted private endpoint/path/key-material scan; no claim to a transitive dependency legal audit.",
+    "reviewed_findings": [],
+    "status": "passed_after_fixture_review"
+  },
+  "qitos-0.6.0.tar.gz": {
+    "sha256": "20f5e6fc3950c62ea510fe140a4de8abf2292a6eb181623fad90fe011b3de9a9",
+    "file_count": 666,
+    "license_files": [
+      "qitos-0.6.0/LICENSE"
+    ],
+    "findings": {
+      "local_user_path": [
+        "qitos-0.6.0/tests/test_benchmark_trajectory_store.py",
+        "qitos-0.6.0/tests/test_engine_error_reporting.py",
+        "qitos-0.6.0/tests/test_event_sink_conformance.py",
+        "qitos-0.6.0/tests/test_privacy_portability_conformance.py",
+        "qitos-0.6.0/tests/test_provider_adapter_conformance.py",
+        "qitos-0.6.0/tests/test_s1_d_lineage_readiness.py",
+        "qitos-0.6.0/tests/test_s3_live_qualification.py",
+        "qitos-0.6.0/tests/test_trajectory_exporter_conformance.py"
+      ],
+      "private_endpoint": [],
+      "private_key_material": [
+        "qitos-0.6.0/tests/test_privacy_portability_conformance.py",
+        "qitos-0.6.0/tests/test_s1_d_lineage_readiness.py"
+      ]
+    },
+    "scope": "Package MIT metadata/license inclusion and targeted private endpoint/path/key-material scan; no claim to a transitive dependency legal audit.",
+    "reviewed_findings": [
+      {
+        "path": "qitos-0.6.0/tests/test_benchmark_trajectory_store.py",
+        "category": "local_user_path",
+        "source_sha256": "28445e270752e43374f4a073f816d790332a468aad550143a9c7e253b0a8abe9",
+        "disposition": "synthetic_regression_fixture",
+        "reason": "Synthetic privacy regression paths, not an actual local account path."
+      },
+      {
+        "path": "qitos-0.6.0/tests/test_engine_error_reporting.py",
+        "category": "local_user_path",
+        "source_sha256": "081a558ae2cc27c6c4ea26b7b01ea4cf087d6a7b1358bbedf8fb47e00ee6ff04",
+        "disposition": "synthetic_regression_fixture",
+        "reason": "Synthetic privacy regression paths, not an actual local account path."
+      },
+      {
+        "path": "qitos-0.6.0/tests/test_event_sink_conformance.py",
+        "category": "local_user_path",
+        "source_sha256": "9faad115f431e74fac6d87f601dfc178ae57434ba1354add612fd2707d563a3e",
+        "disposition": "synthetic_regression_fixture",
+        "reason": "Synthetic privacy regression paths, not an actual local account path."
+      },
+      {
+        "path": "qitos-0.6.0/tests/test_privacy_portability_conformance.py",
+        "category": "local_user_path",
+        "source_sha256": "0a27ba32b2a2019066b32b6b158b370edd2b74ec7913592a4d81f55897115841",
+        "disposition": "synthetic_regression_fixture",
+        "reason": "Synthetic privacy regression paths, not an actual local account path."
+      },
+      {
+        "path": "qitos-0.6.0/tests/test_provider_adapter_conformance.py",
+        "category": "local_user_path",
+        "source_sha256": "f273f370bc43b64a405aac49aba339e905f50eaa9146e94d262467ec6f237136",
+        "disposition": "synthetic_regression_fixture",
+        "reason": "Synthetic privacy regression paths, not an actual local account path."
+      },
+      {
+        "path": "qitos-0.6.0/tests/test_s1_d_lineage_readiness.py",
+        "category": "local_user_path",
+        "source_sha256": "d40bf4927498c5f9c742dfab526342d7df7475be0a226bd68cb631d52583cbaf",
+        "disposition": "synthetic_regression_fixture",
+        "reason": "Synthetic privacy regression paths, not an actual local account path."
+      },
+      {
+        "path": "qitos-0.6.0/tests/test_s3_live_qualification.py",
+        "category": "local_user_path",
+        "source_sha256": "b22011255d51053dbef2b212920dbf645eb48793d55ea1ca1c2d50dfdcac6f34",
+        "disposition": "synthetic_regression_fixture",
+        "reason": "Synthetic privacy regression paths, not an actual local account path."
+      },
+      {
+        "path": "qitos-0.6.0/tests/test_trajectory_exporter_conformance.py",
+        "category": "local_user_path",
+        "source_sha256": "8dda0c6968ca0dde3bfe543b0f537e9472d61cc351fd495f4f529e4a609c92ec",
+        "disposition": "synthetic_regression_fixture",
+        "reason": "Synthetic privacy regression paths, not an actual local account path."
+      },
+      {
+        "path": "qitos-0.6.0/tests/test_privacy_portability_conformance.py",
+        "category": "private_key_material",
+        "source_sha256": "0a27ba32b2a2019066b32b6b158b370edd2b74ec7913592a4d81f55897115841",
+        "disposition": "synthetic_regression_fixture",
+        "reason": "Private-key header marker used as privacy regression input; no key block or credential material."
+      },
+      {
+        "path": "qitos-0.6.0/tests/test_s1_d_lineage_readiness.py",
+        "category": "private_key_material",
+        "source_sha256": "d40bf4927498c5f9c742dfab526342d7df7475be0a226bd68cb631d52583cbaf",
+        "disposition": "synthetic_regression_fixture",
+        "reason": "Private-key header marker used as privacy regression input; no key block or credential material."
+      }
+    ],
+    "status": "passed_after_fixture_review"
+  }
+}

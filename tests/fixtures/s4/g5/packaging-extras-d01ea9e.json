@@ -1,0 +1,140 @@
+{
+  "publication_ready": false,
+  "results": [
+    {
+      "checks": [
+        "imports"
+      ],
+      "profile": "openai",
+      "status": "passed"
+    },
+    {
+      "checks": [
+        "imports"
+      ],
+      "profile": "anthropic",
+      "status": "passed"
+    },
+    {
+      "checks": [
+        "imports"
+      ],
+      "profile": "gemini",
+      "status": "passed"
+    },
+    {
+      "checks": [
+        "imports"
+      ],
+      "profile": "litellm",
+      "status": "passed"
+    },
+    {
+      "checks": [
+        "imports"
+      ],
+      "profile": "local",
+      "status": "passed"
+    },
+    {
+      "checks": [
+        "imports"
+      ],
+      "profile": "models",
+      "status": "passed"
+    },
+    {
+      "checks": [
+        "imports"
+      ],
+      "profile": "qita",
+      "status": "passed"
+    },
+    {
+      "checks": [
+        "imports"
+      ],
+      "profile": "docker",
+      "status": "passed"
+    },
+    {
+      "checks": [
+        "imports"
+      ],
+      "profile": "mcp",
+      "status": "passed"
+    },
+    {
+      "checks": [
+        "imports"
+      ],
+      "profile": "evaluation",
+      "status": "passed"
+    },
+    {
+      "checks": [
+        "imports"
+      ],
+      "profile": "yaml",
+      "status": "passed"
+    },
+    {
+      "checks": [
+        "imports"
+      ],
+      "profile": "benchmarks",
+      "status": "passed"
+    },
+    {
+      "checks": [
+        "imports"
+      ],
+      "profile": "wandb",
+      "status": "passed"
+    },
+    {
+      "checks": [
+        "imports"
+      ],
+      "profile": "mlflow",
+      "status": "passed"
+    },
+    {
+      "checks": [
+        "imports"
+      ],
+      "profile": "cookiecutter",
+      "status": "passed"
+    },
+    {
+      "checks": [
+        "imports"
+      ],
+      "profile": "hf",
+      "status": "passed"
+    },
+    {
+      "checks": [
+        "imports"
+      ],
+      "profile": "web",
+      "status": "passed"
+    },
+    {
+      "checks": [
+        "imports"
+      ],
+      "profile": "dev",
+      "status": "passed"
+    },
+    {
+      "checks": [
+        "imports"
+      ],
+      "profile": "all",
+      "status": "passed"
+    }
+  ],
+  "schema_version": "qitos.s4.lane_d.wheel_qualification/1",
+  "status": "passed"
+}

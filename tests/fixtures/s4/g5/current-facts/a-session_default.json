@@ -1,18 +1,18 @@
 {
-  "code_commit": "511013acfd18efcc0d25901e8a7641c4ee731d93",
+  "code_commit": "d01ea9ebc266ffdd451732fd2bf9d0eb4a40547c",
   "identity": {
-    "attempt_id": "attempt_39fd0075bfc7447f98c5e4e4b1cb2080",
+    "attempt_id": "attempt_5d45d512923b40d9af9befc1f6a88bae",
     "owner_generation": 36,
-    "run_id": "run_f11d64f048644b778c3e384830c221cd",
-    "session_id": "session_5c2167728ced4600ac363258bb568399",
-    "work_item_id": "work_item_d63a0be5bd4345b8be77e891bc6a922c"
+    "run_id": "run_5a981c3061544caa940cac00b4b1283d",
+    "session_id": "session_80194670e1734ff58324827400c3c827",
+    "work_item_id": "work_item_9d3dc13bf08d422abdb90e696f34bf36"
   },
   "requirement_id": "session_default",
   "runtime_facts": {
     "artifact_count": 6,
-    "attempt_id": "attempt_39fd0075bfc7447f98c5e4e4b1cb2080",
+    "attempt_id": "attempt_5d45d512923b40d9af9befc1f6a88bae",
     "child_ids": [
-      "session_6f940fccba7e498ca561a0b3fdf648d2"
+      "session_f816740886f44ca8b7eaab5928695218"
     ],
     "cleanup": {
       "container_absent": true,
@@ -20,17 +20,18 @@
       "output_retention_failed": false,
       "process_cleanup_confirmed": true,
       "repeated": true,
-      "sandbox_id": "sandbox-8fe711a09e1449b197c63be657635dbe",
+      "sandbox_id": "sandbox-cbe6e89026594906aa8f3ec5f3f177e6",
       "staging_absent": true
     },
-    "fork_id": "session_bd9fbf4e09a549d2a6fea4aef9c1b55b",
+    "fork_id": "session_47624fb15ad64521af095b08c688ec49",
     "installed_distribution": true,
     "join_closed": true,
     "owner_generation": 36,
     "public_export_lossless": false,
-    "public_export_sha256": "8821c8873c1755d1ab2e11276bde737467848ba3468bf2556b6d3a55b3637308",
-    "run_id": "run_f11d64f048644b778c3e384830c221cd",
-    "session_id": "session_5c2167728ced4600ac363258bb568399",
+    "public_export_sha256": "84494001373074124ba113b8000099ab54ac53eb466af79440995294806d38b5",
+    "qita_default_inspection": true,
+    "run_id": "run_5a981c3061544caa940cac00b4b1283d",
+    "session_id": "session_80194670e1734ff58324827400c3c827",
     "source_fork_unchanged": true,
     "tool_calls": {
       "edit_file": 1,
@@ -80,7 +81,7 @@
       ]
     },
     "trajectory_records": 307,
-    "work_item_id": "work_item_d63a0be5bd4345b8be77e891bc6a922c"
+    "work_item_id": "work_item_9d3dc13bf08d422abdb90e696f34bf36"
   },
   "schema": "qitos.g5.runtime_fact/v1",
   "writer": "qitos.engine.session_runtime.Session"

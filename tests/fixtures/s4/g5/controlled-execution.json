@@ -1,26 +1,26 @@
 {
-  "code_commit": "511013acfd18efcc0d25901e8a7641c4ee731d93",
+  "code_commit": "d01ea9ebc266ffdd451732fd2bf9d0eb4a40547c",
   "consumers": {
     "coding": {
-      "code_commit": "511013acfd18efcc0d25901e8a7641c4ee731d93",
+      "code_commit": "d01ea9ebc266ffdd451732fd2bf9d0eb4a40547c",
       "consumer_source_path": "tests/fixtures/s4/g5/installed_coding_consumer.py",
-      "consumer_source_sha256": "c586ce61ecb54a1aaccbcdf3812292963568975023c7362b9bd68782948351f1",
+      "consumer_source_sha256": "4da2e6e48264ac3319a829f34f10a0acd331be7d22ec10d20d9b4d82c544e17e",
       "fresh_environment": true,
       "identity": {
-        "attempt_id": "attempt_39fd0075bfc7447f98c5e4e4b1cb2080",
+        "attempt_id": "attempt_5d45d512923b40d9af9befc1f6a88bae",
         "owner_generation": 36,
-        "run_id": "run_f11d64f048644b778c3e384830c221cd",
-        "session_id": "session_5c2167728ced4600ac363258bb568399",
-        "work_item_id": "work_item_d63a0be5bd4345b8be77e891bc6a922c"
+        "run_id": "run_5a981c3061544caa940cac00b4b1283d",
+        "session_id": "session_80194670e1734ff58324827400c3c827",
+        "work_item_id": "work_item_9d3dc13bf08d422abdb90e696f34bf36"
       },
       "installed_distribution": true,
-      "log_sha256": "fcedda00a36d063cdd8721dd205c3a8b4a6227963e0939258a2ee62fee1953f3",
+      "log_sha256": "273ba5c1852dad6449301f8af9342c0aeb93e2fb4a818f953856d0de6cf8b16b",
       "outcome": "passed",
       "runtime_facts": {
         "artifact_count": 6,
-        "attempt_id": "attempt_39fd0075bfc7447f98c5e4e4b1cb2080",
+        "attempt_id": "attempt_5d45d512923b40d9af9befc1f6a88bae",
         "child_ids": [
-          "session_6f940fccba7e498ca561a0b3fdf648d2"
+          "session_f816740886f44ca8b7eaab5928695218"
         ],
         "cleanup": {
           "container_absent": true,
@@ -28,17 +28,18 @@
           "output_retention_failed": false,
           "process_cleanup_confirmed": true,
           "repeated": true,
-          "sandbox_id": "sandbox-8fe711a09e1449b197c63be657635dbe",
+          "sandbox_id": "sandbox-cbe6e89026594906aa8f3ec5f3f177e6",
           "staging_absent": true
         },
-        "fork_id": "session_bd9fbf4e09a549d2a6fea4aef9c1b55b",
+        "fork_id": "session_47624fb15ad64521af095b08c688ec49",
         "installed_distribution": true,
         "join_closed": true,
         "owner_generation": 36,
         "public_export_lossless": false,
-        "public_export_sha256": "8821c8873c1755d1ab2e11276bde737467848ba3468bf2556b6d3a55b3637308",
-        "run_id": "run_f11d64f048644b778c3e384830c221cd",
-        "session_id": "session_5c2167728ced4600ac363258bb568399",
+        "public_export_sha256": "84494001373074124ba113b8000099ab54ac53eb466af79440995294806d38b5",
+        "qita_default_inspection": true,
+        "run_id": "run_5a981c3061544caa940cac00b4b1283d",
+        "session_id": "session_80194670e1734ff58324827400c3c827",
         "source_fork_unchanged": true,
         "tool_calls": {
           "edit_file": 1,
@@ -88,28 +89,28 @@
           ]
         },
         "trajectory_records": 307,
-        "work_item_id": "work_item_d63a0be5bd4345b8be77e891bc6a922c"
+        "work_item_id": "work_item_9d3dc13bf08d422abdb90e696f34bf36"
       },
-      "wheel_sha256": "0df4668474832f454c31c74e240df1f8fefd6f6a1e5b2749e874b9426aae4c4c"
+      "wheel_sha256": "33658c184526067acb2c901e2cd8ab1d78efecd5801935c43359ab76eb208a65"
     },
     "research": {
-      "code_commit": "511013acfd18efcc0d25901e8a7641c4ee731d93",
+      "code_commit": "d01ea9ebc266ffdd451732fd2bf9d0eb4a40547c",
       "consumer_source_path": "tests/fixtures/s4/g5/installed_research_consumer.py",
-      "consumer_source_sha256": "1bfeb9893898cd27c729fc2772537b45412bde76017fe18266f73dd24a42ef65",
+      "consumer_source_sha256": "f97935226f9e7b8dc2c445e6e9659bc973d7e89eb2a23e511d1058027ec75d9c",
       "fresh_environment": true,
       "identity": {
-        "attempt_id": "attempt_7aa6261c3ff043259cc7ea26033b58a0",
+        "attempt_id": "attempt_2f022148bcfb4db99b4ea2186a532617",
         "owner_generation": 16,
-        "run_id": "run_54bb48dddc8b40318d396690c619b6a2",
-        "session_id": "session_cb566c478b654b53be5baf6daa5c4f35",
-        "work_item_id": "work_item_155f14011600405b8906ebd11089e40c"
+        "run_id": "run_a4d65fb8c7af4cb394ec0f4c8fa023f1",
+        "session_id": "session_3c9556b2baf242f185d3b8ff1ecb4c5b",
+        "work_item_id": "work_item_9b09ef982608434187c6d06e0a66a2f1"
       },
       "installed_distribution": true,
-      "log_sha256": "f7179484cc40145e658b4e7fee860e64a7c2b1a39d5507bb14691f62b3ae6ede",
+      "log_sha256": "0ebf3729dbb65ac9c60511b612ea1732c832e7602ff856d8f1495df5976c7cba",
       "outcome": "passed",
       "runtime_facts": {
         "artifact_count": 3,
-        "attempt_id": "attempt_7aa6261c3ff043259cc7ea26033b58a0",
+        "attempt_id": "attempt_2f022148bcfb4db99b4ea2186a532617",
         "canonical_notes_retained": true,
         "cleanup": {
           "container_absent": true,
@@ -117,31 +118,32 @@
           "output_retention_failed": false,
           "process_cleanup_confirmed": true,
           "repeated": true,
-          "sandbox_id": "sandbox-3f8e8383285d4e88a76f5411def6ab06",
+          "sandbox_id": "sandbox-a2145bfe68db4d67a51e50df7d551323",
           "staging_absent": true
         },
         "compactions": 2,
         "continuation_resolutions": 2,
         "installed_distribution": true,
-        "old_run_id": "run_c56847ee71fb4d22ba490887c7061a48",
+        "old_run_id": "run_d92440f83c32409cafc7aa5a96ffbf49",
         "opaque_state_isolated": true,
         "owner_generation": 16,
         "public_export_lossless": false,
-        "public_export_sha256": "c816a48c7157496a3d840c2de7a7951360d1e82efbfab00e226bd1e250223452",
-        "run_id": "run_54bb48dddc8b40318d396690c619b6a2",
-        "session_id": "session_cb566c478b654b53be5baf6daa5c4f35",
+        "public_export_sha256": "0fe884d312b866383ccb6532ffc262da04b71958c58192bea5204117c3fef1ab",
+        "qita_default_inspection": true,
+        "run_id": "run_a4d65fb8c7af4cb394ec0f4c8fa023f1",
+        "session_id": "session_3c9556b2baf242f185d3b8ff1ecb4c5b",
         "source_fenced": true,
-        "source_snapshot_id": "snapshot_1fa64ab68d2f406aa97e0d9f1998dea4",
+        "source_snapshot_id": "snapshot_a10dca1426e44ba2b437d3518090b508",
         "timeout_unknown": true,
         "trajectory_records": 103,
         "transfer_count": 1,
-        "work_item_id": "work_item_155f14011600405b8906ebd11089e40c",
+        "work_item_id": "work_item_9b09ef982608434187c6d06e0a66a2f1",
         "worker_eventually_finished": true
       },
-      "wheel_sha256": "0df4668474832f454c31c74e240df1f8fefd6f6a1e5b2749e874b9426aae4c4c"
+      "wheel_sha256": "33658c184526067acb2c901e2cd8ab1d78efecd5801935c43359ab76eb208a65"
     }
   },
-  "junit_sha256": "cc6aa4aff442ebb8533dd1fc402690613f28a68550625ea6bed0ad9837b506eb",
+  "junit_sha256": "04f1fa4bd7c7d1feb4a0e72affb7d4b256e671a336a7d398121de339c01f15c0",
   "nodes": {
     "tests/engine/test_g5_real_work.py::test_real_child_session_completion_closes_durable_join": {
       "collected": true,
@@ -299,7 +301,7 @@
     "tests/test_g5_session_public.py::test_default_sqlite_location_is_derived_and_unwritable_location_fails_before_model",
     "tests/test_s4_lane_a_public_authoring.py::test_context_manager_closes_owned_resources_after_body_failure"
   ],
-  "wheel_sha256": "0df4668474832f454c31c74e240df1f8fefd6f6a1e5b2749e874b9426aae4c4c",
+  "wheel_sha256": "33658c184526067acb2c901e2cd8ab1d78efecd5801935c43359ab76eb208a65",
   "wheel_source_digests": {
     "qitos/__init__.py": "194882d4948af0a2e3b0760b708a6ed628750f86770e4690b0ca6a54f39e2d38",
     "qitos/benchmark/__init__.py": "eba34b2570feb57cf15bedfffa299a2ba2f7a289ea054d6e7d8dc5156a0555cd",
@@ -408,15 +410,15 @@
     "qitos/cli.py": "7cb7d79c7de2623510854ea3e098b12d5ba8a0f2f2f4741810d88271cb2741e9",
     "qitos/config/__init__.py": "9174f7c975ae42bfe2f6e415c743e8d6eb57ef1287400d56fd629a0f70ba0b62",
     "qitos/config/_extensions.py": "6b6e6ad8f0d7c66fc127bd0796b833fbad3f54c44def6b8adaff312fec077906",
-    "qitos/config/builder.py": "ec2d0b8b0d943a075646e694d1d7e2d8b2819bd01d7f4816ab887d5660972ddc",
+    "qitos/config/builder.py": "087e75b341edfc4cd9f60524a30c8497b190d1cce8bd8be5e2736899259a3b59",
     "qitos/config/credentials.py": "b0be9068d1b44ccf732f21c85200c8d18059a5d767e83b14d9b22729a937c853",
     "qitos/config/errors.py": "c5f960e134fb7cc679dd5d7ee98872f6a2980458f940583e6c6c8797e78ab4e0",
-    "qitos/config/loader.py": "7422af947400a950e452965d9320295d5b3c057e624ec48c6164eb20bd27fed5",
+    "qitos/config/loader.py": "47b2d8addee8093f6383fde7c3954e8c763eefa63042403cda1a0d8da225e0fc",
     "qitos/config/scaffold.py": "5df1d212b19930557a19629c4ed3febbe78892c2419b797bc6ef68d0cd578689",
     "qitos/core/__init__.py": "6e6dac334febec7cb5cb7aae59c4adb39958dc5824ff36a9d83fa72a993b8ceb",
     "qitos/core/_json_repair.py": "68f60e46bd0c6c0071c3ec143ebcfa4f8e69ad69015262da8ab4c33b72279259",
     "qitos/core/action.py": "e7d7be0ad7f997baa5672e221ab52cf661bad25942ccb9f7761267db7543fb11",
-    "qitos/core/agent_module.py": "85fa9f0fcb3c3b569bd108980b78ac9065db6ba5cd771546d84cc382ee4b279e",
+    "qitos/core/agent_module.py": "7e97a5ff9fcea3f92c7e53dc9e9c7817025d550caef6141eb5353dfc1544c6d7",
     "qitos/core/agent_spec.py": "69805828851223ae16904e147a57b510de7688cd200c7f8509125e43ef36f2c7",
     "qitos/core/artifact.py": "aef2b5a86725beccd23d54f1750f022013cc8c0e689dc8742630dc66f8eef98a",
     "qitos/core/channel.py": "7b6a223a6e5c13074e4d1083cac5228c6706c7f62b75d08c84670693ad30ae0c",
@@ -453,7 +455,7 @@
     "qitos/debug/inspector.py": "e945cdf6f73a44f025a1acae1d57af447eb6a0d467b2358eb01fcaa8008655aa",
     "qitos/debug/replay.py": "8fb3944a200ee75a4ec744f6d0fa973c7981d22d80a6dd03046502aeaad458f4",
     "qitos/demo/__init__.py": "81f550e6cfcb42173284c3032e2c6491fb31aca201a225ecbd635888de996889",
-    "qitos/demo/minimal.py": "06555899d10b5c1317ef1b4fe1f973f6af3e0cecf9db512906a9faeb07f1835f",
+    "qitos/demo/minimal.py": "a35e38e9e0a660829cec584275e1119ba85b02d320f6a7bdbd556124595026d3",
     "qitos/engine/__init__.py": "960ccd1b7ae6b1714770561aef99291a0423208edf94c73caaa25886b8249303",
     "qitos/engine/_action_runtime.py": "8a68162a814f8fe417b5a26ab420c59db8d811aaabd5d5dcf1048c703396ae3e",
     "qitos/engine/_context_runtime.py": "3f9d0db606fe59d24282efa09a8819c3507a1ebb2d7e1f4fd19482100a639ae7",
@@ -473,7 +475,7 @@
     "qitos/engine/critic.py": "945cfc1b578fcbe220acc9cd499fb29f1b42595105b8a343104508329b86f4fc",
     "qitos/engine/critic_decorator.py": "d65c2932f97d79984128f4e9d6c205ba415f79949b40ee2bacb713c0724342a4",
     "qitos/engine/critic_result.py": "3078c6c1bb5b367abec098efcfab09c340a9493cf2a9a8cbbd262f432a2ce782",
-    "qitos/engine/engine.py": "066c1bdc6a17a92dccc8fbdf14e0ef5bc5823515128bd6e21586d10509ca0972",
+    "qitos/engine/engine.py": "93d43097b6f5289e89a33062f5c23b8b75a68fdf1dde0c1db8d5f3cbec6b0d11",
     "qitos/engine/events.py": "24ded4648cf6b46037b243ff624c69ebf8e299e0c3294e149ee6923cf882697a",
     "qitos/engine/hooks.py": "3514ec28344a818c0f4e9310b14523d64197e44b24cfa8b2e2b0e92649c50e1b",
     "qitos/engine/interceptors.py": "db06568d9743ba8599a5b4f08546721a08d5b7ff0d0b4078ad2aeaafb780160c",
@@ -747,11 +749,11 @@
     "qitos/protocols.py": "bd90ef41e34729e1329e0c6cb91c492470630d5f24849dd2a32fbda39f36f1cb",
     "qitos/qita/__init__.py": "ed29d01fc9bc84d81c09b38fba2016a03c19b2fa37647c8c4934b01aa3e52375",
     "qitos/qita/__main__.py": "3d2438ae92f4746e9ffaa1f837b1fe803f6281091d1f31f8c95643716f257d9a",
-    "qitos/qita/_cli_app.py": "82e8c6139cbf9f7a0cf849a190d9c4aca982a1844317dc18a1c49dcca5283ad0",
+    "qitos/qita/_cli_app.py": "33a3094693b6f38584b4150a5f238dbf48975c0680a627e50ddd4cb26181de87",
     "qitos/qita/cli.py": "629e1be13ca7c43a3a2745f79d313241ce4ac9c381003a73a1952433d067f32b",
     "qitos/qita/data.py": "718a0b74260013b0ddee7a3b836883421a46ff57cd34ae108e34120993c6ceca",
     "qitos/qita/inspection.py": "0cf8d5c25d53459bf3c5ee8fbdc030249328952c1d1f57a2276f177c4a3f7cf3",
-    "qitos/qita/reader.py": "1f3712a0bcd5101f0a35d04eb4dd787f57f1fd3caeefbcaddafac038e744ca95",
+    "qitos/qita/reader.py": "621b37f5aa713eb7e564a5f9cddadad820a9da6fbd5b870ed7b910800ae52c23",
     "qitos/qita/server.py": "b45f33758d6a0d2cf5ff29b511addc28f46315ff204139edf768001b1a8e2c12",
     "qitos/qita/views.py": "44ae4c76fde64744e0f7252ecf04b8b47efc22dec0bc6394d915607905ae6356",
     "qitos/recipes/__init__.py": "ac5bbfaa70105b3c1be3482579c717b08489a6ec4a2e35102d30697539320ac9",
@@ -781,7 +783,7 @@
     "qitos/trace/schema.py": "ebd441d10871d38fa33403b7dcafd3faae93f06ea6be3624f16452f877169c1c",
     "qitos/trace/writer.py": "4b9339e5456827df5e8de6749ef094bc5a3ad8e13d966ad0715abe6fd3cc377f",
     "qitos/tracing/__init__.py": "295628b36d049e4794fd5a9f75a4780769f598fc9288b9d3059ffec5e1cbc102",
-    "qitos/tracing/_g5_requirements.py": "b861c64bb41cde4116a0f4ec81d344f7d6943cde44c7a07c48a265634e135cd8",
+    "qitos/tracing/_g5_requirements.py": "b9fd578ec6b55f9c5b6b94054b15aa0fa7e4a56195799a1bff9a2ead9d1feed2",
     "qitos/tracing/adapters.py": "e13574aa6515bf084659de7341bdf729780d1cece7bded9e53d62964a4ef77a9",
     "qitos/tracing/config.py": "d10c332ea9ee1fe490399ad0b85e2de3a5f0c3fc70064b80255130e8c1a8126e",
     "qitos/tracing/console.py": "d49f92f508cacfa6f6b415a14cf57c9eba7f295e40a3876d750edc2cd9ab926c",
@@ -796,11 +798,11 @@
     "qitos/tracing/provider.py": "b78630bd441353f789d227c9205bd5cc599f3b72a51d22872c11ca035a30d694",
     "qitos/tracing/publication.py": "b8d8a075bca044d9db5c01dd1387bb38ce404ad3fe97ce526e76d8b706b46928",
     "qitos/tracing/qualification.py": "3fdc00ec4d9421b65b397ea3286cb978b20efdac2e33ab317a704ff5aba5038a",
-    "qitos/tracing/readers.py": "f270366b8ae4bfd94d9825a17b72847dc41119d47f2960a75654e6f2e3166ab5",
+    "qitos/tracing/readers.py": "71d6e7f4b9d2841d5d4d713db1f89c2c5d20dc54350d03981a535946fe3cc846",
     "qitos/tracing/s4_readiness.py": "430ab34b9104cb4c99bf65cbcefd2deb164c7f06cafb7e54a0311c9e26b10702",
     "qitos/tracing/sinks.py": "89f10b2afac9c2a6dc516ec7992c46ecef46830daf1d1c30cc455bc078bf5d9a",
     "qitos/tracing/store.py": "3c2b22b8f459d8fb8ebd2257928b14da1af1ca12b65066c3e9c3d540b19aca82",
-    "qitos/tracing/trajectory.py": "7b29a969247ac29f94116524751850b06acb658077b6cc1f79c8269c9e760fcb",
+    "qitos/tracing/trajectory.py": "abc08f8a09840e25bafb7356f8ee348eb041c18dc32e94054fca5718e1567ce6",
     "qitos/tracing/wandb_processor.py": "634c662643125fb8b691e9cdb1fe9bae7eb5ff16bd462029f0ec6ed32d65ec3e",
     "qitos/tracing/work_graph_qualification.py": "f867f3bf7091154c74340a772bd798e50aae4429c3ca03db40304c4a975c1944",
     "qitos/tracing/work_graph_reader.py": "bf2671f645bd3ebbaf23b314c62fddf11be1939726b1168a95706b96722d47e8"

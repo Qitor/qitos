@@ -1,0 +1,19 @@
+{
+  "publication_ready": false,
+  "results": [
+    {
+      "checks": [
+        "imports",
+        "qit_help",
+        "qita_help",
+        "canonical_config_load",
+        "coding_consumer",
+        "research_consumer"
+      ],
+      "profile": "base",
+      "status": "passed"
+    }
+  ],
+  "schema_version": "qitos.s4.lane_d.wheel_qualification/1",
+  "status": "passed"
+}
