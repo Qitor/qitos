@@ -295,8 +295,11 @@ def test_agent_run_enables_trace_and_render_by_default(tmp_path):
 
     assert result.state.final_result == "42"
     assert (workspace / "render_events.jsonl").exists()
-    run_dirs = [p for p in logdir.iterdir() if p.is_dir()]
-    assert run_dirs
+    from qitos.qita.reader import candidate_file_reader
+    journal = logdir / "trajectory.journal"
+    assert journal.is_file()
+    assert candidate_file_reader(journal).read_run(result.run_id).records
+    assert not list(logdir.rglob("manifest.json"))
 
 
 def test_agent_run_can_disable_default_trace_and_render(tmp_path):

@@ -18,6 +18,8 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 
 ## 最新进展
 
+- G5 公共启动入口默认写入唯一 private Trajectory journal，可显式关闭或选择兼容 writer。
+
 - G5 已在已安装 consumer 资格通过后冻结现有 Trajectory 序列化合同；默认切换及最终门禁仍独立验收。
 
 - G5 候选已修复生成项目的配置执行及 Session 审批隔离；最终组合资格仍在验收。

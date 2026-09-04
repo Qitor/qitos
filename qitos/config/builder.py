@@ -544,10 +544,10 @@ def build_runtime(
         from ..tracing.sinks import FailurePolicy, TrajectoryStoreEventSink
         from ..tracing.store import JsonTrajectoryStore
         from ..tracing.journal_store import JournalTrajectoryStore
-        from ..tracing.trajectory import PrivacyView, RecordKind, RecordRole, TrajectoryRecord
+        from ..tracing.trajectory import PrivacyView, RecordKind, RecordRole, TrajectoryRecord, TRAJECTORY_SCHEMA_VERSION
 
         output = Path(config.runtime.trajectory.output).expanduser().resolve()
-        trajectory_path = output if output.suffix in {".json", ".journal"} else output / "trajectory.json"
+        trajectory_path = output if output.suffix in {".json", ".journal"} else output / "trajectory.journal"
         event_store = (JournalTrajectoryStore(trajectory_path)
                        if trajectory_path.suffix == ".journal" else JsonTrajectoryStore(trajectory_path))
         event_sink = TrajectoryStoreEventSink(event_store)
@@ -597,6 +597,7 @@ def build_runtime(
                 config.tool_options.get("native_tool_calls_required", False)
             ),
             "trajectory_enabled": config.runtime.trajectory.enabled,
+            "trajectory_schema_version": TRAJECTORY_SCHEMA_VERSION if config.runtime.trajectory.enabled else None,
             "sandbox": dict(sandbox_receipt or {}),
             "extension_slots": {
                 "memory": dict(config.memory),

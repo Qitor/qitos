@@ -17,6 +17,8 @@ How to update:
 
 ## Unreleased
 
+- Changed declarative and AgentModule.run default trajectory output to the required canonical journal sink, with explicit opt-out and legacy-writer compatibility; no Engine constructor parameter was added.
+
 - Froze the existing Trajectory wire contract after controlled G5 consumer qualification, retaining stored schema identities and explicit privacy/loss compatibility. Default switching and final promotion remain separate gates.
 
 - Fixed generated project failure-policy wiring and isolated Session approval from ambient legacy resume values; explicit temporary-fixture approval and real Docker failed/cancelled cleanup have regression coverage. G5 final qualification remains pending.

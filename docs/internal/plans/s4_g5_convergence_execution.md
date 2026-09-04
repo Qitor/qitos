@@ -724,3 +724,19 @@ checks. Existing candidate-1 spelling is retained to avoid rewriting persisted
 identities; no second public API family is added. The schema/journal/readiness
 gate passed 25 tests in 9.30 seconds (freeze-gate-01). Default writer and reader
 remain unchanged in this commit, and publication remains unauthorized.
+
+### Separate default writer switch
+
+Two regressions failed before this switch (default-writer-red: 2 failed,
+1 passed). Declarative configuration and AgentModule.run now select the
+canonical journal sink; trace=False and explicit RuntimeComposition remain
+caller-controlled. The unchanged Engine constructor receives prepared options
+through its existing core convenience import, removing the old core TraceWriter
+factory and adding no cross-layer dependency. Required flush is the existing
+runtime flush; a second authoritative writer is rejected. Ten focused tests
+passed in 10.72 s. Adjacent attempt 01 had 94 passed and one old directory-format
+expectation; that default test now verifies journal readback and retained render
+output instead. Stable plus config flake8/mypy passed 101 files. qita selector
+switch is intentionally a separate next commit.
+Default-writer adjacent attempt 02 passed 40 tests in 2.30 seconds, including
+sink conformance, actual core flow, architecture and unchanged interface budget.

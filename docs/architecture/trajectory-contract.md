@@ -27,3 +27,17 @@ rebuilds its index on append; total memory is not bounded by the query limit.
 See the G5 execution ledger and committed repeated measurements for observed
 costs. Schema freeze alone does not authorize default switching, local promotion
 or publication; these have independent validation gates.
+
+## Default writer selection
+
+Declarative composition enables its required private Trajectory sink by default.
+Directory output resolves to `trajectory.journal`; explicit `.json` files retain
+the supported JSON store path. Set `runtime.trajectory.enabled: false` to opt out.
+`AgentModule.run()` uses the same event-sink seam and journal under trace_logdir,
+with `trace=False` disabling that convenience default. Passing an explicit
+RuntimeComposition controls its own sinks. Explicit legacy TraceWriter remains
+a compatibility option; the convenience default does not instantiate it.
+The existing Engine constructor is unchanged, and no new root export is added.
+Low-level Engine callers continue to select their RuntimeComposition explicitly.
+The programmatic convenience path's default checkpoint remains process-local;
+use declarative durable composition for cross-process Session recovery.

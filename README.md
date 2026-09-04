@@ -18,6 +18,8 @@ QitOS core is the small framework. Product-grade applications and showcase agent
 
 ## What's New
 
+- G5 canonical public launches now default to one private Trajectory journal; explicit opt-out and compatibility writers remain available.
+
 - G5 has frozen the existing Trajectory wire contract after installed consumer qualification; default switching and final gates follow separately.
 
 - G5 candidate repairs generated project execution and Session approval isolation; final qualification remains in progress.

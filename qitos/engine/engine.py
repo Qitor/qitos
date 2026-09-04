@@ -540,6 +540,32 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             auto_approve=self.auto_approve,
         )
 
+    @staticmethod
+    def _prepare_public_run_kwargs(options: Dict[str, Any]) -> Dict[str, Any]:
+        """Resolve convenience defaults before the unchanged Engine constructor."""
+        from pathlib import Path
+        from ..tracing.journal_store import JournalTrajectoryStore
+        from ..tracing.sinks import TrajectoryStoreEventSink
+        from ..tracing.trajectory import PrivacyView, TRAJECTORY_SCHEMA_VERSION
+
+        resolved = dict(options)
+        output = resolved.pop("_default_trajectory_output", None)
+        if output is None or resolved.get("runtime") is not None:
+            return resolved
+        if resolved.get("trace_writer") is not None:
+            raise ValueError("multiple_authoritative_writers")
+        path = Path(output).expanduser().resolve()
+        path = path if path.suffix == ".journal" else path / "trajectory.journal"
+        store = JournalTrajectoryStore(path)
+        resolved["runtime"] = RuntimeComposition(
+            checkpoint_store=resolved.get("checkpoint_store"),
+            durability_mode=resolved.get("checkpoint_durability", DurabilityMode.SYNC),
+            event_sink=TrajectoryStoreEventSink(store),
+            event_sink_view=PrivacyView.RAW_PRIVATE,
+            launch_metadata={"trajectory_schema_version": TRAJECTORY_SCHEMA_VERSION},
+        )
+        return resolved
+
     def cancel(self, mode: str = "immediate") -> None:
         """Request cancellation of an in-flight run.
 

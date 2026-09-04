@@ -133,7 +133,7 @@ class AgentModule(ABC, Generic[StateT, ObservationT, ActionT]):
         """Create an Engine bound to this agent."""
         from ..engine.engine import Engine
 
-        return Engine(agent=self, **engine_kwargs)
+        return Engine(agent=self, **Engine._prepare_public_run_kwargs(engine_kwargs))
 
     def active_protocol(self) -> Any:
         runtime_protocol = getattr(self, "_runtime_protocol", None)
@@ -451,12 +451,10 @@ class AgentModule(ABC, Generic[StateT, ObservationT, ActionT]):
         trace_setting = trace
         if trace_setting is None and "trace_writer" not in kwargs:
             trace_setting = True
-        if trace_setting:
-            kwargs["trace_writer"] = self._trace_writer_from_input(
-                trace=trace_setting,
-                trace_logdir=trace_logdir,
-                trace_prefix=trace_prefix,
-            )
+        if trace_setting is True:
+            kwargs["_default_trajectory_output"] = trace_logdir
+        elif trace_setting:
+            kwargs["trace_writer"] = trace_setting
 
         render_setting = render
         if render_setting is None and "render_hooks" not in kwargs:
@@ -530,22 +528,6 @@ class AgentModule(ABC, Generic[StateT, ObservationT, ActionT]):
         except Exception:
             return None
         return None
-
-    def _trace_writer_from_input(
-        self, trace: Any, trace_logdir: str, trace_prefix: str | None
-    ) -> Any:
-        if trace is not True:
-            return trace
-        from ..trace import TraceWriter
-
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
-        prefix = str(trace_prefix or self.name or self.__class__.__name__.lower())
-        return TraceWriter(
-            output_dir=str(Path(trace_logdir).expanduser().resolve()),
-            run_id=f"{prefix}_{stamp}",
-            strict_validate=True,
-            metadata={"model_id": getattr(getattr(self, "llm", None), "model", None)},
-        )
 
     def _render_hook_from_input(
         self, render: Any, workspace: str | None, theme: str
