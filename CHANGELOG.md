@@ -17,6 +17,8 @@ How to update:
 
 ## Unreleased
 
+- Froze the existing Trajectory wire contract after controlled G5 consumer qualification, retaining stored schema identities and explicit privacy/loss compatibility. Default switching and final promotion remain separate gates.
+
 - Fixed generated project failure-policy wiring and isolated Session approval from ambient legacy resume values; explicit temporary-fixture approval and real Docker failed/cancelled cleanup have regression coverage. G5 final qualification remains pending.
 
 ### Added

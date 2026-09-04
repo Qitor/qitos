@@ -715,3 +715,12 @@ Raw operation timings and logical scan counts are committed separately from
 the measured script/code identity. Storage measurement regressions passed
 three tests in 29.14 seconds. No compression, deduplication or bounded-memory
 performance advantage is asserted.
+
+### Separate schema freeze
+
+After actual A/B/C current qualification, the unique Trajectory wire contract
+is frozen by a field/enum/version fixture and previous consumer-byte roundtrip
+checks. Existing candidate-1 spelling is retained to avoid rewriting persisted
+identities; no second public API family is added. The schema/journal/readiness
+gate passed 25 tests in 9.30 seconds (freeze-gate-01). Default writer and reader
+remain unchanged in this commit, and publication remains unauthorized.

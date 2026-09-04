@@ -18,6 +18,8 @@ QitOS core is the small framework. Product-grade applications and showcase agent
 
 ## What's New
 
+- G5 has frozen the existing Trajectory wire contract after installed consumer qualification; default switching and final gates follow separately.
+
 - G5 candidate repairs generated project execution and Session approval isolation; final qualification remains in progress.
 
 - **G5 integration candidate**: authenticated Docker process completion, retrievable MCP/workspace artifacts, isolated Session restore, explicit publication, and child checkpoint-backed joins are under qualification; see [the execution ledger](docs/internal/plans/s4_g5_convergence_execution.md). No local promotion or default switch yet.

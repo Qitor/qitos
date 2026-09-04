@@ -1,0 +1,120 @@
+{
+  "enums": {
+    "PrivacyView": [
+      "raw_private",
+      "redacted_public",
+      "safe_diagnostic"
+    ],
+    "RecordKind": [
+      "session",
+      "run",
+      "model_request",
+      "model_response",
+      "provider_transaction",
+      "reasoning",
+      "continuation",
+      "tool_batch",
+      "tool_slot",
+      "tool_result",
+      "lifecycle",
+      "effect",
+      "context",
+      "compaction",
+      "steering",
+      "snapshot",
+      "pause",
+      "restore",
+      "budget",
+      "stop",
+      "error",
+      "loss",
+      "artifact",
+      "sandbox",
+      "ownership",
+      "work_graph",
+      "step"
+    ],
+    "RecordRole": [
+      "canonical_runtime_fact",
+      "derived_view",
+      "compatibility_artifact"
+    ]
+  },
+  "fields": {
+    "LossEntry": [
+      "code",
+      "scope",
+      "count",
+      "consequence"
+    ],
+    "LossReport": [
+      "policy_id",
+      "entries"
+    ],
+    "Trajectory": [
+      "records",
+      "schema_version",
+      "metadata",
+      "provenance",
+      "privacy_view",
+      "loss"
+    ],
+    "TrajectoryQuery": [
+      "session_id",
+      "run_id",
+      "work_item_id",
+      "kinds",
+      "after_sequence",
+      "limit"
+    ],
+    "TrajectoryRecord": [
+      "record_id",
+      "kind",
+      "role",
+      "payload",
+      "sequence",
+      "occurred_at",
+      "recorded_at",
+      "monotonic_ns",
+      "session_id",
+      "run_id",
+      "work_item_id",
+      "step_id",
+      "phase",
+      "agent_id",
+      "snapshot_id",
+      "checkpoint_ref",
+      "exchange_id",
+      "tool_call_id",
+      "attempt_id",
+      "attempt",
+      "owner_id",
+      "owner_generation",
+      "operation_id",
+      "lifecycle_state",
+      "provider_transaction_id",
+      "effect_id",
+      "sandbox_id",
+      "source_session_id",
+      "source_work_item_id",
+      "producer_authority",
+      "record_provenance",
+      "causation_id",
+      "correlation_id",
+      "parent_run_id",
+      "parent_work_item_id",
+      "artifact_refs",
+      "privacy_view",
+      "loss",
+      "digest"
+    ]
+  },
+  "qualified_code_commit": "511013acfd18efcc0d25901e8a7641c4ee731d93",
+  "schema": "qitos.g5.frozen_trajectory_contract/1",
+  "status": "frozen",
+  "versions": {
+    "EXPORT_SCHEMA_VERSION": "qitos.trajectory-export/candidate-1",
+    "STORE_SCHEMA_VERSION": "qitos.trajectory-store/candidate-1",
+    "TRAJECTORY_SCHEMA_VERSION": "qitos.trajectory/candidate-1"
+  }
+}

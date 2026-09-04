@@ -1,4 +1,4 @@
-"""Unfrozen candidate contracts for one future QitOS Trajectory architecture.
+"""Frozen contracts for the sole QitOS Trajectory architecture.
 
 The serialized schema has a version because stored bytes need a migration
 identity.  The Python concepts deliberately do not carry generation suffixes.
@@ -20,6 +20,8 @@ from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Tuple
 from qitos.core.artifact import ArtifactRef
 
 
+# Persisted wire identities retain their original spelling for existing data.
+# Frozen by the G5 contract fixture; changing these requires a compatibility migration.
 TRAJECTORY_SCHEMA_VERSION = "qitos.trajectory/candidate-1"
 EXPORT_SCHEMA_VERSION = "qitos.trajectory-export/candidate-1"
 STORE_SCHEMA_VERSION = "qitos.trajectory-store/candidate-1"
@@ -176,7 +178,7 @@ def _optional_text(value: Any) -> Optional[str]:
 
 @dataclass(frozen=True)
 class TrajectoryRecord:
-    """One immutable event-shaped record in the candidate trajectory stream."""
+    """One immutable event-shaped record in the canonical trajectory stream."""
 
     record_id: str
     kind: RecordKind
