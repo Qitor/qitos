@@ -791,3 +791,7 @@ Initial project/config/demo suite passed 54 tests in 7.99 seconds, versus the
 shared-journal slowdown in full attempt 05. Static stable+config+minimal-demo
 checks passed 102 files. Final re-enable validation is reswitch-04. The qita
 selector remains separately rolled back until its re-enable commit.
+Writer reswitch-04 passed 15 tests in 2.25 seconds, including the legacy
+manifest compatibility path, canonical RunSpec identity, architecture and
+unchanged interface budget. This writer commit does not change qita's rolled-
+back selector; reader re-enable follows separately.
