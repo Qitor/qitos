@@ -4,7 +4,7 @@ from dataclasses import replace
 
 import pytest
 
-from qitos.config import SessionConfig, build_agent_composition
+from qitos.config import SessionConfig, TrajectoryConfig, build_agent_composition
 from qitos.config.errors import CompositionError
 from qitos.core.session import SessionContractError
 from qitos.kit.env.host_env import HostEnv
@@ -115,7 +115,9 @@ def test_restore_keeps_explicit_tool_approval_and_execution_policy(tmp_path):
                 return {"choices": [{"message": {"content": 'Thought: authorized\nAction: approved_output()'}}]}
             return super().call_raw(messages, **options)
 
-    config = replace(_persisted_config(tmp_path), tool_options={"auto_approve": True, "max_concurrency": 2},
+    base = _persisted_config(tmp_path)
+    config = replace(base, runtime=replace(base.runtime, trajectory=TrajectoryConfig(
+        enabled=True, output=str(tmp_path / "trajectory.journal"))), tool_options={"auto_approve": True, "max_concurrency": 2},
                      failure_policy={"tool": "fail_closed"}, context={"conversation_max_rounds": 20})
     with build_agent_composition(config, model_override=Model(0)) as first:
         first.tool_registry.register(approved_output)
@@ -127,6 +129,13 @@ def test_restore_keeps_explicit_tool_approval_and_execution_policy(tmp_path):
     with build_agent_composition(config, model_override=Model(1)) as second:
         second.tool_registry.register(approved_output)
         second.runtime.lifecycle_policy = LifecyclePolicy()
-        result = second.restore(identity).run()
+        result = second.restore(identity).run(steering="preserve the authorized selection")
         assert result.state.final_result == "done"
         assert effects == ["explicitly authorized", "explicitly authorized"]
+        from qitos.qita.reader import candidate_file_reader
+        from qitos.tracing.trajectory import PrivacyView, RecordKind
+        reader = candidate_file_reader(second.trajectory_path)
+        records = reader.read_session(identity.value, view=PrivacyView.RAW_PRIVATE).records
+        steering = [item for item in records if item.kind == RecordKind.STEERING]
+        assert len(steering) == 1
+        assert steering[0].payload["payload"]["steering_receipt"]["applied_once"] is True

@@ -402,3 +402,29 @@ Engine progress component and validated/restored via the same Engine constructor
 No constructor parameter or public versioned API was added. Thirty-nine adjacent
 Session/fork/context tests passed (2.94 s); changed-module flake8 and mypy passed.
 Required approval-interrupt closure remains a separate pending investigation.
+
+### Installed consumer steering publication and readiness adversarial checks
+
+Coding attempt 4 reached final publication/artifact retrieval/child join; research
+attempt 1 reached real handoff, fresh-process continuation and typed worker timeout.
+Both then failed because no independently classified steering record existed in
+Trajectory. The focused regression reproduced zero records (1 failed, 2.97 s).
+After each successful snapshot commit, Session now compares its persisted
+steering receipts with the previous immutable head and emits changed dispositions
+through RuntimeEvent. This covers submission and queued-to-applied transitions
+without repeating an unchanged applied receipt on every snapshot.
+
+Twenty-six steering/Session/vocabulary/readiness tests passed (3.51 s); mypy on
+the two changed runtime modules passed. The readiness validator additionally has
+15 positive/negative unit cases, including README/schema/writer/test-node spoofs,
+stale digests, unknown/duplicate requirements, historical writers, missing or
+uncollected execution, unpassed consumers and invalid/mismatched identities.
+These synthetic validator fixtures are not qualification evidence.
+
+Live attempt 3 on 75b58da code, with explicit projection loss, failed at connection
+after one admitted request (provider_connection_failed, no tool executed, no
+provider token usage reported). A subsequent credential-free TCP/TLS probe failed
+with SSLEOFError. The request remains consumed and was not automatically resent.
+Three total live requests have been admitted so far; only the first two have
+reported usage (814 tokens each). This environment failure is informational and
+does not replace any required offline gate.

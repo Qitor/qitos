@@ -44,6 +44,8 @@ def classify_event(
         return RecordKind.ERROR
     if "ERROR" in upper:
         return RecordKind.ERROR
+    if stage == "steering_receipt":
+        return RecordKind.STEERING
     if stage in {"model_input", "request_view"} or any(
         token in upper for token in ("MODEL_REQUEST", "MODEL_INPUT")
     ):
