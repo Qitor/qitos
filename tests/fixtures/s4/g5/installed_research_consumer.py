@@ -11,7 +11,7 @@ import tempfile
 import threading
 import time
 
-import qitos
+from importlib.util import find_spec
 from qitos.config import (AgentConfig, BudgetConfig, DatasetItem, EnvironmentConfig,
                           ModelConfig, RuntimeConfig, SessionConfig, TrajectoryConfig,
                           build_agent_composition)
@@ -302,7 +302,7 @@ def restore(root, evidence=None):
         control.update(compactions=len(COMPACTIONS), continuation_resolutions=len(CONTINUATION_RESOLUTIONS),
                        canonical_notes_retained=True, opaque_state_isolated=True)
     assert control["cleanup"]["container_absent"]
-    control["installed_distribution"] = "site-packages" in qitos.__file__
+    control["installed_distribution"] = "site-packages" in find_spec("qitos").origin
     assert control["installed_distribution"]
     print("G5_CONSUMER_RESULT=" + json.dumps(control, sort_keys=True))
 

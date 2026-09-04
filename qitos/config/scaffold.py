@@ -143,8 +143,7 @@ compaction: {{}}
 lifecycle:
   policy: cooperative
 failure_policy:
-  provider: typed
-  tools: fail_closed
+  tool: fail_closed
 metadata:
   starter: qitos-session-first
 dataset:

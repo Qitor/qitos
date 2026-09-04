@@ -403,3 +403,7 @@ approval-response protocol is not implemented: attempting to execute that
 restored state raises `unsupported_capability` for `session.approval.resume`
 before a model or tool call. Steering is not an approval receipt. Existing
 cooperative Python pause and restore-time steering remain supported.
+
+Legacy Engine step-resume context values are cleared at Session.run entry;
+they cannot grant approval to a new durable Session. Generated projects use
+the implemented `failure_policy.tool: fail_closed` composition setting.

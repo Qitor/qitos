@@ -17,6 +17,8 @@ How to update:
 
 ## Unreleased
 
+- Fixed generated project failure-policy wiring and isolated Session approval from ambient legacy resume values; explicit temporary-fixture approval and real Docker failed/cancelled cleanup have regression coverage. G5 final qualification remains pending.
+
 ### Added
 
 - Added an independent S4 candidate audit and bounded G5 repair/convergence plan, with exact lane identities, seven reproduced framework defects, 198 focused-test results, historical/current evidence corrections, and explicit holds on promotion, Trajectory defaults, release, and worktree retirement. This documentation does not integrate or repair the candidate runtime code.

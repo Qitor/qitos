@@ -629,3 +629,35 @@ The controlled-registry/interface/architecture suite passed 28 tests in 1.58 s.
 The first script static check found four E128 continuation-indent findings;
 a follow-up formatting commit fixes them without changing the controlled
 execution logic. The repeated script/module flake8 check passed.
+
+### Full-tree attempt 04 and executable scaffold/approval repair
+
+Clean ad0e23e3dd7693d0d64607e4fcfaed4b3b5ff96d produced 2646 passed,
+50 skipped and one failed in 477.06 seconds (`/tmp/qitos-g5-full-04.log`
+and XML). The failure was test_swe_security_and_skill_examples_smoke: an
+approval-required audit stopped at interrupt. The fixture now explicitly
+authorizes its temporary tools through the existing engine_kwargs entry and
+asserts both actual executions. It retains the final-stop assertions.
+The same source passed stable flake8/mypy and the 356-finding ratchet.
+Nineteen non-base wheel profiles passed in extras-preflight-02; base and final
+combined validation remain required.
+
+An installed generated project failed on its invalid failure_policy mapping.
+The scaffold now emits the implemented tool: fail_closed setting. Regression
+red-02 reproduces the typed config failure; the test executes the generated
+fake provider through composition after replacing only environment/storage
+with temporary test settings. A separate approval regression reproduced an
+ambient legacy resume grant executing a new Session tool (ambient-approval-
+red-02: one failed, one passed). Session.run clears legacy resume/context
+authorization at its canonical entry. Steering remains distinct from approval.
+The combined scaffold/approval/examples/interrupt checks passed 58 tests in
+1.73 s (scaffold-approval-fix-03). Failed fixture attempts remain in /tmp logs.
+
+Real Docker failed/cancelled Session cleanup passed two tests in 6.40 s
+(failed-cancelled-docker-02), after correcting the fixture to use register_hook
+and cancel. Both execute a sandbox write, preserve original input bytes, retain
+output, confirm process cleanup, and verify label-scoped container absence.
+The initial attempt passed failure cleanup but used nonexistent add_hook for
+cancellation; it remains recorded as failed-cancelled-docker-01.
+Consumer installation checks use importlib.find_spec package origin, avoiding
+a packaging scanner false positive for a private-field access.

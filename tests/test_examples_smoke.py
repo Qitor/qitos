@@ -227,6 +227,7 @@ def test_swe_security_and_skill_examples_smoke(tmp_path: Path) -> None:
         render=False,
         trace=False,
         return_state=True,
+        engine_kwargs={"auto_approve": True},
     )
     assert swe_result.state.stop_reason == "final"
 
@@ -251,6 +252,7 @@ def test_swe_security_and_skill_examples_smoke(tmp_path: Path) -> None:
         render=False,
         trace=False,
         return_state=True,
+        engine_kwargs={"auto_approve": True},
     )
     assert research_result.state.stop_reason == "final"
 
@@ -277,8 +279,11 @@ def test_swe_security_and_skill_examples_smoke(tmp_path: Path) -> None:
         render=False,
         trace=False,
         return_state=True,
+        engine_kwargs={"auto_approve": True},  # Explicit authorization of the two temporary-fixture audit tools.
     )
     assert audit_result.state.stop_reason == "final"
+    assert audit_result.tool_calls_by_name["audit_inventory"] == 1
+    assert audit_result.tool_calls_by_name["audit_hotspots"] == 1
 
     skill_workspace = tmp_path / "skillhub"
     skill_workspace.mkdir(parents=True, exist_ok=True)

@@ -4,9 +4,59 @@ import json
 import subprocess
 import shlex
 import time
+import pytest
 
 from qitos.kit.env.docker_env import DockerEnv
 from qitos.kit.env.sandbox import SandboxPolicy, SandboxResourceLimits
+
+
+@pytest.mark.parametrize("ending", ["failed", "cancelled"])
+def test_g5_failed_and_cancelled_session_cleanup_preserves_source(tmp_path, ending):
+    from dataclasses import replace
+    from qitos.config import EnvironmentConfig, SessionConfig, build_agent_composition
+    from test_s4_lane_a_public_authoring import _config, _FinalModel
+
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "input.txt").write_bytes(b"original")
+
+    class Model(_FinalModel):
+        qitos_protocol = "json_decision_multi_v1"
+        calls = 0
+
+        def call_raw(self, messages, **options):
+            self.calls += 1
+            if self.calls > 1:
+                raise RuntimeError("offline failure after the sandbox write")
+            return {"choices": [{"message": {"content": None, "tool_calls": [
+                {"id": "owned-write", "type": "function", "function": {"name": "write_file",
+                 "arguments": json.dumps({"path": "input.txt", "content": "modified"})}}]}}]}
+
+    class CancelAfterStep:
+        def on_after_step(self, context, engine):
+            engine.cancel("immediate")
+
+    base = _config(source)
+    config = replace(base, tool_preset="env_coding", protocol="json_decision_multi_v1",
+        runtime=replace(base.runtime, data_root=str(tmp_path / "data"), session=SessionConfig(),
+            environment=EnvironmentConfig(workspace=str(source), image="qitos-g5-qualification:20260904",
+                                          cpus=.5, memory_mb=256, pids_limit=32)))
+    model = Model()
+    with build_agent_composition(config, model_override=model) as composition:
+        if ending == "cancelled":
+            composition.engine.register_hook(CancelAfterStep())
+        session = composition.session("write only in owned sandbox")
+        result = session.run()
+        assert session.lifecycle.value == ending
+        assert result.tool_calls_by_name["write_file"] == 1
+        assert model.calls == (1 if ending == "cancelled" else 2)
+    assert (source / "input.txt").read_bytes() == b"original"
+    receipt = composition.env.cleanup_receipt
+    assert receipt["container_absent"] and receipt["staging_absent"]
+    assert receipt["output_retained"] and receipt["process_cleanup_confirmed"]
+    absence = subprocess.run(["docker", "ps", "-aq", "--filter", f"label=qitos.sandbox.id={receipt['sandbox_id']}"],
+                             capture_output=True, text=True, timeout=20, check=True)
+    assert not absence.stdout.strip()
 
 
 def test_g5_real_docker_bounded_resource_and_network_pressure(tmp_path):

@@ -7,7 +7,7 @@ import sys
 import tempfile
 import time
 
-import qitos
+from importlib.util import find_spec
 from qitos.config import (AgentConfig, BudgetConfig, DatasetItem, EnvironmentConfig,
                           ModelConfig, RuntimeConfig, SessionConfig, TrajectoryConfig,
                           build_agent_composition)
@@ -226,7 +226,7 @@ def resume(root, evidence=None):
                        artifact_count=len(artifacts), trajectory_records=len(trajectory.records),
                        tool_calls=result.tool_calls_by_name, cleanup=current.env.cleanup_receipt)
     assert control["cleanup"]["container_absent"]
-    control["installed_distribution"] = "site-packages" in qitos.__file__
+    control["installed_distribution"] = "site-packages" in find_spec("qitos").origin
     assert control["installed_distribution"]
     print("G5_CONSUMER_RESULT=" + json.dumps(control, sort_keys=True))
 

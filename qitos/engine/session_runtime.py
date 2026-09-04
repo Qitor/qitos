@@ -1500,7 +1500,12 @@ class Session:
 
     def run(self, *, steering: Optional[str] = None) -> "EngineResult[Any]":
         """Run or resume through the one canonical Engine loop."""
+        from .interrupt import _clear_resume_values, _reset_interrupt_context
+
         with self._engine._session_runtime_lock:
+            # Legacy step-resume values are not authorization for this Session.
+            _clear_resume_values()
+            _reset_interrupt_context()
             clear_session_runtime(self._engine)
             try:
                 with self._lock:

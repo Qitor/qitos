@@ -8,7 +8,21 @@ from qitos.core.session import SessionContractError
 from test_s4_lane_a_public_authoring import _config, _FinalModel
 
 
-def test_session_pending_approval_does_not_resend_model_request(tmp_path):
+@pytest.fixture(params=[False, True])
+def ambient_approval(request):
+    from qitos.engine.interrupt import _clear_resume_values, _set_resume_values, _reset_interrupt_context
+
+    _clear_resume_values()
+    _reset_interrupt_context()
+    if request.param:
+        _set_resume_values({"int_1": "approve"})
+    try:
+        yield
+    finally:
+        _clear_resume_values()
+
+
+def test_session_pending_approval_does_not_resend_model_request(tmp_path, ambient_approval):
     calls, effects = [], []
 
     @function_tool(needs_approval=True)
