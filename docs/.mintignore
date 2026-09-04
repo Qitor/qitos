@@ -4,3 +4,7 @@ internal/
 architecture/
 v4/
 **/*.md
+
+# Preserve the existing draft exclusions.
+drafts/
+*.draft.mdx

@@ -1,6 +1,6 @@
 # G5 documentation, tutorials and promotion
 
-Status: in progress; remote sync not performed; no release/default-branch change.
+Status: local docs/tutorial checks passed; promotion/push held for historical local-path review; no release/default-branch change.
 
 ## Source identity and scope
 
@@ -36,7 +36,10 @@ all 29 source/replay mappings and historical failed evidence.
 
 ## Qualification ledger
 
-Pending. No new tutorial, rendering, remote or retirement success claimed yet.
+Tested content 478dd73783414f363f857b643370603112c1158a: 506 passed in 51.40 seconds.
+Static, links/parity, all 148 MDX pages, Mint build and real desktop/mobile previews pass.
+Installed wheel and real Docker tutorial outcomes are recorded in g5_docs_tutorials_report.md.
+Remote sync and retirement remain unperformed.
 
 ## Reproductions and public boundaries found while authoring
 
