@@ -465,3 +465,41 @@ passed in 5.84 s. A separate native-model composition test also executes the
 adapter and verifies a real independent child head. Changed-module flake8/mypy
 passed. Logs: /tmp/qitos-g5-model-work-{red-02,fix-01,adjacent-02}.log and
 /tmp/qitos-g5-native-work-01.log.
+
+### Complete intermediate tree and MCP artifact repair
+
+Full pytest on clean 5ddb78e47a61d3d86a13e5ea30b368f2b671cfe8 passed:
+2628 passed, 50 skipped, 433.60 seconds. The complete skipped-node inventory,
+JUnit digest, wheel/sdist digests and 19 extra-profile results are committed in
+tests/fixtures/s4/g5/validation-5ddb78e.json. All skips require live E2E variables;
+required offline/Docker cases did not skip. Live requests are separately bounded
+and informational. Historical C's additional 49 skips remain unsubstantiated:
+its report contains no node inventory; repository sources contain only 13 async
+test functions, so an absent async plugin is not an established explanation.
+The original C report remains unchanged; its original pytest/JUnit was requested.
+
+The earlier full-02 attempt ran on c02f1b7 plus the work repair diff and was
+interrupted after detecting a native fake-model assertion mismatch. It is not a
+complete verification. Full-03 is the separate clean-commit result above.
+
+Stable flake8/mypy passed. The ratchet found three new sandbox component type
+findings and the nine original C stale findings. Explicit backend type/receipt
+checks repair the new findings. Full MCP static scope also exposed two existing
+unused imports, now removed; final shrink-only update must account for those two
+additional resolved findings, without exceptions.
+
+An additional MCP probe reproduced missing artifact bytes and false success
+without a resolver. The draft permission assertion expected not_started rather
+than the existing rejected disposition; it was corrected without changing policy.
+The bridge now keeps runtime_context local, persists and verifies large responses
+through the composed artifact resolver, and returns a typed post-dispatch failure
+if retention fails. It preserves reconciliation requirements. Tests: 87 passed
+in 1.86 s (tests/mcp plus S4 C safe execution). Full MCP and sandbox component
+flake8/mypy passed. Logs: /tmp/qitos-g5-mcp-{red,fixed-01,static-01}.log.
+
+The 19 non-base packaging profiles all installed and imported the explicit
+5ddb78e wheel in independent fresh environments. Base/current installed-consumer
+and final-wheel qualifications remain pending. A three-repetition measurement
+on the intermediate real consumer exports ran with 305 coding and 125 research
+records; this preliminary result does not establish bounded memory or final-tree
+performance. Canonical append/query currently reload full journals.

@@ -377,3 +377,11 @@ an explicit permission/effect operation. The candidate has focused regression
 evidence, but installed consumers, full platform qualification and final gates
 remain open. See [the execution ledger](../internal/plans/s4_g5_convergence_execution.md).
 No primary promotion, default Trajectory switch or release is asserted here.
+
+### G5 in-loop work repair (candidate)
+
+Model-callable spawn, delegate and fan-out now use a quiescent immutable snapshot
+recorded before their tool batch starts. They share the canonical fork implementation
+with direct Session operations. Public fork still rejects arbitrary RUNNING heads.
+The controlled native-model regression verifies an independent persisted child head;
+see the G5 execution ledger for current qualification and remaining gates.
