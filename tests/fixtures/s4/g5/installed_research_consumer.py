@@ -99,7 +99,7 @@ def configuration(root):
         budgets=BudgetConfig(max_steps=6, max_requests=6, max_runtime_seconds=30),
         runtime=RuntimeConfig(data_root=str(root / "data"), session=SessionConfig(),
             trajectory=TrajectoryConfig(enabled=True, output=str(root / "trajectory.journal")),
-            environment=EnvironmentConfig(workspace=str(root / "source"), image="qitos-s3-g4-qualification:pytest-debian",
+            environment=EnvironmentConfig(workspace=str(root / "source"), image="qitos-g5-qualification:20260904",
                                           cpus=.5, memory_mb=256, pids_limit=32)))
 
 

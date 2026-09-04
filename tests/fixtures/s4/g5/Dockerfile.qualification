@@ -1,0 +1,5 @@
+FROM qitos-s3-g4-qualification:pytest-debian
+LABEL qitos.qualification.task="s4-g5-convergence-20260904"
+USER root
+RUN apt-get update && apt-get install --no-install-recommends -y ripgrep python-is-python3
+USER node

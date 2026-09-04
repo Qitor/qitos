@@ -428,3 +428,16 @@ with SSLEOFError. The request remains consumed and was not automatically resent.
 Three total live requests have been admitted so far; only the first two have
 reported usage (814 tokens each). This environment failure is informational and
 does not replace any required offline gate.
+
+### Installed consumer tool-status admission
+
+Coding attempt 5 on 7cf8bf6 failed its strengthened per-tool assertion. The old
+qualification image lacks both rg and the python command used by run_test;
+an owned sandbox probe confirmed python3 and pytest 7.2.1 only. A dedicated
+Dockerfile adds ripgrep and python-is-python3 and restores USER node. Build 1
+failed because the inherited non-root user cannot install packages; build 2
+succeeded as image sha256:e3c403f9d6b7b0b93c1cda6bcb329cea11c60d9c0b70b4ac249e8ff049bcde53.
+Logs: /tmp/qitos-g5-image-build{,-02}.log. The consumer now checks both canonical
+ToolResult and the documented trace-safe projection schema, retaining all eleven
+required tool-status assertions. Neither previous final text nor publication
+alone constitutes a passed tool consumer.

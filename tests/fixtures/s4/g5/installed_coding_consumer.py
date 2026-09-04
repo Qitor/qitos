@@ -104,7 +104,7 @@ def configuration(root):
         runtime=RuntimeConfig(data_root=str(root / "data"), session=SessionConfig(),
                               trajectory=TrajectoryConfig(enabled=True, output=str(root / "trajectory.journal")),
                               environment=EnvironmentConfig(workspace=str(root / "source"),
-                                  image="qitos-s3-g4-qualification:pytest-debian", cpus=.5, memory_mb=256, pids_limit=32)),
+                                  image="qitos-g5-qualification:20260904", cpus=.5, memory_mb=256, pids_limit=32)),
     )
 
 
@@ -182,12 +182,14 @@ def resume(root, evidence=None):
         assert (root / "source" / "code.py").read_text() == "RESULT = 43\n"
         reader = candidate_file_reader(current.trajectory_path)
         trajectory = reader.read_session(session.session_id.value, view=PrivacyView.RAW_PRIVATE)
-        artifacts, tool_outcomes = [], {}
+        artifacts, tool_outcomes, tool_errors = [], {}, {}
         for record in trajectory.records:
             def collect(value):
                 if isinstance(value, dict):
-                    if value.get("schema_version") == "qitos.tool_result/v2" and value.get("tool_name"):
+                    if value.get("schema_version") in {"qitos.tool_result/v2", "qitos.tool_result.trace_safe/v1"} and value.get("tool_name"):
                         tool_outcomes.setdefault(value["tool_name"], set()).add(value["status"])
+                        if value["status"] == "error":
+                            tool_errors[value["tool_name"]] = value.get("error_code")
                     if value.get("schema_version") == "qitos.artifact_ref/v1":
                         artifacts.append(ArtifactRef.from_dict(value))
                     else:
@@ -200,7 +202,7 @@ def resume(root, evidence=None):
         assert artifacts
         required = {"read_file", "grep_file", "list_files", "write_file", "edit_file", "run_test",
                     "run_command", "start_process", "poll_process", "terminate_process", "publish_workspace"}
-        assert required <= set(tool_outcomes), tool_outcomes
+        assert required <= set(tool_outcomes), (tool_outcomes, tool_errors)
         for name in required:
             assert tool_outcomes[name] <= ({"success", "timed_out"} if name == "poll_process" else {"success"}), (name, tool_outcomes[name])
         control["tool_outcomes"] = {name: sorted(values) for name, values in tool_outcomes.items()}
