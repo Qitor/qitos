@@ -703,3 +703,15 @@ not physical I/O; no bounded-total-memory claim is made. Its initial formatting
 check found E128 findings, corrected before commit. Preliminary current export
 measurement repeated three times reported a 69,211,505-byte tracemalloc peak;
 final committed-source measurements follow separately.
+
+Committed ef2898d measurements completed three repetitions. The 10,003-record
+synthetic journal is 10,860,239 bytes; complete reads took 5.57–5.76 seconds
+with tracemalloc enabled, each loading the entire journal once. Peak traced
+allocations were 195,672,239–195,685,453 bytes. These are measured Python
+allocations, not a total process/container memory guarantee. The smaller
+current-export measurement ran concurrently during part of this measurement;
+these timings are observations under that load, not isolated benchmarks.
+Raw operation timings and logical scan counts are committed separately from
+the measured script/code identity. Storage measurement regressions passed
+three tests in 29.14 seconds. No compression, deduplication or bounded-memory
+performance advantage is asserted.

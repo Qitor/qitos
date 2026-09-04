@@ -1,0 +1,143 @@
+{
+  "claims": [],
+  "code_commit": "ef2898d65351f7f9f9c54f54ae6d2d0de04bb823",
+  "measurement_only": true,
+  "measurements": [
+    {
+      "export_bytes": 10860580,
+      "journal_bytes": 10860239,
+      "operations": {
+        "append_batch": {
+          "elapsed_ns": 5887314208,
+          "full_loads": 1,
+          "logical_scan_bytes": 0
+        },
+        "complete_read": {
+          "elapsed_ns": 5570754041,
+          "full_loads": 1,
+          "logical_scan_bytes": 10860239
+        },
+        "duplicate_append": {
+          "elapsed_ns": 8015235375,
+          "full_loads": 1,
+          "logical_scan_bytes": 10860239
+        },
+        "exact_export": {
+          "elapsed_ns": 2519337625,
+          "full_loads": 0,
+          "logical_scan_bytes": 0
+        },
+        "exact_reimport": {
+          "elapsed_ns": 1902644250,
+          "full_loads": 0,
+          "logical_scan_bytes": 0
+        },
+        "query_first_page": {
+          "elapsed_ns": 5549535708,
+          "full_loads": 1,
+          "logical_scan_bytes": 10860239
+        },
+        "query_last_page": {
+          "elapsed_ns": 4051097000,
+          "full_loads": 1,
+          "logical_scan_bytes": 10860239
+        }
+      },
+      "record_count": 10003,
+      "repetition": 0,
+      "tracemalloc_peak_bytes": 195685453
+    },
+    {
+      "export_bytes": 10860580,
+      "journal_bytes": 10860239,
+      "operations": {
+        "append_batch": {
+          "elapsed_ns": 5942895375,
+          "full_loads": 1,
+          "logical_scan_bytes": 0
+        },
+        "complete_read": {
+          "elapsed_ns": 5757984750,
+          "full_loads": 1,
+          "logical_scan_bytes": 10860239
+        },
+        "duplicate_append": {
+          "elapsed_ns": 8088313875,
+          "full_loads": 1,
+          "logical_scan_bytes": 10860239
+        },
+        "exact_export": {
+          "elapsed_ns": 2624662083,
+          "full_loads": 0,
+          "logical_scan_bytes": 0
+        },
+        "exact_reimport": {
+          "elapsed_ns": 2283296250,
+          "full_loads": 0,
+          "logical_scan_bytes": 0
+        },
+        "query_first_page": {
+          "elapsed_ns": 5601178041,
+          "full_loads": 1,
+          "logical_scan_bytes": 10860239
+        },
+        "query_last_page": {
+          "elapsed_ns": 4235403917,
+          "full_loads": 1,
+          "logical_scan_bytes": 10860239
+        }
+      },
+      "record_count": 10003,
+      "repetition": 1,
+      "tracemalloc_peak_bytes": 195672719
+    },
+    {
+      "export_bytes": 10860580,
+      "journal_bytes": 10860239,
+      "operations": {
+        "append_batch": {
+          "elapsed_ns": 5175798916,
+          "full_loads": 1,
+          "logical_scan_bytes": 0
+        },
+        "complete_read": {
+          "elapsed_ns": 5703185125,
+          "full_loads": 1,
+          "logical_scan_bytes": 10860239
+        },
+        "duplicate_append": {
+          "elapsed_ns": 7910545708,
+          "full_loads": 1,
+          "logical_scan_bytes": 10860239
+        },
+        "exact_export": {
+          "elapsed_ns": 2587203458,
+          "full_loads": 0,
+          "logical_scan_bytes": 0
+        },
+        "exact_reimport": {
+          "elapsed_ns": 1898100750,
+          "full_loads": 0,
+          "logical_scan_bytes": 0
+        },
+        "query_first_page": {
+          "elapsed_ns": 5482489000,
+          "full_loads": 1,
+          "logical_scan_bytes": 10860239
+        },
+        "query_last_page": {
+          "elapsed_ns": 4124856250,
+          "full_loads": 1,
+          "logical_scan_bytes": 10860239
+        }
+      },
+      "record_count": 10003,
+      "repetition": 2,
+      "tracemalloc_peak_bytes": 195672239
+    }
+  ],
+  "memory_boundary": "Complete journal, records and export are materialized; total memory is not bounded by query limit.",
+  "scan_counter": "Full _load invocations and file size, not physical disk reads or cache misses.",
+  "schema": "qitos.g5.large_measurement/v1",
+  "source_dirty": false
+}
