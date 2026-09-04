@@ -184,7 +184,7 @@ class SessionConfig:
 
 @dataclass(frozen=True)
 class TrajectoryConfig:
-    enabled: bool = True
+    enabled: bool = False
     output: str = "./runs"
     privacy: str = "private"
     failure_policy: str = "required"
@@ -1051,7 +1051,7 @@ def _parse_runtime(raw: Mapping[str, Any]) -> RuntimeConfig:
         ),
         trajectory=TrajectoryConfig(
             enabled=_boolean(
-                trajectory.get("enabled", True), "runtime.trajectory.enabled"
+                trajectory.get("enabled", False), "runtime.trajectory.enabled"
             ),
             output=_string(
                 trajectory.get("output", "./runs"),

@@ -452,7 +452,7 @@ class AgentModule(ABC, Generic[StateT, ObservationT, ActionT]):
         if trace_setting is None and "trace_writer" not in kwargs:
             trace_setting = True
         if trace_setting is True:
-            kwargs["_default_trajectory_output"] = trace_logdir
+            pass  # G5 selector rollback: explicit runtime sinks remain available.
         elif trace_setting:
             kwargs["trace_writer"] = trace_setting
 

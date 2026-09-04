@@ -756,3 +756,22 @@ pre-fix probes. Corrected fixtures passed six parity/rollback tests in 3.78 s,
 and 23 reader/qita/journal/default-writer tests passed in 12.18 s. Both changed
 module static checks passed. Rollback verified exact bytes of every file before
 and after historical/current reads; no runtime execution was invoked.
+
+### Failed default candidate and selector rollback
+
+5648291314504eb9d06cd2c2a0ca4f5370941ce0 full attempt 05 was stopped after
+three observed failures: test_minimal_example_smoke_runs,
+test_qit_demo_minimal_creates_qita_ready_run, and
+test_run_spec_trace_manifest_integration. Minimal demo still requires old
+manifest directories. Default unspecified output also joins unrelated project
+runs into cwd/runs/trajectory.journal, causing avoidable shared data and slow
+full scans. After roughly 20 minutes the suite was at Lane A public tests.
+A targeted SIGINT was consumed by active framework execution and produced an
+additional interrupted-test failure; only this verified owned pytest PID was
+then terminated with SIGTERM. This is an incomplete failed run, not a full
+result. Its log and process sample remain /tmp/qitos-g5-full-05.log and
+/tmp/qitos-g5-full05-sample.txt. No foreign process/container was stopped.
+Stable flake8/mypy, 356-finding ratchet, build/twine and all 19 extras passed on
+that identity, but do not override the failed suite. Default writer activation
+is now disabled and default reader selects trace pending repairs. Explicit
+canonical sink/reader remains available; no persisted data is deleted or changed.
