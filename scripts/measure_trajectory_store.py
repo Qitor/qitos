@@ -23,6 +23,8 @@ if str(_REPOSITORY_ROOT) not in sys.path:
 
 from qitos.tracing.journal_store import JournalTrajectoryStore
 from qitos.tracing.store import MemoryTrajectoryStore
+from qitos.tracing.exporter import CanonicalTrajectoryExporter
+from qitos.tracing.trajectory import PrivacyView
 from qitos.tracing.trajectory import (
     TrajectoryQuery,
     TrajectoryRecord,
@@ -140,12 +142,19 @@ def _measure_source(
             query_ns, selected = _time_ns(
                 lambda: reopened.query(TrajectoryQuery(limit=len(records)))
             )
-            first_run = next(iter(runs), None)
+            first_run = sorted(runs)[0] if runs else None
             replay_ns, replayed = _time_ns(
                 lambda: reopened.replay(
                     TrajectoryQuery(run_id=first_run, limit=len(records))
                 )
             )
+            full_read_ns, trajectory = _time_ns(lambda: reopened.read_run(first_run))
+            exporter = CanonicalTrajectoryExporter()
+            export_ns, exported = _time_ns(
+                lambda: exporter.export(trajectory, view=PrivacyView.RAW_PRIVATE)
+            )
+            reimport_ns, imported = _time_ns(lambda: exporter.reimport(exported))
+            assert imported.to_dict() == trajectory.to_dict()
             index_ns, index_report = _time_ns(reopened.rebuild_index)
             index_path = journal_path.with_name(journal_path.name + ".index.json")
             raw_runs.append(
@@ -157,6 +166,11 @@ def _measure_source(
                     "query_ns": query_ns,
                     "replay_ns": replay_ns,
                     "index_rebuild_ns": index_ns,
+                    "full_read_ns": full_read_ns,
+                    "exact_export_ns": export_ns,
+                    "exact_reimport_ns": reimport_ns,
+                    "exact_export_bytes": len(exported.data),
+                    "complete_run_records": len(trajectory.records),
                     "journal_bytes": journal_path.stat().st_size,
                     "index_bytes": index_path.stat().st_size,
                     "query_records": len(selected),
@@ -167,6 +181,8 @@ def _measure_source(
             reopened.close()
     return {
         "source": name,
+        "scan_behavior": "Each journal query/read reloads all frames; append reloads and rebuilds the index.",
+        "memory_boundary": "Full journal and exact trajectory are materialized; query limit bounds returned records only.",
         "record_count": len(records),
         "run_count": len(runs),
         "session_count": len(sessions),
@@ -184,6 +200,9 @@ def _measure_source(
                 "query_ns",
                 "replay_ns",
                 "index_rebuild_ns",
+                "full_read_ns",
+                "exact_export_ns",
+                "exact_reimport_ns",
             )
         },
     }

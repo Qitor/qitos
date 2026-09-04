@@ -686,3 +686,20 @@ installation, its unmodified test, build, twine check, regular wheel reinstall
 and out-of-project import (scaffold-preflight-03). Attempt 02 used an invalid
 CLI positional name; corrected to the documented --agent-name/--output-dir
 options without editing generated files. Its failure is retained.
+
+### Current measurement fixture and pre-switch packaging
+
+The base wheel profile on 511013a passed help/config and both standalone
+consumers. Its result is /tmp/qitos-g5-base-profile-511013a.json; the 19 extras
+on ad0e23e remain intermediate evidence and must be repeated on the final wheel.
+The Lane D measurement fixture now derives from committed current public
+exports: coding 307 records once, research 103 records repeated three times.
+Repetition is marked measurement-only and is not additional runtime evidence.
+Historical source fixture bytes remain recoverable from exact D commit.
+The measurement script adds complete-run read, exact export/re-import timing
+and explicitly reports materialization/full-scan behavior. A separate bounded
+10,003-record synthetic measurement counts full _load calls and logical bytes,
+not physical I/O; no bounded-total-memory claim is made. Its initial formatting
+check found E128 findings, corrected before commit. Preliminary current export
+measurement repeated three times reported a 69,211,505-byte tracemalloc peak;
+final committed-source measurements follow separately.
