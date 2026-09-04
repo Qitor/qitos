@@ -88,3 +88,19 @@ A/C automatic merges retain the union of source test function names in
 No G5 repair or qualification has yet passed. Historical audit failures remain
 unchanged in the audit document. No live provider calls or private credential
 reads are authorized. Docker qualification must use only task-owned labels.
+
+### Replay baseline validation
+
+Code source `6c76452` (full replay identity in the table), then documentation
+commit `0f6a659`; unchanged replay code. Overlap/interface suites: 39 passed.
+`python -m pytest -q tests/test_g5_audit_regressions.py --tb=short` executed
+against that code with added regression tests: **9 failed**, all seven audit
+probes plus two A2 checks. C1's initial test harness omitted required image;
+that setup failure is not defect evidence. Corrected rerun reached the real
+ancestor-symlink write and all nine assertions failed in the intended boundary.
+The C2 probe explicitly killed its own surviving child in `finally`.
+
+Regression nodes: `tests/test_g5_audit_regressions.py::test_g5_*`.
+Raw logs retained in the task's temporary evidence directory; committed red
+summary records the source and assertions without treating historical audit
+text as a fresh run. Fixing commits and passing evidence follow below.
