@@ -625,3 +625,7 @@ with JUnit, and runs each standalone consumer in an independent fresh wheel
 environment. All Docker execution is serial. It does not execute code named by
 a producer manifest, and it writes evidence outside the source tree.
 Qualification pins remain empty until its real results are committed.
+The controlled-registry/interface/architecture suite passed 28 tests in 1.58 s.
+The first script static check found four E128 continuation-indent findings;
+a follow-up formatting commit fixes them without changing the controlled
+execution logic. The repeated script/module flake8 check passed.

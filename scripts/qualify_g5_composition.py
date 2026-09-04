@@ -120,7 +120,8 @@ def main() -> int:
                 facts = json.loads(lines[0])
                 identity = {key: facts[key] for key in
                             ("session_id", "run_id", "work_item_id", "attempt_id", "owner_generation")}
-                report["consumers"][name] = {"outcome": "passed", "code_commit": commit,
+                report["consumers"][name] = {
+                    "outcome": "passed", "code_commit": commit,
                     "installed_distribution": facts["installed_distribution"], "identity": identity,
                     "wheel_sha256": wheel_digest, "runtime_facts": facts,
                     "consumer_source_path": source_path, "consumer_source_sha256": digest(source),
