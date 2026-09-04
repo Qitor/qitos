@@ -650,6 +650,7 @@ def test_producer_semantic_fixture_is_exact_and_complete():
 def test_producer_manifest_binds_committed_source_paths_digests_and_test_nodes():
     manifest = json.loads(PRODUCER_MANIFEST.read_text(encoding="utf-8"))
     producer_commit = manifest["producer_commit"]
+    historical_bundle_commit = "306e689ab19665678b6de644045d374c5ec05102"
     assert re.fullmatch(r"[0-9a-f]{40}", producer_commit)
     subprocess.run(
         ["git", "cat-file", "-e", f"{producer_commit}^{{commit}}"],
@@ -674,14 +675,19 @@ def test_producer_manifest_binds_committed_source_paths_digests_and_test_nodes()
         assert ".." not in relative.parts
         producer_file = REPOSITORY_ROOT / relative
         assert producer_file.is_file(), item["path"]
-        assert hashlib.sha256(producer_file.read_bytes()).hexdigest() == item["sha256"]
+        historical_bytes = subprocess.check_output(
+            ["git", "show", f"{historical_bundle_commit}:{relative.as_posix()}"], cwd=REPOSITORY_ROOT,
+        )
+        assert hashlib.sha256(historical_bytes).hexdigest() == item["sha256"]
 
     for node_id in manifest["producer_test_node_ids"]:
         path_text, separator, function_name = node_id.partition("::")
         assert separator and function_name.startswith("test_")
         test_path = REPOSITORY_ROOT / path_text
         assert test_path.is_file(), path_text
-        tree = ast.parse(test_path.read_text(encoding="utf-8"))
+        tree = ast.parse(subprocess.check_output(
+            ["git", "show", f"{historical_bundle_commit}:{path_text}"], cwd=REPOSITORY_ROOT,
+        ))
         functions = {
             node.name
             for node in tree.body

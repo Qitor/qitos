@@ -203,3 +203,18 @@ QUALIFICATION_PINS is intentionally empty until final committed installed
 consumer execution produces content-bound current artifacts and identity facts.
 Readiness remains waiting_on_a_b_c; this guard repair does not close current
 producer qualification or authorize schema/default switches.
+
+### Historical bundle repair
+
+Restored the context-transfer producer manifest byte-for-byte from locked
+baseline 306e689ab19665678b6de644045d374c5ec05102. Its original producer identity
+b229e0b80a55a1add64fdb88fbe5b632f8d15ad8 is preserved; the baseline identifies
+the subsequently assembled historical qualification bundle. Historical hash
+and test-node assertions now read that bundle with git show, independently of
+current source modifications. The S3 Lane C bundle uses the same verified
+historical baseline. No old digest or failure history was rewritten.
+
+At 5829f8b plus these historical-only edits,
+`python -m pytest -q tests/core/test_context_transfer.py tests/test_s3_lane_c_evidence.py`
+passed 42 tests (1.18 s). New S4/G5 current qualification remains separate and
+pending; these historical assertions do not qualify today's runtime.

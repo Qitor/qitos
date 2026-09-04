@@ -10,6 +10,7 @@ import subprocess
 
 ROOT = Path(__file__).parents[1]
 FIXTURES = ROOT / "tests" / "fixtures" / "s3" / "lane_c"
+HISTORICAL_BUNDLE = "306e689ab19665678b6de644045d374c5ec05102"
 
 
 def test_lane_c_manifest_digests_commits_and_executable_nodes() -> None:
@@ -36,12 +37,16 @@ def test_lane_c_manifest_digests_commits_and_executable_nodes() -> None:
             text=True,
         )
     for item in manifest["files"]:
-        path = ROOT / item["path"]
-        assert hashlib.sha256(path.read_bytes()).hexdigest() == item["sha256"]
+        historical_bytes = subprocess.check_output(
+            ["git", "show", f"{HISTORICAL_BUNDLE}:{item['path']}"], cwd=ROOT,
+        )
+        assert hashlib.sha256(historical_bytes).hexdigest() == item["sha256"]
     for node_id in manifest["test_node_ids"]:
         path_text, separator, function_name = node_id.partition("::")
         assert separator and function_name.startswith("test_")
-        tree = ast.parse((ROOT / path_text).read_text(encoding="utf-8"))
+        tree = ast.parse(subprocess.check_output(
+            ["git", "show", f"{HISTORICAL_BUNDLE}:{path_text}"], cwd=ROOT,
+        ))
         assert function_name in {
             node.name
             for node in tree.body
