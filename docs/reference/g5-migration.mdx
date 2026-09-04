@@ -5,7 +5,7 @@ description: "QitOS G5 · G5 migration and limits"
 
 ## Current status
 
-G5 runtime `717b4cf1b23f2ed252cd03234ffd8605038d9567` passed framework qualification; S4 local integration is complete. Historical 2663 passed / 50 skipped belongs to that SHA, not documentation successors. Remote sync awaits this task; default branch and release are not performed.
+G5 runtime `717b4cf1b23f2ed252cd03234ffd8605038d9567` passed framework qualification; S4 local integration is complete. Historical 2663 passed / 50 skipped belongs to that SHA, not documentation successors. Remote sync is verified and the default development branch is master. Full CI still exposes compatibility/evidence blockers; no release or deployment was performed. Python 3.10 publication currently fails because the runtime uses hashlib.file_digest (introduced in Python 3.11); use Python 3.11+ for this path, with local G5 qualification specifically on 3.12.7.
 
 | Boundary | Supported behavior |
 |---|---|

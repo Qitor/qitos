@@ -21,12 +21,12 @@ How to update:
 
 - Make CI prerequisites explicit (build tools, asyncio plugin, full history and owned Docker fixtures), preserve the qualified typing context, and remove test-only interpreter and queue-scheduling assumptions. Remote Python 3.10 publication failures remain visible under the runtime freeze.
 
-- Prepare `master` as the default development branch; run CI/docs checks on master, main, the integration branch and PRs, with bounded jobs and retained test/build artifacts. Publication remains explicit.
+- Promote `master` as the default development branch; run CI/docs checks on master, main, the integration branch and PRs, with bounded jobs and retained test/build artifacts. Publication remains explicit.
 
 ### Documentation consolidation
 
 - Correct current G5 status: framework qualification passed and S4 locally integrated
-  at `717b4cf1b23f2ed252cd03234ffd8605038d9567`; no default-branch/release action.
+  at `717b4cf1b23f2ed252cd03234ffd8605038d9567`; runtime identity is unchanged by the later master promotion.
 - Add bilingual Session-first installation/configuration and runnable learning units,
   with explicit fake-provider, credential, sandbox and recovery boundaries.
 - Documentation successor checks and remote-sync receipts are recorded separately

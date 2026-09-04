@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-qitor.mintlify.app-0A66C2)](https://qitor.mintlify.app/)
 [![PyPI](https://img.shields.io/pypi/v/qitos.svg)](https://pypi.org/project/qitos/)
-[![Repo](https://img.shields.io/badge/github-Qitor%2Fqitos-black)](https://github.com/Qitor/qitos)
+[![Repo](https://img.shields.io/badge/github-WhitzardAgent%2FWhitzardOS-black)](https://github.com/WhitzardAgent/WhitzardOS)
 
 QitOS 是面向 agent 研究者的 torch-flavor 框架。
 
@@ -27,9 +27,9 @@ store、sink 和 sandbox 可扩展；qita 只读检查 Trajectory。
 
 - G5 框架资格通过，S4 本地集成完成，runtime 身份固定为 `717b4cf1b23f2ed252cd03234ffd8605038d9567`。
 - 双语文档统一到安装 → 项目 → 配置 → Session → 检查 → 恢复/扩展。
-- 开发分支正在迁移为 `master`，push 和 PR 执行 CI/docs 门禁；发布仍须显式触发。
-- 本轮文档与运行教程的验收结果单独记录；远端同步尚待本任务验证。
-  默认分支、package release 和文档部署未执行。
+- 默认开发分支为 `master`，push 和 PR 执行 CI/docs 门禁；发布仍须显式触发。
+- 本轮文档与运行教程的验收结果单独记录；远端同步已核验，docs CI 已通过。
+  完整 CI 的兼容性与历史证据阻塞见[提升报告](docs/internal/plans/g5_docs_tutorials_report.md)；未发布 package 或部署文档。
 
 ## 开始开发
 

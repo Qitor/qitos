@@ -2,9 +2,13 @@
 
 ## 1. Outcome
 
-Local documentation/tutorial checks passed. Promotion, push and worktree
-retirement are held for historical local-path disclosure review. No model
-requests, private credentials, server 149, release or deployment operations.
+Documentation/tutorial qualification passed locally and in GitHub docs CI.
+The user accepted the reviewed historical-path disclosure and explicitly selected
+master as the default development branch. Ordinary pushes and remote identity
+verification completed; six historical worktrees were safely retired. Full remote
+CI is not yet qualified: remaining failures are visible and recorded below.
+No model requests, private credential reads, server 149, releases or deployments
+were performed in this documentation/promotion task.
 
 ## 2. Source identities
 
@@ -28,8 +32,9 @@ package-version, permission, sandbox, loss or persistence changes.
 
 Progress, v4 Tasks 12–16, migration, README and CHANGELOG distinguish current
 G5-passed/local-integration-complete from historical candidate failures. Original
-failure history and 29 source/replay identities remain preserved. Remote sync is
-not performed; default branch and release have no readiness claim.
+failure history and 29 source/replay identities remain preserved. Remote sync
+is verified; master is now the default branch by subsequent user instruction.
+No full-CI, release or deployment readiness is inferred from branch promotion.
 
 ## 5. Beginner path
 
@@ -107,81 +112,120 @@ directory for G5 CLI replay/export while reading the authoritative parent journa
 
 ## 11. Whole outgoing history privacy check
 
-Remote f07b386 through tested 478dd73: **82 commits / 696 distinct changed blobs**.
-Twenty-six pattern hits were reviewed by exact file/blob. Key/endpoint markers
-are explicit synthetic rejection/redaction tests. Actual machine paths remain in
-five historical file families listed in g5_docs_tutorials_promotion.md, including
-producer/worktree evidence. No original values are echoed here.
-
-Adding a successor cannot remove their historical blobs. The user's prohibition
-on public local paths conflicts with the prohibition on rewriting history.
-Therefore push is held; this is not an automatic approval-system rejection.
-No blanket fixture allowlist or history rewriting was used.
+The original outgoing feature range through 73ec7d9 contained 83 commits and
+699 distinct changed blobs. Through the CI preparation commit eb3fe2f it contained
+84 commits and 707 distinct changed blobs. Twenty-six pattern matches were
+reviewed by exact file/blob. Key/endpoint markers are explicit synthetic rejection
+and redaction tests. The five real historical local-path file families are listed
+in g5_docs_tutorials_promotion.md; the user explicitly accepted their push after
+review. Original values are not repeated here. No blanket fixture exemption or
+history rewrite was used. The subsequent CI fix commit scan had no matches;
+each later outgoing successor is scanned before its ordinary push.
 
 ## 12. Functional E2E plan
 
-post_g5_functional_e2e.md defines eight real-user workflows, fixtures, actions,
+post_g5_functional_e2e.md defines eight real-user workflows, fixtures, operations,
 independent assertions, call/token/time/tool ceilings, cleanup and five failure
-classes. The first priority is native tool execution followed by codec loss
-rejection; no pre-planned disabling of loss checks. Planned, not run.
+classes. The first priority remains native tool execution followed by codec loss
+rejection; no disabling of loss checks is planned. Planned, not run. Resolve or
+explicitly account for the known remote CI blockers before selecting test profiles.
 
 ## 13. Commits and local promotion
 
-Content commits: `82a00021d1828d0530efc163a54b45ca41b22634`,
-`478dd73783414f363f857b643370603112c1158a`; evidence recorded in a later
-small documentation commit. Main remains exactly 717b4cf. No fast-forward yet,
-so there is no promoted new SHA to misrepresent as qualified remotely.
+Docs content commits: 82a00021d1828d0530efc163a54b45ca41b22634 and
+478dd73783414f363f857b643370603112c1158a; initial evidence: 73ec7d92256f2ca60929f628afcc5c9a2ba29128.
+Primary feature fast-forward: 717b4cf → 73ec7d9, followed by 506 passed in
+50.58 seconds on the primary checkout. CI preparation: eb3fe2f5013470f5423b7bf467fd33521a8885e4;
+runner/fixture fixes: 5b1c448b06a6bcb789a2bfe0941f93227b5be007.
+Later receipt/context/link changes are separate successors, not new G5 runtime
+qualification. No qitos runtime or package metadata changed.
 
 ## 14. Remote state
 
-No push. Feature main local: 717b4cf; tracking and ls-remote:
-`f07b38647cf3b18a5235581224a1153b88fac397`.
-At tested docs content divergence was 0 remote-only / 82 local-only commits.
-No divergence conflict was found; privacy review is the hold. G5 runtime
-reachability on the remote feature branch is not yet established.
+The original remote feature head f07b38647cf3b18a5235581224a1153b88fac397
+advanced by ordinary push. Master was created on the same qualified lineage.
+Both local/tracking/ls-remote identities were verified equal at
+5b1c448b06a6bcb789a2bfe0941f93227b5be007, with divergence 0/0.
+GitHub default and origin/HEAD were changed to master, as later explicitly
+requested. Main remains at 37758042622983bbffb6a0f2d860e13cdea98c2a with its ref
+preserved. No dev branch, force push, rebase, tag push or ruleset change occurred.
+The G5 runtime SHA is an ancestor of the verified remote master. Final evidence
+successors receive a fresh remote readback outside this self-containing report.
 
-## 15. GitHub checks
+## 15. Actual GitHub checks and CI/CD
 
-No checks for the unpushed documentation commits were run or read from GitHub.
-Local checks are not described as GitHub checks. Docs CI retains existing gates
-and adds deterministic links/MDX/snippet/installed tutorial checks without live
-credentials or Docker requirements in ordinary docs CI.
+GitHub docs runs 33876249889 (eb3fe2f) and 33877514659 (5b1c448) passed.
+CI run 33876250029 failed: runner tools, Docker fixtures, shallow history,
+annotation context, and real compatibility/evidence issues were exposed.
+On 5b1c448, run 33877514721 passed type-stable, audit, package, lint-stable and
+architecture jobs. The matrix/coverage and ratchet are not declared successful.
+The ratchet failure identifies missing Playwright annotation context, now added
+as an isolated CI typing input; the quality baseline remains unchanged.
 
-## 16. Worktrees and refs
+Workflows cover master, retained main, the feature branch and PRs, with read-only
+tokens, 30-minute jobs, superseded-run cancellation, and retained test/build
+artifacts. Full history, setuptools, asyncio support and real owned Docker fixture
+builds are explicit. No row, coverage floor, audit or failure was removed/masked.
+The package publishing workflow remains manual/release-only and was not invoked.
+The existing repository ruleset was read: disabled; main was unprotected.
+No ruleset or branch-protection settings were modified. CI failure visibility
+does not itself enforce a required-check branch protection policy.
 
-Task start: six registered worktrees. Docs worktree creation: seven. Retired: zero.
-All seven were checked clean; all original branches/HEADs remain intact. No refs,
-tags, qualification archive, user data or foreign Docker resources were deleted.
-Released space: zero. Retirement remains conditional on a verified remote push.
+## 16. Worktrees, retained data and refs
+
+Start: six worktrees; after docs creation: seven; after safe retirement: one.
+Removed only the six user-listed registered paths with git worktree remove,
+without force. Exact branch/HEAD, clean status, completed/idle tasks, no open files,
+G5 archive digest and all 29 source/replay pairs were verified. All six branch
+HEADs remain unchanged. Before removal, 547 non-cache ignored files (17,417,987
+bytes), including retained run data, were copied outside Git and hash-verified.
+The original G5 archive was untouched.
+
+Removed tree allocation: 3,462,564 KiB (about 3.30 GiB). Observed filesystem free
+space increased by 3,647,004,672 bytes; concurrent unrelated disk activity means
+this delta is not an exact attribution. External retirement-result.json records
+the per-tree source identities and measurements. No branch/tag/ref was deleted.
 
 ## 17. Known gaps
 
-Historical local-path disclosure must be resolved before promotion/push/retirement.
-G5 scaffold credential example and qita CLI selector-directory requirements remain
-runtime DX follow-ups with documented working paths. Handoff and real-provider
-end-to-end task completion are planned, not newly executed. No full G5 rerun,
-20-profile packaging rerun, Linux-host publication or universal Python/provider
-compatibility claim. Documentation site deployment is not performed.
+Remote CI cannot yet be called stable. Python 3.10 publication raises
+AttributeError because qitos/kit/env/_publication.py uses hashlib.file_digest
+(introduced in 3.11). Fixing it requires changing frozen runtime code; the failure
+is retained and documented, with no matrix removal or xfail. Some historical
+source-bound tests depend on original S4 source commits not published with the
+replayed integration history. Full checkout history cannot manufacture those
+objects; local source refs and source/replay evidence are preserved for resolution.
+
+The G5 scaffold credential example and qita CLI selector-directory requirement
+remain documented runtime DX follow-ups. Handoff and real-provider E2E are not
+newly executed. No universal Python/provider/platform compatibility is claimed.
+The optional local rebuild of the new CI image failed apt repository signature
+validation; the GitHub runners built that Dockerfile successfully. No package
+release or documentation site deployment was performed.
 
 ## 18. Clean status
 
-All seven worktrees were clean before this evidence-only update. The docs
-worktree will be committed and checked again; the primary remains unchanged.
-No hidden qualification logs or generated media enter Git; the external task
-archive preserves raw local logs and screenshots, separate from the G5 archive.
+After retirement the primary is the only registered worktree, on master.
+Each promotion is committed and checked clean before push; the final readback
+receipt records the final SHA and clean status. Qualification logs, screenshots,
+retained ignored data and retirement measurements remain in the external task
+archive. No original G5 source-bound archive or user data was deleted.
 
 ## 19. Next dispatch identity
 
-**No E2E dispatch baseline is authorized yet.** Use exactly the final
-local/tracking/ls-remote-equal SHA after privacy resolution, fast-forward,
-normal feature-branch push and verification. Never substitute 478dd73 or a moving
-branch for that not-yet-established remote identity.
+Use only the final local/tracking/ls-remote-equal master SHA recorded by the final
+remote readback and task response. This report is part of its own evidence
+successor, so it deliberately does not invent a self-referential commit hash.
+Do not substitute a moving branch, historical runtime SHA, or earlier CI attempt.
+Functional E2E remains planned and must acknowledge the open CI blockers.
 
 ```text
 G5_FRAMEWORK_QUALIFICATION=passed
-DOCS_TUTORIALS_LOCAL_CHECKS=passed
-REMOTE_SYNC=blocked_historical_local_paths
+DOCS_TUTORIALS_QUALIFICATION=passed
+REMOTE_SYNC=verified
+CI_QUALIFICATION=not_passed
 FUNCTIONAL_E2E=planned_not_run
-DEFAULT_BRANCH_CHANGED=false
+DEFAULT_BRANCH=master
+DEFAULT_BRANCH_CHANGED=true
 PACKAGE_PUBLISHED=false
 ```

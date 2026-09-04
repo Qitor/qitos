@@ -1,6 +1,6 @@
 # G5 documentation, tutorials and promotion
 
-Status: local promotion passed; user authorized the reviewed historical-path push and default-branch migration to master. Remote CI and promotion are in progress; no release or deployment.
+Status: remote master promotion verified and default changed by user authorization; six worktrees retired with refs/evidence preserved. Docs CI passed; full CI has explicit remaining blockers. No release or deployment.
 
 ## Source identity and scope
 
@@ -126,3 +126,30 @@ hashlib.file_digest, which was introduced in 3.11 (qitos/kit/env/_publication.py
 It remains unfixed under the qitos/ source freeze. No Python matrix row is removed,
 xfail added, or default-branch stability claimed. Original source-only S4 commits
 also require remote evidence availability; local refs remain preserved.
+
+
+### Verified promotion and retirement
+
+Remote feature first verified at eb3fe2f5013470f5423b7bf467fd33521a8885e4.
+Master and feature then both verified at
+5b1c448b06a6bcb789a2bfe0941f93227b5be007, with local/tracking/ls-remote equality
+and divergence 0/0. GitHub default and origin/HEAD are master. Old main remains
+preserved; no dev branch, ref deletion, rebase, force push or ruleset edit occurred.
+This later explicit user instruction supersedes the initial no-default-change scope.
+
+The six named historical worktrees were registered, clean, completed and idle;
+lsof found no open files immediately before each non-forced git worktree remove.
+All 29 source/replay pairs and the external G5 report digest were reverified.
+547 non-cache ignored files (17,417,987 bytes), including retained run data,
+were copied to the external task archive and SHA256 compared before removal.
+Seven worktrees became one. Removed directory allocation: 3,462,564 KiB
+(about 3.30 GiB); observed filesystem free-space delta: 3,647,004,672 bytes,
+which may include unrelated concurrent disk activity. All six source branch
+HEADs remain unchanged, and the original G5 qualification archive is intact.
+
+Master docs run 33877514659 passed on 5b1c448. Type-stable, audit, package,
+lint and architecture jobs passed in run 33877514721. Ratchet requires the
+Playwright 1.58.0 annotation package present in the qualified local environment;
+its absence falsely removes an existing finding. The CI-only context now includes
+it without altering any source allowance. Full matrix/coverage outcomes and final
+SHA receipts must be read separately; none of these facts authorizes live E2E.

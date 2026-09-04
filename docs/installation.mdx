@@ -9,7 +9,7 @@ description: "QitOS G5 · Installation"
 |---|---|---|
 | Published PyPI | `python -m pip install qitos` | Published distribution; **does not identify G5** |
 | Reproducible G5 source | Exact commit command below | `717b4cf1b23f2ed252cd03234ffd8605038d9567` |
-| GitHub development branch | `python -m pip install "qitos @ git+https://github.com/Qitor/qitos.git@feat/campaign-absorption"` | Moving development tree; record the resolved SHA |
+| GitHub development branch | `python -m pip install "qitos @ git+https://github.com/WhitzardAgent/WhitzardOS.git@master"` | Moving development tree; record the resolved SHA |
 | Local wheel | `python -m pip install ./qitos-0.6.0-py3-none-any.whl` | Verify the wheel digest and source receipt |
 | Framework contributor | `python -m pip install -e ".[dev]"` in your clone | Editable checkout, not installed-wheel qualification |
 
@@ -25,7 +25,7 @@ shell for these commands (Windows users need corresponding activation commands).
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install "qitos @ git+https://github.com/Qitor/qitos.git@717b4cf1b23f2ed252cd03234ffd8605038d9567"
+python -m pip install "qitos @ git+https://github.com/WhitzardAgent/WhitzardOS.git@717b4cf1b23f2ed252cd03234ffd8605038d9567"
 python -m pip install pytest
 qit --help
 qita --help
@@ -39,7 +39,7 @@ A rebuilt wheel need not have identical archive bytes; compare its source identi
 
 The fake arithmetic path needs only the base package and pytest. For an
 OpenAI or OpenAI-compatible client use the same pinned install with
-`qitos[openai] @ git+https://github.com/Qitor/qitos.git@717b4cf1b23f2ed252cd03234ffd8605038d9567`.
+`qitos[openai] @ git+https://github.com/WhitzardAgent/WhitzardOS.git@717b4cf1b23f2ed252cd03234ffd8605038d9567`.
 `qitos[models]` also adds LiteLLM. `qitos[docker]` and `qitos[qita]` currently add
 no Python dependencies; Docker still requires a working Docker CLI and daemon.
 MCP needs `[mcp]`, browser tools `[web]`, W&B `[wandb]`, MLflow `[mlflow]`.
@@ -50,3 +50,5 @@ Do not install every extra for the first lesson.
 Both help commands must exit zero. A missing G5 import usually means a different
 interpreter or an older installed distribution; verify `python -m pip show qitos`
 and recreate the venv from the exact source. Continue to [Quickstart](/quickstart).
+
+<Warning>Remote CI found that Python 3.10 publication calls an unavailable hashlib.file_digest. Use Python 3.11+ for publication; the historical local G5 qualification covers 3.12.7 specifically. The Python 3.10 CI job remains failing visibly until a separately authorized runtime fix.</Warning>

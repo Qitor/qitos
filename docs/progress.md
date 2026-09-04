@@ -4,8 +4,8 @@
 
 Current G5 runtime baseline: `717b4cf1b23f2ed252cd03234ffd8605038d9567`.
 Framework qualification **passed**; S4 local integration **complete**.
-Remote sync: **not performed by this documentation task yet**.
-Default branch and release: **not performed; no readiness claim**.
+Remote sync: **verified**; default development branch: **master**.
+Default branch changed by explicit user authorization. **Full CI is not yet qualified; no release or deployment**. See [promotion report](internal/plans/g5_docs_tutorials_report.md).
 Historical G5: 2663 passed / 50 live-opt-in skipped, Python 3.12.7.
 Documentation successors do not inherit that test execution identity.
 

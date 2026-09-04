@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-qitor.mintlify.app-0A66C2)](https://qitor.mintlify.app/)
 [![PyPI](https://img.shields.io/pypi/v/qitos.svg)](https://pypi.org/project/qitos/)
-[![Repo](https://img.shields.io/badge/github-Qitor%2Fqitos-black)](https://github.com/Qitor/qitos)
+[![Repo](https://img.shields.io/badge/github-WhitzardAgent%2FWhitzardOS-black)](https://github.com/WhitzardAgent/WhitzardOS)
 
 QitOS is the torch-flavor framework for agent researchers.
 
@@ -27,8 +27,8 @@ read-only qita. Framework correctness does not guarantee arbitrary model task su
 
 - G5 framework qualification passed; S4 local integration complete. Runtime identity: `717b4cf1b23f2ed252cd03234ffd8605038d9567`.
 - Bilingual docs converge on installation → project → configuration → Session → inspection → recovery/extension.
-- The development branch is moving to `master`, with CI/docs checks on pushes and PRs. Publication remains explicit.
-- Documentation/tutorial qualification is recorded separately. Remote synchronization awaits this task's verification; default branch, package release and docs deployment are not performed.
+- The default development branch is `master`, with CI/docs checks on pushes and PRs. Publication remains explicit.
+- Documentation/tutorial qualification is recorded separately. Remote synchronization is verified. Docs CI passed; full CI still exposes compatibility/evidence blockers described in the [promotion report](docs/internal/plans/g5_docs_tutorials_report.md). No package release or docs deployment was performed.
 
 ## Start developing
 

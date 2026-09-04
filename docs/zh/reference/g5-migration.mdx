@@ -5,7 +5,7 @@ description: "QitOS G5 · G5 迁移与限制"
 
 ## 当前状态
 
-G5 runtime `717b4cf1b23f2ed252cd03234ffd8605038d9567` 框架资格通过，S4 本地融合完成。历史 2663 passed / 50 skipped 属于该 SHA；本轮不重跑或冒称新提交通过 G5。远端同步待本任务核验，默认分支与 release 未执行。
+G5 runtime `717b4cf1b23f2ed252cd03234ffd8605038d9567` 框架资格通过，S4 本地融合完成。历史 2663 passed / 50 skipped 属于该 SHA；本轮不重跑或冒称新提交通过 G5。远端同步已核验，默认开发分支为 master。完整 CI 仍有兼容性与历史证据阻塞；未发布或部署。Python 3.10 的 publication 当前会因运行时使用 Python 3.11 才引入的 hashlib.file_digest 而失败；此路径需 Python 3.11+，本地 G5 资格具体属于 3.12.7。
 
 | 边界 | 支持范围 |
 |---|---|
