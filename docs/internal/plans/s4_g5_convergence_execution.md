@@ -365,3 +365,14 @@ the SDK retry default. The regression failed (1 failed, 0.25 s) because
 max_retries was unset. Shared sync/async client options now set max_retries=0,
 so an SDK cannot silently repeat an admitted request. Provider compatibility
 and conformance checks passed after the fix (see /tmp/qitos-g5-sdk-retry-fixed.log).
+
+### Readiness identity binding refinement
+
+Readiness validates approved writer symbols in committed source. Code, producer
+facts and qualification results have separate commit bindings to avoid
+self-referencing digests. Typed Session/run/work/attempt identities and the
+installed consumer's actual execution result must match the producer facts.
+The source table's nonexistent ToolRuntime writer was corrected to the existing
+ReferenceEffectPolicy. Existing readiness/audit checks passed: 21 passed, 2.09 s.
+Qualification pins remain empty; no producer is claimed qualified. Additional
+negative binding cases and actual current consumer facts remain required.

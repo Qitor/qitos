@@ -32,7 +32,7 @@ REQUIREMENTS = {
     "C": {
         "tool_result_aci": ("qitos.kit.toolset.env_coding", "tests/s4/lane_c/test_safe_execution.py::test_native_aci_is_small_env_only_and_permissions_are_split"),
         "sandbox_attestation": ("qitos.kit.env.sandbox.DockerSandboxBackend", "tests/test_docker_qualification.py::test_real_docker_qualification_is_inspect_and_probe_backed"),
-        "effect_lifecycle": ("qitos.core.tool_runtime.ToolRuntime", "tests/test_g5_audit_regressions.py::test_g5_c2_parent_exit_is_not_descendant_completion"),
+        "effect_lifecycle": ("qitos.engine.tool_runtime.ReferenceEffectPolicy", "tests/test_g5_audit_regressions.py::test_g5_c2_parent_exit_is_not_descendant_completion"),
         "mcp": ("qitos.mcp", "tests/s4/lane_c/test_fixture_contracts.py::test_producer_manifest_covers_every_evidence_fixture"),
         "work_graph_operations": ("qitos.engine.session_runtime.Session", "tests/engine/test_session_fork.py::test_fork_lifecycle_matrix_is_explicit_for_terminal_and_transient_states"),
         "cleanup_unknown": ("qitos.kit.env.docker_env.DockerProcessControlCapability", "tests/test_g5_audit_regressions.py::test_g5_c2_parent_exit_is_not_descendant_completion"),

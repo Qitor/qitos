@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Mapping, Tuple
 
+from qitos.core.session import AttemptIdentity, RunIdentity, SessionIdentity, WorkItemIdentity
+
 from ._g5_requirements import QUALIFICATION_PINS, REPLAY_HEADS, REQUIREMENTS, SOURCE_HEADS
 
 
@@ -135,6 +137,8 @@ def _validate_binding(
             findings.append(f"{prefix}_schema_invalid")
         if writer != expected_writer:
             findings.append(f"{prefix}_writer_invalid")
+        elif not _writer_exists(repository_root, commit, writer):
+            findings.append(f"{prefix}_writer_missing_from_current_code")
         if test_node != expected_node:
             findings.append(f"{prefix}_consumer_node_unapproved")
         pin = QUALIFICATION_PINS.get((lane, requirement_id))
@@ -153,7 +157,10 @@ def _validate_binding(
             findings.append(f"{prefix}_authority_invalid")
         if item.get("no_identity_conflict") is not True:
             findings.append(f"{prefix}_identity_conflict")
-        committed = _git_bytes(repository_root, commit, path)
+        artifact_commit = str(item.get("artifact_commit", ""))
+        if not re.fullmatch(r"[0-9a-f]{40}", artifact_commit):
+            findings.append(f"{prefix}_artifact_commit_invalid")
+        committed = _git_bytes(repository_root, artifact_commit, path)
         if committed is None:
             findings.append(f"{prefix}_committed_bytes_missing")
         elif hashlib.sha256(committed).hexdigest() != digest:
@@ -167,11 +174,12 @@ def _validate_binding(
                 findings.append(f"{prefix}_artifact_invalid")
                 artifact = {}
             if (artifact.get("schema") != schema or artifact.get("writer") != writer
-                    or artifact.get("requirement_id") != requirement_id):
+                    or artifact.get("requirement_id") != requirement_id
+                    or artifact.get("code_commit") != commit):
                 findings.append(f"{prefix}_artifact_contract_mismatch")
             if pin is not None:
                 findings.extend(_validate_execution_pin(
-                    repository_root, pin, artifact, commit, digest, expected_node, prefix,
+                    repository_root, pin, artifact, commit, artifact_commit, digest, expected_node, prefix,
                 ))
         test_path = _safe_path(test_node.partition("::")[0])
         test_bytes = _git_bytes(repository_root, commit, test_path) if test_path else None
@@ -188,10 +196,33 @@ def _validate_binding(
     return tuple(findings)
 
 
+def _writer_exists(root: Path, commit: str, writer: str) -> bool:
+    """Resolve only integration-approved source symbols; never import producer code."""
+    parts = writer.split(".")
+    module_path = "/".join(parts)
+    for path in (module_path + ".py", module_path + "/__init__.py"):
+        if _git_bytes(root, commit, path) is not None:
+            return True
+    if len(parts) < 2:
+        return False
+    module_path = "/".join(parts[:-1])
+    for path in (module_path + ".py", module_path + "/__init__.py"):
+        source = _git_bytes(root, commit, path)
+        if source is None:
+            continue
+        try:
+            return any(isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
+                       and node.name == parts[-1] for node in ast.parse(source).body)
+        except (SyntaxError, UnicodeDecodeError):
+            return False
+    return False
+
+
 def _validate_execution_pin(root: Path, pin: Mapping[str, str], artifact: Mapping[str, Any],
-                            commit: str, digest: str, node: str, prefix: str) -> Tuple[str, ...]:
+                            commit: str, artifact_commit: str, digest: str, node: str, prefix: str) -> Tuple[str, ...]:
     """Validate an integration-pinned result; never execute manifest-supplied code."""
-    if pin.get("code_commit") != commit or pin.get("artifact_sha256") != digest:
+    if (pin.get("code_commit") != commit or pin.get("artifact_sha256") != digest
+            or pin.get("artifact_commit") != artifact_commit):
         return (f"{prefix}_current_identity_mismatch",)
     path = pin.get("execution_path", "")
     if path != "tests/fixtures/s4/g5/controlled-execution.json":
@@ -203,13 +234,28 @@ def _validate_execution_pin(root: Path, pin: Mapping[str, str], artifact: Mappin
         evidence = json.loads(data)
         result = evidence["nodes"][node]
         identity = artifact["identity"]
+        consumer = evidence["consumers"][pin["consumer"]]
+        SessionIdentity(identity["session_id"])
+        RunIdentity(identity["run_id"])
+        WorkItemIdentity(identity["work_item_id"])
+        AttemptIdentity(identity["attempt_id"])
         valid = (
             evidence["schema"] == "qitos.g5.controlled_execution/v1"
             and evidence["code_commit"] == commit
             and result["collected"] is True and result["outcome"] == "passed"
             and result["skipped"] is False
-            and result["consumer_identity"] == identity
-            and identity["session_id"] != identity["run_id"]
+            and consumer["outcome"] == "passed"
+            and consumer["installed_distribution"] is True
+            and consumer["identity"] == identity
+            and consumer["code_commit"] == commit
+            and consumer["wheel_sha256"] == pin["wheel_sha256"]
+            and re.fullmatch(r"[0-9a-f]{64}", consumer["wheel_sha256"]) is not None
+            and consumer["runtime_facts"] == artifact["runtime_facts"]
+            and artifact["runtime_facts"]["session_id"] == identity["session_id"]
+            and artifact["runtime_facts"]["run_id"] == identity["run_id"]
+            and artifact["runtime_facts"]["work_item_id"] == identity["work_item_id"]
+            and artifact["runtime_facts"]["attempt_id"] == identity["attempt_id"]
+            and artifact["runtime_facts"]["owner_generation"] == identity["owner_generation"]
             and isinstance(identity["owner_generation"], int)
             and not isinstance(identity["owner_generation"], bool)
             and identity["owner_generation"] >= 0
