@@ -1,7 +1,7 @@
 # Task 15 — public framework graduation
 
-Status: S4 four-lane implementation planned; dispatch awaits remote baseline verification
-Updated: 2026-09-03
+Status: four S4 candidates delivered and reviewed; G5 framework repairs required
+Updated: 2026-09-04
 Promoted S3/G4 runtime baseline: `f07b38647cf3b18a5235581224a1153b88fac397`
 Fixed S4 implementation ancestry: `c4e621d05960a4e2f06cb4864f6a8cb8275ac067`
 Depends on: Tasks 02–05 and 08–14; S3/G4 framework conformance
@@ -10,6 +10,13 @@ Risk: critical — public API coherence, safe defaults, migration truth, and
 third-party usability
 
 ---
+
+Current qualification is recorded in the
+[S4 candidate audit and G5 plan](../internal/plans/s4_g5_convergence_audit.md).
+The four lanes are not integrated or merge-ready. Host-output publication,
+process termination, CLI fork, provider accounting, journal durability,
+complete/loss-explicit reads, and exact-source readiness require repair before
+the G5 default-switch gate below can be exercised.
 
 ## 1. Goal
 

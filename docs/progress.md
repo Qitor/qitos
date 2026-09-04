@@ -1,7 +1,7 @@
 # v4 integration progress
 
 Status: active integration ledger
-Updated: 2026-09-03
+Updated: 2026-09-04
 Integration branch: `feat/campaign-absorption`
 Independently reviewed runtime baseline: `5ef8ab657f6452ae48c931beea79106e2cca34c6`
 S1 dispatch baseline: `c1efb0f4adde3e673bf181af5b1760c19a451ae2`
@@ -14,16 +14,62 @@ Promoted S2 runtime head:
 `3af0ee3b2c3b5b5575e4e07cc31ff7f652327ba7`
 S3 plan freeze: `52e050d9bc1ee0d4c6dcc78c90a5497c25722648`
 S3 convergence source: `851f7902f15da670e72f4c04d7453cf37201aee7`
-Current gate: **S3/G4 CLOSED; S4 FOUR-LANE PLAN COMPLETE; IMPLEMENTATION
-DISPATCH AWAITS REMOTE VERIFICATION OF THE PLANNING ANCESTRY; LIVE AGENT
-CAPABILITY REMAINS INFORMATIONAL**
+Current gate: **S3/G4 CLOSED; S4 CANDIDATES REVIEWED, FRAMEWORK REPAIRS REQUIRED;
+G5 NOT STARTED; LIVE AGENT CAPABILITY REMAINS INFORMATIONAL**
 Source plan: [`docs/v4/11-four-lane-execution-playbook.md`](v4/11-four-lane-execution-playbook.md)
 Next architecture: [`Task 15 public framework graduation`](v4/15-public-framework-graduation.md),
 building on [`Task 12 durable sessions`](v4/12-session-runtime-and-persistence.md),
 [`Task 13 durable multi-agent work`](v4/13-durable-multi-agent-work-graph.md),
 and [`Task 14 sandboxed agent execution`](v4/14-sandboxed-agent-execution.md)
 
+## S4 candidate audit and G5 repair decision (2026-09-04)
+
+All four lane heads and clean worktrees were independently checked against the
+common `c4e621d05960a4e2f06cb4864f6a8cb8275ac067` ancestry:
+
+- A: `f670e551f0bd5d88501182c2d24a5037fa0aebb9` (5 commits);
+- B: `c834ce76b939e86b33019719d5b212b1c7a38bdd` (7 commits);
+- C: `a1958fe620f9a80017d80aca702711991b80c8e6` (10 commits);
+- D: `18278bd42ea91284f76f2d4523f82d316cc20a75` (7 commits).
+
+The repository C HEAD and manifest digest differ from the pasted report; use
+the source identities and full hashes in the
+[independent audit and G5 plan](internal/plans/s4_g5_convergence_audit.md).
+
+The implementations materially improve authoring, model/context extension,
+Env-only ACI/sandboxing, and Trajectory/qita/distribution, but are not yet
+merge-ready. Seven independent probes reproduced: implicit sandbox export
+writing outside the host workspace and into protected paths; false process
+reaping with a live descendant; CLI fork advancing the source Session into
+restoring; post-dispatch continuation failure reporting request-not-sent;
+short journal writes falsely acknowledged as persisted; truncated run reads
+claiming no loss; and forged A/B/C readiness accepted from unrelated files and
+nonexistent test nodes. These are framework-owned defects, not model or
+Agent-author failures and not explained by Docker contention.
+
+The reviewer also ran 198 focused tests across the four exact heads, all
+passing. C's old S3 evidence gate independently fails on historical/current
+hash mismatch (1 failed, 1 passed); its static ratchet independently exits 1
+because nine resolved allowances still need a shrink-only integration update.
+No full suite, real Docker stress, live model, package matrix, or merged tree was
+qualified by this audit. Producer-reported Docker failures remain open platform
+evidence; they are not converted to skips or passes.
+The primary checkout's documentation-only update separately passed 23
+architecture/public-surface/workflow/example/path-safety tests and diff checks.
+
+Next is one bounded G5 repair/convergence task: replay A -> B -> C -> D, repair
+the audited invariants, connect real config/context/artifact/sandbox/Session
+services, reconcile historical evidence and interface budgets, qualify serial
+Docker and installed-wheel consumers, then consider Trajectory freeze/default
+switch and baseline promotion. No additional feature wave is authorized by
+this plan. Four source worktrees remain registered and unchanged; cleanup waits
+for a qualified promoted/pushed baseline. `DEFAULT_BRANCH_READY=false` and
+`RELEASE_READY=false` remain unchanged.
+
 ## S4 four-lane implementation planning (2026-09-03)
+
+Historical dispatch record; superseded by the candidate audit above. The lanes
+used the locally available exact baseline without changing their ancestry.
 
 The independent post-closure audit and Task 15 planning commit
 `c4e621d05960a4e2f06cb4864f6a8cb8275ac067` is now the fixed S4 implementation

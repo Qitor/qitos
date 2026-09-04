@@ -19,6 +19,7 @@ How to update:
 
 ### Added
 
+- Added an independent S4 candidate audit and bounded G5 repair/convergence plan, with exact lane identities, seven reproduced framework defects, 198 focused-test results, historical/current evidence corrections, and explicit holds on promotion, Trajectory defaults, release, and worktree retirement. This documentation does not integrate or repair the candidate runtime code.
 - Added the S4 four-lane implementation plan: public authoring/Session/config, model transaction/context/provider extensibility, safe ACI/sandbox/MCP/durable work execution, and Trajectory/qita/evaluation/distribution now have non-overlapping worktree leases, exact producer/consumer gates, copyable Agent instructions, and one later G5 convergence/default-switch boundary.
 - Added the S4 public-framework graduation contract at fixed baseline `f07b38647cf3b18a5235581224a1153b88fac397`: four lanes now converge authoring/Session/CLI, model/context/provider, tools/sandbox/multi-agent, and Trajectory/qita/distribution into one default-safe architecture, with an explicit G5 gate and no public version-suffixed parallel APIs.
 - Closed S3/G4 after a pure fast-forward promotion, independent main-worktree requalification, two verified non-force pushes, and non-forced retirement of five clean worktrees while preserving every branch ref; the final closure commit is the sole S4 dispatch baseline.

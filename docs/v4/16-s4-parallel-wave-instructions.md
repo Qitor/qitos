@@ -1,13 +1,20 @@
 # Task 16 — S4 four-lane implementation instructions
 
-Status: planned; dispatch is authorized only after the baseline preflight below
-Updated: 2026-09-03
+Status: historical dispatch instructions; four candidates reviewed, G5 repair required
+Updated: 2026-09-04
 Promoted S3/G4 runtime baseline: `f07b38647cf3b18a5235581224a1153b88fac397`
 S4 implementation ancestry: `c4e621d05960a4e2f06cb4864f6a8cb8275ac067`
 Depends on: Task 15 and the promoted Tasks 12–14 implementation
 Feeds: G5 public-framework convergence
 
 ---
+
+Do not redispatch these implementation lanes. Their exact source heads,
+independent review findings, and the next single G5 repair/convergence task are
+recorded in the [S4 audit](../internal/plans/s4_g5_convergence_audit.md).
+The seven reproduced framework defects must be repaired before normal G5
+qualification/default switching. The instructions below remain the original
+scope and ownership record, not evidence that their acceptance gates passed.
 
 ## 1. Decision and rationale
 
