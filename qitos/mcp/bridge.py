@@ -26,7 +26,7 @@ import hashlib
 import json
 from typing import Any, List, Optional
 
-from ..core.artifact import ArtifactRef
+from ..core.artifact import ArtifactContractError, ArtifactRef
 from ..core.tool import FunctionTool, ToolMeta, ToolSpec
 from ..core.tool_result import ToolResult
 from ..core.tool_runtime import ToolResourceKind
@@ -87,7 +87,7 @@ def _make_function_tool(
     # but we want to use *our* spec (from MCP schema conversion).  We
     # override by providing a ToolMeta that carries our custom spec fields.
 
-    async def _mcp_caller(**kwargs: Any) -> Any:
+    async def _mcp_caller(runtime_context: Optional[dict[str, Any]] = None, **kwargs: Any) -> Any:
         """Call the MCP tool via the server transport."""
         result = await server.call_tool(original_name, kwargs)
         encoded = json.dumps(
@@ -99,6 +99,8 @@ def _make_function_tool(
             truncated = False
             omitted: dict[str, int] = {}
         else:
+            context = runtime_context or {}
+            resolver = context.get("artifact_resolver")
             digest = hashlib.sha256(encoded).hexdigest()
             model_output = {
                 "status": "success",
@@ -108,7 +110,7 @@ def _make_function_tool(
             artifacts = (
                 ArtifactRef(
                     artifact_id=f"sha256:{digest}",
-                    resolver_key="tool-result-output",
+                    resolver_key=str(getattr(resolver, "resolver_key", "tool-result-output")),
                     sha256=digest,
                     media_type="application/json",
                     byte_length=len(encoded),
@@ -117,6 +119,24 @@ def _make_function_tool(
                     model_summary="Full MCP result retained outside the bounded model projection",
                 ),
             )
+            try:
+                if resolver is None:
+                    raise ArtifactContractError("artifact_resolver_unavailable", "MCP output requires an artifact resolver")
+                put = getattr(resolver, "put", None)
+                if callable(put):
+                    put(artifacts[0], encoded)
+                if not resolver.probe(artifacts[0]):
+                    raise ArtifactContractError("missing_required_artifact", "MCP output was not retained")
+                resolver.resolve(artifacts[0])
+            except Exception as exc:
+                return ToolResult(
+                    status="error", output=result, model_output={"status": "error", "stage": "artifact_retention"},
+                    error="MCP output artifact retention failed", error_kind="execution",
+                    error_code=exc.code if isinstance(exc, ArtifactContractError) else "artifact_retention_failed",
+                    tool_name=spec.name, complete=False, effect_ref=context.get("effect_ref") or f"mcp:{spec.name}",
+                    effect_state="unknown", outcome_unknown=True, reconciliation_required=True,
+                    retry_disposition="requires_reconciliation",
+                )
             truncated = True
             omitted = {"model_output_characters": max(0, len(encoded) - 16_000)}
         return ToolResult(

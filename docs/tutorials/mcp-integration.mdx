@@ -192,3 +192,12 @@ Remember to call `await server.cleanup()` when the agent session ends.
     Use bridged MCP tools inside an AgentModule with a real LLM loop.
   </Card>
 </CardGroup>
+
+## Large response artifacts
+
+The canonical MCP bridge executes through ActionExecutor's permission, effect and
+timeout boundaries. Large responses require the composition's artifact resolver:
+the bridge stores and verifies the body before reporting a retrievable ArtifactRef.
+A retention failure after dispatch is typed and requires reconciliation; it must not
+be treated as an unsent operation or automatically retried. Runtime context and
+artifact storage locations are never forwarded as MCP tool arguments.

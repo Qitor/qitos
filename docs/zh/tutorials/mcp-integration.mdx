@@ -192,3 +192,10 @@ async def build_registry_with_mcp():
     在 AgentModule 中使用桥接的 MCP 工具，运行真实的大模型循环。
   </Card>
 </CardGroup>
+
+## 大响应 artifact
+
+canonical MCP bridge 经 ActionExecutor 的权限、effect 和 timeout 边界执行。
+大响应使用 composition 注入的 artifact resolver，写入并验证内容后才返回可取回的
+ArtifactRef。请求已发送后的保存失败是需要 reconciliation 的 typed failure，
+不能当成未发送操作自动重试。Runtime context 和 artifact 存储位置不传给 MCP 工具。

@@ -7,7 +7,7 @@ from qitos.core.artifact import ArtifactRef
 from qitos.core.env import EnvCapabilityError, ProcessHandle
 from qitos.core.session import SessionSnapshot
 from qitos.core.work_graph import WorkGraph
-from qitos.kit.env.docker_env import DockerEnv
+from qitos.kit.env.docker_env import DockerEnv, DockerProcessControlCapability
 from qitos.kit.env.sandbox import (
     SANDBOX_SNAPSHOT_COMPONENT_CODEC, DockerSandboxBackend, SandboxIdentity,
     SandboxSnapshotComponent,
@@ -89,8 +89,11 @@ class SessionSandboxComponent:
         if self.on_bind is not None:
             self.on_bind(context.engine, env, backend)
         quiescence = "processes_terminal"
-        for identity in tuple(env.processes._owned):
-            if env.processes.poll(ProcessHandle(identity, env.processes.generation))["worker_still_running"]:
+        processes = env.processes
+        if not isinstance(processes, DockerProcessControlCapability):
+            raise EnvCapabilityError("sandbox_process_control_unsupported", "sandbox requires owned Docker process control")
+        for identity in tuple(processes._owned):
+            if processes.poll(ProcessHandle(identity, processes.generation))["worker_still_running"]:
                 quiescence = "worker_still_running"
         if quiescence != "processes_terminal" and context.lifecycle.value in {"pausing", "paused", "waiting_input"}:
             raise EnvCapabilityError("sandbox_worker_still_running", "workspace cannot be snapshotted while a worker is active")
@@ -132,6 +135,8 @@ class SessionSandboxComponent:
         if env.input_digest != value.input_digest:
             raise EnvCapabilityError("sandbox_input_mismatch", "workspace input identity changed")
         # Native process/memory resume remains unsupported; this owner restores files.
+        if backend._receipt is None:
+            raise EnvCapabilityError("sandbox_attestation_missing", "restored sandbox lacks an attested receipt")
         backend._receipt = replace(backend._receipt, workspace_digest=reference.sha256,
                                    input_digest=value.input_digest)
 
