@@ -1,6 +1,9 @@
 # Master CI stabilization after G5
 
-Status: executing with explicit user authorization to unfreeze runtime code.
+Status: implementation complete and locally qualified, with explicit user authorization
+to unfreeze runtime code. Remote qualification is conditional on successful GitHub
+checks for the exact published commit; inspect the master CI/docs runs, not an
+older green check. No deployment or release is part of this work.
 Starting master: f9e45f372ba4b8a5c89982add56a667908893b30.
 Historical G5 qualification remains bound to
 717b4cf1b23f2ed252cd03234ffd8605038d9567; successor tests are recorded separately.
@@ -90,4 +93,32 @@ original twenty-plus-twenty process scenarios, with no timeout increase.
 The previous remote coverage job already measured 85.79%, above the unchanged
 80% floor, but failed its six tests. That is diagnostic evidence, not a green run.
 No quality allowance, API budget, package dependency/version or publication
-workflow was relaxed. Current local verification is in progress.
+workflow was relaxed. Current local verification is recorded below.
+
+## Local qualification and publication gate
+
+Tested clean single-branch clone: `42fcbf0a03afa11e9b53d785d6128f079ac0499f`.
+The required docs/tutorial/example/architecture/public-surface gates, full tracing
+regressions, historical producer checks, publication and forty process recovery
+rounds passed together: **751 passed in 120.75 seconds** on Python 3.12.7.
+This includes a rebuilt wheel in a fresh external venv, generated project install/
+tests, canonical configuration, Session recovery/fork, qita and extension lessons.
+The focused journal/persistence/process run separately passed 55 cases in 75.15s.
+The no-regression static ratchet retains exactly 356 findings (334 active and 22
+vendored/generated). Navigation, bilingual parity, links and all 148 public MDX
+pages passed. The metadata/dependency/quality-baseline/API-budget diff is empty.
+Only publication, journal/store internals and historical qualification identity
+resolution changed in qitos/; G5's older execution remains bound to 717b4cf.
+
+The push-interval scan through the tested clone covered 74 commits and 858 distinct
+changed blobs, including every merge parent. Of 76 pattern findings, 74 were already
+published blobs. The remaining two historical plan blobs contain only previously
+published path values already reviewed in the earlier disclosure audit. There are
+no new credential or private-endpoint findings. This evidence-only update adds no
+runtime changes; final remote SHA/check results are also recorded in the task's
+external receipt and final response to avoid a self-referential commit loop.
+
+Concurrent v5 planning edits are preserved in the main working directory and are
+excluded from the promoted tree. An additive scope-correction commit removed
+accidentally staged cross-task roadmap references without rewriting history or
+removing those working drafts. The independent clone is clean.

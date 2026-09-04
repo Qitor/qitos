@@ -6,7 +6,7 @@ Historical qualified G5 runtime baseline: `717b4cf1b23f2ed252cd03234ffd8605038d9
 Framework qualification **passed**; S4 local integration **complete**.
 Remote sync: **verified**; default development branch: **master**.
 Default branch and subsequent runtime fixes were explicitly authorized by the user.
-Master CI stabilization is in progress; no release or deployment. See
+Master CI runtime fixes are implemented and locally qualified; no release or deployment. See
 [successor CI evidence](internal/plans/master_ci_stabilization.md) and the
 [historical promotion report](internal/plans/g5_docs_tutorials_report.md).
 Historical G5: 2663 passed / 50 live-opt-in skipped, Python 3.12.7.
