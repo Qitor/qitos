@@ -3,6 +3,22 @@ title: "Quickstart"
 description: "Run your first QitOS minimal coding agent in under 2 minutes, then inspect it with qita."
 ---
 
+## Session-first project path
+
+For a new durable, sandboxed agent project, start with:
+
+```bash
+qit new --agent-name my_agent --output-dir . --no-input
+python -m pip install ./my_agent
+python -m pytest my_agent/tests
+```
+
+The generated test uses a deterministic provider in its temporary test workspace;
+configured execution uses the Docker sandbox and explicit credential resolution.
+See [G5 migration](/reference/g5-migration) for restore, immutable fork, retained
+artifacts, explicit publication and journal inspection. The older minimal demo
+below operates on its seeded host workspace; it is not the isolation reference.
+
 This guide takes you from a fresh environment to a model-backed minimal coding agent and a live trace view in under 2 minutes.
 
 Here is what the runtime looks like when you watch it work:
@@ -51,7 +67,7 @@ Need a provider first? Read [Prerequisites](/prerequisites). It explains how to 
     model_name: Qwen/Qwen3-8B
     workspace: .../playground/minimal_coding_agent
     target_file: buggy_module.py
-    trace_run: .../runs/qitos_minimal_coding_<timestamp>
+    trace_run: .../runs/trajectory.journal
     final_result: Patch applied and verification passed.
     stop_reason: final
     next_step: qita board --logdir runs

@@ -899,3 +899,23 @@ Codex/OpenCode/Claude-Code/OpenClaw-class systems:
 It will still not be a hosted product, universal strategy library, distributed
 cluster scheduler, arbitrary-thread hard canceller, or guarantee of task/model
 success. Those boundaries are a sign of a mature framework, not missing honesty.
+
+## G5 convergence update after selector repair (2026-09-04)
+
+The exact 29 source commits have been replayed and audited repairs are wired
+through the existing composition, Engine/Session, ToolRuntime/WorkGraph, sandbox
+and Trajectory. Controlled installed coding/research consumers qualified fixing
+code 511013a; subsequent schema/default changes and a failed-default rollback
+are recorded separately. Project-scoped writer and qita defaults have been
+re-enabled after focused repairs. Final combined-tree gates, final wheel
+consumers and main-worktree revalidation remain open; this update does not
+authorize promotion, remote sync, publication or worktree retirement.
+
+Supported boundaries and migration are in
+[the Trajectory contract](../architecture/trajectory-contract.md) and
+[the execution ledger](../internal/plans/s4_g5_convergence_execution.md).
+Python cooperative pause and restore-time steering are supported; live CLI
+pause/steer and durable approval-response resume reject. Publication is explicit
+and restricted to supported regular top-level files. Unknown workers retain
+uncertainty; external effects are not exactly-once. Journal complete reads are
+complete but materialized, not bounded-memory streaming.

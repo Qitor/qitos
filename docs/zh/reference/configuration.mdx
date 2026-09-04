@@ -91,19 +91,18 @@ Tool policy 是配置语义，不是 live harness 的 provider 特例：
 | `disabled` | 不投影 tool schema，也不接受 tool call |
 
 coding/file-write 配置必须使用真实 sandbox backend。Docker reference backend
-从 runtime inspect 事实证明 non-root、只读 rootfs、仅 workspace 可写、禁网、
+从 runtime inspect 事实证明 non-root、只读 rootfs、私有 workspace staging、无 writable host bind、禁网、
 capability drop、no-new-privileges、CPU/memory/process 限额、无 credential
 注入、provider request 留在可信 host 以及 cleanup。Docker 不可用返回
 `sandbox_unavailable`，绝不回退 host。`unsafe_host` 是显式未隔离退出选项，
 会生成 unsafe receipt，并拒绝 `network: none`、`read_only_root: true` 等
 Docker-only 声明。
 
-启用 `runtime.trajectory` 时，composition 注册现有 Trajectory EventSink。
+`runtime.trajectory.enabled` 默认为 true，composition 注册现有 Trajectory EventSink。
 config、sandbox、request/response、tool/effect、pause/snapshot/restore、child/
 WorkGraph、join、failure 与 final 事实均由 canonical runtime 写入，并可由
 现有 reader/qita 重开。private artifact 必须留在 source control 之外；公开
-export 保持 redacted；sink failure 沿用 `required`/`optional` 语义。本轮不冻结
-新的 Trajectory schema。
+export 保持 redacted；sink failure 沿用 `required`/`optional` 语义。G5 冻结现有序列化合同；省略 output 时从 Session/runtime 数据位置派生，目录输出使用 `trajectory.journal`。参见 [G5 迁移](/zh/reference/g5-migration)。
 
 真实 lower-level composition 用法如下：
 

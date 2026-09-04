@@ -3,6 +3,21 @@ title: "快速开始"
 description: "在 2 分钟内运行你的第一个 QitOS 最小编程智能体，并用 qita 检查它。"
 ---
 
+## Session-first 项目路径
+
+新建持久化、沙箱化 Agent 项目：
+
+```bash
+qit new --agent-name my_agent --output-dir . --no-input
+python -m pip install ./my_agent
+python -m pytest my_agent/tests
+```
+
+生成测试在临时测试 workspace 使用确定性 provider；配置执行使用 Docker sandbox
+和显式 credential resolver。恢复、immutable fork、artifact 保留、显式发布和
+journal 检查见 [G5 迁移](/zh/reference/g5-migration)。下方旧 minimal demo 操作
+其初始化的 host workspace，不作为隔离能力证明。
+
 本页会带你从零开始，搭建一个模型驱动的最小编程智能体（coding agent），直到可视化查看追踪记录（trace），全程大约 2 分钟。
 
 QitOS 运行时（runtime）的实际效果如下：
@@ -51,7 +66,7 @@ QitOS 运行时（runtime）的实际效果如下：
     model_name: Qwen/Qwen3-8B
     workspace: .../playground/minimal_coding_agent
     target_file: buggy_module.py
-    trace_run: .../runs/qitos_minimal_coding_<timestamp>
+    trace_run: .../runs/trajectory.journal
     final_result: Patch applied and verification passed.
     stop_reason: final
     next_step: qita board --logdir runs

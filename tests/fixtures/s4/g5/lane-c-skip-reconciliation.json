@@ -1,0 +1,34 @@
+{
+  "command": [
+    "/bin/zsh",
+    "-lc",
+    "/opt/anaconda3/bin/python -m pytest -q"
+  ],
+  "exit_code": 1,
+  "fields": {
+    "aggregated_output": {
+      "sha256": "3174ba980f1776994cc1367559ad876286cfec23c229a04d0ca5f157a44cc419",
+      "summary_lines": [
+        "6 failed, 2446 passed, 50 skipped in 826.94s (0:13:46)"
+      ]
+    },
+    "formatted_output": {
+      "sha256": "3174ba980f1776994cc1367559ad876286cfec23c229a04d0ca5f157a44cc419",
+      "summary_lines": [
+        "6 failed, 2446 passed, 50 skipped in 826.94s (0:13:46)"
+      ]
+    },
+    "stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary_lines": []
+    },
+    "stdout": {
+      "sha256": "3174ba980f1776994cc1367559ad876286cfec23c229a04d0ca5f157a44cc419",
+      "summary_lines": [
+        "6 failed, 2446 passed, 50 skipped in 826.94s (0:13:46)"
+      ]
+    }
+  },
+  "item_id": "exec-16da826f-892e-46e8-9404-dab8ba6cf610",
+  "thread_id": "01a06807-d212-74e3-8b87-615001d118a8"
+}

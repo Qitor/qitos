@@ -1405,3 +1405,21 @@ blocked from freeze until Task 12/13 lineage is available.
 - Decision: candidate direction is accepted, but **G2 remains open**. Dispatch
   one G2-R2 repair/promotion owner. S2 is planned in
   `docs/internal/plans/s2_runtime_wave.md` but remains blocked.
+
+## G5 isolated convergence — defaults repaired, final gates open (2026-09-04)
+
+Exact A→B→C→D replay is complete (29 commits). Audit repairs, actual sandbox/
+Session/work/context/artifact wiring and two independently installed consumers
+have passed controlled qualification on 511013a. Schema freeze 50e99a2, initial
+writer b5cd0df and reader 5648291 were separate commits. Failed combined attempt
+05 exposed demo compatibility and shared implicit output; selector rollback
+1055819 preserved data. Project-scoped writer 6977f7e and reader 75ae72d restore
+defaults after focused repairs. Full attempt 03 had passed 2628/50 on an earlier
+tree; attempt 04 failed one example, and attempt 05 was interrupted after known
+failures. None is substituted for the final combined-tree gate.
+
+C's original completed pytest output says 50 skips, not its later report's 99;
+the exact output digest is now retained in G5 evidence. All source worktrees
+and refs remain retained. Primary HEAD remains 306e689; no promotion or push.
+See docs/internal/plans/s4_g5_convergence_execution.md for commands, failure
+history, exact source/replay identities and current acceptance work.

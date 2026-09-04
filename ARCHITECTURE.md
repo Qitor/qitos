@@ -39,8 +39,8 @@ qitos.models        provider abstraction: Model/AsyncModel/ModelFactory + OpenAI
                     OpenAI-compatible/LiteLLM/Anthropic/Gemini/local backends
 qitos.kit           concrete implementations: tools, toolsets, parsers, prompts, memory,
                     history, planning, critics, envs, permissions, REPL, skills
-qitos.trace         v1 trace artifacts (runs/{run_id}/manifest+events+steps) — frozen contract
-qitos.tracing       v2 span plane + processors (console/JSON/W&B/MLflow); not default yet
+qitos.trace         frozen historical trace format and explicit compatibility writer
+qitos.tracing       canonical Trajectory journal/readers plus separate diagnostic span processors
 qitos.render        Rich terminal rendering + EngineHooks
 qitos.qita          trajectory CLI (board/replay/export); reads v1 artifacts
 qitos.checkpoint    v2 checkpoint stores (memory/SQLite, versioning, durability, fork)
@@ -76,7 +76,7 @@ task in (Task/RunSpec, core/task.py, core/spec.py)
     check_stop stop_criteria.py          → StopReason (core/errors.py)
     each phase: hooks (engine/hooks.py) dispatched via _trace_runtime
     checkpoints (qitos/checkpoint) if configured
-→ EngineResult + trace artifacts (qitos/trace → runs/{run_id}/)
+→ EngineResult + canonical Trajectory journal (explicit historical writer remains compatible)
 → qita board/replay/export; benchmark scorers (metric/evaluate contracts)
 ```
 

@@ -99,20 +99,20 @@ Tool policy is configuration, not a provider-specific harness rule:
 
 Coding/file-write configurations use a real sandbox backend. Docker is the
 reference backend and is attested from runtime inspect facts: non-root,
-read-only root filesystem, workspace-only writable mount, disabled network,
+read-only root filesystem, private workspace staging without a writable host bind, disabled network,
 dropped capabilities, no-new-privileges, bounded CPU/memory/processes, no
 credential injection, host-side provider requests, and proven cleanup. Docker
 unavailability is `sandbox_unavailable`; it never falls back to host execution.
 `unsafe_host` is an explicit unisolated opt-out. It emits an unsafe receipt and
 rejects Docker-only claims such as `network: none` or `read_only_root: true`.
 
-When `runtime.trajectory.enabled` is true, composition installs the existing
+`runtime.trajectory.enabled` defaults to true; composition installs the existing
 Trajectory EventSink. Config, sandbox, request/response, tool/effect,
 pause/snapshot/restore, child/work-graph, join, failure, and final facts flow
 through the canonical runtime and can be reopened by the existing reader and
 qita. `privacy: private` artifacts stay outside source control; public exports
 remain redacted. Sink failure follows the existing `required`/`optional`
-policy. This does not freeze a new Trajectory schema.
+policy. G5 freezes the existing wire schema. Omitted output is derived from the Session/runtime data location; directory output uses `trajectory.journal`. See [G5 migration](/reference/g5-migration).
 
 The lower-level composition path is also real and explicit:
 

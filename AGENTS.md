@@ -16,8 +16,8 @@ qitos/engine/        execution kernel: loop, hooks, stop, recovery, interrupts, 
 qitos/harness/       model family presets (FamilyPreset) — kernel defaults source, despite the generic name
 qitos/models/        provider abstraction (OpenAI/LiteLLM/Anthropic/Gemini/local)
 qitos/kit/           concrete implementations: tools, toolsets, parsers, memory, history, critics, envs, REPL
-qitos/trace/         v1 trace artifacts (runs/{run_id}/) — frozen compatibility contract, qita reads these
-qitos/tracing/       v2 span plane + processors (not wired by default; do not point qita at it)
+qitos/trace/         frozen historical trace compatibility contract and explicit writer
+qitos/tracing/       canonical Trajectory journal/readers plus separate diagnostic span processors
 qitos/render/        Rich terminal rendering + EngineHooks
 qitos/qita/          trajectory CLI (board/replay/export)
 qitos/checkpoint/    v2 checkpoint stores (v1 manager deprecated)

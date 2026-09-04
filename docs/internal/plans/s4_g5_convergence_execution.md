@@ -807,3 +807,16 @@ execution will regenerate their current facts; no earlier receipt is relabeled.
 The reader/demo/default-writer sweep passed 21 tests in 11.77 seconds
 (reader-reswitch-05). A script-edit assertion stopped after the coding change;
 research was updated separately against its actual inspection assertion.
+
+### Documentation and historical skip correction
+
+Architecture/AGENTS maps now distinguish canonical Trajectory from diagnostic
+spans and frozen trace compatibility. English/Chinese migration, configuration,
+quickstart and navigation document project-scoped persistence, read-only inspect,
+explicit publication, actual defaults/rollback and unsupported boundaries. Tasks
+12–16 and progress append current status without rewriting earlier failures.
+The audit appendix references fixing commits/regressions and the original Lane C
+command whose stdout actually contains 50 skips; report 99 was a transcription
+error, not an unqualified set of 49 hidden tests. The task transcript was read
+only; no message was sent to a source task and no source tree was changed.
+Documentation/public/architecture/scaffold checks passed 28 tests in 1.34 s.

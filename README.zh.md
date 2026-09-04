@@ -18,17 +18,7 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 
 ## 最新进展
 
-- G5 qita 默认读取 canonical journal，并兼容历史 trace；支持显式只读回滚及完整 discovery。
-
-- G5 公共启动入口默认写入唯一 private Trajectory journal，可显式关闭或选择兼容 writer。
-
-- G5 已在已安装 consumer 资格通过后冻结现有 Trajectory 序列化合同；默认切换及最终门禁仍独立验收。
-
-- G5 候选已修复生成项目的配置执行及 Session 审批隔离；最终组合资格仍在验收。
-
-- **G5 融合候选**：已接入受控通道确认的 Docker 进程完成事实、可取回的 MCP/工作区 artifact、隔离恢复、显式发布和基于 child checkpoint 的 join，仍在验收；参见[执行记录](docs/internal/plans/s4_g5_convergence_execution.md)。尚未本地提升或切换默认值。
-
-- G5 融合进行中：模型请求发出后的失败保留准确计数；整体集成与默认切换尚未验收。
+- **G5 融合候选**：已接通项目级持久 Session、immutable fork、显式沙箱发布、可信进程完成确认、artifact 保留及 canonical Trajectory 默认值。两个已安装 consumer 已验收中间修复树；最终组合与主工作树门禁仍待完成。参见[迁移说明](docs/zh/reference/g5-migration.mdx)和[执行证据](docs/internal/plans/s4_g5_convergence_execution.md)。
 
 - **S4 候选已审计，G5 需要修复后融合**：四条独立产线已交付公共入口、provider/context、安全执行和 Trajectory/发行候选。独立复核通过 198 项定向测试，但复现了宿主输出回写、进程生命周期、fork、请求计数、journal、loss 报告和 readiness 缺陷。S4 尚未提升；详见[审计与融合计划](docs/internal/plans/s4_g5_convergence_audit.md)。
 - **S4 已拆分为四条面向用户能力的产线**：[可直接派发的执行计划](docs/v4/16-s4-parallel-wave-instructions.md)将公共开发入口/Session/配置、模型事务/上下文/provider、安全工具/sandbox/MCP/工作图，以及 Trajectory/qita/评测/发行分配给互不重叠的分支。质量和证据是每条线的共同门禁；只有后续 G5 融合才能冻结默认值或声明新的框架基线。

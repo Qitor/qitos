@@ -437,3 +437,29 @@ RELEASE_READY=false
 This review changed planning/documentation only. It did not fix candidate
 runtime code, create a convergence worktree, merge, push, deploy, call a model,
 publish a package, delete a worktree, or delete a ref.
+
+## G5 repair references appended 2026-09-04
+
+The audit above is preserved as the original observed failure record. Repairs
+and fresh regression evidence now exist in the isolated G5 branch; these
+references close the corresponding reproduced defect on fixing candidates,
+not the still-pending final G5 promotion gate. Follow-up integration, staging,
+approval and selector failures remain in the execution ledger.
+
+| Item | Primary fixing commit | Regression/qualification |
+|---|---|---|
+| G5-C1 | `5a6d048cff82ca050cb1fb8e2353942cb67c9e80` | `tests/test_g5_publication.py; tests/test_g5_input_staging.py; tests/test_g5_docker_owned.py` |
+| G5-C2 | `e30975a9325c105062e94a4fa4dda03aa295a0f2` | `tests/test_g5_docker_owned.py; tests/test_g5_process_tool_status.py` |
+| G5-A1/A2 | `ee351384fc101cc5f646b421343f4e52c090616a` | `tests/test_g5_audit_regressions.py; tests/test_g5_session_public.py; tests/test_g5_pending_approval.py` |
+| G5-B1 | `b9b9479bd001f437c483f1ac21bcb642ead3f495` | `tests/test_g5_audit_regressions.py; tests/models/test_g5_transport_retry_budget.py` |
+| G5-D1/D2 | `bd66a30abb01ab95b5d558b9b906ceb55aca3612` | `tests/tracing/test_g5_journal_durability.py; tests/qita/test_g5_default_reader.py` |
+| G5-D3 | `c4b088ce9612a802e4c327d761b639cb17651240` | `tests/tracing/test_g5_readiness_bindings.py; scripts/qualify_g5_composition.py` |
+
+C's reported 99 skips was a transcription error. Its original completed command
+exec-16da826f-892e-46e8-9404-dab8ba6cf610 in the Lane C task recorded
+`6 failed, 2446 passed, 50 skipped in 826.94s`. The original stdout, aggregate
+and formatted output agree; their digest and exact summary are preserved in
+tests/fixtures/s4/g5/lane-c-skip-reconciliation.json. There are no evidenced
+additional 49 skip nodes to explain. The erroneous historical report is not
+rewritten, and its six failures remain failures. Current 50 skips are live E2E
+credential opt-ins; required offline/Docker probes must not skip.

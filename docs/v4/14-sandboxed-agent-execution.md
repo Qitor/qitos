@@ -435,3 +435,23 @@ links and special files. Copies use 1 MiB chunks and stop at the smaller of the
 configured disk/tmpfs byte ceilings. More than 10,000 entries or 64 directory
 levels are typed platform limits. The staging directory and its tar archive
 are task-owned; no host workspace bind or cleanup publication is introduced.
+
+## G5 convergence update after selector repair (2026-09-04)
+
+The exact 29 source commits have been replayed and audited repairs are wired
+through the existing composition, Engine/Session, ToolRuntime/WorkGraph, sandbox
+and Trajectory. Controlled installed coding/research consumers qualified fixing
+code 511013a; subsequent schema/default changes and a failed-default rollback
+are recorded separately. Project-scoped writer and qita defaults have been
+re-enabled after focused repairs. Final combined-tree gates, final wheel
+consumers and main-worktree revalidation remain open; this update does not
+authorize promotion, remote sync, publication or worktree retirement.
+
+Supported boundaries and migration are in
+[the Trajectory contract](../architecture/trajectory-contract.md) and
+[the execution ledger](../internal/plans/s4_g5_convergence_execution.md).
+Python cooperative pause and restore-time steering are supported; live CLI
+pause/steer and durable approval-response resume reject. Publication is explicit
+and restricted to supported regular top-level files. Unknown workers retain
+uncertainty; external effects are not exactly-once. Journal complete reads are
+complete but materialized, not bounded-memory streaming.

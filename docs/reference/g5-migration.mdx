@@ -1,0 +1,60 @@
+---
+title: "G5 framework migration"
+---
+
+Use `qit new --agent-name my_agent --output-dir . --no-input` to generate an
+out-of-tree project. Its test uses a deterministic provider; install the project,
+run pytest, build its wheel, and reinstall normally. Product strategy stays in
+that project, not in qitos.
+
+Declarative launches default to durable SQLite and a required private Trajectory
+journal. An omitted Session path derives from an explicit runtime data root or
+project configuration/workspace. An omitted trajectory output resolves beside
+that store. Unavailable locations fail before execution. Explicit memory stores
+are process-local; ephemeral mode does not promise restore. CLI inspect and
+capabilities read only the Session store, require no provider credentials or
+Docker, and report the persisted configuration digest.
+
+Use the existing composition context manager, `composition.session(task)`,
+`session.run()`, `session.pause()`, `composition.restore(identity)` and
+`restored.run(steering=...)`. `composition.fork(identity, snapshot=...)` forks an
+immutable source without acquiring its owner. Child execution and join use the
+same durable work runtime; transfer fences the old owner. CLI live pause/steer
+and durable approval-response resume remain typed unsupported. Steering does
+not grant tool permission.
+
+Configured context contributors, memory sources, selectors and compactors are
+resolved through explicit composition registries. Continuation and artifact
+resolvers are caller-injected. Unsupported lifecycle/failure settings reject.
+Native parallel execution requires tool declarations, permissions and policy.
+A dispatched provider request remains counted on decode/capture failure and is
+not automatically retried after restore.
+
+Docker is the supported isolation reference: non-root, read-only rootfs,
+cap-drop/NNP, network-none, bounded CPU/memory/pids and task-owned storage.
+Cleanup retains outputs and does not publish them into source. Explicit
+`SandboxPublicationTool` from `qitos.kit.tool.internal.publication` restricts
+publication to caller-selected paths and an input digest, through the existing
+permission/effect boundary. Current publication supports regular top-level
+files using Darwin/Linux exchange primitives (this round qualifies the Darwin host); nested paths and unsupported
+platforms reject. Source conflicts, links and protected names reject. An
+unconfirmed worker remains unknown, and Python threads/remote requests are not
+claimed to support hard cancellation.
+
+`qita board --logdir DATA_DIRECTORY` discovers journal and historical trace.
+`qita inspect session SESSION_ID --logdir DATA_DIRECTORY` uses the default reader.
+The minimal demo returns a journal path plus run identity, not a manifest directory.
+Explicit TraceWriter remains compatible. Rollback uses trajectory.enabled=false
+(or trace=False for AgentModule.run) and `default_reader(root, selector="trace")`;
+`candidate_file_reader(path)` still reads new data. Selection never deletes data
+or re-executes effects. Explicit RuntimeComposition controls its own sink.
+
+Canonical artifact references resolve to retained content. Missing content is a
+typed failure. Public export redacts private data, binds content and declares
+loss; exact re-import preserves that public projection. Whole reads/exports are
+complete, but current journal queries reload all frames and materialize data.
+A query limit is not a total-memory bound. See the measured costs and contract
+in the repository's architecture/trajectory-contract document.
+
+G5 remains a local integration candidate until final combined gates and main
+worktree revalidation pass. No remote sync, release or deployment is implied.

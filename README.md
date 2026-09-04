@@ -18,17 +18,7 @@ QitOS core is the small framework. Product-grade applications and showcase agent
 
 ## What's New
 
-- G5 qita now reads canonical journals alongside historical trace, with explicit read-only rollback and complete discovery.
-
-- G5 canonical public launches now default to one private Trajectory journal; explicit opt-out and compatibility writers remain available.
-
-- G5 has frozen the existing Trajectory wire contract after installed consumer qualification; default switching and final gates follow separately.
-
-- G5 candidate repairs generated project execution and Session approval isolation; final qualification remains in progress.
-
-- **G5 integration candidate**: authenticated Docker process completion, retrievable MCP/workspace artifacts, isolated Session restore, explicit publication, and child checkpoint-backed joins are under qualification; see [the execution ledger](docs/internal/plans/s4_g5_convergence_execution.md). No local promotion or default switch yet.
-
-- G5 convergence is in progress: provider post-dispatch failures preserve request accounting; integration and default switches remain unqualified.
+- **G5 integration candidate**: project-scoped durable Sessions, immutable fork, explicit sandbox publication, authenticated process cleanup, retained artifacts and canonical Trajectory defaults are wired. Installed coding/research consumers have qualified an intermediate fixing tree; final combined and main-worktree gates remain pending. See [migration](docs/reference/g5-migration.mdx) and [execution evidence](docs/internal/plans/s4_g5_convergence_execution.md).
 
 - **S4 candidates reviewed; G5 repairs required**: the four isolated lanes delivered public authoring, provider/context, safe-execution, and Trajectory/distribution candidates. Independent review passed 198 focused tests but reproduced host-output, process-lifecycle, fork, request-accounting, journal, loss-reporting, and readiness defects. None of the S4 candidates is promoted; see the [audit and convergence plan](docs/internal/plans/s4_g5_convergence_audit.md).
 - **S4 is split into four user-capability lanes**: the [copyable execution plan](docs/v4/16-s4-parallel-wave-instructions.md) assigns public authoring/Session/config, model transactions/context/providers, safe tools/sandbox/MCP/work graphs, and Trajectory/qita/evaluation/distribution to non-overlapping branches. Quality and evidence remain gates in every lane; only the later G5 convergence may freeze defaults or claim a new framework baseline.

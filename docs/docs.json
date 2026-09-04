@@ -111,7 +111,8 @@
                   "reference/kit",
                   "reference/model-family-matrix",
                   "reference/cli",
-                  "reference/configuration"
+                  "reference/configuration",
+                  "reference/g5-migration"
                 ]
               },
               {
@@ -238,7 +239,8 @@
                   "zh/reference/kit",
                   "zh/reference/model-family-matrix",
                   "zh/reference/cli",
-                  "zh/reference/configuration"
+                  "zh/reference/configuration",
+                  "zh/reference/g5-migration"
                 ]
               },
               {

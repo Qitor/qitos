@@ -13,7 +13,7 @@ The framework package: kernel contracts (`core`), execution runtime (`engine`), 
 
 ## Non-obvious facts (things local code reading won't tell you)
 
-1. **Two observability generations coexist.** `qitos/trace/` (v1: flat `TraceEvent`/`TraceStep` → `runs/{run_id}/manifest+events+steps.jsonl`) is the production path and a **frozen compatibility contract** — qita, benchmark runners, evaluate, and hf push/pull all consume it. `qitos/tracing/` (v2: spans + processors incl. W&B/MLflow) is built but not wired by default and must not replace v1 artifacts until `docs/v4/05` (trajectory data plane) lands. `render/ClaudeStyleHook(output_jsonl=...)` is a third artifact path — don't add a fourth.
+1. **One canonical Trajectory and bounded compatibility.** Public composition and AgentModule.run select the canonical journal in `qitos/tracing/`; qita reads it alongside the frozen historical `qitos/trace/` contract. Explicit legacy writers remain available. Diagnostic span processors and render JSONL are projections, never a second authoritative writer. See `docs/architecture/trajectory-contract.md` for selector rollback and memory limits.
 2. **`qitos/harness/` is not a test harness.** It holds `FamilyPreset` model-family defaults consulted by engine, models registries, and `qit bench --preset`. Treat it as kernel infrastructure (rename to `model_presets` is planned debt D7).
 3. **`qitos/benchmark/` is deprecated mid-migration.** New/updated benchmark work goes to `qitos/recipes/benchmarks/`. The two packages currently import each other (module-level, 5 files each) — never add a new edge in either direction; port code to shrink the tangle.
 4. **Root-level leaves.** `protocols.py` (I/O protocol registry) and `prompting.py` (prompt builder) are stdlib-only modules deliberately outside `core` because engine/kit/harness share them; do not move them into a subpackage casually, and do not add imports of qitos modules to them (the lazy `protocols.py -> kit.parser` import is legacy debt V7).
@@ -28,7 +28,7 @@ Enforced by `tests/test_architecture_boundaries.py`. Summary: dependencies point
 ## Invariants
 
 - Root `qitos/__init__.py` exports kernel contracts only (guarded by `tests/test_public_surface.py`); no product or security symbols.
-- `run_id`/`step_id`/`phase` semantics flow unchanged from engine events into v1 trace artifacts.
+- `run_id`/`step_id`/`phase` semantics flow from runtime events into canonical Trajectory and explicit compatibility projections.
 - `qit` and `qita` console entrypoints (`setup.py`) must keep working: `qit --version`, `qit demo minimal`, `qita board --logdir runs`.
 
 ## Testing
