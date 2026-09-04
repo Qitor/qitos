@@ -95,3 +95,18 @@ def test_untrusted_producer_cannot_authorize_readiness(admitted_binding, mutatio
         files[("c" * 40, "tests/fixtures/s4/g5/controlled-execution.json")] = data
         for pin in pins.values(): pin["execution_sha256"] = hashlib.sha256(data).hexdigest()
     assert validate(binding)
+
+
+def test_committed_current_consumers_satisfy_controlled_readiness():
+    from pathlib import Path
+    from qitos.tracing.s4_readiness import load_s4_readiness, qualify_s4_readiness
+
+    root = Path(__file__).resolve().parents[2]
+    result = qualify_s4_readiness(
+        load_s4_readiness(root / 'tests/fixtures/s4/g5/readiness-inventory.json'),
+        repository_root=root,
+    )
+    assert result.status == 'ready_for_g5_review'
+    assert result.qualified_lanes == ('A', 'B', 'C')
+    assert result.finding_codes == ()
+    assert not result.publication_ready

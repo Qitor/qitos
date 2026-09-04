@@ -676,3 +676,13 @@ interpreter and JUnit output path are normalized to avoid local path disclosure;
 raw execution logs and JUnit remain /tmp/qitos-g5-controlled-511013a.
 The report retains original log/JUnit digests. Readiness/default switches and
 final-tree full gates remain distinct pending operations.
+
+Current registry pins now bind code 511013acfd18efcc0d25901e8a7641c4ee731d93
+and evidence commit 56a9d19 (full identity embedded in every pin). The actual
+readiness result is ready_for_g5_review for A/B/C with zero findings; 16
+adversarial/current binding tests passed in 1.50 s. This is not final G5 approval.
+The repaired wheel/sdist passed twine. A fresh installed qit new project passed
+installation, its unmodified test, build, twine check, regular wheel reinstall
+and out-of-project import (scaffold-preflight-03). Attempt 02 used an invalid
+CLI positional name; corrected to the documented --agent-name/--output-dir
+options without editing generated files. Its failure is retained.
