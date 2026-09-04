@@ -14,7 +14,7 @@ Prototype methods, run benchmarks, and inspect long-horizon trajectories on one 
 
 QitOS core is the small framework. Product-grade applications and showcase agents live in `qitos-zoo`, including planned apps such as `qitos-coder` and `qitos-cyber-agent`.
 
-[Quickstart](https://qitor.mintlify.app/quickstart) · [Tutorial Track](https://qitor.mintlify.app/tutorials) · [Benchmarks](https://qitor.mintlify.app/benchmarks/overview) · [CLI Reference](https://qitor.mintlify.app/reference/cli) · [Changelog](CHANGELOG.md) · [Chinese README](README.zh.md)
+[Quickstart](https://qitor.mintlify.app/quickstart) · [Tutorial Track](https://qitor.mintlify.app/tutorials/index) · [Benchmarks](https://qitor.mintlify.app/benchmarks/overview) · [CLI Reference](https://qitor.mintlify.app/reference/cli) · [Changelog](CHANGELOG.md) · [Chinese README](README.zh.md)
 
 ## What you can build
 
@@ -25,12 +25,15 @@ read-only qita. Framework correctness does not guarantee arbitrary model task su
 
 ## What's New
 
+- Self-contained web tutorials: complete notes-Agent code, bilingual learning path and source-checked core API reference; tests execute the files shown on each page.
+
+
 - Master fixes Python 3.10 publication, repeated journal parsing and portable historical evidence verification; these are separately tested successors to the historical G5 runtime.
 
 - G5 framework qualification passed; S4 local integration complete. Runtime identity: `717b4cf1b23f2ed252cd03234ffd8605038d9567`.
 - Bilingual docs converge on installation → project → configuration → Session → inspection → recovery/extension.
 - The default development branch is `master`, with CI/docs checks on pushes and PRs. Publication remains explicit.
-- Documentation/tutorial qualification is recorded separately. Remote synchronization is verified. Docs CI passed; successor CI stabilization is tracked with exact results in the [CI plan](docs/internal/plans/master_ci_stabilization.md). No package release or docs deployment was performed.
+- Documentation/tutorial qualification is recorded separately. Remote synchronization is verified. Docs CI passed; successor CI stabilization is tracked with exact results in the [CI plan](docs/internal/plans/master_ci_stabilization.md). Package releases and documentation deployments are tracked separately from CI qualification.
 
 ## Start developing
 

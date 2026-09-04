@@ -48,3 +48,12 @@ Full applications live in `qitos-zoo`, including:
 - `qitos-cyber-agent`: a PentAGI-inspired cybersecurity agent built with QitOS.
 
 Some product-like files remain temporarily in `examples/real/` with migration banners while the zoo repository is seeded from `plans/qitos_zoo_migration/`.
+
+## Web-first notes project
+
+`examples/tutorials/notes/` is the source for the complete files displayed on the
+Quickstart and core learning pages. Every page includes its dependencies; users
+can copy from the webpage without cloning this directory. Start with notes.py,
+then custom_agent.py, parallel.py, lifecycle.py, context.py, sandbox.py,
+multi_agent.py/handoff.py, inspect_run.py and provider_extension.py. real_notes.py
+validates without credentials by default; --live is a deliberate model request.

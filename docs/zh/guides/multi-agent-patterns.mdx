@@ -1,42 +1,352 @@
 ---
-title: "多 Agent 工作"
-description: "QitOS G5 · 多 Agent 工作"
+title: "Delegate、join 与 handoff"
+description: "从网页完整代码学习 QitOS 资料整理项目。"
 ---
 
-## 学习目标
+## 目标与前置条件
 
-通过 delegate、spawn、fan-out 在新进程执行四个真实 child Session，再 join 持久结果；本地 resolver 明确选择本教程 worker。
+父执行先创建一个持久化的暂停 Session。显式 resolver 把已知 `notes_agent` 描述映射到本地子进程；每个 child 使用已安装包恢复真实 Session，不存在隐藏的分布式 worker 服务。
 
-## 前置条件
+`delegate`、`spawn` 提交子工作，`fan_out` 批量提交，`join` 对操作 ID 使用显式策略等待。程序检查四个 child completion 与 closed join。resolver 处理 join 时不重跑已引用的 child。本章 child 的最终回答是固定脚本；编排成功不证明模型独立推理成功。
 
-完成[Quickstart](/zh/quickstart)的安装与 lessons 复制；基础包，Python 3.12.7 实测，无真实请求。
+独立运行 `handoff.py`：目标进程继续同一个 work item，所有权改变，旧 owner 再次派发被拒绝。相比之下，生命周期章节的 fork 创建独立分支并保持 source head 不变。
 
-## 完整可运行示例
+需要 Python 基础；声明支持 Python ≥3.10，本轮本地验证使用 Python 3.12.7。每章可独立运行；继续已有项目时可复用环境和同名文件。以下命令为 macOS/Linux shell。
 
-[`examples/tutorials/work_graph.py`](https://github.com/WhitzardAgent/WhitzardOS/blob/master/examples/tutorials/work_graph.py)
-
-完整目录是唯一执行来源；同目录的 session_walkthrough.py 是公开教学依赖，不依赖仓库 tests。
+## 准备项目
 
 ```bash
-python lessons/work_graph.py --root ./work-run
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install "qitos @ git+https://github.com/WhitzardAgent/WhitzardOS.git@60809b3be388d22ea40ea41b4aaa1f5540c76fda"
+mkdir notes_lesson
+cd notes_lesson
 ```
 
-## 预期输出与断言
+将下方完整文件保存到当前目录。无需 clone 仓库、安装 editable 包或复制 tests。
 
-`durable children=4; join=closed; parent retains ownership`
+## 运行并验证
 
-文件内的 assert 验证结果；ID 每次不同。除 board 由 Ctrl-C 关闭外，命令应退出 0。
+```bash
+python multi_agent.py --root work-run
+python handoff.py --root handoff-run
+```
 
-## 支持边界
+预期出现以下输出片段（随机 ID 不固定）。每次运行都检查工具结果或持久化断言，成功退出码为 0。
 
-delegate 创建等待结果的 child，spawn 创建分离 child，fan-out 声明集合，join 消费结果。handoff 转移同一 WorkItem 的所有权并 fence 旧 owner，不是 child 或 fork。fork 创建独立 lineage，不推进 source。本完整示例执行 child 操作；handoff 执行属于下一轮 E2E 场景。不承诺分布式调度或外部效果 exactly-once。
+```text
+durable children=4; join=closed
+handoff destination ran
+```
 
-## 常见错误
+本例 handoff 明确串行执行：先持久化转交接收回执、关闭源 composition，再启动目标进程。接收回执不是目标任务完成；目标进程退出后的断言才证明执行。当前同一个 Session 的目标 restore 若与源 terminal callback 并发，会发生 owner CAS 冲突；本例不宣称支持这种并发调度。
 
-目录已存在时选一个新 root；导入失败核对安装来源。配置不匹配、缺失扩展或 typed failure 应检查 Trajectory 和迁移页，不能静默重试 unknown 外部效果。
+## 行为与支持边界
 
-## 下一步
+timeout 或 outcome_unknown 会使本例等待失败，不触发重新提交。LocalWorkScheduler 是进程内调度；持久化 receipt 不意味着分布式队列。
 
-[学习目录](/zh/tutorials/index) · [迁移与排障](/zh/reference/g5-migration)
+## 练习与参考答案
 
-本例父级请求预算为 16，fan-out 每个 sibling 显式授予 2 次请求；不声明时首个 child 可能获得全部余量。
+检查四条 completion，区分两个独立操作与两个 fan-out child。join 使用 operation ID，不使用展示名称。
+
+## 常见错误与清理
+
+`ModuleNotFoundError`：确认已激活安装指定 wheel/源码版本的环境，并保存本页所有文件。root 已存在：换一个新 `--root`，不要覆盖需要保留的证据。断言失败：检查第一个失败的工具或 typed error；不要只依赖最终文字。退出所有进程、停止 board 后，可自行删除本章新建且不再需要的运行目录；保留要调试的 SQLite、journal 和报告。
+
+{/* tutorial-files:start */}
+
+## 完整文件：复制到项目根目录
+
+```python title="notes.py"
+"""Synthetic notes; fake model, real tools, composition, Session and journal."""
+import argparse
+from dataclasses import replace
+import json
+from pathlib import Path
+
+from qitos.config import build_agent_composition, load_agent_config
+from qitos.core.function_tool_decorator import function_tool
+from qitos.engine.runtime import LifecyclePolicy
+
+# docs:start fixture
+NOTES = (
+    "Session: A durable session can resume after a process exits.",
+    "Artifact: Large tool outputs can be retained outside model context.",
+)
+
+
+@function_tool(read_only=True, concurrency_safe=True)
+def summarize_note(index: int) -> dict:
+    """Extract a title and word count from a synthetic in-memory note."""
+    text = NOTES[index]
+    return {"title": text.split(":", 1)[0], "words": len(text.split())}
+# docs:end fixture
+
+
+# docs:start provider
+class FakeProvider:
+    """Scripted responses; this does not summarize or reason like a real model."""
+    model = "notes-fake"
+    qitos_protocol = "react_text_v1"
+
+    def __init__(self, start=0):
+        self.stage = start
+
+    def call_raw(self, messages, **options):
+        if self.stage < len(NOTES):
+            content = f"Thought: inspect a note\nAction: summarize_note(index={self.stage})"
+        else:
+            content = "Final Answer: Indexed 2 notes: Session, Artifact."
+        self.stage += 1
+        return {"choices": [{"message": {"content": content}}]}
+# docs:end provider
+
+
+class PauseAfterTool(LifecyclePolicy):
+    policy_id = "notes.pause_after_tool"
+
+    def should_pause(self, context):
+        return context.step_id == 0
+
+
+# docs:start composition
+def configuration(root):
+    config = load_agent_config(Path(__file__).with_name("agent.yaml"))
+    return replace(config, runtime=replace(
+        config.runtime, data_root=str(root / "data"),
+        environment=replace(config.runtime.environment, workspace=str(root)),
+        session=replace(config.runtime.session, path=str(root / "sessions.sqlite3")),
+        trajectory=replace(config.runtime.trajectory, output=str(root / "trajectory.journal")),
+    ))
+
+
+def compose(root, *, start=0, pause=False):
+    config = configuration(root)
+    if pause:
+        config = replace(config, lifecycle={"policy": "pause"})
+    composition = build_agent_composition(
+        config, model_override=FakeProvider(start), extensions={"pause": PauseAfterTool},
+    )
+    composition.tool_registry.register(summarize_note)
+    return composition
+# docs:end composition
+
+
+# docs:start run
+def run(root):
+    root.mkdir(parents=True, exist_ok=False)
+    with compose(root) as composition:
+        session = composition.session("Index both synthetic notes")
+        result = session.run()
+        outputs = [action.output for record in result.records for action in record.action_results
+                   if action.tool_name == "summarize_note"]
+        assert [output["title"] for output in outputs] == ["Session", "Artifact"]
+        assert result.state.final_result == "Indexed 2 notes: Session, Artifact."
+        config = composition.config.to_dict()
+        config["runtime"]["environment"] = {"type": "unsafe_host", "workspace": str(root)}
+        (root / "agent.json").write_text(json.dumps(config), encoding="utf-8")
+        control = {"session_id": session.session_id.value, "run_id": result.run_id}
+        (root / "control.json").write_text(json.dumps(control), encoding="utf-8")
+        print(json.dumps({**control, "result": result.state.final_result, "outputs": outputs}))
+# docs:end run
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=Path("notes-run"))
+    run(parser.parse_args().root.resolve())
+```
+
+```yaml title="agent.yaml"
+schema: qitos.agent
+agent:
+  name: notes_agent
+  protocol: react_text_v1
+model:
+  provider: openai_compatible
+  model: notes-fake
+  credential:
+    ref: notes-provider
+  request:
+    max_tokens: 512
+    timeout_seconds: 30
+    retries: 0
+tools:
+  preset: none
+runtime:
+  environment:
+    type: unsafe_host
+    workspace: .
+  session:
+    mode: durable
+    store: sqlite
+    path: ./notes-run/sessions.sqlite3
+  trajectory:
+    enabled: true
+    output: ./notes-run/trajectory.journal
+budgets:
+  max_steps: 6
+  max_requests: 6
+  max_runtime_seconds: 30
+failure_policy:
+  tool: fail_closed
+```
+
+```python title="multi_agent.py"
+"""Durable spawn/delegate/fan-out/join with real child Session execution.
+
+The local scheduler resolves only this tutorial's Agent; no distributed service.
+"""
+import argparse
+from pathlib import Path
+import subprocess
+import sys
+import time
+
+from qitos.core.work_graph import WorkGraph
+from qitos.engine.work_runtime import DurableWorkRuntime, LocalWorkScheduler
+from dataclasses import replace
+from qitos.config import build_agent_composition
+from notes import FakeProvider, PauseAfterTool, summarize_note, configuration
+
+
+def compose(root, *, pause=False, finish=False):
+    config = configuration(root)
+    config = replace(config, budgets=replace(config.budgets, max_requests=16),
+                     lifecycle={"policy": "pause"})
+    result = build_agent_composition(config, model_override=FakeProvider(start=2 if finish else 0),
+                                     extensions={"pause": PauseAfterTool})
+    result.tool_registry.register(summarize_note)
+    return result
+
+
+def wait(session, operation):
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        graph = WorkGraph.from_canonical_dict(session.inspect().work_graph)
+        receipt = next(item for item in graph.operation_receipts if item.operation_id == operation.operation_id)
+        if receipt.state in {"completed", "failed", "outcome_unknown"}:
+            assert receipt.state == "completed", receipt.state
+            return graph
+        time.sleep(0.02)
+    raise AssertionError("child deadline exceeded; inspect before retrying")
+
+
+def run(root):
+    root.mkdir(parents=True, exist_ok=False)
+
+    class Resolver:
+        resolver_id = "tutorial.notes_agent.worker"
+
+        def resolve(self, descriptor):
+            def execute():
+                for identity in (() if descriptor.operation == "join" else descriptor.child_session_ids):
+                    subprocess.run([sys.executable, __file__, "--root", str(root), "--child", identity],
+                                   check=True, capture_output=True, text=True, timeout=20)
+                return {"children": list(descriptor.child_session_ids)}
+            return execute
+
+    with compose(root, pause=True) as composition:
+        composition.runtime.work_runtime = DurableWorkRuntime(LocalWorkScheduler(Resolver(), max_workers=2))
+        parent = composition.session("Index, then ask independent note workers")
+        parent.run()
+        assert parent.lifecycle.value == "paused"
+        delegated = parent.delegate("notes_agent", task="Describe the Session note")
+        wait(parent, delegated)
+        spawned = parent.spawn("notes_agent", task="Describe the Artifact note")
+        wait(parent, spawned)
+        batch = parent.fan_out([{"agent": "notes_agent", "task": "Review Session", "budget": {"model_requests": 2}},
+                                {"agent": "notes_agent", "task": "Review Artifact", "budget": {"model_requests": 2}}])
+        wait(parent, batch)
+        joined = parent.join([delegated.operation_id, spawned.operation_id, batch.operation_id], policy="all")
+        graph = wait(parent, joined)
+        assert graph.joins[-1].state == "closed"
+        assert len(graph.completions) == 4
+        print("durable children=4; join=closed; parent retains ownership")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, required=True)
+    parser.add_argument("--child")
+    args = parser.parse_args()
+    root = args.root.resolve()
+    if args.child:
+        with compose(root, finish=True, pause=True) as composition:
+            result = composition.restore(args.child).run()
+            assert result.state.final_result == "Indexed 2 notes: Session, Artifact."
+    else:
+        run(root)
+```
+
+```python title="handoff.py"
+"""Transfer one work item's owner; demonstrate the superseded source fence."""
+import argparse
+from pathlib import Path
+import subprocess
+import sys
+
+from notes import compose
+from multi_agent import wait
+from qitos.engine.work_runtime import DurableWorkRuntime, LocalWorkScheduler, WorkRuntimeError
+
+
+def run(root):
+    root.mkdir(parents=True, exist_ok=False)
+
+    class Resolver:
+        resolver_id = "notes.handoff.worker"
+
+        def resolve(self, descriptor):
+            def execute():
+                # Acknowledge transfer before the destination claims this same
+                # Session head. This receipt is not destination task completion.
+                return {"destination": descriptor.parent_session_id, "admitted": True}
+            return execute
+
+    with compose(root, pause=True) as composition:
+        composition.runtime.work_runtime = DurableWorkRuntime(LocalWorkScheduler(Resolver()))
+        source = composition.session("Index notes, then transfer ownership")
+        source.run()
+        identity = source.work_item_id
+        operation = source.handoff("notes_agent", rationale="Finish with the destination worker")
+        graph = wait(source, operation)
+        transfer = graph.transfers[-1]
+        assert transfer.from_agent_id != transfer.to_agent_id
+        assert graph.work_items[identity].owner.agent_id == transfer.to_agent_id
+        try:
+            source.spawn("notes_agent", task="A stale owner must not dispatch")
+        except WorkRuntimeError as error:
+            assert error.code == "superseded_owner"
+        else:
+            raise AssertionError("Superseded source unexpectedly dispatched")
+        identity = source.session_id.value
+    # Serialized handoff: source callbacks and resource cleanup finish first.
+    result = subprocess.run([
+        sys.executable, __file__, "--root", str(root), "--destination", identity,
+    ], capture_output=True, text=True, timeout=20)
+    if result.returncode:
+        raise RuntimeError(result.stderr)
+    print("handoff destination ran; owner changed; source fenced")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, required=True)
+    parser.add_argument("--destination")
+    args = parser.parse_args()
+    if args.destination:
+        with compose(args.root.resolve(), start=1, pause=True) as composition:
+            result = composition.restore(args.destination).run()
+            assert result.state.final_result == "Indexed 2 notes: Session, Artifact."
+    else:
+        run(args.root.resolve())
+```
+
+{/* tutorial-files:end */}
+
+## 下一步与 API
+
+[API Reference](/zh/reference/api) · [Configuration](/zh/reference/configuration) · [Learning path](/zh/tutorials/index) · [Next](/zh/guides/observability)
+
+[Source file](https://github.com/WhitzardAgent/WhitzardOS/blob/master/examples/tutorials/notes/handoff.py) (可选；全部所需代码已在本页)

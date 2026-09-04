@@ -1,0 +1,17 @@
+---
+title: "第三方扩展索引"
+description: "Replace mechanisms while preserving their public contracts."
+---
+
+这里列出当前可替换的框架机制，不是全包符号清单或跨版本永久稳定保证。用显式 Python 工厂装配扩展；不要让配置任意导入代码。默认示例只有纯函数工具和 fake provider，其他客户端依赖请查安装页。
+
+| 扩展 | 公共入口 | 必须保留的契约 |
+| --- | --- | --- |
+| Provider | `qitos.models.base.Model`、`ModelFactory`；composition 的 `model_override` | 模型请求/响应、codec、continuation、typed failure；仅对应客户端需要其 extra |
+| Tool | `qitos.core.tool.BaseTool.execute`、`ToolRegistry` | schema、权限、副作用声明、ToolResult、取消与未知结果 |
+| Checkpoint store | `qitos.checkpoint.store.CheckpointStore` | Session capability、snapshot commit CAS、lineage、fork 与持久性；SQLite 为参考实现 |
+| Event sink | `qitos.tracing.sinks.EventSink` | privacy view、loss、required/optional 失败策略、append/close 契约 |
+| Sandbox | `qitos.core.env.Env` | capability preflight、有界工具、真实隔离、artifact、cleanup；publication 单独授权 |
+| Evaluator | `qitos.evaluate.base.TrajectoryEvaluator.evaluate` | EvaluationContext 到 EvaluationResult、证据、provenance 与 loss |
+
+[Complete provider/context extension](/zh/guides/third-party-extensions) · [API index](/zh/reference/api)

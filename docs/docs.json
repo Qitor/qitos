@@ -10,7 +10,7 @@
   "navbar": {
     "primary": {
       "type": "github",
-      "href": "https://github.com/Qitor/qitos"
+      "href": "https://github.com/WhitzardAgent/WhitzardOS"
     }
   },
   "navigation": {
@@ -20,7 +20,7 @@
         "default": true,
         "tabs": [
           {
-            "tab": "Getting started",
+            "tab": "Get started",
             "groups": [
               {
                 "group": "Start here",
@@ -30,9 +30,14 @@
                   "installation",
                   "quickstart"
                 ]
-              },
+              }
+            ]
+          },
+          {
+            "tab": "Learn",
+            "groups": [
               {
-                "group": "Core learning units",
+                "group": "Notes project",
                 "pages": [
                   "tutorials/index",
                   "guides/build-your-first-agent",
@@ -48,7 +53,7 @@
             ]
           },
           {
-            "tab": "Advanced and reference",
+            "tab": "Task guides",
             "groups": [
               {
                 "group": "benchmarks",
@@ -115,17 +120,6 @@
                 ]
               },
               {
-                "group": "reference",
-                "pages": [
-                  "reference/api",
-                  "reference/cli",
-                  "reference/configuration",
-                  "reference/g5-migration",
-                  "reference/kit",
-                  "reference/model-family-matrix"
-                ]
-              },
-              {
                 "group": "tutorials",
                 "pages": [
                   "tutorials/claude-code",
@@ -147,18 +141,26 @@
             ]
           },
           {
-            "tab": "History and compatibility",
+            "tab": "API Reference",
             "groups": [
               {
-                "group": "History",
+                "group": "API Reference",
                 "pages": [
-                  "blog/desktop-osworld-starter",
-                  "blog/gold-presets-preview",
-                  "blog/index",
-                  "blog/reproducible-runs",
-                  "blog/single-kernel",
-                  "concepts/function-tool-migration",
-                  "guides/snowl-integration"
+                  "reference/api",
+                  "reference/composition",
+                  "reference/agent-runtime",
+                  "reference/sessions",
+                  "reference/tools",
+                  "reference/context",
+                  "reference/work-graph",
+                  "reference/trajectory",
+                  "reference/extensions",
+                  "reference/cli",
+                  "reference/configuration",
+                  "reference/model-family-matrix",
+                  "reference/g5-migration",
+                  "reference/kit",
+                  "reference/legacy-api"
                 ]
               }
             ]
@@ -179,9 +181,14 @@
                   "zh/installation",
                   "zh/quickstart"
                 ]
-              },
+              }
+            ]
+          },
+          {
+            "tab": "学习教程",
+            "groups": [
               {
-                "group": "核心学习单元",
+                "group": "资料整理项目",
                 "pages": [
                   "zh/tutorials/index",
                   "zh/guides/build-your-first-agent",
@@ -197,10 +204,10 @@
             ]
           },
           {
-            "tab": "高级与参考",
+            "tab": "任务指南",
             "groups": [
               {
-                "group": "benchmarks",
+                "group": "基准测试",
                 "pages": [
                   "zh/benchmarks/cybench",
                   "zh/benchmarks/cybergym",
@@ -212,13 +219,13 @@
                 ]
               },
               {
-                "group": "community",
+                "group": "社区",
                 "pages": [
                   "zh/community"
                 ]
               },
               {
-                "group": "concepts",
+                "group": "概念",
                 "pages": [
                   "zh/concepts/agent-module",
                   "zh/concepts/domestic-model-ecosystem",
@@ -231,14 +238,14 @@
                 ]
               },
               {
-                "group": "contributing",
+                "group": "参与贡献",
                 "pages": [
                   "zh/contributing/development",
                   "zh/contributing/writing-a-method-template"
                 ]
               },
               {
-                "group": "guides",
+                "group": "任务指南",
                 "pages": [
                   "zh/guides/add-a-family-preset",
                   "zh/guides/agent-patterns",
@@ -258,24 +265,13 @@
                 ]
               },
               {
-                "group": "index",
+                "group": "概览",
                 "pages": [
                   "zh/index"
                 ]
               },
               {
-                "group": "reference",
-                "pages": [
-                  "zh/reference/api",
-                  "zh/reference/cli",
-                  "zh/reference/configuration",
-                  "zh/reference/g5-migration",
-                  "zh/reference/kit",
-                  "zh/reference/model-family-matrix"
-                ]
-              },
-              {
-                "group": "tutorials",
+                "group": "高级教程",
                 "pages": [
                   "zh/tutorials/claude-code",
                   "zh/tutorials/code-security-audit",
@@ -296,18 +292,26 @@
             ]
           },
           {
-            "tab": "历史与兼容",
+            "tab": "API Reference",
             "groups": [
               {
-                "group": "历史",
+                "group": "API Reference",
                 "pages": [
-                  "zh/blog/desktop-osworld-starter",
-                  "zh/blog/gold-presets-preview",
-                  "zh/blog/index",
-                  "zh/blog/reproducible-runs",
-                  "zh/blog/single-kernel",
-                  "zh/concepts/function-tool-migration",
-                  "zh/guides/snowl-integration"
+                  "zh/reference/api",
+                  "zh/reference/composition",
+                  "zh/reference/agent-runtime",
+                  "zh/reference/sessions",
+                  "zh/reference/tools",
+                  "zh/reference/context",
+                  "zh/reference/work-graph",
+                  "zh/reference/trajectory",
+                  "zh/reference/extensions",
+                  "zh/reference/cli",
+                  "zh/reference/configuration",
+                  "zh/reference/model-family-matrix",
+                  "zh/reference/g5-migration",
+                  "zh/reference/kit",
+                  "zh/reference/legacy-api"
                 ]
               }
             ]

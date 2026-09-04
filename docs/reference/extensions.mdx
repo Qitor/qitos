@@ -1,0 +1,17 @@
+---
+title: "Third-party extension index"
+description: "Replace mechanisms while preserving their public contracts."
+---
+
+These are replaceable framework mechanisms, not an exhaustive package index or a perpetual cross-version stability promise. Assemble extensions through explicit Python factories rather than arbitrary config-selected imports. The default lesson uses pure tools and a fake provider; client dependencies are listed in Installation.
+
+| Extension | Public entry | Contract to preserve |
+| --- | --- | --- |
+| Provider | `qitos.models.base.Model`, `ModelFactory`; composition `model_override` | Model request/response, codec, continuation, typed failures; provider extra required only for that client |
+| Tool | `qitos.core.tool.BaseTool.execute`, `ToolRegistry` | Schema, permission, effect declarations, ToolResult, cancellation and unknown outcome |
+| Checkpoint store | `qitos.checkpoint.store.CheckpointStore` | Session capabilities, snapshot commit CAS, lineage, fork and durability; SQLite reference implementation |
+| Event sink | `qitos.tracing.sinks.EventSink` | Privacy view, loss, required/optional failure policy, append/close contract |
+| Sandbox | `qitos.core.env.Env` | Capability preflight, bounded tools, real isolation, artifacts, cleanup; publication is separately authorized |
+| Evaluator | `qitos.evaluate.base.TrajectoryEvaluator.evaluate` | EvaluationContext to EvaluationResult, evidence, provenance and declared loss |
+
+[Complete provider/context extension](/guides/third-party-extensions) · [API index](/reference/api)

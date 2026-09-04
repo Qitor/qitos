@@ -1,89 +1,21 @@
 ---
-title: "Configuration"
-description: "QitOS G5 · Configuration"
+title: "Configure a real model"
+description: "Use the same notes project with explicit credentials and bounded requests."
 ---
 
-## Complete configuration and dependencies
+Continue with the same notes project. By default the script validates configuration only; `--live` explicitly opts into credential resolution and model requests. Documentation qualification never executes that option. Complete [Quickstart](/quickstart) installation first; to start independently, create an empty directory and save every file on this page.
 
-Install first. The real client requires `[openai]`; file tools require Docker
-CLI, daemon and image. Save this complete file as `agent.yaml`, then replace
-the example model and reserved endpoint. `provider.example` is a placeholder,
-not a working service. Validate tools, reasoning, continuation and Responses
-support individually; an OpenAI-compatible label is not a compatibility guarantee.
+## Dependencies and configuration
 
-```yaml
-schema: qitos.agent
-agent:
-  name: example-coding-agent
-  protocol: auto
-  parser: auto
-  seed: 0
-model:
-  provider: openai_compatible
-  model: example-model
-  base_url: https://provider.example/v1
-  credential:
-    ref: example-openai-compatible
-  api_mode: chat_completions
-  context_window: 32768
-  request:
-    temperature: 0.0
-    max_tokens: 2048
-    timeout_seconds: 180
-    extra_body: {}
-tools:
-  preset: env_coding
-  include: []
-  options: {}
-  policy: auto
-runtime:
-  environment:
-    type: docker
-    image: python:3.12-slim
-    workspace: .
-    container_workspace: /workspace
-    network: none
-    read_only_root: true
-    cap_drop: true
-    no_new_privileges: true
-    pids_limit: 256
-    memory_mb: 2048
-    cpus: 2.0
-    cleanup_required: true
-  session:
-    mode: durable
-    store: sqlite
-    path: ./.qitos/example-sessions.sqlite3
-  trajectory:
-    enabled: true
-    output: ./runs
-    privacy: private
-    failure_policy: required
-budgets:
-  max_steps: 10
-  max_runtime_seconds: 600
-  max_requests: 12
-context: {}
-memory: {}
-compaction: {}
-lifecycle:
-  policy: cooperative
-failure_policy:
-  tool: fail_closed
-metadata:
-  purpose: provider-neutral-launch-example
-dataset:
-  - task: Inspect the workspace and report one verified fact.
+```bash
+python -m pip install "qitos[openai] @ git+https://github.com/WhitzardAgent/WhitzardOS.git@60809b3be388d22ea40ea41b4aaa1f5540c76fda"
 ```
 
-## Private credentials
+Replace `example-model` and `https://provider.example/v1` in `real_agent.yaml` with your model and endpoint; the reserved domain is not a service. These trusted pure-function tools need no Docker. Before adding file/command tools, follow the sandbox lesson and configure Docker rather than extending this unsafe_host authority.
 
-Use a directory outside the repository with mode `0700`, and a regular,
-current-user-owned non-symlink file with mode `0600`. The resolver validates
-the immediate parent; keeping the private directory chain restricted is also
-recommended. Fill the value with a local editor, not in shell history or Git.
-G5's generated `credentials.example.yaml` omits the required root key;
-use this complete structure instead.
+Budgets are 6 model requests, at most 512 output tokens per response, 6 steps and 30 seconds runtime; provider timeout is 30 seconds with retries 0. Budgets do not guarantee task success, and timeout is not hard cancellation. Check text protocol, tool round trips, continuation and loss policy compatibility individually.
+
+## Private credential file
 
 ```bash
 mkdir -p "$HOME/.config/qitos"
@@ -92,63 +24,251 @@ touch "$HOME/.config/qitos/credentials.yaml"
 chmod 600 "$HOME/.config/qitos/credentials.yaml"
 ```
 
+Use a local editor to write the following structure in that file. It must be a regular, non-symlink file owned by the current user, with a 0700 parent directory and 0600 file mode. Keep it outside the project, Git, command history and screenshots.
+
 ```yaml
 credentials:
-  example-openai-compatible: REPLACE_IN_PRIVATE_EDITOR
+  notes-provider: REPLACE_IN_PRIVATE_EDITOR
 ```
 
-`model.credential.ref` matches the mapping key. `CredentialRef` stores only
-the logical reference; the explicit resolver resolves secrets at composition,
-not in serialized config or Session data.
+`model.credential.ref` matches `notes-provider`; configuration stores a CredentialRef only. LocalCredentialFileResolver explicitly resolves it at composition. Environment variables are not the default path. The generated scaffold credential example can omit the required root key; use this complete structure.
 
-## Inspect first, then run
-
-This qualification only loads the config; it does not execute the real launch
-below. `load_agent_config` reads neither credentials nor provider/Docker state.
-The budget is 12 requests, 2048 output tokens per response, 10 steps and 600
-seconds. Timeout is not hard cancellation.
-
-Configuration loading check (no model requests):
-
-```python
-from qitos.config import load_agent_config
-config = load_agent_config("agent.yaml")
-assert config.budgets.max_requests == 12
-print(config.digest())
-```
+## Validate first, then explicitly run
 
 ```bash
-docker info
-docker pull python:3.12-slim
-qit run --config agent.yaml --credentials "$HOME/.config/qitos/credentials.yaml"
+python real_notes.py
 ```
 
-Save as `run_agent.py` and run `python run_agent.py` (sends real requests):
+```text
+configuration valid; no credentials read; no model request
+```
 
-Complete run_agent.py (manual execution sends real model requests; not run in this qualification):
+The next command sends real model requests; run it only after configuring your provider. Assertions check actual tool results, not a model claiming completion.
 
-```python
+```bash
+python real_notes.py --live --credentials "$HOME/.config/qitos/credentials.yaml"
+```
+
+This project registers `summarize_note` in Python, so launch it through this file. `qit run --config` does not automatically import application extensions; built-in-tool configurations can use the CLI documented in the CLI reference.
+
+## Errors, boundaries and exercise
+
+Preserve typed failures for unknown keys, unsafe permissions, missing references and provider/codec incompatibility. Do not put keys in agent YAML or relax loss checks. Repeated launches create new Sessions; restore requires matching configuration and resolvers. Exercise: change request.max_tokens in YAML, then load and inspect it without credentials.
+
+{/* tutorial-files:start */}
+
+## Complete files: save in the project root
+
+```yaml title="agent.yaml"
+schema: qitos.agent
+agent:
+  name: notes_agent
+  protocol: react_text_v1
+model:
+  provider: openai_compatible
+  model: notes-fake
+  credential:
+    ref: notes-provider
+  request:
+    max_tokens: 512
+    timeout_seconds: 30
+    retries: 0
+tools:
+  preset: none
+runtime:
+  environment:
+    type: unsafe_host
+    workspace: .
+  session:
+    mode: durable
+    store: sqlite
+    path: ./notes-run/sessions.sqlite3
+  trajectory:
+    enabled: true
+    output: ./notes-run/trajectory.journal
+budgets:
+  max_steps: 6
+  max_requests: 6
+  max_runtime_seconds: 30
+failure_policy:
+  tool: fail_closed
+```
+
+```python title="notes.py"
+"""Synthetic notes; fake model, real tools, composition, Session and journal."""
+import argparse
+from dataclasses import replace
+import json
 from pathlib import Path
+
+from qitos.config import build_agent_composition, load_agent_config
+from qitos.core.function_tool_decorator import function_tool
+from qitos.engine.runtime import LifecyclePolicy
+
+# docs:start fixture
+NOTES = (
+    "Session: A durable session can resume after a process exits.",
+    "Artifact: Large tool outputs can be retained outside model context.",
+)
+
+
+@function_tool(read_only=True, concurrency_safe=True)
+def summarize_note(index: int) -> dict:
+    """Extract a title and word count from a synthetic in-memory note."""
+    text = NOTES[index]
+    return {"title": text.split(":", 1)[0], "words": len(text.split())}
+# docs:end fixture
+
+
+# docs:start provider
+class FakeProvider:
+    """Scripted responses; this does not summarize or reason like a real model."""
+    model = "notes-fake"
+    qitos_protocol = "react_text_v1"
+
+    def __init__(self, start=0):
+        self.stage = start
+
+    def call_raw(self, messages, **options):
+        if self.stage < len(NOTES):
+            content = f"Thought: inspect a note\nAction: summarize_note(index={self.stage})"
+        else:
+            content = "Final Answer: Indexed 2 notes: Session, Artifact."
+        self.stage += 1
+        return {"choices": [{"message": {"content": content}}]}
+# docs:end provider
+
+
+class PauseAfterTool(LifecyclePolicy):
+    policy_id = "notes.pause_after_tool"
+
+    def should_pause(self, context):
+        return context.step_id == 0
+
+
+# docs:start composition
+def configuration(root):
+    config = load_agent_config(Path(__file__).with_name("agent.yaml"))
+    return replace(config, runtime=replace(
+        config.runtime, data_root=str(root / "data"),
+        environment=replace(config.runtime.environment, workspace=str(root)),
+        session=replace(config.runtime.session, path=str(root / "sessions.sqlite3")),
+        trajectory=replace(config.runtime.trajectory, output=str(root / "trajectory.journal")),
+    ))
+
+
+def compose(root, *, start=0, pause=False):
+    config = configuration(root)
+    if pause:
+        config = replace(config, lifecycle={"policy": "pause"})
+    composition = build_agent_composition(
+        config, model_override=FakeProvider(start), extensions={"pause": PauseAfterTool},
+    )
+    composition.tool_registry.register(summarize_note)
+    return composition
+# docs:end composition
+
+
+# docs:start run
+def run(root):
+    root.mkdir(parents=True, exist_ok=False)
+    with compose(root) as composition:
+        session = composition.session("Index both synthetic notes")
+        result = session.run()
+        outputs = [action.output for record in result.records for action in record.action_results
+                   if action.tool_name == "summarize_note"]
+        assert [output["title"] for output in outputs] == ["Session", "Artifact"]
+        assert result.state.final_result == "Indexed 2 notes: Session, Artifact."
+        config = composition.config.to_dict()
+        config["runtime"]["environment"] = {"type": "unsafe_host", "workspace": str(root)}
+        (root / "agent.json").write_text(json.dumps(config), encoding="utf-8")
+        control = {"session_id": session.session_id.value, "run_id": result.run_id}
+        (root / "control.json").write_text(json.dumps(control), encoding="utf-8")
+        print(json.dumps({**control, "result": result.state.final_result, "outputs": outputs}))
+# docs:end run
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=Path("notes-run"))
+    run(parser.parse_args().root.resolve())
+```
+
+```yaml title="real_agent.yaml"
+schema: qitos.agent
+agent:
+  name: notes_agent
+  protocol: react_text_v1
+model:
+  provider: openai_compatible
+  model: example-model
+  base_url: https://provider.example/v1
+  credential:
+    ref: notes-provider
+  request:
+    max_tokens: 512
+    timeout_seconds: 30
+    retries: 0
+tools:
+  preset: none
+runtime:
+  environment:
+    type: unsafe_host
+    workspace: .
+  session:
+    mode: durable
+    store: sqlite
+    path: ./real-notes-run/sessions.sqlite3
+  trajectory:
+    enabled: true
+    output: ./real-notes-run/trajectory.journal
+budgets:
+  max_steps: 6
+  max_requests: 6
+  max_runtime_seconds: 30
+failure_policy:
+  tool: fail_closed
+```
+
+```python title="real_notes.py"
+"""Validate configuration by default; --live explicitly opts into model requests."""
+import argparse
+from pathlib import Path
+
+from notes import summarize_note
 from qitos.config import LocalCredentialFileResolver, build_agent_composition, load_agent_config
 
-config = load_agent_config("agent.yaml")
-resolver = LocalCredentialFileResolver(
-    Path.home() / ".config/qitos/credentials.yaml",
-    repository_root=Path.cwd(),
-)
-with build_agent_composition(config, credential_resolver=resolver) as composition:
-    session = composition.session("Inspect the workspace and report one verified fact.")
-    result = session.run()
-    print(session.session_id.value, result.state.stop_reason, result.state.final_result)
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--live", action="store_true")
+    parser.add_argument("--credentials", type=Path, default=Path.home() / ".config/qitos/credentials.yaml")
+    args = parser.parse_args()
+    config = load_agent_config(Path(__file__).with_name("real_agent.yaml"))
+    assert config.budgets.max_requests == 6
+    if not args.live:
+        print("configuration valid; no credentials read; no model request")
+        return
+    if config.model.base_url == "https://provider.example/v1":
+        raise ValueError("Replace the reserved provider.example endpoint and example-model first")
+    resolver = LocalCredentialFileResolver(args.credentials, repository_root=Path.cwd())
+    with build_agent_composition(config, credential_resolver=resolver) as composition:
+        composition.tool_registry.register(summarize_note)
+        result = composition.session(
+            "Call summarize_note for indices 0 and 1. Report both titles and word counts."
+        ).run()
+        print(composition.config.name, result.state.stop_reason, result.state.final_result)
+        outputs = [a.output for record in result.records for a in record.action_results
+                   if a.tool_name == "summarize_note" and a.status == "success"]
+        assert {item["title"] for item in outputs} == {"Session", "Artifact"}, outputs
+
+
+if __name__ == "__main__":
+    main()
 ```
 
-## Failures, compatibility and extension
+{/* tutorial-files:end */}
 
-Unknown/duplicate keys, invalid types, YAML tags and environment interpolation
-fail closed. `failure_policy` currently accepts only `tool: continue` or
-`tool: fail_closed`. Python must register extension names explicitly through
-`extensions`; CLI does not import arbitrary config-selected code.
-`EnvironmentCredentialResolver` is an advanced deployment compatibility adapter.
-`AgentModule.run()` and direct Engine remain useful for advanced programmatic
-control; host tools do not imply isolation.
-[Next: Session](/tutorials/checkpoint-and-fork).
+[Composition API](/reference/composition) · [Sandbox](/guides/sandbox-and-artifacts) · [CLI](/reference/cli) · [Next: extensions](/guides/third-party-extensions)
+
+[Source file](https://github.com/WhitzardAgent/WhitzardOS/blob/master/examples/tutorials/notes/real_notes.py)

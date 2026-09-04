@@ -1,0 +1,187 @@
+---
+title: "Context and memory contracts"
+description: "QitOS public API: context"
+---
+
+Register contributors, selectors, budget policies and compactors with explicit extension names. Context selection does not grant tool authority. CompactionReceipt declares the input, output identity and losses; omission is not a lossless summary. Memory input is not a checkpoint store. Missing factories fail at composition. See the executable tutorial for method arguments and an observed lossy compaction.
+
+[完整可运行教程 / Complete tutorial](/guides/memory-and-history) · [API index](/reference/api)
+
+Signatures and fields below are extracted from the pinned source. Signatures are reference material, not standalone programs. Source links bind the same runtime baseline. Any does not imply arbitrary objects are supported; use the behavioral contract above and the linked tutorial.
+
+{/* api-reference:start */}
+
+<span id="qitos-core-context-staticcontextcontributor" />
+## StaticContextContributor
+
+```python
+from qitos.core.context import StaticContextContributor
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/context.py#L300)
+
+[Usage and executable example](/guides/memory-and-history)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+contributor = StaticContextContributor("notes.project", "project", "Use supplied notes only.")
+```
+
+```text
+Small reusable contributor for project/user/session context.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `contributor_id` | `str` | `required` |
+| `source` | `str` | `required` |
+| `value` | `Any` | `field(repr=False)` |
+| `priority` | `int` | `0` |
+| `requested_placement` | `str` | `'developer'` |
+| `required` | `bool` | `False` |
+| `persistence_horizon` | `str` | `'request'` |
+| `sensitivity` | `str` | `'internal'` |
+
+
+<span id="qitos-core-context-prioritycontextselectionpolicy" />
+## PriorityContextSelectionPolicy
+
+```python
+from qitos.core.context import PriorityContextSelectionPolicy
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/context.py#L118)
+
+[Usage and executable example](/guides/memory-and-history)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+class AuditedSelector(PriorityContextSelectionPolicy):
+    def select(self, contributions, **options):
+        contributions = tuple(contributions)
+        print([item.contribution_id for item in contributions])
+        return super().select(contributions, **options)
+```
+
+```text
+Default deterministic priority/identity selection policy.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `policy_id` | `str` | `'qitos.context.priority/v1'` |
+
+<span id="qitos-core-context-prioritycontextselectionpolicy-select" />
+### PriorityContextSelectionPolicy.select
+
+```text
+select(contributions: Iterable[ContextContribution], *, budget: ContextBudget, already_used_units: int=0, counter: UnitCounter=default_unit_counter) -> ContextSelection
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `contributions` | `Iterable[ContextContribution]` | `required` |
+| `budget` | `ContextBudget` | `required` |
+| `already_used_units` | `int` | `0` |
+| `counter` | `UnitCounter` | `default_unit_counter` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/context.py#L123)
+
+
+<span id="qitos-core-context-declaredcontextbudgetpolicy" />
+## DeclaredContextBudgetPolicy
+
+```python
+from qitos.core.context import DeclaredContextBudgetPolicy
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/context.py#L187)
+
+[Usage and executable example](/guides/memory-and-history)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+policy = DeclaredContextBudgetPolicy(default_max_input_units=4096)
+```
+
+```text
+Use adapter-declared capacity; never infer it from a model name.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `default_max_input_units` | `int` | `120000` |
+| `unit` | `str` | `'characters'` |
+| `protected_recent_exchanges` | `int` | `1` |
+| `policy_id` | `str` | `'qitos.context.declared_budget/v1'` |
+
+
+<span id="qitos-core-request_view-compactionreceipt" />
+## CompactionReceipt
+
+```python
+from qitos.core.request_view import CompactionReceipt
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/request_view.py#L525)
+
+[Usage and executable example](/guides/memory-and-history)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+# receipt is returned by the compactor in the context tutorial.
+print(receipt.declared_losses, receipt.output_digest)
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `receipt_id` | `str` | `required` |
+| `input_exchange_ids` | `tuple[str, ...]` | `required` |
+| `output_digest` | `str` | `required` |
+| `policy_id` | `str` | `required` |
+| `declared_losses` | `tuple[str, ...]` | `()` |
+| `model_reference` | `Optional[str]` | `None` |
+
+
+<span id="qitos-engine-runtime-lifecyclepolicy" />
+## LifecyclePolicy
+
+```python
+from qitos.engine.runtime import LifecyclePolicy
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/runtime.py#L88)
+
+[Usage and executable example](/guides/memory-and-history)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+class PauseFirstTool(LifecyclePolicy):
+    policy_id = "notes.pause"
+    def should_pause(self, context):
+        return context.step_id == 0
+```
+
+```text
+Replaceable cooperative lifecycle policy; never a worker scheduler.
+```
+
+<span id="qitos-engine-runtime-lifecyclepolicy-should-pause" />
+### LifecyclePolicy.should_pause
+
+```text
+should_pause(context: RuntimeSnapshotContext) -> bool
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `context` | `RuntimeSnapshotContext` | `required` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/runtime.py#L94)
+
+{/* api-reference:end */}

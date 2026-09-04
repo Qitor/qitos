@@ -106,6 +106,8 @@ jobs:
         env:
           QITOS_DOCS_TOOLS: ${{ runner.temp }}/qitos-doc-tools
         run: |
+          python scripts/sync_tutorial_docs.py --check
+          python scripts/sync_api_reference.py --check
           python scripts/validate_docs.py
           node scripts/validate_docs_mdx.mjs
-          python -m pytest -q tests/test_tutorial_snippets.py tests/test_docs_golden_paths.py
+          python -m pytest -q tests/test_tutorial_snippets.py tests/test_docs_golden_paths.py tests/test_docs_page_execution.py

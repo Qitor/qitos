@@ -1,0 +1,187 @@
+---
+title: "Context 与 memory 契约"
+description: "QitOS public API: context"
+---
+
+通过显式扩展名注册 contributor、selector、budget policy 与 compactor。context 选择不授予工具权限。CompactionReceipt 声明输入、输出身份和损失，省略不是无损摘要。memory 输入不是 checkpoint store。缺失工厂在组合时失败；可执行教程展示方法参数及实际有损 compaction。
+
+[完整可运行教程 / Complete tutorial](/zh/guides/memory-and-history) · [API index](/zh/reference/api)
+
+以下签名和字段由固定源码提取；签名是参考，不是可直接运行的程序。每个条目的源码链接绑定同一 runtime baseline。类型中的 Any 不代表任意对象均受支持，应结合上述行为契约和教程使用。
+
+{/* api-reference:start */}
+
+<span id="qitos-core-context-staticcontextcontributor" />
+## StaticContextContributor
+
+```python
+from qitos.core.context import StaticContextContributor
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/context.py#L300)
+
+[用法与可执行示例](/zh/guides/memory-and-history)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+contributor = StaticContextContributor("notes.project", "project", "Use supplied notes only.")
+```
+
+```text
+Small reusable contributor for project/user/session context.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `contributor_id` | `str` | `required` |
+| `source` | `str` | `required` |
+| `value` | `Any` | `field(repr=False)` |
+| `priority` | `int` | `0` |
+| `requested_placement` | `str` | `'developer'` |
+| `required` | `bool` | `False` |
+| `persistence_horizon` | `str` | `'request'` |
+| `sensitivity` | `str` | `'internal'` |
+
+
+<span id="qitos-core-context-prioritycontextselectionpolicy" />
+## PriorityContextSelectionPolicy
+
+```python
+from qitos.core.context import PriorityContextSelectionPolicy
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/context.py#L118)
+
+[用法与可执行示例](/zh/guides/memory-and-history)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+class AuditedSelector(PriorityContextSelectionPolicy):
+    def select(self, contributions, **options):
+        contributions = tuple(contributions)
+        print([item.contribution_id for item in contributions])
+        return super().select(contributions, **options)
+```
+
+```text
+Default deterministic priority/identity selection policy.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `policy_id` | `str` | `'qitos.context.priority/v1'` |
+
+<span id="qitos-core-context-prioritycontextselectionpolicy-select" />
+### PriorityContextSelectionPolicy.select
+
+```text
+select(contributions: Iterable[ContextContribution], *, budget: ContextBudget, already_used_units: int=0, counter: UnitCounter=default_unit_counter) -> ContextSelection
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `contributions` | `Iterable[ContextContribution]` | `required` |
+| `budget` | `ContextBudget` | `required` |
+| `already_used_units` | `int` | `0` |
+| `counter` | `UnitCounter` | `default_unit_counter` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/context.py#L123)
+
+
+<span id="qitos-core-context-declaredcontextbudgetpolicy" />
+## DeclaredContextBudgetPolicy
+
+```python
+from qitos.core.context import DeclaredContextBudgetPolicy
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/context.py#L187)
+
+[用法与可执行示例](/zh/guides/memory-and-history)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+policy = DeclaredContextBudgetPolicy(default_max_input_units=4096)
+```
+
+```text
+Use adapter-declared capacity; never infer it from a model name.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `default_max_input_units` | `int` | `120000` |
+| `unit` | `str` | `'characters'` |
+| `protected_recent_exchanges` | `int` | `1` |
+| `policy_id` | `str` | `'qitos.context.declared_budget/v1'` |
+
+
+<span id="qitos-core-request_view-compactionreceipt" />
+## CompactionReceipt
+
+```python
+from qitos.core.request_view import CompactionReceipt
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/request_view.py#L525)
+
+[用法与可执行示例](/zh/guides/memory-and-history)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+# receipt is returned by the compactor in the context tutorial.
+print(receipt.declared_losses, receipt.output_digest)
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `receipt_id` | `str` | `required` |
+| `input_exchange_ids` | `tuple[str, ...]` | `required` |
+| `output_digest` | `str` | `required` |
+| `policy_id` | `str` | `required` |
+| `declared_losses` | `tuple[str, ...]` | `()` |
+| `model_reference` | `Optional[str]` | `None` |
+
+
+<span id="qitos-engine-runtime-lifecyclepolicy" />
+## LifecyclePolicy
+
+```python
+from qitos.engine.runtime import LifecyclePolicy
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/runtime.py#L88)
+
+[用法与可执行示例](/zh/guides/memory-and-history)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+class PauseFirstTool(LifecyclePolicy):
+    policy_id = "notes.pause"
+    def should_pause(self, context):
+        return context.step_id == 0
+```
+
+```text
+Replaceable cooperative lifecycle policy; never a worker scheduler.
+```
+
+<span id="qitos-engine-runtime-lifecyclepolicy-should-pause" />
+### LifecyclePolicy.should_pause
+
+```text
+should_pause(context: RuntimeSnapshotContext) -> bool
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `context` | `RuntimeSnapshotContext` | `required` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/runtime.py#L94)
+
+{/* api-reference:end */}

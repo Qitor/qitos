@@ -1,55 +1,248 @@
 ---
-title: "Trajectory and qita"
-description: "QitOS G5 · Trajectory and qita"
+title: "Inspect and export with qita"
+description: "Learn QitOS with complete, executable notes-project code."
 ---
 
-## Learning goal
+## Goal and prerequisites
 
-Read the canonical journal through default_reader, inspect steering and fork lineage, export a redacted public projection and reimport that projection.
+Run the notes project, then inspect exactly the Session ID stored in `control.json`. `default_reader` selects the canonical journal while retaining explicit historical trace support. `read_session` reconstructs an observation view; it does not resume execution.
 
-## Prerequisites
+`inspect_run.py` writes a redacted public export and verifies it can be reimported with the same number of records. It also creates the run selector directory currently required by the qita HTML export CLI. This directory does not replace the authoritative journal.
 
-Complete the [Quickstart](/quickstart) installation and lessons copy; base package, Python 3.12.7 tested, no real model requests.
+Use the CLI commands below to inspect, replay and export. Replay displays recorded execution; it does not call the model or repeat tools. Stop the read-only board with Ctrl-C.
 
-## Complete runnable example
+Basic Python is required. The package declares Python ≥3.10; local qualification uses Python 3.12.7. Each chapter runs independently; reuse the environment and matching files when continuing your project. Commands below use a macOS/Linux shell.
 
-[`examples/tutorials/session_walkthrough.py`](https://github.com/WhitzardAgent/WhitzardOS/blob/master/examples/tutorials/session_walkthrough.py)
-
-The complete directory is the execution source. Sibling session_walkthrough.py is a public teaching dependency, not a repository test helper.
+## Prepare the project
 
 ```bash
-python lessons/session_walkthrough.py create --root ./observe-run
-python lessons/session_walkthrough.py restore --root ./observe-run
-qita board --logdir ./observe-run
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install "qitos @ git+https://github.com/WhitzardAgent/WhitzardOS.git@60809b3be388d22ea40ea41b4aaa1f5540c76fda"
+mkdir notes_lesson
+cd notes_lesson
 ```
 
-## Expected output and assertions
+Save the complete files below in this directory. No repository clone, editable install, or copied tests are needed.
 
-`records>0; public_export_lossless=false; board opens locally`
+When continuing Quickstart with an existing notes-run, skip the first notes.py creation command and inspect that run. Replay starts a local web server; stop it with Ctrl-C before running export/board.
 
-Assertions in the file verify the result; generated IDs vary. Commands exit zero; stop the board with Ctrl-C.
-
-## HTML export and replay
-
---run uses a logical run ID path under the log directory, not the journal filename. Replay starts a read-only local server; stop it with Ctrl-C.
+## Run and verify
 
 ```bash
-run_id=$(python -c 'import json; print(json.load(open("observe-run/control.json"))["run_id"])')
-mkdir -p "./observe-run/$run_id"
-qita export --run "./observe-run/$run_id" --html ./observe-run/replay.html
-qita replay --run "./observe-run/$run_id"
+python notes.py --root notes-run
+python inspect_run.py --root notes-run
 ```
 
-## Support boundaries
+Expected output fragments (generated IDs vary). Each run verifies tool results or persistence assertions and exits 0 on success.
 
-qita is read-only and owns no execution semantics. Default discovery reads journal and historical trace. Whole reads are complete but currently load all frames; query limits are not total memory bounds. Public export is not a lossless raw backup. CLI qita export produces HTML, while CanonicalTrajectoryExporter produces canonical JSON. Keep private runs out of Git.
+```text
+"records":
+```
 
-## Common errors
+### Inspect the saved Session
 
-Choose a new root if the directory already exists. For missing imports verify the installed source. Inspect Trajectory and the migration page for config mismatch, missing extensions or typed failures; never silently retry unknown external effects.
+```bash
+session_id=$(python -c 'import json; print(json.load(open("notes-run/control.json"))["session_id"])')
+qit session inspect --config notes-run/agent.json --session-id "$session_id"
+qita inspect session "$session_id" --logdir ./notes-run
+```
 
-## Next step
+```bash
+run_id=$(python -c 'import json; print(json.load(open("notes-run/control.json"))["run_id"])')
+qita replay --run "notes-run/$run_id"
+qita export --run "notes-run/$run_id" --html notes-run/trajectory.html
+qita board --logdir ./notes-run
+```
 
-[Learning path](/tutorials/index) · [Migration and troubleshooting](/reference/g5-migration)
+## Behavior and support boundaries
 
-G5 CLI still requires the --run path to exist, so create the empty selector directory first. Actual data is read from the parent journal. This is a CLI compatibility limitation, not a new trace format.
+Inspect needs neither Docker nor credentials. Journal reads are complete but currently load the full journal. Public export declares losses and cannot replace private recovery data.
+
+## Exercise and answer
+
+Compare private and public records without exposing private payloads. Equal record counts do not establish lossless payload equivalence.
+
+## Common errors and cleanup
+
+`ModuleNotFoundError`: activate the environment with the specified installation and save every file on this page. Existing run root: choose a new `--root` instead of overwriting evidence. Assertion failure: inspect the first failed tool or typed error, not only the final text. After all processes and the board stop, remove only this lesson’s newly created run directories if no longer needed; retain SQLite, journals and reports you want to debug.
+
+{/* tutorial-files:start */}
+
+## Complete files: save in the project root
+
+```python title="notes.py"
+"""Synthetic notes; fake model, real tools, composition, Session and journal."""
+import argparse
+from dataclasses import replace
+import json
+from pathlib import Path
+
+from qitos.config import build_agent_composition, load_agent_config
+from qitos.core.function_tool_decorator import function_tool
+from qitos.engine.runtime import LifecyclePolicy
+
+# docs:start fixture
+NOTES = (
+    "Session: A durable session can resume after a process exits.",
+    "Artifact: Large tool outputs can be retained outside model context.",
+)
+
+
+@function_tool(read_only=True, concurrency_safe=True)
+def summarize_note(index: int) -> dict:
+    """Extract a title and word count from a synthetic in-memory note."""
+    text = NOTES[index]
+    return {"title": text.split(":", 1)[0], "words": len(text.split())}
+# docs:end fixture
+
+
+# docs:start provider
+class FakeProvider:
+    """Scripted responses; this does not summarize or reason like a real model."""
+    model = "notes-fake"
+    qitos_protocol = "react_text_v1"
+
+    def __init__(self, start=0):
+        self.stage = start
+
+    def call_raw(self, messages, **options):
+        if self.stage < len(NOTES):
+            content = f"Thought: inspect a note\nAction: summarize_note(index={self.stage})"
+        else:
+            content = "Final Answer: Indexed 2 notes: Session, Artifact."
+        self.stage += 1
+        return {"choices": [{"message": {"content": content}}]}
+# docs:end provider
+
+
+class PauseAfterTool(LifecyclePolicy):
+    policy_id = "notes.pause_after_tool"
+
+    def should_pause(self, context):
+        return context.step_id == 0
+
+
+# docs:start composition
+def configuration(root):
+    config = load_agent_config(Path(__file__).with_name("agent.yaml"))
+    return replace(config, runtime=replace(
+        config.runtime, data_root=str(root / "data"),
+        environment=replace(config.runtime.environment, workspace=str(root)),
+        session=replace(config.runtime.session, path=str(root / "sessions.sqlite3")),
+        trajectory=replace(config.runtime.trajectory, output=str(root / "trajectory.journal")),
+    ))
+
+
+def compose(root, *, start=0, pause=False):
+    config = configuration(root)
+    if pause:
+        config = replace(config, lifecycle={"policy": "pause"})
+    composition = build_agent_composition(
+        config, model_override=FakeProvider(start), extensions={"pause": PauseAfterTool},
+    )
+    composition.tool_registry.register(summarize_note)
+    return composition
+# docs:end composition
+
+
+# docs:start run
+def run(root):
+    root.mkdir(parents=True, exist_ok=False)
+    with compose(root) as composition:
+        session = composition.session("Index both synthetic notes")
+        result = session.run()
+        outputs = [action.output for record in result.records for action in record.action_results
+                   if action.tool_name == "summarize_note"]
+        assert [output["title"] for output in outputs] == ["Session", "Artifact"]
+        assert result.state.final_result == "Indexed 2 notes: Session, Artifact."
+        config = composition.config.to_dict()
+        config["runtime"]["environment"] = {"type": "unsafe_host", "workspace": str(root)}
+        (root / "agent.json").write_text(json.dumps(config), encoding="utf-8")
+        control = {"session_id": session.session_id.value, "run_id": result.run_id}
+        (root / "control.json").write_text(json.dumps(control), encoding="utf-8")
+        print(json.dumps({**control, "result": result.state.final_result, "outputs": outputs}))
+# docs:end run
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=Path("notes-run"))
+    run(parser.parse_args().root.resolve())
+```
+
+```yaml title="agent.yaml"
+schema: qitos.agent
+agent:
+  name: notes_agent
+  protocol: react_text_v1
+model:
+  provider: openai_compatible
+  model: notes-fake
+  credential:
+    ref: notes-provider
+  request:
+    max_tokens: 512
+    timeout_seconds: 30
+    retries: 0
+tools:
+  preset: none
+runtime:
+  environment:
+    type: unsafe_host
+    workspace: .
+  session:
+    mode: durable
+    store: sqlite
+    path: ./notes-run/sessions.sqlite3
+  trajectory:
+    enabled: true
+    output: ./notes-run/trajectory.journal
+budgets:
+  max_steps: 6
+  max_requests: 6
+  max_runtime_seconds: 30
+failure_policy:
+  tool: fail_closed
+```
+
+```python title="inspect_run.py"
+"""Read an existing notes run, verify the index, and export a public view."""
+import argparse
+import json
+from pathlib import Path
+
+from qitos.qita.reader import default_reader
+from qitos.tracing.exporter import CanonicalTrajectoryExporter
+from qitos.tracing.trajectory import PrivacyView
+
+
+def inspect(root):
+    control = json.loads((root / "control.json").read_text())
+    trajectory = default_reader(root).read_session(control["session_id"], view=PrivacyView.RAW_PRIVATE)
+    assert trajectory.records
+    exporter = CanonicalTrajectoryExporter()
+    exported = exporter.export(trajectory, view=PrivacyView.REDACTED_PUBLIC)
+    imported = exporter.reimport(exported)
+    assert len(imported.records) == len(trajectory.records)
+    (root / "public-trajectory.json").write_bytes(exported.data)
+    # qita's --run selector currently requires an existing run directory.
+    # This directory is only a selector; the journal remains authoritative.
+    (root / control["run_id"]).mkdir(exist_ok=True)
+    print(json.dumps({"records": len(trajectory.records), "lossless": exported.loss.is_lossless,
+                      "run_selector": str(root / control["run_id"])}))
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, required=True)
+    inspect(parser.parse_args().root.resolve())
+```
+
+{/* tutorial-files:end */}
+
+## Next step and API
+
+[API Reference](/reference/api) · [Configuration](/reference/configuration) · [Learning path](/tutorials/index) · [Next](/guides/third-party-extensions)
+
+[Source file](https://github.com/WhitzardAgent/WhitzardOS/blob/master/examples/tutorials/notes/inspect_run.py) (optional; all required code is already on this page).

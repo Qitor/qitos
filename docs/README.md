@@ -21,3 +21,13 @@ in the promotion ledger; change them deliberately after verification.
 Inspect both languages for introduction, Quickstart, Session, multi-agent,
 sandbox, qita and configuration, including a narrow mobile viewport.
 This is local preview only; this task does not deploy the documentation site.
+
+## Self-contained teaching pages
+
+Edit executable sources under `examples/tutorials/notes`, then synchronize with
+`python scripts/sync_tutorial_docs.py`. Every chapter includes all dependencies
+inline; source links are optional. API imports and source signatures are declared
+in `docs/api-contracts.json`; run `python scripts/sync_api_reference.py` in an
+environment with the matching QitOS installation. CI uses both scripts with
+`--check` and executes page-extracted files through `tests/test_docs_page_execution.py`.
+Maintain EN/zh prose together; do not translate executable identifiers or defaults.

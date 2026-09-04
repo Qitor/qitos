@@ -18,3 +18,10 @@ This file never relaxes them and does not authorize plugins, deployments or mode
   compatibility, hard-thread-cancellation, automatic publication or lossless-redaction claim.
 - Use task-local pinned documentation dependencies. Run docs/tests/link/MDX checks
   and inspect actual desktop/mobile pages before promotion. No deployment is implied.
+
+- Core tutorials must contain all runnable files inline; links are optional conveniences.
+  Synchronize named excerpts and complete-file regions with scripts/sync_tutorial_docs.py.
+  CI uses --check and executes extracted EN/zh files from an installed wheel.
+- Keep docs/api-contracts.json explicit. Synchronize signatures with
+  scripts/sync_api_reference.py; every tutorial qitos import needs a reference entry.
+  Do not infer that submodule symbols are root-package exports.

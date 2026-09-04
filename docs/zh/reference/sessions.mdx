@@ -1,0 +1,242 @@
+---
+title: "Session 与持久化"
+description: "QitOS public API: sessions"
+---
+
+通过 composition.session/restore/fork 或 Engine.session 获取 Session，不直接构造。run(steering=...) 执行并返回 EngineResult，inspect 返回 SessionInspection。pause 请求协作边界并返回 receipt，不保证立即终止。Session、Run、Snapshot/Checkpoint 身份不同。SQLite 支持跨进程恢复，Memory 仅进程内。未解决 approval 的恢复和 CLI live pause/steer 当前 unsupported。
+
+[完整可运行教程 / Complete tutorial](/zh/tutorials/checkpoint-and-fork) · [API index](/zh/reference/api)
+
+以下签名和字段由固定源码提取；签名是参考，不是可直接运行的程序。每个条目的源码链接绑定同一 runtime baseline。类型中的 Any 不代表任意对象均受支持，应结合上述行为契约和教程使用。
+
+{/* api-reference:start */}
+
+<span id="qitos-engine-session_runtime-session" />
+## Session
+
+```python
+from qitos.engine.session_runtime import Session
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/session_runtime.py#L119)
+
+[用法与可执行示例](/zh/tutorials/checkpoint-and-fork)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+session = composition.session("Index notes")
+result = session.run()
+inspection = session.inspect()
+print(session.session_id.value, result.state.final_result)
+```
+
+```text
+Scoped client for one durable Session identity.
+
+The facade stores identifiers and cooperative control only. Agent state is
+reconstructed from the canonical snapshot and executed by ``Engine.run``.
+```
+
+```text
+Session(*, engine: 'Engine[Any, Any, Any]', session_id: SessionIdentity, run_id: RunIdentity, agent_id: AgentIdentity, references: Iterable[ResolverReference], created_at: str, state_type: type[StateSchema], work_item_id: WorkItemIdentity, attempt_id: AttemptIdentity, fork_receipt: Optional[SessionForkReceipt]=None) -> None
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `engine` | `'Engine[Any, Any, Any]'` | `required` |
+| `session_id` | `SessionIdentity` | `required` |
+| `run_id` | `RunIdentity` | `required` |
+| `agent_id` | `AgentIdentity` | `required` |
+| `references` | `Iterable[ResolverReference]` | `required` |
+| `created_at` | `str` | `required` |
+| `state_type` | `type[StateSchema]` | `required` |
+| `work_item_id` | `WorkItemIdentity` | `required` |
+| `attempt_id` | `AttemptIdentity` | `required` |
+| `fork_receipt` | `Optional[SessionForkReceipt]` | `None` |
+
+<span id="qitos-engine-session_runtime-session-run" />
+### Session.run
+
+```text
+run(*, steering: Optional[str]=None) -> 'EngineResult[Any]'
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `steering` | `Optional[str]` | `None` |
+
+```text
+Run or resume through the one canonical Engine loop.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/session_runtime.py#L1501)
+
+<span id="qitos-engine-session_runtime-session-inspect" />
+### Session.inspect
+
+```text
+inspect() -> SessionInspection
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/session_runtime.py#L219)
+
+<span id="qitos-engine-session_runtime-session-pause" />
+### Session.pause
+
+```text
+pause() -> PauseReceipt
+```
+
+```text
+Request cooperative pause; durable status is returned at a boundary.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/session_runtime.py#L291)
+
+<span id="qitos-engine-session_runtime-session-steer" />
+### Session.steer
+
+```text
+steer(text: str) -> SteeringReceipt
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `text` | `str` | `required` |
+
+```text
+Durably submit one canonical steering item to this Session.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/session_runtime.py#L325)
+
+<span id="qitos-engine-session_runtime-session-fork" />
+### Session.fork
+
+```text
+fork(snapshot: SessionSnapshot | SnapshotIdentity | str | None=None, *, operation_id: Optional[str]=None) -> 'Session'
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `snapshot` | `SessionSnapshot &#124; SnapshotIdentity &#124; str &#124; None` | `None` |
+| `operation_id` | `Optional[str]` | `None` |
+
+```text
+Create an isolated durable child from one verified immutable snapshot.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/session_runtime.py#L1713)
+
+<span id="qitos-engine-session_runtime-session-capabilities" />
+### Session.capabilities
+
+```text
+capabilities() -> frozenset[str]
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/session_runtime.py#L189)
+
+
+<span id="qitos-engine-session_runtime-sessioninspection" />
+## SessionInspection
+
+```python
+from qitos.engine.session_runtime import SessionInspection
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/session_runtime.py#L105)
+
+[用法与可执行示例](/zh/tutorials/checkpoint-and-fork)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+inspection = session.inspect()
+print(inspection.work_graph)
+```
+
+```text
+Read-only inspection result backed by the current durable head.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `head` | `SessionHead` | `required` |
+| `lifecycle` | `SessionLifecycle` | `required` |
+| `capabilities` | `tuple[str, ...]` | `required` |
+| `snapshot_integrity` | `str` | `required` |
+| `budget` | `Mapping[str, Any]` | `required` |
+| `work_graph` | `Optional[Mapping[str, Any]]` | `required` |
+| `last_request_view` | `Optional[RequestView]` | `required` |
+| `task` | `str` | `required` |
+| `tool_batch` | `Optional[ToolBatchSnapshot]` | `required` |
+
+
+<span id="qitos-checkpoint-store-checkpointstore" />
+## CheckpointStore
+
+```python
+from qitos.checkpoint.store import CheckpointStore
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/checkpoint/store.py#L174)
+
+[用法与可执行示例](/zh/tutorials/checkpoint-and-fork)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+# From an open composition configured with SQLite:
+store = composition.runtime.checkpoint_store
+head = store.get_session_head(session.session_id.value)
+print(head)
+```
+
+```text
+Abstract base class for checkpoint persistence.
+
+Borrowed from LangGraph's ``BaseCheckpointSaver`` interface
+(``references/langgraph/libs/checkpoint/langgraph/checkpoint/base/__init__.py``).
+
+Every method has both sync and async variants.  Subclasses should
+override the async variants; the sync ones delegate via ``asyncio.run``
+by default.
+```
+
+<span id="qitos-checkpoint-store-checkpointstore-get-session-head" />
+### CheckpointStore.get_session_head
+
+```text
+get_session_head(session_id: str) -> Optional[SessionHeadRecord]
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `session_id` | `str` | `required` |
+
+```text
+Read the current mutable head for one session.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/checkpoint/store.py#L241)
+
+<span id="qitos-checkpoint-store-checkpointstore-commit-session-snapshot" />
+### CheckpointStore.commit_session_snapshot
+
+```text
+commit_session_snapshot(request: SessionSnapshotCommit) -> SessionCommitReceipt
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `request` | `SessionSnapshotCommit` | `required` |
+
+```text
+Atomically persist an immutable snapshot and advance its head.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/checkpoint/store.py#L235)
+
+{/* api-reference:end */}

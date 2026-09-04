@@ -1,0 +1,565 @@
+---
+title: "Agent and execution"
+description: "QitOS public API: agent-runtime"
+---
+
+AgentModule owns strategy and state transitions; Engine drives observe, decide, act, reduce and stopping. Decision.act declares actions and Decision.final ends the strategy. EngineResult contains state and typed step records; reduce observes dictionaries. Use the custom Agent tutorial for the complete wiring. RuntimeComposition defaults to a process-local store. AgentModule.run remains a programmatic convenience, not the canonical declarative setup.
+
+[完整可运行教程 / Complete tutorial](/guides/build-your-first-agent) · [API index](/reference/api)
+
+Signatures and fields below are extracted from the pinned source. Signatures are reference material, not standalone programs. Source links bind the same runtime baseline. Any does not imply arbitrary objects are supported; use the behavioral contract above and the linked tutorial.
+
+{/* api-reference:start */}
+
+<span id="qitos-agentmodule" />
+## AgentModule
+
+```python
+from qitos import AgentModule
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/agent_module.py#L25)
+
+[Usage and executable example](/guides/build-your-first-agent)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+# NotesAgent subclasses AgentModule in the complete tutorial.
+agent = NotesAgent()
+result = Engine(agent, runtime=RuntimeComposition()).session("Index notes").run()
+```
+
+```text
+Canonical policy contract for step-based agents.
+```
+
+```text
+AgentModule(tool_registry: Any=None, toolset: Any=None, llm: Any=None, model_parser: Any=None, model_protocol: Any=None, memory: Memory | None=None, history: History | None=None, mcp_servers: List[Any] | None=None, **config: Any) -> Any (see behavior contract)
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `tool_registry` | `Any` | `None` |
+| `toolset` | `Any` | `None` |
+| `llm` | `Any` | `None` |
+| `model_parser` | `Any` | `None` |
+| `model_protocol` | `Any` | `None` |
+| `memory` | `Memory &#124; None` | `None` |
+| `history` | `History &#124; None` | `None` |
+| `mcp_servers` | `List[Any] &#124; None` | `None` |
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `name` | `str` | `'agent'` |
+| `handoff_targets` | `List[str] \| None` | `None` |
+
+<span id="qitos-agentmodule-init-state" />
+### AgentModule.init_state
+
+```text
+init_state(task: str, **kwargs: Any) -> StateT
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `task` | `str` | `required` |
+
+```text
+Create and return the initial typed state for a run.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/agent_module.py#L55)
+
+<span id="qitos-agentmodule-decide" />
+### AgentModule.decide
+
+```text
+decide(state: StateT, observation: ObservationT) -> Optional[Decision[ActionT]]
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `state` | `StateT` | `required` |
+| `observation` | `ObservationT` | `required` |
+
+```text
+Optional custom decision hook. Return None to use Engine model decision.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/agent_module.py#L101)
+
+<span id="qitos-agentmodule-reduce" />
+### AgentModule.reduce
+
+```text
+reduce(state: StateT, observation: ObservationT, decision: Decision[ActionT]) -> StateT
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `state` | `StateT` | `required` |
+| `observation` | `ObservationT` | `required` |
+| `decision` | `Decision[ActionT]` | `required` |
+
+```text
+Reduce observation (including action/env outputs) into next state.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/agent_module.py#L120)
+
+<span id="qitos-agentmodule-should-stop" />
+### AgentModule.should_stop
+
+```text
+should_stop(state: StateT) -> bool
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `state` | `StateT` | `required` |
+
+```text
+Optional additional stop condition.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/agent_module.py#L128)
+
+<span id="qitos-agentmodule-run" />
+### AgentModule.run
+
+```text
+run(task: str | Task, return_state: bool=False, hooks: List[Any] | None=None, render_hooks: List[Any] | None=None, engine_kwargs: Dict[str, Any] | None=None, workspace: str | None=None, max_steps: int | None=None, env: Any=None, parser: Any=None, protocol: Any=None, search: Any=None, critics: List[Any] | None=None, stop_criteria: List[Any] | None=None, history_policy: Any=None, context_config: Any=None, trace: Any=None, render: Any=None, trace_logdir: str='./runs', trace_prefix: str | None=None, theme: str='research', run_spec: RunSpec | Dict[str, Any] | None=None, experiment_spec: ExperimentSpec | Dict[str, Any] | None=None, **state_kwargs: Any) -> Any
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `task` | `str &#124; Task` | `required` |
+| `return_state` | `bool` | `False` |
+| `hooks` | `List[Any] &#124; None` | `None` |
+| `render_hooks` | `List[Any] &#124; None` | `None` |
+| `engine_kwargs` | `Dict[str, Any] &#124; None` | `None` |
+| `workspace` | `str &#124; None` | `None` |
+| `max_steps` | `int &#124; None` | `None` |
+| `env` | `Any` | `None` |
+| `parser` | `Any` | `None` |
+| `protocol` | `Any` | `None` |
+| `search` | `Any` | `None` |
+| `critics` | `List[Any] &#124; None` | `None` |
+| `stop_criteria` | `List[Any] &#124; None` | `None` |
+| `history_policy` | `Any` | `None` |
+| `context_config` | `Any` | `None` |
+| `trace` | `Any` | `None` |
+| `render` | `Any` | `None` |
+| `trace_logdir` | `str` | `'./runs'` |
+| `trace_prefix` | `str &#124; None` | `None` |
+| `theme` | `str` | `'research'` |
+| `run_spec` | `RunSpec &#124; Dict[str, Any] &#124; None` | `None` |
+| `experiment_spec` | `ExperimentSpec &#124; Dict[str, Any] &#124; None` | `None` |
+
+```text
+Execute task with Engine using plain text objective or structured Task.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/agent_module.py#L265)
+
+
+<span id="qitos-stateschema" />
+## StateSchema
+
+```python
+from qitos import StateSchema
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/state.py#L56)
+
+[Usage and executable example](/guides/build-your-first-agent)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+from dataclasses import dataclass
+@dataclass
+class MyState(StateSchema):
+    completed: int = 0
+state = MyState(task="Index notes", max_steps=3)
+```
+
+```text
+Canonical typed state base for AgentModule.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `schema_version` | `int` | `1` |
+| `task` | `str` | `''` |
+| `current_step` | `int` | `0` |
+| `max_steps` | `int` | `10` |
+| `final_result` | `Optional[str]` | `None` |
+| `stop_reason` | `Optional[str]` | `None` |
+| `metadata` | `Dict[str, Any]` | `field(default_factory=dict)` |
+| `metrics` | `Dict[str, Any]` | `field(default_factory=dict)` |
+| `migration_registry` | `ClassVar[StateMigrationRegistry]` | `StateMigrationRegistry()` |
+
+
+<span id="qitos-task" />
+## Task
+
+```python
+from qitos import Task
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/task.py#L76)
+
+[Usage and executable example](/guides/build-your-first-agent)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+task = Task(objective="Index the notes")
+print(task.objective)
+```
+
+```text
+Task package with objective, resources, and environment requirements.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `id` | `str` | `required` |
+| `objective` | `str` | `required` |
+| `inputs` | `Dict[str, Any]` | `dc_field(default_factory=dict)` |
+| `resources` | `List[TaskResource]` | `dc_field(default_factory=list)` |
+| `env_spec` | `Optional[EnvSpec]` | `None` |
+| `constraints` | `Dict[str, Any]` | `dc_field(default_factory=dict)` |
+| `success_criteria` | `List[str]` | `dc_field(default_factory=list)` |
+| `budget` | `TaskBudget` | `dc_field(default_factory=TaskBudget)` |
+| `metadata` | `Dict[str, Any]` | `dc_field(default_factory=dict)` |
+
+
+<span id="qitos-decision" />
+## Decision
+
+```python
+from qitos import Decision
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/decision.py#L14)
+
+[Usage and executable example](/guides/build-your-first-agent)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+decision = Decision.act([Action(name="summarize_note", args={"index": 0})])
+finished = Decision.final("Session")
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `mode` | `DecisionMode` | `required` |
+| `actions` | `List[ActionT]` | `field(default_factory=list)` |
+| `final_answer` | `Optional[str]` | `None` |
+| `rationale` | `Optional[str]` | `None` |
+| `meta` | `Dict[str, Any]` | `field(default_factory=dict)` |
+| `candidates` | `List['Decision[ActionT]']` | `field(default_factory=list)` |
+
+<span id="qitos-decision-act" />
+### Decision.act
+
+```text
+act(actions: List[ActionT], rationale: Optional[str]=None, meta: Optional[Dict[str, Any]]=None) -> 'Decision[ActionT]'
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `actions` | `List[ActionT]` | `required` |
+| `rationale` | `Optional[str]` | `None` |
+| `meta` | `Optional[Dict[str, Any]]` | `None` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/decision.py#L23)
+
+<span id="qitos-decision-final" />
+### Decision.final
+
+```text
+final(answer: str, rationale: Optional[str]=None, meta: Optional[Dict[str, Any]]=None) -> 'Decision[ActionT]'
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `answer` | `str` | `required` |
+| `rationale` | `Optional[str]` | `None` |
+| `meta` | `Optional[Dict[str, Any]]` | `None` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/decision.py#L32)
+
+
+<span id="qitos-action" />
+## Action
+
+```python
+from qitos import Action
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/action.py#L26)
+
+[Usage and executable example](/guides/build-your-first-agent)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+action = Action(name="summarize_note", args={"index": 0})
+print(action.name)
+```
+
+```text
+Normalized action contract emitted by policy and consumed by executor.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `name` | `str` | `required` |
+| `args` | `Dict[str, Any]` | `field(default_factory=dict)` |
+| `kind` | `ActionKind` | `ActionKind.TOOL` |
+| `action_id` | `Optional[str]` | `None` |
+| `timeout_s` | `Optional[float]` | `None` |
+| `max_retries` | `int` | `0` |
+| `idempotent` | `bool` | `True` |
+| `classification` | `str` | `'default'` |
+| `metadata` | `Dict[str, Any]` | `field(default_factory=dict)` |
+
+
+<span id="qitos-engine" />
+## Engine
+
+```python
+from qitos import Engine
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/engine.py#L292)
+
+[Usage and executable example](/guides/build-your-first-agent)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+engine = Engine(NotesAgent(), runtime=RuntimeComposition())
+result = engine.session("Index notes").run()
+```
+
+```text
+Single execution kernel for all AgentModule workflows.
+```
+
+```text
+Engine(agent: AgentModule[StateT, ObservationT, ActionT], agent_registry: Optional[Any]=None, budget: Optional[RuntimeBudget]=None, delegate_depth: int=0, shared_memory: Any=None, validation_gate: Optional[StateValidationGate]=None, recovery_handler: Optional[RecoveryHandler]=None, recovery_policy: Optional[RecoveryPolicy]=None, trace_writer: Optional[TraceWriter]=None, parser: Optional[Parser[ActionT]]=None, protocol: Any=None, stop_criteria: Optional[List[StopCriteria]]=None, branch_selector: Optional[BranchSelector[StateT, ObservationT, ActionT]]=None, search: Optional[Search[StateT, ObservationT, ActionT]]=None, critics: Optional[List[Critic]]=None, env: Optional[Env]=None, history_policy: Optional[HistoryPolicy]=None, hooks: Optional[List[EngineHook]]=None, render_hooks: Optional[List[Any]]=None, context_config: Optional[ContextConfig | Dict[str, Any]]=None, cache_backend: Optional[Any]=None, checkpoint_manager: Optional[Any]=None, checkpoint_store: Optional[CheckpointStore]=None, checkpoint_durability: DurabilityMode=DurabilityMode.SYNC, permission_pipeline: Optional[Any]=None, read_before_write_enforcer: Optional[Any]=None, permission_interaction_callback: Optional[Any]=None, loop_detector: Optional[ToolCallLoopDetector]=None, tracing_provider: Optional[Any]=None, interceptors: Optional[List[ToolInterceptor]]=None, auto_approve: bool=False, action_execution_policy: Optional[Any]=None, runtime: Optional[RuntimeComposition]=None) -> Any (see behavior contract)
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `agent` | `AgentModule[StateT, ObservationT, ActionT]` | `required` |
+| `agent_registry` | `Optional[Any]` | `None` |
+| `budget` | `Optional[RuntimeBudget]` | `None` |
+| `delegate_depth` | `int` | `0` |
+| `shared_memory` | `Any` | `None` |
+| `validation_gate` | `Optional[StateValidationGate]` | `None` |
+| `recovery_handler` | `Optional[RecoveryHandler]` | `None` |
+| `recovery_policy` | `Optional[RecoveryPolicy]` | `None` |
+| `trace_writer` | `Optional[TraceWriter]` | `None` |
+| `parser` | `Optional[Parser[ActionT]]` | `None` |
+| `protocol` | `Any` | `None` |
+| `stop_criteria` | `Optional[List[StopCriteria]]` | `None` |
+| `branch_selector` | `Optional[BranchSelector[StateT, ObservationT, ActionT]]` | `None` |
+| `search` | `Optional[Search[StateT, ObservationT, ActionT]]` | `None` |
+| `critics` | `Optional[List[Critic]]` | `None` |
+| `env` | `Optional[Env]` | `None` |
+| `history_policy` | `Optional[HistoryPolicy]` | `None` |
+| `hooks` | `Optional[List[EngineHook]]` | `None` |
+| `render_hooks` | `Optional[List[Any]]` | `None` |
+| `context_config` | `Optional[ContextConfig &#124; Dict[str, Any]]` | `None` |
+| `cache_backend` | `Optional[Any]` | `None` |
+| `checkpoint_manager` | `Optional[Any]` | `None` |
+| `checkpoint_store` | `Optional[CheckpointStore]` | `None` |
+| `checkpoint_durability` | `DurabilityMode` | `DurabilityMode.SYNC` |
+| `permission_pipeline` | `Optional[Any]` | `None` |
+| `read_before_write_enforcer` | `Optional[Any]` | `None` |
+| `permission_interaction_callback` | `Optional[Any]` | `None` |
+| `loop_detector` | `Optional[ToolCallLoopDetector]` | `None` |
+| `tracing_provider` | `Optional[Any]` | `None` |
+| `interceptors` | `Optional[List[ToolInterceptor]]` | `None` |
+| `auto_approve` | `bool` | `False` |
+| `action_execution_policy` | `Optional[Any]` | `None` |
+| `runtime` | `Optional[RuntimeComposition]` | `None` |
+
+<span id="qitos-engine-session" />
+### Engine.session
+
+```text
+session(task: str | Task, session_id: Any=None) -> Any
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `task` | `str &#124; Task` | `required` |
+| `session_id` | `Any` | `None` |
+
+```text
+Create one durable Session facade using this Engine composition.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/engine.py#L648)
+
+<span id="qitos-engine-run" />
+### Engine.run
+
+```text
+run(task: str | Task, **kwargs: Any) -> EngineResult[StateT]
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `task` | `str &#124; Task` | `required` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/engine.py#L981)
+
+<span id="qitos-engine-restore" />
+### Engine.restore
+
+```text
+restore(session_id: Any, *, resolvers: Any=None, runtime: Optional[RuntimeComposition]=None) -> Any
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `session_id` | `Any` | `required` |
+| `resolvers` | `Any` | `None` |
+| `runtime` | `Optional[RuntimeComposition]` | `None` |
+
+```text
+Restore a Session in a fresh Engine through explicit resolvers.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/engine.py#L665)
+
+
+<span id="qitos-engine-engine-engineresult" />
+## EngineResult
+
+```python
+from qitos.engine.engine import EngineResult
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/engine.py#L174)
+
+[Usage and executable example](/guides/build-your-first-agent)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+result = session.run()
+print(result.state.final_result, result.state.stop_reason)
+for record in result.records:
+    for tool_result in record.action_results:
+        print(tool_result.tool_name, tool_result.status)
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `state` | `StateT` | `required` |
+| `records` | `List[StepRecord]` | `required` |
+| `events` | `List[RuntimeEvent]` | `required` |
+| `step_count` | `int` | `required` |
+| `task_result` | `Optional[TaskResult]` | `None` |
+| `runtime_seconds` | `float` | `0.0` |
+| `total_tokens` | `int` | `0` |
+| `run_id` | `str` | `''` |
+| `critic_traces` | `List[CriticTrace]` | `field(default_factory=list)` |
+| `handoff_traces` | `List[HandoffTrace]` | `field(default_factory=list)` |
+| `failure` | `Optional[Dict[str, Any]]` | `None` |
+
+
+<span id="qitos-engine-states-runtimebudget" />
+## RuntimeBudget
+
+```python
+from qitos.engine.states import RuntimeBudget
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/states.py#L38)
+
+[Usage and executable example](/guides/build-your-first-agent)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+budget = RuntimeBudget(max_steps=3)
+engine = Engine(NotesAgent(), budget=budget)
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `max_steps` | `int` | `10` |
+| `max_runtime_seconds` | `Optional[float]` | `None` |
+| `max_tokens` | `Optional[int]` | `None` |
+| `max_model_requests` | `Optional[int]` | `None` |
+
+
+<span id="qitos-stopreason" />
+## StopReason
+
+```python
+from qitos import StopReason
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/errors.py#L20)
+
+[Usage and executable example](/guides/build-your-first-agent)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+print([reason.value for reason in StopReason])
+```
+
+
+<span id="qitos-engine-runtime-runtimecomposition" />
+## RuntimeComposition
+
+```python
+from qitos.engine.runtime import RuntimeComposition
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/runtime.py#L177)
+
+[Usage and executable example](/guides/build-your-first-agent)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+runtime = RuntimeComposition()
+engine = Engine(NotesAgent(), runtime=runtime)
+# The default checkpoint store is process-local.
+```
+
+```text
+Process-local Engine components plus their serializable description.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `checkpoint_store` | `Optional[CheckpointStore]` | `None` |
+| `resolvers` | `ResolverRegistry` | `field(default_factory=ResolverRegistry)` |
+| `durability_mode` | `DurabilityMode` | `DurabilityMode.SYNC` |
+| `lifecycle_policy` | `LifecyclePolicy` | `field(default_factory=LifecyclePolicy)` |
+| `snapshot_components` | `tuple[RuntimeSnapshotComponent, ...]` | `()` |
+| `event_sink` | `Any` | `None` |
+| `event_sink_failure_policy` | `Any` | `None` |
+| `event_sink_view` | `Any` | `None` |
+| `tool_execution_policy` | `Any` | `None` |
+| `launch_metadata` | `Mapping[str, Any]` | `field(default_factory=dict)` |
+| `context_model_runtime` | `Optional[ContextModelRuntime]` | `None` |
+| `work_runtime` | `Any` | `None` |
+| `event_sink_reports` | `list[Any]` | `field(default_factory=list, init=False)` |
+
+{/* api-reference:end */}

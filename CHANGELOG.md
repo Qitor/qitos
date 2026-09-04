@@ -17,6 +17,12 @@ How to update:
 
 ## Unreleased
 
+### Added
+
+- Self-contained EN/zh notes-Agent lessons with complete inline files, source-synchronized excerpts, core API signatures and page-extracted installed-wheel checks.
+- Explicit serialized handoff lesson and documented same-head concurrent callback limitation; runtime unchanged.
+
+
 ### Fixed
 
 - Avoid reparsing unchanged journal bytes on each append/read while retaining full content hashing, external-write validation, crash recovery and durability checks.
