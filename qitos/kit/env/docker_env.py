@@ -5,6 +5,7 @@ from __future__ import annotations
 import shlex
 import subprocess
 import threading
+import time
 import posixpath
 import hashlib
 import json
@@ -289,77 +290,75 @@ class DockerProcessControlCapability(ProcessControlCapability):
         self._owned: set[str] = set()
 
     def start(self, command: str) -> ProcessHandle:
+        from ._process_supervisor import SUPERVISOR
+
         if not command or not command.strip():
             raise EnvCapabilityError("invalid_command", "command must be non-empty")
         process_id = f"process-{uuid4().hex}"
         base = f"/tmp/qitos-processes/{process_id}"
-        script = (
-            f"mkdir -p /tmp/qitos-processes; "
-            f"( sh -lc {shlex.quote(command)}; rc=$?; printf '%s' \"$rc\" >{shlex.quote(base + '.rc')} ) "
-            f">{shlex.quote(base + '.out')} 2>{shlex.quote(base + '.err')} & "
-            f"echo $! >{shlex.quote(base + '.pid')}"
-        )
+        script = (f"nohup python3 -c {shlex.quote(SUPERVISOR)} "
+                  f"{shlex.quote(base)} {shlex.quote(command)} </dev/null >/dev/null 2>&1 &")
+        # Retain ownership even if start acknowledgement is lost.
+        self._owned.add(process_id)
         result = self.command.run(script, timeout=10)
         if int(result.get("returncode", 1)) != 0:
-            raise EnvCapabilityError("process_start_failed", "owned process did not start")
-        self._owned.add(process_id)
+            raise EnvCapabilityError("process_start_unknown", "worker start was not acknowledged")
         return ProcessHandle(process_id, self.generation)
 
     def poll(self, handle: ProcessHandle) -> Dict[str, Any]:
+        from ._process_supervisor import POLL
+
         base = self._base(handle)
-        script = (
-            f"pid=$(cat {shlex.quote(base + '.pid')}); "
-            f"if [ -f {shlex.quote(base + '.rc')} ]; then state=terminal; rc=$(cat {shlex.quote(base + '.rc')}); "
-            f"elif kill -0 \"$pid\" 2>/dev/null; then state=running; rc=; "
-            f"else state=unknown; rc=; fi; "
-            f"printf 'QITOS_STATE=%s\\nQITOS_RC=%s\\n' \"$state\" \"$rc\"; "
-            f"printf 'QITOS_STDOUT\\n'; tail -c 64000 {shlex.quote(base + '.out')} 2>/dev/null; "
-            f"printf '\\nQITOS_STDERR\\n'; tail -c 64000 {shlex.quote(base + '.err')} 2>/dev/null"
+        result = self.command.run(
+            f"python3 -c {shlex.quote(POLL)} {shlex.quote(base)}", timeout=10,
         )
-        result = self.command.run(script, timeout=10)
-        text = str(result.get("stdout") or "")
-        header, _, rest = text.partition("QITOS_STDOUT\n")
-        stdout, _, stderr = rest.partition("\nQITOS_STDERR\n")
-        state = next(
-            (line.partition("=")[2] for line in header.splitlines() if line.startswith("QITOS_STATE=")),
-            "unknown",
-        )
-        raw_rc = next(
-            (line.partition("=")[2] for line in header.splitlines() if line.startswith("QITOS_RC=")),
-            "",
-        )
-        return {
-            "status": state,
-            "returncode": int(raw_rc) if raw_rc.isdigit() else None,
-            "stdout": stdout,
-            "stderr": stderr,
-            "worker_still_running": state == "running",
-            "outcome_unknown": state == "unknown",
-        }
+        try:
+            if int(result.get("returncode", 1)) != 0:
+                raise ValueError("poll failed")
+            value = json.loads(str(result.get("stdout") or ""))
+            if value.get("status") not in {"terminal", "running", "unknown"}:
+                raise ValueError("invalid worker state")
+            return dict(value)
+        except (ValueError, TypeError):
+            return {"status": "unknown", "returncode": None, "stdout": "", "stderr": "",
+                    "worker_still_running": True, "outcome_unknown": True}
 
     def terminate(self, handle: ProcessHandle, timeout: int = 5) -> Dict[str, Any]:
         base = self._base(handle)
-        seconds = max(1, min(30, int(timeout)))
-        script = (
-            f"pid=$(cat {shlex.quote(base + '.pid')}); kill -TERM \"$pid\" 2>/dev/null || true; "
-            f"i=0; while kill -0 \"$pid\" 2>/dev/null && [ $i -lt {seconds * 10} ]; do i=$((i+1)); sleep 0.1; done; "
-            f"if kill -0 \"$pid\" 2>/dev/null; then kill -KILL \"$pid\" 2>/dev/null || true; fi; "
-            f"printf '143' >{shlex.quote(base + '.rc')}"
+        seconds = max(0, min(30, int(timeout)))
+        # This is a cancellation request, never a completion/exit-code record.
+        result = self.command.run(
+            f"mkdir -p /tmp/qitos-processes; printf '%s' {seconds} > {shlex.quote(base + '.cancel')}",
+            timeout=10,
         )
-        self.command.run(script, timeout=seconds + 5)
-        result = self.poll(handle)
-        result["termination"] = (
-            "owned_process_reaped" if not result["worker_still_running"] else "outcome_unknown"
-        )
-        return result
+        if int(result.get("returncode", 1)) != 0:
+            raise EnvCapabilityError("process_cancel_unknown", "cancellation was not acknowledged")
+        deadline = time.monotonic() + seconds + 2
+        while True:
+            observed = self.poll(handle)
+            if observed["status"] == "terminal":
+                observed["termination"] = "owned_process_reaped"
+                return observed
+            if time.monotonic() >= deadline:
+                observed["termination"] = "outcome_unknown"
+                observed["outcome_unknown"] = True
+                observed["worker_still_running"] = True
+                return observed
+            time.sleep(.05)
 
     def close(self) -> None:
+        unresolved = []
         for process_id in tuple(self._owned):
             try:
-                self.terminate(ProcessHandle(process_id, self.generation))
+                result = self.terminate(ProcessHandle(process_id, self.generation))
+                if result["status"] != "terminal":
+                    unresolved.append(process_id)
+                else:
+                    self._owned.remove(process_id)
             except Exception:
-                pass
-        self._owned.clear()
+                unresolved.append(process_id)
+        if unresolved:
+            raise EnvCapabilityError("process_cleanup_incomplete", "owned worker completion remains unknown")
         self.generation += 1
 
     def _base(self, handle: ProcessHandle) -> str:
@@ -516,8 +515,6 @@ class DockerEnv(HostEnv):
             if self._wall_timer is not None:
                 self._wall_timer.cancel()
             self.processes.close()
-            if self.policy is not None and self._created_here:
-                self._export_private_workspace()
         finally:
             ownership_ok = self._owns_container()
             if (
@@ -777,36 +774,12 @@ with tarfile.open(fileobj=sys.stdin.buffer, mode='r|') as bundle:
             raise RuntimeError(f"private workspace staging failed: {detail}")
 
     def _export_private_workspace(self) -> None:
-        if self.policy is None or not self._source_workspace or not self._created_here:
-            return
-        staging = Path(self._private_staging_root or tempfile.mkdtemp(prefix="qitos-sandbox-"))
-        self._private_staging_root = str(staging)
-        exported = staging / "export"
-        exported.mkdir(parents=True, exist_ok=True)
-        copied = _run(
-            ["docker", "cp", f"{self.container}:{self.container_workspace}/.", str(exported)],
-            timeout=self.create_timeout,
+        # Retained only to fail closed for callers of the former private hook.
+        # Cleanup never authorizes publication into an input workspace.
+        raise EnvCapabilityError(
+            "implicit_publication_unsupported",
+            "sandbox cleanup cannot publish source changes",
         )
-        if copied.returncode != 0:
-            raise RuntimeError("sandbox workspace export failed")
-        total = 0
-        files: list[tuple[Path, Path]] = []
-        source = Path(self._source_workspace).resolve()
-        for item in sorted(exported.rglob("*")):
-            relative = item.relative_to(exported)
-            if not relative.parts or relative.parts[0] == ".git" or item.is_symlink():
-                continue
-            if item.is_file():
-                total += item.stat().st_size
-                if total > self.policy.limits.disk_bytes:
-                    raise RuntimeError("sandbox export exceeded disk bound")
-                files.append((item, source / relative))
-        for item, target in files:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            temporary = target.with_name(f".{target.name}.qitos-export-{uuid4().hex}")
-            shutil.copyfile(item, temporary)
-            os.replace(temporary, target)
-        self.workspace_digest = _tree_digest(exported)
 
 
 class DockerEnvScheduler:

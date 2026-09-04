@@ -166,3 +166,25 @@ seven audit probes are recorded separately. Initial failures remain in the
 local execution logs; static CLI findings F841/F401 are pre-existing, not
 new allowances. Session durability across fresh processes and all lifecycle
 variants still require the final combined qualification.
+
+### G5-C1/C2 initial safety repair
+
+Cleanup no longer calls the implicit workspace exporter; the former private
+export hook typed-rejects rather than retaining the unsafe copy algorithm.
+Explicit permission/effect-controlled publication and retained output/artifact
+integration remain pending, so C1 as a whole is not yet qualified.
+
+Docker process control now launches one bounded-output backend supervisor and
+requests cancellation through a request marker. Only the supervisor emits real
+completion after parent exit, group absence, pipe drainage and (on Linux)
+adopted descendant absence. The controller never writes an exit code. Unknown
+completion retains ownership and close raises a typed cleanup failure.
+
+The original local parent-exit/child-survival probe now passes. One required
+real Docker test passed in 2.25 s on the preinstalled qualification image:
+private stage/read, non-root/read-only/cap-drop/NNP/network-none, no mounts,
+0.5 CPU/256 MiB/32 pids, owned process group termination, repeated termination,
+source-byte invariance and exact label-scoped container absence. This is one
+bounded scenario, not the complete required Docker matrix. No foreign container
+was stopped or removed. Python thread/remote request hard cancellation is not
+claimed; escaped process groups require containment/unknown semantics.

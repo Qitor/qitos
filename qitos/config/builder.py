@@ -509,8 +509,10 @@ def _inspect_persisted_session(config: AgentConfig, session_id: str) -> Dict[str
         if snapshot is None:
             raise CompositionError("persisted Session snapshot is missing", field="runtime.session")
         verify_snapshot_payload_integrity(snapshot.payload)
-        progress: Dict[str, Any] = next((item["payload"] for item in snapshot.payload["components"]
-                         if item["slot"] == "engine_progress"), {})
+        progress: Dict[str, Any] = next(
+            (item["payload"] for item in snapshot.payload["components"]
+             if item["slot"] == "engine_progress"), {},
+        )
         metadata = progress.get("runtime_composition", {}).get("launch_metadata", {})
         capabilities = set(store.session_capabilities())
         capabilities.update({"session.inspect", "session.restore", "session.fork"})
