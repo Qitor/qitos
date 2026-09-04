@@ -402,3 +402,14 @@ oversized model view according to declared policy.
 These mechanism guarantees do not promise that an Agent chose the right tools,
 budget, prompt, or context priorities. The complete boundary is
 [`framework-responsibility-boundary.md`](../architecture/framework-responsibility-boundary.md).
+
+## G5 local integration candidate (2026-09-04)
+
+The isolated G5 candidate now wires immutable-source CLI fork, durable SQLite
+composition/credential-free inspection, artifact-backed cold Docker workspace
+restore, separate child allocation, ownership fencing and checkpoint-derived
+child completion/join. Cleanup does not publish source changes; publication is
+an explicit permission/effect operation. The candidate has focused regression
+evidence, but installed consumers, full platform qualification and final gates
+remain open. See [the execution ledger](../internal/plans/s4_g5_convergence_execution.md).
+No primary promotion, default Trajectory switch or release is asserted here.

@@ -269,6 +269,10 @@ def _cleanup_composed_resources(
             return None
 
     if runtime is not None:
+        invoke("work_runtime", getattr(runtime, "work_runtime", None))
+        for component in getattr(runtime, "snapshot_components", ()):
+            if callable(getattr(component, "close", None)):
+                invoke(f"snapshot_owner:{component.codec.slot}", component)
         invoke("event_dispatcher", runtime, "flush_events")
         sink = runtime.event_sink
         invoke("event_sink", sink)
@@ -723,6 +727,11 @@ def build_agent_composition(
             services["artifact_resolver"] = FileArtifactStore(_session_store_path(config).parent / "artifacts")
         if isinstance(env, DockerEnv):
             env._artifact_resolver = services["artifact_resolver"]
+            if config.runtime.session.mode == "durable":
+                from ..kit.env._session_sandbox import SessionSandboxComponent
+                runtime.snapshot_components += (SessionSandboxComponent(
+                    env, sandbox_backend, runtime.checkpoint_store, services["artifact_resolver"],
+                ),)
         agent = ConfiguredAgent(
             name=config.name,
             llm=model,
@@ -775,7 +784,7 @@ def build_agent_composition(
                 failures=failures,
             ) from build_error
         raise
-    return AgentComposition(
+    composition = AgentComposition(
         config=config,
         model=model,
         tool_registry=tools,
@@ -790,6 +799,15 @@ def build_agent_composition(
         _owns_model=owns_model,
         _owns_environment=owns_environment,
     )
+    for component in runtime.snapshot_components:
+        if hasattr(component, "on_bind"):
+            def bind_owned_environment(engine: Any, env: Any, backend: Any) -> None:
+                composition.engine = engine
+                composition.env = env
+                composition.sandbox_backend = backend
+                composition.sandbox_receipt = backend.durability_receipt()
+            component.on_bind = bind_owned_environment
+    return composition
 
 
 def run_agent_config(

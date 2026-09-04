@@ -118,9 +118,11 @@ class _LocalHandle:
     ) -> None:
         def done(future: Future[Any]) -> None:
             try:
-                callback(future.result(), None)
+                result = future.result()
             except BaseException as exc:  # terminal fact, never escapes worker thread
                 callback(None, exc)
+            else:
+                callback(result, None)
 
         self._future.add_done_callback(done)
 

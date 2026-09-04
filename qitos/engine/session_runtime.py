@@ -28,6 +28,7 @@ from ..checkpoint.session import (
     SessionSnapshotCommit,
 )
 from ..checkpoint.durability import DurabilityMode
+from ..core.tool_result import ToolResult
 from ..core.session import (
     AgentIdentity,
     AgentStateSnapshotComponent,
@@ -1213,12 +1214,15 @@ class Session:
                 lifecycle=lifecycle,
                 step_id=step_id,
                 expected_head=head,
+                expected_owner_run_id=self._run_id.value,
                 pause_safety=pause_safety,
             )
             self._publish_work_graph_facts(graph, committed_head)
 
     def _commit_work_graph_value(self, graph: WorkGraph) -> None:
         """Persist a captured logical graph even after its worker was unbound."""
+
+        self._collect_child_completions(graph)
 
         if (
             self._engine._session_handle is self
@@ -1229,6 +1233,38 @@ class Session:
         with self._bound_runtime_cache():
             setattr(self._engine, "_qitos_work_graph", graph)
             self._commit_work_graph()
+
+    def _collect_child_completions(self, graph: WorkGraph) -> None:
+        """Read verified child heads; scheduler return values are not completion truth."""
+        completed = {item.work_item_id for item in graph.completions}
+        for identity, work in tuple(graph.work_items.items()):
+            if work.parent_work_item_id != self._work_item_id or identity in completed:
+                continue
+            head = self._store.get_session_head(work.session_ref.value)
+            if head is None or head.lifecycle not in {"completed", "failed", "cancelled"}:
+                continue
+            snapshot = self._load_snapshot(head)
+            lineage = _fork_lineage(snapshot, required=True)
+            agent = _agent_state(snapshot)
+            if (lineage.work_item_id != identity or lineage.source_session_id != self._session_id
+                    or agent.agent_id != work.owner.agent_id):
+                raise _session_error(SessionErrorCode.INVALID_IDENTITY_RELATIONSHIP,
+                                     "Child completion identity does not match its durable declaration.",
+                                     recoverable=False)
+            outcome = ToolResult(
+                status="success" if head.lifecycle == "completed" else "cancelled" if head.lifecycle == "cancelled" else "error",
+                output={"session_id": head.session_id, "snapshot_id": head.snapshot_id,
+                        "checkpoint_id": head.checkpoint_id, "generation": head.generation,
+                        "final_result": agent.state.get("final_result"),
+                        "stop_reason": agent.state.get("stop_reason")},
+                error=None if head.lifecycle == "completed" else "child Session terminated without success",
+            )
+            graph.record_completion(completion_id=f"session_terminal:{head.checkpoint_id}", work_item_id=identity,
+                                    owner_generation=work.owner.generation, outcome=outcome)
+        for join in tuple(graph.joins):
+            for completion in tuple(graph.completions):
+                if completion.work_item_id in join.child_work_item_ids:
+                    graph.accept_join_result(join.join_id, completion.work_item_id)
 
     def _publish_work_graph_facts(self, graph: WorkGraph, head: Any) -> None:
         """Project durable graph state into the canonical trajectory seam."""
@@ -1480,6 +1516,9 @@ class Session:
                     if not allowed:
                         raise _invalid_operation(lifecycle, SessionOperation.RUN)
                     snapshot = self._load_snapshot(head)
+                    if _agent_state(snapshot).agent_id != self._agent_id:
+                        raise _session_error(SessionErrorCode.SUPERSEDED_OWNER,
+                                             "The Session's work ownership has transferred.", recoverable=False)
                     state, task, next_step = self._restore_core_state(snapshot)
                     self._restore_budget(snapshot)
                     self._restore_runtime_components(
@@ -2016,6 +2055,8 @@ class Session:
             task=task,
             lifecycle=SessionLifecycle.PAUSING,
             step_id=step_id,
+            session=self,
+            owner_id=self._agent_id.value,
         )
         policy_request = bool(self._runtime.lifecycle_policy.should_pause(context))
         if not self._pause_requested.is_set() and not policy_request:
@@ -2290,6 +2331,10 @@ class Session:
             lifecycle=SessionLifecycle.RESTORING,
             step_id=int(progress.get("next_step", state.current_step)),
             restoring=True,
+            session=session,
+            snapshot=snapshot,
+            generation=head.generation + 1,
+            owner_id=session._agent_id.value,
         )
         for component_owner in runtime.snapshot_components:
             component = next(
@@ -2330,6 +2375,10 @@ class Session:
             lifecycle=SessionLifecycle(self._require_head().lifecycle),
             step_id=step_id,
             restoring=True,
+            session=self,
+            snapshot=snapshot,
+            generation=self._require_head().generation,
+            owner_id=self._agent_id.value,
         )
         for component_owner in self._runtime.snapshot_components:
             component = next(
@@ -2409,6 +2458,9 @@ class Session:
             task=task,
             lifecycle=lifecycle,
             step_id=step_id,
+            session=self,
+            generation=generation,
+            owner_id=self._agent_id.value,
         )
         components = list(
             self._core_components(
@@ -2445,7 +2497,7 @@ class Session:
                 ),
             ),
             components=components,
-            resolver_references=self._references,
+            resolver_references=self._snapshot_references(),
             component_registry=self._runtime.component_registry,
         )
         request = SessionSnapshotCommit(
@@ -2482,6 +2534,18 @@ class Session:
             )
         return self._require_head()
 
+    def _snapshot_references(self) -> tuple[ResolverReference, ...]:
+        graph = getattr(self._engine, "_qitos_work_graph", None)
+        if isinstance(graph, WorkGraph):
+            for operation in reversed(graph.operation_receipts):
+                if operation.operation == "handoff" and operation.descriptor is not None:
+                    descriptor = WorkDescriptor.from_dict(operation.descriptor)
+                    if descriptor.agent_refs:
+                        target = ResolverReference.from_dict(descriptor.agent_refs[0])
+                        return tuple(target if ref.namespace is ResolverNamespace.AGENT else ref
+                                     for ref in self._references)
+        return self._references
+
     def _core_components(
         self,
         *,
@@ -2494,8 +2558,10 @@ class Session:
         from ..core.session import CORE_SNAPSHOT_COMPONENT_CODECS
 
         codecs = {codec.slot: codec for codec in CORE_SNAPSHOT_COMPONENT_CODECS}
+        graph = getattr(self._engine, "_qitos_work_graph", None)
+        work = graph.work_items.get(self._work_item_id) if isinstance(graph, WorkGraph) else None
         agent_state = AgentStateSnapshotComponent(
-            agent_id=self._agent_id,
+            agent_id=work.owner.agent_id if work is not None else self._agent_id,
             state_schema=_state_schema_id(type(state)),
             state=state.to_dict(),
         )
@@ -2506,7 +2572,7 @@ class Session:
             "lifecycle": lifecycle.value,
             "engine_config": self._engine.export_config().to_dict(),
             "runtime_composition": self._runtime.export_config(
-                self._references
+                self._snapshot_references()
             ).to_dict(),
             "pause_safety": (
                 _json_value(asdict(pause_safety)) if pause_safety is not None else None

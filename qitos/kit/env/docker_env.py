@@ -62,9 +62,13 @@ class DockerCommandCapability(CommandCapability):
         self.container = container
         self.workdir = workdir
         self.output_limit = max(1, int(output_limit))
+        self.owner_guard: Any = None
 
     def run(self, command: str, timeout: int = 30) -> Dict[str, Any]:
         from ._process_supervisor import SUPERVISOR
+
+        if self.owner_guard is not None:
+            self.owner_guard()
 
         if not command or not command.strip():
             return {"status": "error", "error": "empty command"}
@@ -187,6 +191,7 @@ class DockerFSCapability(FileSystemCapability):
         self.container = container
         self.workdir = workdir.rstrip("/") or "/workspace"
         self.strict_workspace = bool(strict_workspace)
+        self.owner_guard: Any = None
         self.cmd = DockerCommandCapability(container=container, workdir=workdir)
 
     def read_text(self, path: str) -> str:
@@ -292,6 +297,8 @@ class DockerFSCapability(FileSystemCapability):
         return self.snapshot(path)
 
     def _inner_path(self, path: str) -> str:
+        if self.owner_guard is not None:
+            self.owner_guard()
         value = str(path)
         candidate = (
             posixpath.normpath(value)
@@ -313,6 +320,7 @@ class DockerProcessControlCapability(ProcessControlCapability):
         self.command = command
         self.generation = generation
         self._owned: set[str] = set()
+        self._cleaning = False
 
     def _control(self, script: str, timeout: int = 10) -> Dict[str, Any]:
         transport = getattr(self.command, "_control", self.command.run)
@@ -320,6 +328,9 @@ class DockerProcessControlCapability(ProcessControlCapability):
 
     def start(self, command: str) -> ProcessHandle:
         from ._process_supervisor import SUPERVISOR
+
+        if getattr(self.command, "owner_guard", None) is not None:
+            self.command.owner_guard()
 
         if not command or not command.strip():
             raise EnvCapabilityError("invalid_command", "command must be non-empty")
@@ -376,6 +387,7 @@ class DockerProcessControlCapability(ProcessControlCapability):
             time.sleep(.05)
 
     def close(self) -> None:
+        self._cleaning = True
         unresolved = []
         for process_id in tuple(self._owned):
             try:
@@ -386,11 +398,14 @@ class DockerProcessControlCapability(ProcessControlCapability):
                     self._owned.remove(process_id)
             except Exception:
                 unresolved.append(process_id)
+        self._cleaning = False
         if unresolved:
             raise EnvCapabilityError("process_cleanup_incomplete", "owned worker completion remains unknown")
         self.generation += 1
 
     def _base(self, handle: ProcessHandle) -> str:
+        if not self._cleaning and getattr(self.command, "owner_guard", None) is not None:
+            self.command.owner_guard()
         if handle.owner_generation != self.generation:
             raise EnvCapabilityError("stale_generation", "process handle is stale")
         if handle.process_id not in self._owned:
@@ -444,6 +459,8 @@ class DockerEnv(HostEnv):
         self._artifact_resolver: Any = None
         self.output_artifact: Any = None
         self._artifact_error: Optional[EnvCapabilityError] = None
+        self._logical_identity: Dict[str, Any] = {}
+        self._owner_guard: Any = None
         self._sandbox_id = f"sandbox-{uuid4().hex}"
         self._private_staging_root = ""
         self._source_workspace = self.host_workspace
@@ -505,7 +522,11 @@ class DockerEnv(HostEnv):
                 else 2 * 1024 * 1024
             ),
         )
-        self.processes = DockerProcessControlCapability(self.cmd)
+        self.processes = DockerProcessControlCapability(
+            self.cmd, generation=int(self._logical_identity.get("owner_generation", 0)),
+        )
+        self.cmd.owner_guard = lambda: self._owner_guard() if self._owner_guard is not None else None
+        self.fs.owner_guard = self.cmd.owner_guard
 
     def reset(self, task: Any = None, workspace: Optional[str] = None, **kwargs: Any):
         self.setup(task=task, workspace=workspace, **kwargs)
@@ -727,13 +748,16 @@ class DockerEnv(HostEnv):
             "--user", uid_gid,
             "--env", "HOME=/tmp/qitos-home",
             "--label", f"qitos.sandbox.id={self._sandbox_id}",
-            "--label", "qitos.sandbox.owner-generation=0",
+            "--label", f"qitos.sandbox.owner-generation={self._logical_identity.get('owner_generation', 0)}",
             "--cap-drop", "ALL",
             "--security-opt", "no-new-privileges:true",
             "--read-only",
         ]
         if self._config_digest_label:
             args += ["--label", f"qitos.config.digest={self._config_digest_label}"]
+        for key in ("session_id", "run_id", "work_item_id", "attempt_id"):
+            if key in self._logical_identity:
+                args += ["--label", f"qitos.sandbox.{key}={self._logical_identity[key]}"]
         return args
 
     def _stage_private_workspace(self) -> None:

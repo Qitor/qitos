@@ -90,7 +90,11 @@ def test_env_teardown_failure_logs_warning(caplog):
     engine_mock.env = env_mock
     rt = _EnvRuntime(engine=engine_mock)
     with caplog.at_level(logging.WARNING, logger="qitos.engine._env_runtime"):
-        rt.teardown_env()
+        import pytest
+        from qitos.core.env import EnvCapabilityError
+        with pytest.raises(EnvCapabilityError) as failure:
+            rt.teardown_env()
+        assert failure.value.code == "environment_cleanup_failed"
     assert any("teardown failed" in r.message.lower() for r in caplog.records)
 
 

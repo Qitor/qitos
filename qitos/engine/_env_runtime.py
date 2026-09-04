@@ -12,7 +12,7 @@ _logger = logging.getLogger("qitos.engine._env_runtime")
 
 from ..core.decision import Decision
 from ..core.diagnostics import redact_diagnostic_value
-from ..core.env import Env, EnvObservation, EnvSpec, EnvStepResult
+from ..core.env import Env, EnvCapabilityError, EnvObservation, EnvSpec, EnvStepResult
 from ..core.observation import Observation
 from ..core.state import StateSchema
 from ..core.task import Task
@@ -448,7 +448,14 @@ class _EnvRuntime(Generic[StateT, ObservationT, ActionT]):
         try:
             engine.env.teardown()
         except Exception as exc:
-            _logger.warning("Env teardown failed: %s", exc)
+            _logger.warning("Env teardown failed: %s", type(exc).__name__)
+            engine._emit(0, RuntimePhase.END, ok=False,
+                         payload={"stage": "environment_cleanup", "status": "failed",
+                                  "error_code": "environment_cleanup_failed"})
+            raise EnvCapabilityError("environment_cleanup_failed", "owned environment cleanup failed") from None
+        receipt = getattr(engine.env, "cleanup_receipt", None)
+        if isinstance(receipt, dict):
+            engine._emit(0, RuntimePhase.END, payload={"stage": "environment_cleanup", "receipt": receipt})
 
     def run_env_step(
         self, decision: Decision[ActionT], action_results: List[Any]

@@ -423,6 +423,16 @@ def _command_result(tool_name: str, command: str, timeout: int, raw: Dict[str, A
             "omitted_characters": omitted,
         },
     }
+    if raw.get("worker_still_running") or raw.get("outcome_unknown"):
+        return ToolResult(
+            status="error" if raw.get("outcome_unknown") else "success",
+            output=raw, model_output=model_output, tool_name=tool_name,
+            error="process completion is unknown" if raw.get("outcome_unknown") else None,
+            error_kind="execution" if raw.get("outcome_unknown") else None,
+            error_code="process_outcome_unknown" if raw.get("outcome_unknown") else None,
+            worker_still_running=bool(raw.get("worker_still_running")),
+            outcome_unknown=bool(raw.get("outcome_unknown")),
+        )
     artifacts = (
         (_artifact(raw, kind="command output", summary="narrow the command for context", runtime_context=runtime_context),)
         if omitted
@@ -571,7 +581,15 @@ def terminate_process(
                 ProcessHandle(process_id, owner_generation)
             )
         )
-        return _success(output=raw, model_output=raw, tool_name="terminate_process")
+        terminal = raw.get("status") == "terminal" and not raw.get("worker_still_running", True)
+        return ToolResult(
+            status="success" if terminal else "error", output=raw, model_output=raw,
+            tool_name="terminate_process", worker_still_running=not terminal,
+            outcome_unknown=not terminal,
+            error=None if terminal else "owned process termination remains unknown",
+            error_code=None if terminal else "process_termination_unknown",
+            error_kind=None if terminal else "execution",
+        )
     except Exception as exc:
         return _semantic("terminate_process", exc)
 

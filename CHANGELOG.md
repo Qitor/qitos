@@ -94,6 +94,8 @@ How to update:
 
 ### Fixed
 
+- G5 integration candidate connects durable Docker workspace artifacts and isolated cold restore, explicit source publication, truthful process completion, transferred ownership, and child checkpoint-backed WorkGraph joins. Qualification and default switches remain pending.
+
 - Reject self-authorized S4 readiness metadata using an integration-owned requirement registry and exact execution evidence pins.
 
 - Remove implicit sandbox cleanup writes into source workspaces and require backend process completion instead of controller-generated exit codes.

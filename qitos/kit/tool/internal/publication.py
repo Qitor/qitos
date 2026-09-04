@@ -34,6 +34,8 @@ class SandboxPublicationTool(BaseTool):
         context = runtime_context or {}
         artifacts = []
         try:
+            if self._env._owner_guard is not None:
+                self._env._owner_guard()
             if args or context.get("env") is not self._env:
                 raise EnvCapabilityError("publication_authority_mismatch", "publication authority is invalid")
             if self._env.processes.generation != self._generation:

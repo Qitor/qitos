@@ -274,3 +274,42 @@ paused, unpublished code is retained, but fresh composition restore reads the
 original input instead of the snapshot output (1 failed, 1.99 s). The earlier
 invalid fork-operation test setup was corrected before recording that failure.
 This is a red G5-I1 test, not a passing restore qualification.
+
+### Durable sandbox/work integration repair
+
+Registered the C sandbox component on durable Docker compositions. Its required
+owner stores a bounded workspace ArtifactRef, cold-restores into a new attested
+allocation, validates source/fork lineage and generation, and binds exact Docker
+Session/run/work/attempt labels. New snapshots require the owner; the older
+optional component remains readable. RuntimeSnapshotContext carries the existing
+Session, immutable source snapshot and ownership facts to extension owners; no
+Engine constructor parameter or second persistence store was added.
+
+Outputs are bounded to 4 MiB of file bodies / 4096 entries (8 MiB encoded
+workspace artifact). Native process/memory restore, nested host publication, and
+resuming an unresolved background process remain unsupported. Source publication
+is separate from cleanup. Retention/cleanup failure is now typed and emitted; it
+cannot be reduced to a warning-only successful run. Original warning assertions
+remain, with typed failure assertions added.
+
+The real restored-sandbox test passed (5.32 s); three serial Docker continuity,
+sibling isolation/identity-label, old-owner fencing and missing-artifact tests
+passed (13.53 s). The original missing-workspace regression is closed by this
+code; installed fresh-process qualification remains pending.
+
+A real LocalWorkScheduler child test first failed: a completed child Session had
+zero WorkGraph completions and its join remained open (1 failed, 0.37 s). Session
+now verifies actual child checkpoint identity/lineage/owner and records canonical
+ToolResult completion before accepting join dependencies. Scheduler callback
+failure no longer invokes a second terminal callback as a synthetic worker
+failure. Handoff snapshots preserve the transferred agent identity/reference,
+while the previous facade remains fenced.
+
+Final adjacent iteration on f23136e plus this fixing diff: 300 passed (19.75 s)
+across engine/checkpoint, audit, sandbox continuity, cleanup, public budget and
+architecture gates. A prior adjacent run had 299 passed / one cleanup-test-double
+failure, repaired with partial-resource-safe cleanup lookup. The real child/fork
+subset passed 41 tests (7.42 s). Flake8 changed modules passed; mypy stable plus
+changed composition/sandbox modules passed, 107 files. Full-tree, installed-wheel
+consumers, all Docker adversarial cases, readiness and default switches are still
+required; these focused results are not substituted for those gates.

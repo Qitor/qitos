@@ -18,6 +18,8 @@ QitOS core is the small framework. Product-grade applications and showcase agent
 
 ## What's New
 
+- **G5 integration candidate**: durable workspace artifacts, isolated Session restore, explicit publication, and child checkpoint-backed joins are under qualification; see [the execution ledger](docs/internal/plans/s4_g5_convergence_execution.md). No local promotion or default switch yet.
+
 - G5 convergence is in progress: provider post-dispatch failures preserve request accounting; integration and default switches remain unqualified.
 
 - **S4 candidates reviewed; G5 repairs required**: the four isolated lanes delivered public authoring, provider/context, safe-execution, and Trajectory/distribution candidates. Independent review passed 198 focused tests but reproduced host-output, process-lifecycle, fork, request-accounting, journal, loss-reporting, and readiness defects. None of the S4 candidates is promoted; see the [audit and convergence plan](docs/internal/plans/s4_g5_convergence_audit.md).

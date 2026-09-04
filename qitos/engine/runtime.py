@@ -50,6 +50,10 @@ class RuntimeSnapshotContext:
     lifecycle: SessionLifecycle
     step_id: int
     restoring: bool = False
+    session: Any = None
+    snapshot: Any = None
+    generation: int = 0
+    owner_id: str = ""
 
 
 @dataclass(frozen=True)

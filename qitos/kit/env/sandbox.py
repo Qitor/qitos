@@ -376,6 +376,7 @@ class SandboxSnapshotComponent:
     quiescence: str
     cleanup_state: str
     schema_version: str = SANDBOX_SNAPSHOT_COMPONENT_VERSION
+    workspace_artifact: Dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if self.schema_version != SANDBOX_SNAPSHOT_COMPONENT_VERSION:
@@ -397,18 +398,25 @@ class SandboxSnapshotComponent:
             raise ValueError("quiescence is invalid")
         if self.cleanup_state not in {"pending", "cleaned", "failed"}:
             raise ValueError("cleanup_state is invalid")
+        if self.workspace_artifact is not None:
+            from qitos.core.artifact import ArtifactRef
+            reference = ArtifactRef.from_dict(self.workspace_artifact)
+            if reference.sha256 != self.workspace_digest:
+                raise ValueError("workspace artifact digest mismatch")
 
     def to_dict(self) -> Dict[str, Any]:
         self.__post_init__()
         payload = {name: getattr(self, name) for name in self.__dataclass_fields__}
         payload["capability_set"] = list(self.capability_set)
+        if self.workspace_artifact is None:
+            payload.pop("workspace_artifact")
         json.dumps(payload, sort_keys=True, allow_nan=False)
         return payload
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> "SandboxSnapshotComponent":
         expected = set(cls.__dataclass_fields__)
-        if set(payload) != expected:
+        if set(payload) not in (expected, expected - {"workspace_artifact"}):
             raise ValueError("sandbox snapshot component shape is invalid")
         data = dict(payload)
         data["capability_set"] = tuple(data["capability_set"])
@@ -718,6 +726,16 @@ class DockerSandboxBackend:
             self._cleanup_failed_prepare()
             raise SandboxCapabilityMismatch("Docker inspect response is invalid") from exc
         inspected_image = str(item.get("Image") or "").removeprefix("sha256:")
+        logical_identity = getattr(self.env, "_logical_identity", {})
+        if logical_identity:
+            labels = dict(config.get("Labels") or {})
+            required_labels = {"qitos.sandbox.id": self.identity.sandbox_id,
+                               "qitos.sandbox.owner-generation": str(self.identity.owner_generation)}
+            required_labels.update({f"qitos.sandbox.{key}": str(logical_identity[key])
+                                    for key in ("session_id", "run_id", "work_item_id", "attempt_id")})
+            if any(labels.get(key) != value for key, value in required_labels.items()):
+                self._cleanup_failed_prepare()
+                raise SandboxCapabilityMismatch("sandbox identity labels do not match the owner allocation")
         if policy is not None and policy.image_digest is not None:
             if inspected_image != policy.image_digest:
                 try:
@@ -831,7 +849,8 @@ class DockerSandboxBackend:
             logical_identity=self.identity.to_dict(),
             workspace_digest=str(getattr(self.env, "workspace_digest", "")),
             input_digest=str(getattr(self.env, "input_digest", "")),
-            lease={"owner_generation": 0, "state": "active"},
+            lease={"lease_id": "lease:" + self.identity.sandbox_id,
+                   "owner_generation": self.identity.owner_generation, "state": "active"},
         )
         if not capabilities.safe_for_executable_tools:
             try:
@@ -959,7 +978,8 @@ class DockerSandboxBackend:
                 getattr(self.env, "workspace_digest", previous.workspace_digest)
             ),
             input_digest=previous.input_digest,
-            lease={"owner_generation": 0, "state": "closed"},
+            lease={"lease_id": "lease:" + self.identity.sandbox_id,
+                   "owner_generation": self.identity.owner_generation, "state": "closed"},
             execution_receipts=previous.execution_receipts,
             cleanup_receipt=dict(getattr(self.env, "cleanup_receipt", {})),
         )
