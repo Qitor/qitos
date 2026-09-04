@@ -21,8 +21,10 @@ def test_explicit_selected_file_publication(tmp_path):
     assert sorted(p.name for p in tmp_path.iterdir()) == ["code.py"]
 
 
-@pytest.mark.parametrize("path", ["../outside", "/absolute", "link/code.py", ".git/config", ".ssh/authorized_keys",
-                                "credentials.yaml", "secret.txt", ".env.local", "id.key"])
+@pytest.mark.parametrize("path", [
+    "../outside", "/absolute", "link/code.py", ".git/config", ".ssh/authorized_keys",
+    "credentials.yaml", "secret.txt", ".env.local", "id.key",
+])
 def test_publication_denies_unselected_or_protected_paths(tmp_path, path):
     source = tmp_path / "source"
     outside = tmp_path / "outside"

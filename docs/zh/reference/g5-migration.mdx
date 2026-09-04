@@ -5,7 +5,7 @@ description: "QitOS G5 · G5 迁移与限制"
 
 ## 当前状态
 
-G5 runtime `717b4cf1b23f2ed252cd03234ffd8605038d9567` 框架资格通过，S4 本地融合完成。历史 2663 passed / 50 skipped 属于该 SHA；本轮不重跑或冒称新提交通过 G5。远端同步已核验，默认开发分支为 master。完整 CI 仍有兼容性与历史证据阻塞；未发布或部署。Python 3.10 的 publication 当前会因运行时使用 Python 3.11 才引入的 hashlib.file_digest 而失败；此路径需 Python 3.11+，本地 G5 资格具体属于 3.12.7。
+G5 runtime `717b4cf1b23f2ed252cd03234ffd8605038d9567` 框架资格通过，S4 本地融合完成。历史 2663 passed / 50 skipped 属于该 SHA；本轮不重跑或冒称新提交通过 G5。远端同步已核验，默认开发分支为 master。后继 CI 修复结果独立记录；未发布或部署。固定历史 G5 提交中的 Python 3.10 publication 会因使用 Python 3.11 才引入的 hashlib.file_digest 而失败；此路径需 Python 3.11+，本地 G5 资格具体属于 3.12.7。
 
 | 边界 | 支持范围 |
 |---|---|
@@ -38,3 +38,5 @@ required sink 失败：处理存储/权限后核对持久化事实；不能把 f
 [配置](/zh/reference/configuration) · [Quickstart](/zh/quickstart).
 
 master 后继修复：publication 已改用兼容 Python 3.10 的有界文件描述符分块哈希。固定的历史 G5 commit 未改变；当前资格单独记录在 master CI 稳定性计划中。
+
+master 在校验当前文件全部字节摘要后才复用已解析 journal 数据。内容变化时仍完整解析、核验；完整读取仍全量加载。来源分支不存在时，历史资格仅接受固定且已保留的祖先身份；已存在但不匹配的分支仍会失败。

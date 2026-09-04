@@ -43,7 +43,7 @@ def test_g4_twenty_clean_process_rounds(tmp_path: Path) -> None:
         root.mkdir()
         database = root / "g4.sqlite"
         control = root / "control.json"
-        candidate = root / "candidate.json"
+        candidate = root / "trajectory.journal"
         created = _run(
             "create", database=database, control=control, candidate=candidate
         )
@@ -84,7 +84,7 @@ def test_g4_twenty_preparation_crash_rounds(tmp_path: Path) -> None:
         root.mkdir()
         database = root / "preparation.sqlite"
         control = root / "control.json"
-        candidate = root / "unused.json"
+        candidate = root / "unused.journal"
         created = _run(
             "prepare_create",
             database=database,

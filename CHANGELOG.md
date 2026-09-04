@@ -19,15 +19,19 @@ How to update:
 
 ### Fixed
 
+- Avoid reparsing unchanged journal bytes on each append/read while retaining full content hashing, external-write validation, crash recovery and durability checks.
+- Resolve frozen historical producer identities from exact retained ancestry when retired source branches are absent; moved refs and untrusted inventory identities still fail.
 - Restore Python 3.10 explicit publication by hashing validated file descriptors in bounded chunks; containment, special-file rejection, source-conflict checks and rollback remain enforced.
 
 ### Changed
 
-- Make CI prerequisites explicit (build tools, asyncio plugin, full history and owned Docker fixtures), preserve the qualified typing context, and remove test-only interpreter and queue-scheduling assumptions. Remote Python 3.10 publication failures remain visible under the runtime freeze.
+- Make CI prerequisites explicit (build tools, asyncio plugin, full history and owned Docker fixtures), preserve the qualified typing context, and remove test-only interpreter and queue-scheduling assumptions. The subsequent explicitly authorized runtime fixes are qualified separately from G5.
 
 - Promote `master` as the default development branch; run CI/docs checks on master, main, the integration branch and PRs, with bounded jobs and retained test/build artifacts. Publication remains explicit.
 
 ### Documentation consolidation
+
+- Add the v5 residual-goal roadmap and five actionable task groups, with v4 goal mapping, implementation/consumer acceptance, ownership leases and bounded live-test policy. These are plans, not new runtime capabilities or release qualification.
 
 - Correct current G5 status: framework qualification passed and S4 locally integrated
   at `717b4cf1b23f2ed252cd03234ffd8605038d9567`; runtime identity is unchanged by the later master promotion.

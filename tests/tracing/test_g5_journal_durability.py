@@ -84,6 +84,8 @@ def test_interrupted_write_reports_uncertainty_and_retry_never_duplicates(tmp_pa
         assert failure.value.bytes_written == path.stat().st_size > 0
     monkeypatch.setattr(Path, "open", original_open)
     monkeypatch.setattr(os, "fsync", original_sync)
+    assert store.append(item).persisted_count == 1
+    assert len(store.read_run("run").records) == 1
     reopened = JournalTrajectoryStore(path)
     receipt = reopened.append(item)
     assert receipt.persisted_count == 1
@@ -126,3 +128,41 @@ def test_complete_read_over_default_limit_and_page_boundary(tmp_path):
     artifact = exporter.export(whole, view=PrivacyView.RAW_PRIVATE)
     restored = exporter.reimport(artifact)
     assert restored.to_dict() == whole.to_dict()
+
+
+def test_cached_journal_detects_same_size_edit_with_restored_mtime(tmp_path):
+    path = tmp_path / "journal"
+    store = JournalTrajectoryStore(path)
+    store.append(record(0))
+    before = path.stat()
+    original = path.read_bytes()
+    changed = original.replace(b'"index":0', b'"index":9')
+    assert changed != original and len(changed) == len(original)
+    path.write_bytes(changed)
+    os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))
+    assert not store.validate_integrity().valid
+    with pytest.raises(StoreIntegrityError, match="journal_frame_digest_mismatch"):
+        store.append(record(1))
+    assert path.read_bytes() == changed
+
+
+def test_verified_bytes_avoid_reparsing_but_external_append_is_revalidated(tmp_path, monkeypatch):
+    path = tmp_path / "journal"
+    store = JournalTrajectoryStore(path)
+    decode = JournalTrajectoryStore._decode_frame
+    decoded = []
+
+    def counted(value, **kwargs):
+        decoded.append(value["start_sequence"])
+        return decode(value, **kwargs)
+
+    monkeypatch.setattr(JournalTrajectoryStore, "_decode_frame", staticmethod(counted))
+    store.append(record(0))
+    store.append(record(1))
+    assert len(store.read_run("run").records) == 2
+    assert decoded == []
+    other = JournalTrajectoryStore(path)
+    other.append(record(2))
+    decoded.clear()
+    assert len(store.read_run("run").records) == 3
+    assert decoded == [0, 1, 2]

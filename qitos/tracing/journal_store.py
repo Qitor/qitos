@@ -8,6 +8,7 @@ batch. Complete malformed or checksum-invalid frames are corruption.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import tempfile
@@ -81,6 +82,7 @@ class JournalTrajectoryStore:
         self._recover_partial_tail = recover_partial_tail and not read_only
         self._max_query_records = max_query_records
         self._last_frame_digest: Optional[str] = None
+        self._verified_hasher: Any = None
         self._recovered_tail_bytes = 0
         try:
             if not read_only:
@@ -190,6 +192,20 @@ class JournalTrajectoryStore:
         return records, supplied_digest
 
     def _load(self, *, recover: bool) -> None:
+        # Check every byte, including in-place edits with unchanged timestamps.
+        # Only parsing/materialization is cached; file metadata is not authority.
+        if self._verified_hasher is not None:
+            try:
+                current = hashlib.sha256()
+                with self._path.open("rb") as handle:
+                    for chunk in iter(lambda: handle.read(256 * 1024), b""):
+                        current.update(chunk)
+            except OSError:
+                raise StoreIOError("store_read_failed") from None
+            if current.digest() == self._verified_hasher.digest():
+                return
+        self._verified_hasher = None
+        verified = hashlib.sha256()
         records: List[TrajectoryRecord] = []
         previous_digest: Optional[str] = None
         valid_end = 0
@@ -216,6 +232,7 @@ class JournalTrajectoryStore:
                     )
                     records.extend(frame_records)
                     valid_end += len(line)
+                    verified.update(line)
         except OSError:
             raise StoreIOError("store_read_failed") from None
         self._memory._restore(records)
@@ -223,6 +240,7 @@ class JournalTrajectoryStore:
         if not report.valid:
             raise StoreIntegrityError("journal_record_integrity_mismatch")
         self._last_frame_digest = previous_digest
+        self._verified_hasher = verified
 
     def _truncate(self, size: int) -> None:
         try:
@@ -233,7 +251,7 @@ class JournalTrajectoryStore:
         except OSError as exc:
             raise StoreIOError("partial_tail_recovery_failed") from exc
 
-    def _append_frame(self, document: Mapping[str, Any]) -> None:
+    def _append_frame(self, document: Mapping[str, Any]) -> bytes:
         data = canonical_json_bytes(document) + b"\n"
         if len(data) > _MAX_FRAME_BYTES:
             raise TrajectoryStoreError("journal_frame_limit_exceeded")
@@ -254,9 +272,10 @@ class JournalTrajectoryStore:
                 bytes_written=written,
                 durability_unknown=attempted,
             ) from None
+        return data
 
     def _index_document(self) -> Dict[str, Any]:
-        records = self._memory.snapshot()
+        records = self._memory._snapshot_records()
 
         def positions(name: str) -> Dict[str, List[int]]:
             result: Dict[str, List[int]] = {}
@@ -325,7 +344,7 @@ class JournalTrajectoryStore:
                     status=DurabilityStatus.PERSISTED,
                     operation_id=str(uuid.uuid4()),
                 )
-            before = self._memory.snapshot()
+            before = self._memory._snapshot_records()
             existing = {record.record_id: record for record in before}
             repeated = [record for record in batch if record.record_id in existing]
             if repeated:
@@ -349,8 +368,10 @@ class JournalTrajectoryStore:
                     accepted_count=len(batch), persisted_count=len(batch),
                     detail_code="already_persisted",
                 )
+            verified = self._verified_hasher.copy()
+            self._verified_hasher = None
             receipt = self._memory.append_batch(batch)
-            after = self._memory.snapshot()
+            after = self._memory._snapshot_records()
             assigned = after[len(before) :]
             transaction_id = receipt.operation_id or str(uuid.uuid4())
             document = self._frame_document(
@@ -360,11 +381,13 @@ class JournalTrajectoryStore:
                 transaction_id=transaction_id,
             )
             try:
-                self._append_frame(document)
+                frame = self._append_frame(document)
             except Exception:
                 self._memory._restore(before)
                 raise
             self._last_frame_digest = str(document["frame_digest"])
+            verified.update(frame)
+            self._verified_hasher = verified
             index_persisted = self._write_index(best_effort=True)
             return DurabilityReceipt(
                 status=DurabilityStatus.PERSISTED,
@@ -442,7 +465,7 @@ class JournalTrajectoryStore:
             except (StoreIntegrityError, StoreIOError):
                 return StoreIntegrityReport(
                     valid=False,
-                    record_count=len(self._memory.snapshot()),
+                    record_count=len(self._memory._snapshot_records()),
                     store_digest_valid=False,
                     recovered_tail_bytes=self._recovered_tail_bytes,
                 )
@@ -468,7 +491,7 @@ class JournalTrajectoryStore:
             self._load(recover=self._recover_partial_tail)
             return StorageMeasurement(
                 storage_schema=STORE_SCHEMA_VERSION,
-                record_count=len(self._memory.snapshot()),
+                record_count=len(self._memory._snapshot_records()),
                 size_bytes=self._path.stat().st_size,
                 measurement_kind="observed_journal_bytes",
             )
@@ -479,7 +502,7 @@ class JournalTrajectoryStore:
                 os.fsync(handle.fileno())
         except OSError as exc:
             raise StoreIOError("store_flush_failed") from exc
-        count = len(self._memory.snapshot())
+        count = len(self._memory._snapshot_records())
         return DurabilityReceipt(
             status=DurabilityStatus.PERSISTED,
             accepted_count=count,

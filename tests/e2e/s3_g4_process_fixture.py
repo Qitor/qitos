@@ -43,7 +43,7 @@ from qitos.engine.work_runtime import (
 from qitos.kit.tool.agent.durable_adapter import submit_durable_work
 from qitos.qita._cli_app import main as qita_main
 from qitos.tracing.sinks import TrajectoryStoreEventSink
-from qitos.tracing.store import JsonTrajectoryStore
+from qitos.tracing.journal_store import JournalTrajectoryStore
 
 
 @dataclass
@@ -143,7 +143,7 @@ class Scheduler:
 
 
 def _runtime(store: SqliteCheckpointStore, scheduler: Scheduler) -> RuntimeComposition:
-    trajectory = JsonTrajectoryStore(os.environ["QITOS_G4_CANDIDATE"])
+    trajectory = JournalTrajectoryStore(os.environ["QITOS_G4_CANDIDATE"])
     runtime = RuntimeComposition(
         checkpoint_store=store,
         event_sink=TrajectoryStoreEventSink(trajectory),

@@ -1,11 +1,46 @@
-# v4 integration progress
+# QitOS iteration progress — v4 history and v5 roadmap
+
+## v5 residual-goal roadmap (2026-09-04)
+
+Status: **planned; no v5 implementation wave dispatched**.
+Planning source: `f9e45f372ba4b8a5c89982add56a667908893b30`.
+See [v5 overview and v4 mapping](v5/README.md) and
+[planning evidence](internal/plans/v5_iteration_planning.md).
+
+Five capability groups now own the remaining work: real Agent/provider workflow;
+long-task context and memory; tool/API/architecture consolidation; efficient
+Trajectory and research exports; interactive Session and sandbox extensions.
+Existing G5 mechanisms remain the foundation, not tasks to implement again.
+
+The preceding read-only audit reproduced streaming infrastructure failure as
+normal model content, legacy Read double-pagination, missing Edit replace_all
+forwarding, dual Observation state, and inert functional retry. It also found
+missing original-Agent migration evidence, incomplete memory/compaction adapters,
+full-scan journal costs, missing training exporters and retained optional/lifecycle
+debt. The v5 documents bind these to subpackages and acceptance criteria.
+
+Master CI stabilization is a separate concurrent task and may already repair
+part of the audited source, including publication portability and journal parsing.
+Before implementation, consume its exact committed result and revalidate the
+residual list. Do not replay already-fixed defects or inherit old test counts.
+This planning task does not change runtime, quality baselines, fixtures, CI,
+default branches or deployment state, and does not authorize live calls/push.
+Implementation dispatch will freeze a new exact baseline and file leases;
+no placeholder SHA or moving-branch implementation pin is published here.
+
+The earlier functional E2E inventory is reused by V5-01; recommended per-response
+output is 10,240 tokens, with explicit profile and aggregate authorization.
+Historical single-model failures do not replace deterministic framework gates.
 
 ## Current status (2026-09-04)
 
-Current G5 runtime baseline: `717b4cf1b23f2ed252cd03234ffd8605038d9567`.
+Historical qualified G5 runtime baseline: `717b4cf1b23f2ed252cd03234ffd8605038d9567`.
 Framework qualification **passed**; S4 local integration **complete**.
 Remote sync: **verified**; default development branch: **master**.
-Default branch changed by explicit user authorization. **Full CI is not yet qualified; no release or deployment**. See [promotion report](internal/plans/g5_docs_tutorials_report.md).
+Default branch and subsequent runtime fixes were explicitly authorized by the user.
+Master CI stabilization is in progress; no release or deployment. See
+[successor CI evidence](internal/plans/master_ci_stabilization.md) and the
+[historical promotion report](internal/plans/g5_docs_tutorials_report.md).
 Historical G5: 2663 passed / 50 live-opt-in skipped, Python 3.12.7.
 Documentation successors do not inherit that test execution identity.
 

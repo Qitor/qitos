@@ -141,3 +141,33 @@ def test_receipt_presence_cannot_mask_digest_or_executable_fact_failure(tmp_path
     assert "producer_digest_mismatch" in codes
     assert "executable_test_binding_missing" in codes
     assert result.to_dict()["claims"] == []
+
+
+def test_unpinned_source_cannot_qualify_merely_because_its_commit_is_present(tmp_path: Path) -> None:
+    repo, inventory = _qualified_inventory(tmp_path)
+    dependency = inventory["dependencies"][0]
+    _git(repo, "branch", "-m", dependency["producer_branch"], "preserved-source-a")
+    result = qualify_s3_readiness(inventory, repository_root=repo)
+    assert not result.ready
+    assert "producer_ref_mismatch" in {finding.code for finding in result.findings}
+
+
+def test_archived_sources_require_ancestry_and_do_not_override_existing_refs(tmp_path: Path) -> None:
+    repo = tmp_path / "clone"
+    _git(tmp_path, "clone", "--no-local", "--single-branch", str(ROOT), str(repo))
+    inventory = load_readiness_inventory(DEFAULT_INVENTORY)
+    assert qualify_s3_readiness(inventory, repository_root=repo).ready
+
+    branch = inventory["dependencies"][0]["producer_branch"]
+    _git(repo, "branch", branch, "HEAD")
+    moved = qualify_s3_readiness(inventory, repository_root=repo)
+    assert not moved.ready
+    assert "producer_ref_mismatch" in {finding.code for finding in moved.findings}
+
+    # Objects remain available, but an unrelated checkout cannot claim integration.
+    first_commit = _git(repo, "rev-list", "--max-parents=0", "HEAD").splitlines()[0]
+    _git(repo, "switch", "--detach", first_commit)
+    detached = qualify_s3_readiness(inventory, repository_root=repo)
+    assert not detached.ready
+    assert {finding.contract_id for finding in detached.findings
+            if finding.code == "producer_ref_mismatch"} == set(EXPECTED_CONTRACTS)

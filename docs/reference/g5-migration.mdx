@@ -5,7 +5,7 @@ description: "QitOS G5 · G5 migration and limits"
 
 ## Current status
 
-G5 runtime `717b4cf1b23f2ed252cd03234ffd8605038d9567` passed framework qualification; S4 local integration is complete. Historical 2663 passed / 50 skipped belongs to that SHA, not documentation successors. Remote sync is verified and the default development branch is master. Full CI still exposes compatibility/evidence blockers; no release or deployment was performed. Python 3.10 publication currently fails because the runtime uses hashlib.file_digest (introduced in Python 3.11); use Python 3.11+ for this path, with local G5 qualification specifically on 3.12.7.
+G5 runtime `717b4cf1b23f2ed252cd03234ffd8605038d9567` passed framework qualification; S4 local integration is complete. Historical 2663 passed / 50 skipped belongs to that SHA, not documentation successors. Remote sync is verified and the default development branch is master. Successor CI stabilization is recorded separately; no release or deployment was performed. On the pinned historical G5 commit, Python 3.10 publication fails because it uses hashlib.file_digest (introduced in Python 3.11); use Python 3.11+ for this path, with local G5 qualification specifically on 3.12.7.
 
 | Boundary | Supported behavior |
 |---|---|
@@ -38,3 +38,5 @@ Required sink failure: resolve storage/permissions and reconcile durable facts; 
 [Configuration](/reference/configuration) · [Quickstart](/quickstart).
 
 Master successor: publication now uses bounded descriptor hashing on Python 3.10 too. The pinned historical G5 commit remains unchanged; see the separate master CI stabilization plan for current qualification.
+
+Master also reuses parsed journal data only after hashing all current file bytes. Changed content is fully parsed and verified; complete reads still materialize all records. Historical source qualification accepts only fixed, retained ancestor identities when source branches are absent; an existing mismatched branch still fails.

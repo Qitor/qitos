@@ -341,6 +341,11 @@ class MemoryTrajectoryStore:
         with self._lock:
             return records_to_tuple(self._records)
 
+    def _snapshot_records(self) -> Tuple[TrajectoryRecord, ...]:
+        """Internal read-only view for owned store adapters; never expose to callers."""
+        with self._lock:
+            return tuple(self._records)
+
 
 class JsonTrajectoryStore:
     """Atomic single-file JSON reference store with a versioned disk schema."""

@@ -1,5 +1,10 @@
 # G5 documentation and developer experience report
 
+> Historical documentation/promotion phase report through `f9e45f372ba4b8a5c89982add56a667908893b30`.
+> The user subsequently authorized runtime fixes for master CI. Current successor
+> scope and validation are recorded in [master CI stabilization](master_ci_stabilization.md);
+> the frozen-runtime proof below applies to the completed documentation phase only.
+
 ## 1. Outcome
 
 Documentation/tutorial qualification passed locally and in GitHub docs CI.

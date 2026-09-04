@@ -36,6 +36,14 @@ EXPECTED_CONTRACTS: Dict[str, Tuple[str, str]] = {
     ),
 }
 
+# Frozen S3 source identities, retained as ancestors of the integration commit.
+# Never derive this fallback from an inventory supplied by the caller.
+_ARCHIVED_SOURCE_HEADS = {
+    "codex/v4-s3-a-session-fork": "9442647767bc9a7c45ed3bf07bc4f289412544ed",
+    "codex/v4-s3-b-transfer-authority": "5efa1db19ae541234c562c4ba99e928d2381fc62",
+    "codex/v4-s3-c-durable-work-runtime": "12edf48aa5dd2ed7c3c830baf9031116474bcc52",
+}
+
 _REQUIRED_FIELDS = {
     "contract_id",
     "owner_lane",
@@ -108,6 +116,10 @@ def _commit_for_branch(root: Path, branch: str) -> Optional[str]:
     value = _git(root, "rev-parse", "--verify", f"refs/heads/{branch}")
     if value is None:
         value = _git(root, "rev-parse", "--verify", f"refs/remotes/origin/{branch}")
+    if value is None:
+        archived = _ARCHIVED_SOURCE_HEADS.get(branch)
+        if archived and _git(root, "merge-base", "--is-ancestor", archived, "HEAD") is not None:
+            return archived
     text = value.decode("ascii", "ignore").strip() if value is not None else ""
     return text if re.fullmatch(r"[0-9a-f]{40}", text) else None
 

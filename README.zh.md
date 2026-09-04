@@ -25,12 +25,14 @@ store、sink 和 sandbox 可扩展；qita 只读检查 Trajectory。
 
 ## What's New
 
-- master 修复 Python 3.10 publication 的哈希兼容性；这是独立验证的 G5 后继修复，不改写历史资格。
+- [v5 迭代路线](docs/v5/README.md)形成五组待实现任务：真实 Agent 闭环、长任务上下文与记忆、工具/API 收敛、研究数据、交互式 Session 与沙箱；规划发布不代表这些后续能力已经完成。
+
+- master 修复 Python 3.10 publication、journal 重复解析和历史证据可移植核验；这些后继修复独立验证，不改写 G5 历史资格。
 - G5 框架资格通过，S4 本地集成完成，runtime 身份固定为 `717b4cf1b23f2ed252cd03234ffd8605038d9567`。
 - 双语文档统一到安装 → 项目 → 配置 → Session → 检查 → 恢复/扩展。
 - 默认开发分支为 `master`，push 和 PR 执行 CI/docs 门禁；发布仍须显式触发。
 - 本轮文档与运行教程的验收结果单独记录；远端同步已核验，docs CI 已通过。
-  完整 CI 的兼容性与历史证据阻塞见[提升报告](docs/internal/plans/g5_docs_tutorials_report.md)；未发布 package 或部署文档。
+  后继提交的 CI 修复与准确验证结果见[CI 计划](docs/internal/plans/master_ci_stabilization.md)；未发布 package 或部署文档。
 
 ## 开始开发
 

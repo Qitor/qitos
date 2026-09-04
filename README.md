@@ -25,12 +25,14 @@ read-only qita. Framework correctness does not guarantee arbitrary model task su
 
 ## What's New
 
-- Master fixes Python 3.10 publication with bounded descriptor hashing; this is a separately tested successor to the historical G5 runtime.
+- The [v5 iteration roadmap](docs/v5/README.md) defines five planned capability groups: real Agent workflows, long-task context/memory, tool/API consolidation, research data, and interactive Sessions/sandboxes. It does not claim those follow-ups are implemented.
+
+- Master fixes Python 3.10 publication, repeated journal parsing and portable historical evidence verification; these are separately tested successors to the historical G5 runtime.
 
 - G5 framework qualification passed; S4 local integration complete. Runtime identity: `717b4cf1b23f2ed252cd03234ffd8605038d9567`.
 - Bilingual docs converge on installation → project → configuration → Session → inspection → recovery/extension.
 - The default development branch is `master`, with CI/docs checks on pushes and PRs. Publication remains explicit.
-- Documentation/tutorial qualification is recorded separately. Remote synchronization is verified. Docs CI passed; full CI still exposes compatibility/evidence blockers described in the [promotion report](docs/internal/plans/g5_docs_tutorials_report.md). No package release or docs deployment was performed.
+- Documentation/tutorial qualification is recorded separately. Remote synchronization is verified. Docs CI passed; successor CI stabilization is tracked with exact results in the [CI plan](docs/internal/plans/master_ci_stabilization.md). No package release or docs deployment was performed.
 
 ## Start developing
 

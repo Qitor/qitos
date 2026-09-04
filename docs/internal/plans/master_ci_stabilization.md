@@ -36,7 +36,7 @@ The full publication file including the regression has 21 passing cases.
 
 Twenty exact commits referenced by retained fixtures are absent from remote
 history; ten maximal source tips cover them. A same-tree ancestry-retention
-merge will keep their original Git objects reachable from master. This imports
+merge keeps their original Git objects reachable from master. This imports
 no source-tree changes and does not replay or re-integrate G5 implementations.
 Original source SHA/digest checks remain unchanged; no replacement evidence,
 new archive binary, source-ref mutation or extra remote branch is needed.
@@ -60,3 +60,34 @@ Maximal retained source commits:
 - `12edf48aa5dd2ed7c3c830baf9031116474bcc52`
 - `bc725e8b77576a7a0b5c165a5066c83c4d9965c8`
 - `60e8d94edb9a5f00434095a3489e1e1100185bea`
+
+## Portable historical qualification
+
+The ancestry-retention merge has exactly the same tree as its first parent.
+A fresh single-branch clone retains the twenty historical objects but naturally
+has no source branch refs. The historical S3 gate now recognizes only three
+hard-coded archived source identities, only when each is an ancestor of HEAD.
+Caller-provided identities cannot establish trust; existing mismatched local or
+remote refs remain a failure. Tests cover a fresh clone, moved refs, an unrelated
+checkout with available objects, and an unpinned manifest source.
+
+## Journal performance and process recovery
+
+The failed GitHub create phase reached its existing 20-second bound. A local
+stack capture found full JSON trajectory reserialization; switching the current
+fixture to the canonical journal alone also exceeded that bound because every
+append reparsed the entire journal. The fix still hashes every current file byte
+under the existing file lock and reuses parsed records only for identical content.
+External changes trigger full frame/chain/record validation. Any attempted memory
+mutation invalidates the cache before append; only a successful fsynced frame
+updates it. The journal also uses an internal read-only tuple view for bookkeeping,
+avoiding repeated deep copies of all prior payloads. Public queries and snapshots
+retain deep isolation. Failed writes retain the original uncertainty and recovery behavior.
+Tests include same-size corruption with restored mtime, external appends,
+concurrent handles, partial writes, fsync failure, large complete reads and the
+original twenty-plus-twenty process scenarios, with no timeout increase.
+
+The previous remote coverage job already measured 85.79%, above the unchanged
+80% floor, but failed its six tests. That is diagnostic evidence, not a green run.
+No quality allowance, API budget, package dependency/version or publication
+workflow was relaxed. Current local verification is in progress.
