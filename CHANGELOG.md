@@ -94,6 +94,8 @@ How to update:
 
 ### Fixed
 
+- Reject self-authorized S4 readiness metadata using an integration-owned requirement registry and exact execution evidence pins.
+
 - Remove implicit sandbox cleanup writes into source workspaces and require backend process completion instead of controller-generated exit codes.
 
 - Fork CLI Sessions without claiming source ownership; use durable SQLite defaults and inspect persisted Sessions without constructing model or sandbox resources.

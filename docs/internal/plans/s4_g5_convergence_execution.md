@@ -188,3 +188,18 @@ source-byte invariance and exact label-scoped container absence. This is one
 bounded scenario, not the complete required Docker matrix. No foreign container
 was stopped or removed. Python thread/remote request hard cancellation is not
 claimed; escaped process groups require containment/unknown semantics.
+
+### G5-D3 readiness authority repair (qualification pins pending)
+
+An integration-owned closed registry now fixes producer/source/replay identities,
+expected current artifact paths, schema, writers and controlled test nodes.
+The validator rejects duplicate/unknown requirements, unrelated artifacts,
+fake writers/schema, unresolved symbols, absent or mismatched execution pins,
+and self-authorized current qualification. It never executes manifest code.
+13 unique controlled nodes were actually collected with pytest (exit 0).
+The original spoof probe plus readiness/audit suites passed 21 tests.
+
+QUALIFICATION_PINS is intentionally empty until final committed installed
+consumer execution produces content-bound current artifacts and identity facts.
+Readiness remains waiting_on_a_b_c; this guard repair does not close current
+producer qualification or authorize schema/default switches.

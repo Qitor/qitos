@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import hashlib
+import ast
 import json
 import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Mapping, Tuple
+
+from ._g5_requirements import QUALIFICATION_PINS, REPLAY_HEADS, REQUIREMENTS, SOURCE_HEADS
 
 
 S4_READINESS_SCHEMA = "qitos.s4.lane_d.readiness/1"
@@ -98,6 +101,10 @@ def _validate_binding(
         findings.append(f"lane_{lane.lower()}_authority_invalid")
     if binding.get("source_wave") != "S4":
         findings.append(f"lane_{lane.lower()}_source_wave_rejected")
+    if binding.get("source_commit") != SOURCE_HEADS[lane]:
+        findings.append(f"lane_{lane.lower()}_source_identity_mismatch")
+    if binding.get("replay_commit") != REPLAY_HEADS[lane]:
+        findings.append(f"lane_{lane.lower()}_replay_identity_mismatch")
     requirements = binding.get("requirements")
     if not isinstance(requirements, list):
         return tuple(findings + [f"lane_{lane.lower()}_requirements_invalid"])
@@ -108,6 +115,8 @@ def _validate_binding(
     }
     if set(by_id) != set(REQUIRED_LANE_REQUIREMENTS[lane]):
         findings.append(f"lane_{lane.lower()}_requirement_set_mismatch")
+    if len(by_id) != len(requirements):
+        findings.append(f"lane_{lane.lower()}_duplicate_or_invalid_requirement")
     for requirement_id in REQUIRED_LANE_REQUIREMENTS[lane]:
         item = by_id.get(requirement_id)
         if item is None:
@@ -118,6 +127,19 @@ def _validate_binding(
         writer = str(item.get("current_writer", ""))
         test_node = str(item.get("consumer_test_node", ""))
         prefix = f"lane_{lane.lower()}_{requirement_id}"
+        expected_writer, expected_node = REQUIREMENTS[lane][requirement_id]
+        expected_path = f"tests/fixtures/s4/g5/current-facts/{lane.lower()}-{requirement_id}.json"
+        if path != expected_path:
+            findings.append(f"{prefix}_producer_artifact_mismatch")
+        if schema != "qitos.g5.runtime_fact/v1":
+            findings.append(f"{prefix}_schema_invalid")
+        if writer != expected_writer:
+            findings.append(f"{prefix}_writer_invalid")
+        if test_node != expected_node:
+            findings.append(f"{prefix}_consumer_node_unapproved")
+        pin = QUALIFICATION_PINS.get((lane, requirement_id))
+        if pin is None:
+            findings.append(f"{prefix}_integration_qualification_pending")
         if path is None:
             findings.append(f"{prefix}_path_invalid")
             continue
@@ -136,10 +158,66 @@ def _validate_binding(
             findings.append(f"{prefix}_committed_bytes_missing")
         elif hashlib.sha256(committed).hexdigest() != digest:
             findings.append(f"{prefix}_digest_mismatch")
+        else:
+            try:
+                artifact = json.loads(committed)
+                if not isinstance(artifact, dict):
+                    raise ValueError("artifact is not an object")
+            except (ValueError, UnicodeDecodeError):
+                findings.append(f"{prefix}_artifact_invalid")
+                artifact = {}
+            if (artifact.get("schema") != schema or artifact.get("writer") != writer
+                    or artifact.get("requirement_id") != requirement_id):
+                findings.append(f"{prefix}_artifact_contract_mismatch")
+            if pin is not None:
+                findings.extend(_validate_execution_pin(
+                    repository_root, pin, artifact, commit, digest, expected_node, prefix,
+                ))
         test_path = _safe_path(test_node.partition("::")[0])
-        if not test_path or _git_bytes(repository_root, commit, test_path) is None:
+        test_bytes = _git_bytes(repository_root, commit, test_path) if test_path else None
+        if test_bytes is None:
             findings.append(f"{prefix}_consumer_test_missing")
+        else:
+            try:
+                node = test_node.split("::")
+                symbols = {n.name for n in ast.parse(test_bytes).body if isinstance(n, ast.FunctionDef)}
+                if len(node) != 2 or node[1] not in symbols:
+                    findings.append(f"{prefix}_consumer_node_missing")
+            except (SyntaxError, UnicodeDecodeError):
+                findings.append(f"{prefix}_consumer_node_missing")
     return tuple(findings)
+
+
+def _validate_execution_pin(root: Path, pin: Mapping[str, str], artifact: Mapping[str, Any],
+                            commit: str, digest: str, node: str, prefix: str) -> Tuple[str, ...]:
+    """Validate an integration-pinned result; never execute manifest-supplied code."""
+    if pin.get("code_commit") != commit or pin.get("artifact_sha256") != digest:
+        return (f"{prefix}_current_identity_mismatch",)
+    path = pin.get("execution_path", "")
+    if path != "tests/fixtures/s4/g5/controlled-execution.json":
+        return (f"{prefix}_execution_path_invalid",)
+    data = _git_bytes(root, pin.get("qualification_commit", ""), path)
+    if data is None or hashlib.sha256(data).hexdigest() != pin.get("execution_sha256"):
+        return (f"{prefix}_execution_digest_mismatch",)
+    try:
+        evidence = json.loads(data)
+        result = evidence["nodes"][node]
+        identity = artifact["identity"]
+        valid = (
+            evidence["schema"] == "qitos.g5.controlled_execution/v1"
+            and evidence["code_commit"] == commit
+            and result["collected"] is True and result["outcome"] == "passed"
+            and result["skipped"] is False
+            and result["consumer_identity"] == identity
+            and identity["session_id"] != identity["run_id"]
+            and isinstance(identity["owner_generation"], int)
+            and not isinstance(identity["owner_generation"], bool)
+            and identity["owner_generation"] >= 0
+            and bool(identity["session_id"]) and bool(identity["run_id"])
+        )
+    except (KeyError, TypeError, ValueError):
+        valid = False
+    return () if valid else (f"{prefix}_execution_or_identity_invalid",)
 
 
 def qualify_s4_readiness(
@@ -154,6 +232,8 @@ def qualify_s4_readiness(
     if not isinstance(lanes, Mapping):
         lanes = {}
         findings.append("lane_inventory_invalid")
+    if set(lanes) - set(REQUIRED_LANE_REQUIREMENTS):
+        findings.append("unknown_lane")
     for lane in REQUIRED_LANE_REQUIREMENTS:
         binding = lanes.get(lane)
         if not isinstance(binding, Mapping):
@@ -167,7 +247,7 @@ def qualify_s4_readiness(
             qualified.append(lane)
     status = (
         "ready_for_g5_review"
-        if set(qualified) == set(REQUIRED_LANE_REQUIREMENTS)
+        if not findings and set(qualified) == set(REQUIRED_LANE_REQUIREMENTS)
         else "waiting_on_a_b_c"
     )
     return S4ReadinessResult(
