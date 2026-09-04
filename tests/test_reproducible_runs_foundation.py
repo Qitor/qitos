@@ -77,6 +77,7 @@ def _make_run_dir(root: Path, run_id: str) -> Path:
 
 
 def test_run_spec_trace_manifest_integration(tmp_path: Path):
+    from qitos.trace import TraceWriter
     agent = _FinalAgent()
     task_id = "tau_case_001"
     run_spec = RunSpec(
@@ -100,6 +101,7 @@ def test_run_spec_trace_manifest_integration(tmp_path: Path):
     )
     result = agent.run(
         task=f"solve {task_id}",
+        trace=TraceWriter(output_dir=str(tmp_path), run_id="legacy-spec", strict_validate=True),
         trace_logdir=str(tmp_path),
         render=False,
         run_spec=run_spec,

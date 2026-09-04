@@ -53,8 +53,9 @@ def test_qit_demo_minimal_creates_qita_ready_run(
 
     runs = _discover_runs(logdir)
     assert len(runs) == 1
-    assert runs[0]["id"].startswith("qitos_minimal_coding_")
-    assert (Path(runs[0]["path"]) / "manifest.json").exists()
+    assert runs[0]["id"].startswith("run_qitos_minimal_coding_")
+    assert (logdir / "trajectory.journal").is_file()
+    assert runs[0]["final_result"] == "Patch applied and verification passed."
     assert (workspace / "buggy_module.py").read_text(encoding="utf-8").strip().endswith(
         "return a + b"
     )

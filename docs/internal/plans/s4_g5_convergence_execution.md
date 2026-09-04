@@ -775,3 +775,19 @@ Stable flake8/mypy, 356-finding ratchet, build/twine and all 19 extras passed on
 that identity, but do not override the failed suite. Default writer activation
 is now disabled and default reader selects trace pending repairs. Explicit
 canonical sink/reader remains available; no persisted data is deleted or changed.
+
+### Writer re-enable after project-output and demo repair
+
+The owned-directory regression project-trajectory-red failed because omitted
+output escaped the selected runtime data root into cwd. The repaired default
+resolves from the Session/runtime location and isolates two projects. Minimal
+demo reports the journal plus actual run identity; its legacy RunSpec test
+retains every manifest assertion with an explicitly supplied TraceWriter.
+trace_prefix now affects canonical convenience identity instead of being
+ignored. An additional regression found RunSpec's historical v1 default was
+still reported for the canonical writer; the source schema is now derived from
+actual runtime metadata. The failed reswitch-02/03 logs are preserved.
+Initial project/config/demo suite passed 54 tests in 7.99 seconds, versus the
+shared-journal slowdown in full attempt 05. Static stable+config+minimal-demo
+checks passed 102 files. Final re-enable validation is reswitch-04. The qita
+selector remains separately rolled back until its re-enable commit.

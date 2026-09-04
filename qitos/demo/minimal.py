@@ -171,11 +171,14 @@ def run_minimal_demo(
         trace_logdir=str(logdir_path),
         trace_prefix=TRACE_PREFIX,
     )
-    run_dir = _latest_run_dir(logdir_path)
+    run_location = logdir_path / "trajectory.journal"
+    if not run_location.is_file():
+        raise FileNotFoundError("canonical demo trajectory was not persisted")
     return {
         "workspace": str(workspace_path),
         "trace_logdir": str(logdir_path),
-        "trace_run": str(run_dir),
+        "trace_run": str(run_location),
+        "run_id": result.run_id,
         "model_name": str(getattr(model, "model", model_name or MODEL_NAME)),
         "target_file": TARGET_FILE,
         "test_command": TEST_COMMAND,
@@ -216,21 +219,6 @@ def main(
     print("stop_reason:", summary["stop_reason"])
     print("next_step:", summary["next_step"])
     return 0
-
-
-def _latest_run_dir(logdir: Path) -> Path:
-    candidates = sorted(
-        p
-        for p in logdir.iterdir()
-        if p.is_dir()
-        and p.name.startswith(f"{TRACE_PREFIX}_")
-        and (p / "manifest.json").exists()
-    )
-    if not candidates:
-        raise FileNotFoundError(
-            f"No traced minimal coding run was created under {logdir}."
-        )
-    return candidates[-1]
 
 
 def _next_step_command(logdir: Path) -> str:

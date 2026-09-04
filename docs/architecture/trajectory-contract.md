@@ -59,3 +59,14 @@ new data during rollback. Writer rollback is the explicit configuration disable
 or `trace=False` for the convenience path; callers can supply the existing
 TraceWriter when historical output is specifically needed. These selections
 never execute a Session or copy execution effects. Unknown selectors reject.
+
+### Project-scoped output and demo migration
+
+An omitted declarative trajectory output now resolves beside the configured
+Session store, or under the explicit runtime/project data root. It never
+implicitly joins unrelated project data through cwd. An explicit output path
+continues to select that location. The minimal demo's trace_run summary now
+identifies the journal file and includes a separate run_id; it no longer implies
+a legacy manifest directory. trace_prefix is validated and used for the
+convenience run identity. RunSpec reports the actual canonical writer schema
+even when its historical default field was v1.

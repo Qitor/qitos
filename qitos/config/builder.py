@@ -546,7 +546,8 @@ def build_runtime(
         from ..tracing.journal_store import JournalTrajectoryStore
         from ..tracing.trajectory import PrivacyView, RecordKind, RecordRole, TrajectoryRecord, TRAJECTORY_SCHEMA_VERSION
 
-        output = Path(config.runtime.trajectory.output).expanduser().resolve()
+        output = (Path(config.runtime.trajectory.output).expanduser().resolve()
+                  if config.runtime.trajectory.output else _session_store_path(config).parent / "trajectory.journal")
         trajectory_path = output if output.suffix in {".json", ".journal"} else output / "trajectory.journal"
         event_store = (JournalTrajectoryStore(trajectory_path)
                        if trajectory_path.suffix == ".journal" else JsonTrajectoryStore(trajectory_path))

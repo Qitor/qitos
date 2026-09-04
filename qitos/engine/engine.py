@@ -550,6 +550,12 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
 
         resolved = dict(options)
         output = resolved.pop("_default_trajectory_output", None)
+        prefix = resolved.pop("_default_trajectory_prefix", None)
+        if prefix is not None and (not isinstance(prefix, str) or not prefix
+                                   or len(prefix) > 80 or any(not (c.isalnum() or c in "-_.") for c in prefix)):
+            raise ValueError("invalid_trace_prefix")
+        if prefix is not None and resolved.get("runtime") is not None:
+            resolved["runtime"].launch_metadata["trace_prefix"] = prefix
         if output is None or resolved.get("runtime") is not None:
             return resolved
         if resolved.get("trace_writer") is not None:
@@ -562,7 +568,7 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             durability_mode=resolved.get("checkpoint_durability", DurabilityMode.SYNC),
             event_sink=TrajectoryStoreEventSink(store),
             event_sink_view=PrivacyView.RAW_PRIVATE,
-            launch_metadata={"trajectory_schema_version": TRAJECTORY_SCHEMA_VERSION},
+            launch_metadata={"trajectory_schema_version": TRAJECTORY_SCHEMA_VERSION, "trace_prefix": prefix},
         )
         return resolved
 
@@ -1001,7 +1007,10 @@ class Engine(Generic[StateT, ObservationT, ActionT]):
             str(getattr(self.trace_writer, "run_id", "")).strip()
             if self.trace_writer is not None
             else ""
-        ) or f"run_{uuid4().hex[:12]}"
+        ) or "run_" + (
+            str(self.runtime.launch_metadata["trace_prefix"]) + "_"
+            if self.runtime.launch_metadata.get("trace_prefix") else ""
+        ) + uuid4().hex
         self._last_system_prompt = ""
         self._last_prompt_metadata = {}
         task_obj, task_text = self._normalize_task(task)

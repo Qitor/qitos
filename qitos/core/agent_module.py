@@ -452,7 +452,8 @@ class AgentModule(ABC, Generic[StateT, ObservationT, ActionT]):
         if trace_setting is None and "trace_writer" not in kwargs:
             trace_setting = True
         if trace_setting is True:
-            pass  # G5 selector rollback: explicit runtime sinks remain available.
+            kwargs["_default_trajectory_output"] = trace_logdir
+            kwargs["_default_trajectory_prefix"] = trace_prefix
         elif trace_setting:
             kwargs["trace_writer"] = trace_setting
 
@@ -564,10 +565,13 @@ class AgentModule(ABC, Generic[StateT, ObservationT, ActionT]):
             spec.model_family = str(harness_metadata.get("family_preset"))
         if not spec.model_family and spec.model_name:
             spec.model_family = RunSpec.infer(model_name=spec.model_name).model_family
-        if not spec.trace_schema_version:
+        runtime_metadata = getattr(getattr(engine, "runtime", None), "launch_metadata", {})
+        if runtime_metadata.get("trajectory_schema_version"):
+            # RunSpec's historical default cannot misidentify the actual writer.
+            spec.trace_schema_version = str(runtime_metadata["trajectory_schema_version"])
+        elif not spec.trace_schema_version:
             spec.trace_schema_version = str(
-                getattr(getattr(engine, "trace_writer", None), "schema_version", "v1")
-                or "v1"
+                getattr(getattr(engine, "trace_writer", None), "schema_version", "v1") or "v1"
             )
         if not spec.prompt_protocol:
             try:

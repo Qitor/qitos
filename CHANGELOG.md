@@ -17,6 +17,8 @@ How to update:
 
 ## Unreleased
 
+- Fixed implicit trajectory storage to use project/runtime data locations, preserved trace prefixes and actual writer schema metadata, and migrated minimal-demo summaries to journal plus run identity.
+
 - Changed qita default reading to canonical journal data with historical trace compatibility, complete paginated discovery, explicit rollback selection and source-conflict rejection.
 
 - Changed declarative and AgentModule.run default trajectory output to the required canonical journal sink, with explicit opt-out and legacy-writer compatibility; no Engine constructor parameter was added.
