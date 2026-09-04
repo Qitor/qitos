@@ -103,7 +103,7 @@ credentials:
 不创建 provider 或 Docker。请求预算 `12`，每次输出上限 `2048` tokens，
 总步数 `10`、总时间 `600` 秒；超时不代表硬取消。
 
-示意片段（非独立程序；完整执行文件见本页链接）。
+配置加载校验（无模型请求）：
 
 ```python
 from qitos.config import load_agent_config
@@ -120,7 +120,7 @@ qit run --config agent.yaml --credentials "$HOME/.config/qitos/credentials.yaml"
 
 将下面保存为 `run_agent.py`，运行 `python run_agent.py`（会发真实请求）：
 
-示意片段（非独立程序；完整执行文件见本页链接）。
+完整 run_agent.py（手动执行会发送真实模型请求；本轮不执行）：
 
 ```python
 from pathlib import Path

@@ -22,14 +22,19 @@ CASES = [(str(p.relative_to(DOCS)), i, lang, textwrap.dedent(code))
 
 @pytest.mark.parametrize("page,index,language,code", CASES,
                          ids=[f"{p}:block-{i}" for p, i, _, _ in CASES])
-def test_public_snippet(page, index, language, code):
+def test_public_snippet(page, index, language, code, tmp_path):
     if language != "python":
         # Shell/template interpolation and documented config fragments are illustrative.
         if language == "json":
             import json
             json.loads(code)
         else:
-            yaml.safe_load(code)
+            parsed = yaml.safe_load(code)
+            if isinstance(parsed, dict) and parsed.get("schema") == "qitos.agent":
+                from qitos.config import load_agent_config
+                target = tmp_path / "agent.yaml"
+                target.write_text(code)
+                load_agent_config(target)
         return
     filename = f"{page}:block-{index}"
     compile(code, filename, "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)

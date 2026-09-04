@@ -108,7 +108,7 @@ below. `load_agent_config` reads neither credentials nor provider/Docker state.
 The budget is 12 requests, 2048 output tokens per response, 10 steps and 600
 seconds. Timeout is not hard cancellation.
 
-Illustrative fragment (not a standalone program; use the complete example linked on this page).
+Configuration loading check (no model requests):
 
 ```python
 from qitos.config import load_agent_config
@@ -125,7 +125,7 @@ qit run --config agent.yaml --credentials "$HOME/.config/qitos/credentials.yaml"
 
 Save as `run_agent.py` and run `python run_agent.py` (sends real requests):
 
-Illustrative fragment (not a standalone program; use the complete example linked on this page).
+Complete run_agent.py (manual execution sends real model requests; not run in this qualification):
 
 ```python
 from pathlib import Path
