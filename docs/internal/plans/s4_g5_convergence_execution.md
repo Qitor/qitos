@@ -795,3 +795,15 @@ Writer reswitch-04 passed 15 tests in 2.25 seconds, including the legacy
 manifest compatibility path, canonical RunSpec identity, architecture and
 unchanged interface budget. This writer commit does not change qita's rolled-
 back selector; reader re-enable follows separately.
+
+### Reader re-enable after repair
+
+The default qita selector is returned to canonical Trajectory after the writer
+location and demo consumers were repaired. Both installed consumer sources now
+use default_reader rather than the explicit candidate reader and execute qita
+Session inspection through the installed module without --candidate-store.
+They assert default qualification and retain exact export/re-import. Final wheel
+execution will regenerate their current facts; no earlier receipt is relabeled.
+The reader/demo/default-writer sweep passed 21 tests in 11.77 seconds
+(reader-reswitch-05). A script-edit assertion stopped after the coding change;
+research was updated separately against its actual inspection assertion.

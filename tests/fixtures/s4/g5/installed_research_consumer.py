@@ -28,7 +28,7 @@ from qitos.models.codec import report_for_request, validate_codec_result
 from qitos.models.provider import (ContinuationResolution, decode_openai_like_response,
     legacy_capabilities, normalize_provider_failure, request_view_to_compat_messages)
 from qitos.qita import ReadOnlyInspection
-from qitos.qita.reader import candidate_file_reader
+from qitos.qita.reader import default_reader
 from qitos.tracing.trajectory import PrivacyView
 
 FINISHED = threading.Event()
@@ -254,7 +254,7 @@ def restore(root, evidence=None):
         result = session.run(steering="Report the sample size and uncertainty explicitly.")
         assert result.state.final_result == "survey verified", result.state.final_result
         assert {"research.protocol", "research.recall"} <= set(SELECTIONS)
-        reader = candidate_file_reader(current.trajectory_path)
+        reader = default_reader(current.trajectory_path.parent)
         raw = reader.read_session(session.session_id.value, view=PrivacyView.RAW_PRIVATE)
         artifacts, timeout_facts = [], []
         def collect(value):
@@ -274,6 +274,13 @@ def restore(root, evidence=None):
         for artifact in artifacts:
             assert current.agent.config["artifact_resolver"].resolve(artifact).body
         assert len(ReadOnlyInspection(reader).session(session.session_id.value).records) == len(raw.records)
+        assert reader.capabilities.default_qualified
+        inspected = subprocess.run([sys.executable, "-m", "qitos.qita", "inspect", "session",
+            session.session_id.value, "--logdir", str(current.trajectory_path.parent)],
+            capture_output=True, text=True, timeout=30)
+        assert inspected.returncode == 0, inspected.stdout + inspected.stderr
+        assert session.session_id.value in inspected.stdout
+        control["qita_default_inspection"] = True
         assert any(record.kind.value == "steering" for record in raw.records)
         assert COMPACTIONS and CONTINUATION_RESOLUTIONS
         assert any(record.kind.value == "compaction" and not record.loss.is_lossless for record in raw.records)

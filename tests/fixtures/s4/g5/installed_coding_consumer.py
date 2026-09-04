@@ -17,7 +17,7 @@ from qitos.engine.runtime import LifecyclePolicy
 from qitos.engine.work_runtime import DurableWorkRuntime, LocalWorkScheduler
 from qitos.kit.tool.internal.publication import SandboxPublicationTool
 from qitos.qita import ReadOnlyInspection
-from qitos.qita.reader import candidate_file_reader
+from qitos.qita.reader import default_reader
 from qitos.tracing.trajectory import PrivacyView
 
 
@@ -180,7 +180,7 @@ def resume(root, evidence=None):
         result = session.run(steering="Keep all unrelated input files unchanged.")
         assert result.state.final_result == "coding complete"
         assert (root / "source" / "code.py").read_text() == "RESULT = 43\n"
-        reader = candidate_file_reader(current.trajectory_path)
+        reader = default_reader(current.trajectory_path.parent)
         trajectory = reader.read_session(session.session_id.value, view=PrivacyView.RAW_PRIVATE)
         artifacts, tool_outcomes, tool_errors = [], {}, {}
         for record in trajectory.records:
@@ -210,6 +210,13 @@ def resume(root, evidence=None):
             body = current.agent.config["artifact_resolver"].resolve(artifact).body
             assert hashlib.sha256(body).hexdigest() == artifact.sha256
         assert ReadOnlyInspection(reader).session(session.session_id.value).records
+        assert reader.capabilities.default_qualified
+        inspected = subprocess.run([sys.executable, "-m", "qitos.qita", "inspect", "session",
+            session.session_id.value, "--logdir", str(current.trajectory_path.parent)],
+            capture_output=True, text=True, timeout=30)
+        assert inspected.returncode == 0, inspected.stdout + inspected.stderr
+        assert session.session_id.value in inspected.stdout
+        control["qita_default_inspection"] = True
         assert any(record.kind.value == "steering" for record in trajectory.records)
         if evidence is not None:
             from qitos.tracing.exporter import CanonicalTrajectoryExporter

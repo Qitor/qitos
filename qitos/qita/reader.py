@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional
 from urllib.parse import quote
 
 
-def default_reader(root: str | Path, *, selector: str = "trace") -> Any:
+def default_reader(root: str | Path, *, selector: str = "trajectory") -> Any:
     """Select canonical data with bounded trace compatibility, or explicit rollback."""
     from qitos.tracing.readers import TraceCompatibilityReader
 
