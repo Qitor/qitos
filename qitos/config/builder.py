@@ -8,7 +8,7 @@ import sqlite3
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Mapping, Optional, Tuple
 
 from ..checkpoint import InMemoryCheckpointStore, SqliteCheckpointStore
 from ..core.action import Action, ActionExecutionPolicy
@@ -103,7 +103,7 @@ class ConfiguredAgent(AgentModule[ConfiguredAgentState, Dict[str, Any], Action])
     def base_persona_prompt(self, state: ConfiguredAgentState) -> str:
         _ = state
         return (
-            "You are a QitOS coding agent. Use only the declared tools and the "
+            "You are a QitOS agent. Use only the declared tools and the "
             "configured workspace environment. Never assume host access."
         )
 
@@ -654,6 +654,7 @@ def build_agent_composition(
     credential_resolver: Optional[CredentialResolver] = None,
     model_override: Any = None,
     env_override: Any = None,
+    extensions: Optional[Mapping[str, Any]] = None,
 ) -> AgentComposition:
     """Compose the existing model/tools/Env/runtime/AgentModule/Engine stack."""
     model: Any = None
@@ -662,6 +663,10 @@ def build_agent_composition(
     owns_model = model_override is None
     owns_environment = env_override is None
     try:
+        from ._extensions import resolve_extensions
+        from ..kit.artifact.store import FileArtifactStore
+
+        services, lifecycle_policy, engine_context = resolve_extensions(config, extensions or {})
         # Preflight persistence before constructing a model or provisioning Env.
         if config.runtime.session.enabled and config.runtime.session.store != "memory":
             preflight_store = _open_session_store(config)
@@ -713,6 +718,9 @@ def build_agent_composition(
                 config
             )
         runtime = build_runtime(config, sandbox_receipt=sandbox_receipt)
+        runtime.lifecycle_policy = lifecycle_policy
+        if "artifact_resolver" not in services:
+            services["artifact_resolver"] = FileArtifactStore(_session_store_path(config).parent / "artifacts")
         agent = ConfiguredAgent(
             name=config.name,
             llm=model,
@@ -725,6 +733,7 @@ def build_agent_composition(
             ),
             config_digest=config.digest(),
         )
+        agent.config.update(services)
         budget_config = config.budgets
         budget = RuntimeBudget(
             max_steps=config.max_steps,
@@ -737,11 +746,9 @@ def build_agent_composition(
         )
         policy = ActionExecutionPolicy(
             mode="parallel",
-            fail_fast=False,
-            max_concurrency=4,
-            parallel_tool_names=frozenset(
-                {"read_file", "list_files", "grep_file"}
-            ),
+            fail_fast=config.failure_policy.get("tool") == "fail_closed",
+            max_concurrency=int(config.tool_options.get("max_concurrency", 4)),
+            parallel_tool_names=None,
         )
         engine = Engine(
             agent=agent,
@@ -749,8 +756,8 @@ def build_agent_composition(
             env=env,
             runtime=runtime,
             action_execution_policy=policy,
-            auto_approve=True,
-            context_config=dict(config.context),
+            auto_approve=bool(config.tool_options.get("auto_approve", True)),
+            context_config=engine_context,
             parser=parser,
             protocol=protocol,
         )

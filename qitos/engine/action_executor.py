@@ -1523,6 +1523,7 @@ class ActionExecutor:
             "artifacts": artifacts,
             "emit_progress": _emit_progress,
             "record_artifact": _record_artifact,
+            "artifact_resolver": dict(getattr(getattr(self._engine, "agent", None), "config", {}) or {}).get("artifact_resolver"),
             "delegate_depth": self.delegate_depth,
             "parent_run_id": "",
             "trace_writer": self.trace_writer,

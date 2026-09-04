@@ -64,6 +64,31 @@ class DockerCommandCapability(CommandCapability):
         self.output_limit = max(1, int(output_limit))
 
     def run(self, command: str, timeout: int = 30) -> Dict[str, Any]:
+        from ._process_supervisor import SUPERVISOR
+
+        if not command or not command.strip():
+            return {"status": "error", "error": "empty command"}
+        base = f"/tmp/qitos-processes/command-{uuid4().hex}"
+        try:
+            result = _run([
+                "docker", "exec", "-w", self.workdir, self.container,
+                "python3", "-c", SUPERVISOR, base, command,
+                str(max(1, int(timeout))), str(self.output_limit),
+            ], timeout=max(1, int(timeout)) + 10)
+            if result.returncode != 0:
+                raise ValueError("supervisor execution failed")
+            value = dict(json.loads(result.stdout))
+            value["command"] = command
+            if value["status"] == "terminal":
+                value["status"] = "error" if value["timed_out"] else "success" if value["returncode"] == 0 else "partial"
+            return value
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            return {"status": "unknown", "returncode": None, "stdout": "", "stderr": "",
+                    "worker_still_running": True, "outcome_unknown": True,
+                    "error": "owned command completion could not be confirmed"}
+
+    def _control(self, command: str, timeout: int = 30) -> Dict[str, Any]:
+        """Transport only for controller-authored process control programs."""
         if not command or not command.strip():
             return {"status": "error", "error": "empty command"}
         program = """
@@ -289,6 +314,10 @@ class DockerProcessControlCapability(ProcessControlCapability):
         self.generation = generation
         self._owned: set[str] = set()
 
+    def _control(self, script: str, timeout: int = 10) -> Dict[str, Any]:
+        transport = getattr(self.command, "_control", self.command.run)
+        return transport(script, timeout=timeout)
+
     def start(self, command: str) -> ProcessHandle:
         from ._process_supervisor import SUPERVISOR
 
@@ -300,7 +329,7 @@ class DockerProcessControlCapability(ProcessControlCapability):
                   f"{shlex.quote(base)} {shlex.quote(command)} </dev/null >/dev/null 2>&1 &")
         # Retain ownership even if start acknowledgement is lost.
         self._owned.add(process_id)
-        result = self.command.run(script, timeout=10)
+        result = self._control(script, timeout=10)
         if int(result.get("returncode", 1)) != 0:
             raise EnvCapabilityError("process_start_unknown", "worker start was not acknowledged")
         return ProcessHandle(process_id, self.generation)
@@ -309,7 +338,7 @@ class DockerProcessControlCapability(ProcessControlCapability):
         from ._process_supervisor import POLL
 
         base = self._base(handle)
-        result = self.command.run(
+        result = self._control(
             f"python3 -c {shlex.quote(POLL)} {shlex.quote(base)}", timeout=10,
         )
         try:
@@ -327,7 +356,7 @@ class DockerProcessControlCapability(ProcessControlCapability):
         base = self._base(handle)
         seconds = max(0, min(30, int(timeout)))
         # This is a cancellation request, never a completion/exit-code record.
-        result = self.command.run(
+        result = self._control(
             f"mkdir -p /tmp/qitos-processes; printf '%s' {seconds} > {shlex.quote(base + '.cancel')}",
             timeout=10,
         )
@@ -416,6 +445,7 @@ class DockerEnv(HostEnv):
         self._private_staging_root = ""
         self._source_workspace = self.host_workspace
         self.input_digest = ""
+        self._input_files: Dict[str, str] = {}
         self.workspace_digest = ""
         self.cleanup_receipt: Dict[str, Any] = {}
         self._wall_timer: Optional[threading.Timer] = None
@@ -708,7 +738,7 @@ class DockerEnv(HostEnv):
             ignored = {
                 name for name in names
                 if (base / name).is_symlink()
-                or name in {".git", ".env", ".ssh", ".gnupg", ".aws"}
+                or name in {".git", ".env", ".ssh", ".gnupg", ".aws", ".qitos"}
                 or name.endswith((".pem", ".key"))
             }
             return ignored
@@ -719,6 +749,10 @@ class DockerEnv(HostEnv):
             symlinks=True,
             ignore=ignore,
         )
+        self._input_files = {
+            item.relative_to(staged_input).as_posix(): hashlib.sha256(item.read_bytes()).hexdigest()
+            for item in staged_input.rglob("*") if item.is_file() and not item.is_symlink()
+        }
         self.input_digest = _tree_digest(staged_input)
         self.workspace_digest = self.input_digest
         archive = staging / "input.tar"

@@ -148,7 +148,11 @@ def test_large_output_retains_canonical_value_and_publishes_artifact(tmp_path: P
     body = "x" * 50_000
     (tmp_path / "large.txt").write_text(body, encoding="utf-8")
     env = HostEnv(str(tmp_path))
-    result = _tools()["read_file"].execute({"path": "large.txt"}, _context(env))
+    from qitos.kit.artifact.store import FileArtifactStore
+    resolver = FileArtifactStore(tmp_path / "artifacts")
+    context = dict(_context(env), artifact_resolver=resolver)
+    result = _tools()["read_file"].execute({"path": "large.txt"}, context)
+    assert resolver.resolve(result.artifact_refs[0]).body == body.encode()
     assert result.output["content"] == body
     assert result.truncated is True
     assert result.complete is True

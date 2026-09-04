@@ -218,3 +218,34 @@ At 5829f8b plus these historical-only edits,
 `python -m pytest -q tests/core/test_context_transfer.py tests/test_s3_lane_c_evidence.py`
 passed 42 tests (1.18 s). New S4/G5 current qualification remains separate and
 pending; these historical assertions do not qualify today's runtime.
+
+### Explicit publication and first composition wiring
+
+Added opt-in SandboxPublicationTool through existing permission/effect execution.
+Caller fixes selected top-level paths and staged input digest before registration.
+Descriptor-relative, no-follow publication uses atomic file exchange on Darwin
+and Linux; selected source conflicts and protected/special paths reject. Partial
+failure rolls back only unchanged outputs, otherwise reports rollback uncertainty
+and retains recovery files. Nested path publication is typed unsupported.
+Cleanup remains separate. FileArtifactStore retains verified bounded content,
+with logical ArtifactRefs and explicit missing/integrity failures.
+
+Configured contributors/memory sources/selector/compactor/continuation/artifact
+services now resolve explicit caller factories. Unknown effective extension and
+tool policy options reject before provisioning; lifecycle and fail-closed policy
+are connected. Parallel admission uses declarations rather than tool-name lists.
+These are submodule extension methods, not new root exports or Engine parameters.
+
+At c4c415e plus this working diff: publication/Docker/A/C suites passed 61 tests
+(5.09 s); eight configuration regressions passed (0.33 s), including contributor
+and memory sent through a real Engine request and selector invocation. Flake8
+changed modules passed; mypy seven changed composition/kit modules passed.
+The real Docker publication test passed (1.65 s): unmodified host before explicit
+publication, committed effect, retrievable artifact, and no cleanup writeback.
+
+A further synchronous-command parent-exit defect was found and fixed by reusing
+the same backend supervisor (no additional executor). Serial owned Docker tests
+and the original process regression passed four tests (4.83 s), including timeout
+after shell exit with a living child, actual descendant completion, and byte
+counts. These are intermediate gates; required sandbox restore/fork/fencing,
+full consumer work runtime and final qualification remain pending.

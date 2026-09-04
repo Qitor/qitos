@@ -57,14 +57,15 @@ def _bounded_text(value: Any, *, limit: int = _MODEL_TEXT_LIMIT) -> tuple[str, i
     return text[:kept] + marker, len(text) - kept
 
 
-def _artifact(payload: Any, *, kind: str, summary: str) -> ArtifactRef:
+def _artifact(payload: Any, *, kind: str, summary: str,
+              runtime_context: Optional[Dict[str, Any]] = None) -> ArtifactRef:
     raw = (
         payload.encode("utf-8")
         if isinstance(payload, str)
         else json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     )
     digest = hashlib.sha256(raw).hexdigest()
-    return ArtifactRef(
+    reference = ArtifactRef(
         artifact_id=f"sha256:{digest}",
         resolver_key="tool-result-output",
         sha256=digest,
@@ -74,6 +75,15 @@ def _artifact(payload: Any, *, kind: str, summary: str) -> ArtifactRef:
         sensitivity="internal",
         model_summary=f"Full {kind} retained in the canonical tool result; {summary}",
     )
+    resolver = (runtime_context or {}).get("artifact_resolver")
+    if resolver is None:
+        raise EnvCapabilityError("artifact_store_unavailable", "full output requires an artifact resolver")
+    put = getattr(resolver, "put", None)
+    if callable(put):
+        put(reference, raw)
+    if not resolver.probe(reference):
+        raise EnvCapabilityError("missing_required_artifact", "full output artifact is unavailable")
+    return reference
 
 
 def _success(
@@ -184,7 +194,7 @@ def read_file(
         omitted_lines = max(0, len(lines) - (start - 1 + len(selected)))
         omitted = omitted_chars + omitted_lines
         artifacts = (
-            (_artifact(content, kind="file content", summary="use pagination for context"),)
+            (_artifact(content, kind="file content", summary="use pagination for context", runtime_context=runtime_context),)
             if omitted
             else ()
         )
@@ -286,7 +296,7 @@ def grep_file(
         stderr, err_omitted = _bounded_text(raw.get("stderr"))
         omitted = out_omitted + err_omitted
         artifacts = (
-            (_artifact(raw, kind="search output", summary="refine the query for context"),)
+            (_artifact(raw, kind="search output", summary="refine the query for context", runtime_context=runtime_context),)
             if omitted
             else ()
         )
@@ -394,7 +404,8 @@ def edit_file(
         return _semantic("edit_file", exc)
 
 
-def _command_result(tool_name: str, command: str, timeout: int, raw: Dict[str, Any]) -> ToolResult:
+def _command_result(tool_name: str, command: str, timeout: int, raw: Dict[str, Any],
+                    runtime_context: Optional[Dict[str, Any]] = None) -> ToolResult:
     stdout, out_omitted = _bounded_text(raw.get("stdout"))
     stderr, err_omitted = _bounded_text(raw.get("stderr"))
     omitted = out_omitted + err_omitted
@@ -413,7 +424,7 @@ def _command_result(tool_name: str, command: str, timeout: int, raw: Dict[str, A
         },
     }
     artifacts = (
-        (_artifact(raw, kind="command output", summary="narrow the command for context"),)
+        (_artifact(raw, kind="command output", summary="narrow the command for context", runtime_context=runtime_context),)
         if omitted
         else ()
     )
@@ -468,7 +479,7 @@ def run_command(
     applied = min(_COMMAND_TIMEOUT_LIMIT, max(1, int(timeout)))
     try:
         raw = dict(_ops(runtime_context, "process").run(command, timeout=applied))
-        return _command_result("run_command", command, applied, raw)
+        return _command_result("run_command", command, applied, raw, runtime_context)
     except Exception as exc:
         return _semantic("run_command", exc)
 
@@ -490,7 +501,7 @@ def run_test(
         command = "python -m pytest -q" + (f" {shlex.quote(safe_target)}" if safe_target else "")
         applied = min(_COMMAND_TIMEOUT_LIMIT, max(1, int(timeout)))
         raw = dict(_ops(runtime_context, "process").run(command, timeout=applied))
-        return _command_result("run_test", command, applied, raw)
+        return _command_result("run_test", command, applied, raw, runtime_context)
     except Exception as exc:
         return _semantic("run_test", exc)
 
@@ -534,7 +545,7 @@ def poll_process(
                 ProcessHandle(process_id, owner_generation)
             )
         )
-        return _command_result("poll_process", process_id, 0, raw)
+        return _command_result("poll_process", process_id, 0, raw, runtime_context)
     except Exception as exc:
         return _semantic("poll_process", exc)
 

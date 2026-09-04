@@ -317,11 +317,28 @@ failure_policy: {provider: typed, tool: fail_closed}
         encoding="utf-8",
     )
     config = load_agent_config(path)
+    from qitos.config.errors import CompositionError
+    from qitos.core.context import RejectingCompactionPolicy
+    with pytest.raises(CompositionError):
+        build_agent_composition(config, model_override=_FinalModel(),
+                                env_override=HostEnv(workspace_root=str(tmp_path)))
+
+    class MemorySource:
+        contributor_id = "third-party-memory"
+
+        def contribute(self, request):
+            return ()
+
+    config = replace(config, memory={"provider": "third-party-memory"},
+                     compaction={"provider": "third-party-compactor"},
+                     failure_policy={"tool": "fail_closed"})
     composition = build_agent_composition(
-        config,
-        model_override=_FinalModel(),
-        env_override=HostEnv(workspace_root=str(tmp_path)),
+        config, model_override=_FinalModel(), env_override=HostEnv(workspace_root=str(tmp_path)),
+        extensions={"third-party-memory": MemorySource,
+                    "third-party-compactor": RejectingCompactionPolicy},
     )
+    assert isinstance(composition.agent.config["memory_sources"][0], MemorySource)
+    assert isinstance(composition.agent.config["compaction_policy"], RejectingCompactionPolicy)
     try:
         slots = composition.runtime.launch_metadata["extension_slots"]
         assert slots["memory"]["provider"] == "third-party-memory"

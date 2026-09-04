@@ -8,6 +8,10 @@ outside this capability and are contained by eventual owned-container cleanup.
 SUPERVISOR = r'''
 import ctypes, json, os, pathlib, select, signal, subprocess, sys, time
 base, command = sys.argv[1:3]
+deadline_seconds = int(sys.argv[3]) if len(sys.argv) > 3 else 0
+output_limit = int(sys.argv[4]) if len(sys.argv) > 4 else 64000
+started = time.monotonic()
+timed_out = False
 root = pathlib.Path(base)
 root.parent.mkdir(parents=True, exist_ok=True)
 try:
@@ -21,6 +25,8 @@ def publish(value):
     temporary = pathlib.Path(base + '.state.tmp')
     temporary.write_text(json.dumps(value))
     temporary.replace(path)
+    if deadline_seconds and value['status'] in {'terminal', 'unknown'}:
+        print(json.dumps(value), flush=True)
 
 def group_alive(group):
     if pathlib.Path('/proc').is_dir():
@@ -59,6 +65,7 @@ try:
     group = process.pid
     streams = {process.stdout.fileno(): 'stdout', process.stderr.fileno(): 'stderr'}
     tails = {'stdout': b'', 'stderr': b''}
+    sizes = {'stdout': 0, 'stderr': 0}
     cancel_at = None
     grace = 1
     while True:
@@ -74,9 +81,10 @@ try:
         alive = group_alive(group)
         descendants = adopted_alive()
         cancel = pathlib.Path(base + '.cancel')
-        if cancel.exists() and (alive or descendants):
+        timed_out = timed_out or bool(deadline_seconds and time.monotonic() - started >= deadline_seconds)
+        if (cancel.exists() or timed_out) and (alive or descendants):
             if cancel_at is None:
-                grace = max(0, min(30, int(cancel.read_text())))
+                grace = max(0, min(30, int(cancel.read_text()))) if cancel.exists() else 1
                 cancel_at = time.monotonic()
             signum = signal.SIGTERM if time.monotonic() - cancel_at < grace else signal.SIGKILL
             if alive:
@@ -91,17 +99,23 @@ try:
                 del streams[fd]
             else:
                 name = streams[fd]
-                tails[name] = (tails[name] + data)[-64000:]
+                sizes[name] += len(data)
+                tails[name] = (tails[name] + data)[-output_limit:]
         # Keep draining closed-worker pipes before publishing terminal output.
         terminal = rc is not None and not alive and not descendants and not streams
-        publish({'status': 'terminal' if terminal else 'running',
+        unknown = bool(deadline_seconds and cancel_at is not None and time.monotonic() - cancel_at > grace + 2 and not terminal)
+        publish({'status': 'terminal' if terminal else 'unknown' if unknown else 'running',
                  'returncode': rc if terminal else None,
                  'stdout': tails['stdout'].decode('utf-8', errors='replace'),
                  'stderr': tails['stderr'].decode('utf-8', errors='replace'),
-                 'worker_still_running': not terminal, 'outcome_unknown': False,
+                 'worker_still_running': not terminal, 'outcome_unknown': unknown,
+                 'timed_out': timed_out,
+                 'stdout_bytes': sizes['stdout'], 'stderr_bytes': sizes['stderr'],
+                 'stdout_truncated': sizes['stdout'] > output_limit,
+                 'stderr_truncated': sizes['stderr'] > output_limit,
                  'completion_source': 'backend_supervisor',
                  'supervisor_pid': os.getpid()})
-        if terminal:
+        if terminal or unknown:
             break
         if not streams:
             time.sleep(.05)
