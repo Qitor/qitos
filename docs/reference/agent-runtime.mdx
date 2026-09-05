@@ -45,9 +45,9 @@ AgentModule(tool_registry: Any=None, toolset: Any=None, llm: Any=None, model_par
 | `llm` | `Any` | `None` |
 | `model_parser` | `Any` | `None` |
 | `model_protocol` | `Any` | `None` |
-| `memory` | `Memory &#124; None` | `None` |
-| `history` | `History &#124; None` | `None` |
-| `mcp_servers` | `List[Any] &#124; None` | `None` |
+| `memory` | `Memory \| None` | `None` |
+| `history` | `History \| None` | `None` |
+| `mcp_servers` | `List[Any] \| None` | `None` |
 
 | Field | Type | Default |
 | --- | --- | --- |
@@ -134,28 +134,28 @@ run(task: str | Task, return_state: bool=False, hooks: List[Any] | None=None, re
 
 | Parameter | Type | Default |
 | --- | --- | --- |
-| `task` | `str &#124; Task` | `required` |
+| `task` | `str \| Task` | `required` |
 | `return_state` | `bool` | `False` |
-| `hooks` | `List[Any] &#124; None` | `None` |
-| `render_hooks` | `List[Any] &#124; None` | `None` |
-| `engine_kwargs` | `Dict[str, Any] &#124; None` | `None` |
-| `workspace` | `str &#124; None` | `None` |
-| `max_steps` | `int &#124; None` | `None` |
+| `hooks` | `List[Any] \| None` | `None` |
+| `render_hooks` | `List[Any] \| None` | `None` |
+| `engine_kwargs` | `Dict[str, Any] \| None` | `None` |
+| `workspace` | `str \| None` | `None` |
+| `max_steps` | `int \| None` | `None` |
 | `env` | `Any` | `None` |
 | `parser` | `Any` | `None` |
 | `protocol` | `Any` | `None` |
 | `search` | `Any` | `None` |
-| `critics` | `List[Any] &#124; None` | `None` |
-| `stop_criteria` | `List[Any] &#124; None` | `None` |
+| `critics` | `List[Any] \| None` | `None` |
+| `stop_criteria` | `List[Any] \| None` | `None` |
 | `history_policy` | `Any` | `None` |
 | `context_config` | `Any` | `None` |
 | `trace` | `Any` | `None` |
 | `render` | `Any` | `None` |
 | `trace_logdir` | `str` | `'./runs'` |
-| `trace_prefix` | `str &#124; None` | `None` |
+| `trace_prefix` | `str \| None` | `None` |
 | `theme` | `str` | `'research'` |
-| `run_spec` | `RunSpec &#124; Dict[str, Any] &#124; None` | `None` |
-| `experiment_spec` | `ExperimentSpec &#124; Dict[str, Any] &#124; None` | `None` |
+| `run_spec` | `RunSpec \| Dict[str, Any] \| None` | `None` |
+| `experiment_spec` | `ExperimentSpec \| Dict[str, Any] \| None` | `None` |
 
 ```text
 Execute task with Engine using plain text objective or structured Task.
@@ -377,7 +377,7 @@ Engine(agent: AgentModule[StateT, ObservationT, ActionT], agent_registry: Option
 | `history_policy` | `Optional[HistoryPolicy]` | `None` |
 | `hooks` | `Optional[List[EngineHook]]` | `None` |
 | `render_hooks` | `Optional[List[Any]]` | `None` |
-| `context_config` | `Optional[ContextConfig &#124; Dict[str, Any]]` | `None` |
+| `context_config` | `Optional[ContextConfig \| Dict[str, Any]]` | `None` |
 | `cache_backend` | `Optional[Any]` | `None` |
 | `checkpoint_manager` | `Optional[Any]` | `None` |
 | `checkpoint_store` | `Optional[CheckpointStore]` | `None` |
@@ -401,7 +401,7 @@ session(task: str | Task, session_id: Any=None) -> Any
 
 | Parameter | Type | Default |
 | --- | --- | --- |
-| `task` | `str &#124; Task` | `required` |
+| `task` | `str \| Task` | `required` |
 | `session_id` | `Any` | `None` |
 
 ```text
@@ -419,7 +419,7 @@ run(task: str | Task, **kwargs: Any) -> EngineResult[StateT]
 
 | Parameter | Type | Default |
 | --- | --- | --- |
-| `task` | `str &#124; Task` | `required` |
+| `task` | `str \| Task` | `required` |
 
 [Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/engine.py#L981)
 

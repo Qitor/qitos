@@ -76,7 +76,7 @@ delegate(agent: str, *, task: str, operation_id: str | None=None) -> Any
 | --- | --- | --- |
 | `agent` | `str` | `required` |
 | `task` | `str` | `required` |
-| `operation_id` | `str &#124; None` | `None` |
+| `operation_id` | `str \| None` | `None` |
 
 [Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/session_runtime.py#L1122)
 
@@ -91,7 +91,7 @@ spawn(agent: str, *, task: str, operation_id: str | None=None) -> Any
 | --- | --- | --- |
 | `agent` | `str` | `required` |
 | `task` | `str` | `required` |
-| `operation_id` | `str &#124; None` | `None` |
+| `operation_id` | `str \| None` | `None` |
 
 [Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/session_runtime.py#L1129)
 
@@ -105,7 +105,7 @@ fan_out(specs: Iterable[Mapping[str, Any]], *, operation_id: str | None=None) ->
 | Parameter | Type | Default |
 | --- | --- | --- |
 | `specs` | `Iterable[Mapping[str, Any]]` | `required` |
-| `operation_id` | `str &#124; None` | `None` |
+| `operation_id` | `str \| None` | `None` |
 
 [Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/session_runtime.py#L1136)
 
@@ -120,10 +120,10 @@ join(children: Iterable[str], *, policy: str='all', quorum: int | None=None, red
 | --- | --- | --- |
 | `children` | `Iterable[str]` | `required` |
 | `policy` | `str` | `'all'` |
-| `quorum` | `int &#124; None` | `None` |
-| `reducer_ref` | `str &#124; None` | `None` |
-| `reducer_digest` | `str &#124; None` | `None` |
-| `operation_id` | `str &#124; None` | `None` |
+| `quorum` | `int \| None` | `None` |
+| `reducer_ref` | `str \| None` | `None` |
+| `reducer_digest` | `str \| None` | `None` |
+| `operation_id` | `str \| None` | `None` |
 
 [Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/session_runtime.py#L1157)
 
@@ -138,7 +138,7 @@ handoff(agent: str, *, rationale: str='handoff', operation_id: str | None=None) 
 | --- | --- | --- |
 | `agent` | `str` | `required` |
 | `rationale` | `str` | `'handoff'` |
-| `operation_id` | `str &#124; None` | `None` |
+| `operation_id` | `str \| None` | `None` |
 
 [Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/session_runtime.py#L1148)
 
@@ -287,7 +287,7 @@ DurableWorkRuntime(scheduler: WorkScheduler, *, policy: WorkRuntimePolicy | None
 | Parameter | Type | Default |
 | --- | --- | --- |
 | `scheduler` | `WorkScheduler` | `required` |
-| `policy` | `WorkRuntimePolicy &#124; None` | `None` |
+| `policy` | `WorkRuntimePolicy \| None` | `None` |
 
 
 <span id="qitos-engine-work_runtime-localworkscheduler" />

@@ -49,7 +49,9 @@ def parameter_table(node):
             continue
         annotation = ast.unparse(argument.annotation) if argument.annotation else "not annotated"
         value = ast.unparse(default) if default is not None else "required"
-        rows.append(f"| `{argument.arg}` | `{annotation.replace('|', '&#124;')}` | `{value.replace('|', '&#124;')}` |")
+        annotation = annotation.replace("|", "\\|")
+        value = value.replace("|", "\\|")
+        rows.append(f"| `{argument.arg}` | `{annotation}` | `{value}` |")
     if not rows:
         return []
     return ["| Parameter | Type | Default |", "| --- | --- | --- |", *rows, ""]
@@ -102,7 +104,7 @@ def synchronize(check=False):
         for prefix in ("", "zh/"):
             page = ROOT / "docs" / f"{prefix}reference/{group['slug']}.mdx"
             text = page.read_text()
-            body = "\n\n".join(symbol_text(item, manifest["baseline"], bool(prefix), group["tutorial"]) for item in group["symbols"])
+            body = "\n\n".join(symbol_text(item, group.get("baseline", manifest["baseline"]), bool(prefix), group["tutorial"]) for item in group["symbols"])
             expected = text.split(START)[0] + START + "\n\n" + body + "\n" + END + text.split(END)[1]
             if text != expected:
                 if check:

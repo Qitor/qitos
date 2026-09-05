@@ -30,6 +30,7 @@ read-only qita. Framework correctness does not guarantee arbitrary model task su
 - Legacy Read/Edit now preserve line windows, reject ambiguous edits and expose canonical failure results.
 
 - Same-Session handoff persists admission before dispatch; destination restore and completion are independent of late source callbacks.
+- Explicit memory adapters and deterministic closed-exchange compaction: installed two-process Memdir recall, namespace isolation, and actual request selection; [usage and limits](examples/v5/r1_b_memory_context/README.md).
 
 - Self-contained web tutorials: complete notes-Agent code, bilingual learning path and source-checked core API reference; tests execute the files shown on each page.
 

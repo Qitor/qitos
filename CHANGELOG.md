@@ -19,6 +19,8 @@ How to update:
 
 ### Added
 
+- Module-level `MemorySourceAdapter` and model-free `ClosedExchangeWindowCompactor`, with a configured, installed-wheel two-process text-memory consumer.
+
 - Self-contained EN/zh notes-Agent lessons with complete inline files, source-synchronized excerpts, core API signatures and page-extracted installed-wheel checks.
 - Explicit serialized handoff lesson and documented same-head concurrent callback limitation; runtime unchanged.
 
@@ -30,12 +32,15 @@ How to update:
 - Correct legacy Read pagination and Edit replace-all handling; return canonical ToolResult failures with useful error codes and preserve explicit SHA conflict rejection.
 
 - Persist same-Session handoff admission before scheduler invocation; destination ownership and terminal facts no longer depend on stale source callbacks. Admission is not business completion.
+- Memdir recalls durable records once by stable identity, reflects edits/deletions, and keeps equal independent records distinct. Preserve history step identity until ExchangeLog conversion so the recent-exchange window applies to real rounds.
 
 - Avoid reparsing unchanged journal bytes on each append/read while retaining full content hashing, external-write validation, crash recovery and durability checks.
 - Resolve frozen historical producer identities from exact retained ancestry when retired source branches are absent; moved refs and untrusted inventory identities still fail.
 - Restore Python 3.10 explicit publication by hashing validated file descriptors in bounded chunks; containment, special-file rejection, source-conflict checks and rollback remain enforced.
 
 ### Changed
+
+- Memdir restores existing roots by default; pass `create=True` to initialize. Budget-driven exchange omission now requires an explicit compaction policy and a matching selection/loss receipt. Required context precedes optional priority.
 
 - Make CI prerequisites explicit (build tools, asyncio plugin, full history and owned Docker fixtures), preserve the qualified typing context, and remove test-only interpreter and queue-scheduling assumptions. The subsequent explicitly authorized runtime fixes are qualified separately from G5.
 

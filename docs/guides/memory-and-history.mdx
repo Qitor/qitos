@@ -5,11 +5,11 @@ description: "Learn QitOS with complete, executable notes-project code."
 
 ## Goal and prerequisites
 
-The notes Agent needs project instructions and remembered facts. Register contributor factories in `extensions`, then reference their names from `context` and `memory`. The selector records which contributions were actually considered; a dictionary entry alone is not proof the model saw it.
+The notes Agent needs project instructions and remembered facts. Bind concrete implementations in `extensions`, then select `memory.sources: [project_memory]` and `compaction.provider: closed_window`. `MemorySourceAdapter` works with both MemdirMemory and MarkdownFileMemory; users do not construct contributions, provider messages or compaction receipts.
 
-The custom compactor deliberately omits a closed exchange without a summary and returns a CompactionReceipt declaring that loss. Inspect the journal for a compaction record whose loss is not lossless. This demonstrates how to report a lossy transformation; it is not a recommended production summarization strategy.
+This fixture makes four scripted tool calls (two passes over the two notes), then finishes. `ClosedExchangeWindowCompactor` omits the oldest eligible closed exchanges without a summary only when the request exceeds its configured budget. `ContextBudget.protected_recent_exchanges=2` protects the recent window. Without an explicitly selected compactor, history overflow fails instead of silently dropping exchanges.
 
-Read `AuditedSelector.select`, `OmitClosedExchange.compact`, and the configuration in `run` in that order. The fixture sets protected recent exchanges to zero only to exercise its explicitly declared omission. It does not disable codec loss checks.
+Read the factory bindings in `run`. The existing YAML loader accepts the memory and compaction names. The existing Python `dataclasses.replace` configuration supplies `context.budget_policy` and explicitly sets `context.allow_codec_loss=True`; those context service keys are not accepted by the YAML loader. This is a visible loss opt-in for the example, never a setting enabled inside the adapter or compactor.
 
 Basic Python is required. The package declares Python ≥3.10; local qualification uses Python 3.12.7. Each chapter runs independently; reuse the environment and matching files when continuing your project. Commands below use a macOS/Linux shell.
 
@@ -18,10 +18,12 @@ Basic Python is required. The package declares Python ≥3.10; local qualificati
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install "qitos @ git+https://github.com/WhitzardAgent/WhitzardOS.git@60809b3be388d22ea40ea41b4aaa1f5540c76fda"
+python -m pip install /path/to/reviewed/qitos-0.6.0-py3-none-any.whl
 mkdir notes_lesson
 cd notes_lesson
 ```
+
+This chapter uses the reviewed unreleased Lane B wheel, built from its source with `python -m build`; the earlier pinned tutorial release does not contain these new adapters.
 
 Save the complete files below in this directory. No repository clone, editable install, or copied tests are needed.
 
@@ -39,11 +41,19 @@ compaction loss recorded
 
 ## Behavior and support boundaries
 
-Memory contributors are context inputs; a checkpoint store persists execution state. They solve different problems. Public redacted export is not a raw backup, even when record counts match.
+Memory is request context data at user placement, not a system instruction, permission or checkpoint store. The namespace is a logical label bound to a memory resource by the application factory; it is not permission to read arbitrary directories. No global memory is read by default.
+
+Memdir text records retain an independent `record_id` across processes. Equal text in two independent records remains two records; content edits change the contribution revision/digest. Recall reads disk afresh rather than merging stale append-time records. External edits/deletions are reflected in retrieval and summary. Host paths are not added to contribution IDs, content or metadata. Use `create=True` only for explicit initialization; normal construction restores an existing root and raises `MemoryResourceError` when it is missing. This changes the old implicit-create default, including `memdir_memory(...)`.
+
+The adapter borrows the memory. Adapter `reset`/`close` do not reset, close or delete it. Memdir `reset`/`evict` affect only its in-memory cache, not persistent files. Text records are the durable reference; arbitrary Python/JSON records or historical metadata are not a lossless storage promise. MarkdownFileMemory works within its current instance, but a fresh instance does not reload its append-only log. No metadata evaluation or guessed reconstruction occurs.
+
+Selection never mutates ExchangeLog bytes or tool completion order. Tool declarations/results are retained or omitted together. Incomplete exchanges, pending steering and required context/artifacts stay protected; opaque continuation state conservatively protects the complete history because no smaller dependency closure is declared. If protected content cannot fit, selection raises a typed failure. Recalling an unchanged revision after an earlier omission or restore injects it again.
+
+The installed [two-process consumer](https://github.com/WhitzardAgent/WhitzardOS/tree/codex/v5-r1-b-memory-context/examples/v5/r1_b_memory_context) seeds `remembered-value=17`, exits, restores the configured memory and verifies actual encoded requests and repeated budget compaction. It uses a deterministic provider, not a live model. Legacy CompactHistory remains compatible. Markdown durable reading, model summaries, complete legacy-history retirement, cross-Agent memory policy and original-Agent migration experiments remain out of scope.
 
 ## Exercise and answer
 
-Change the memory text, retain its contribution ID, and verify the selector still reports it. Inspect the resulting compaction loss instead of asserting losslessness.
+Edit the persisted text without changing its record ID, then verify its revision changes. Restore the same resource in a second process; a different factory-bound namespace should stay empty.
 
 ## Common errors and cleanup
 
@@ -192,18 +202,33 @@ failure_policy:
 """Explicit contributor, memory, selector and compactor factories; no network."""
 import argparse
 from dataclasses import replace
-import hashlib
 from pathlib import Path
 
 from qitos.config import build_agent_composition
 from qitos.core.context import (
     DeclaredContextBudgetPolicy, PriorityContextSelectionPolicy, StaticContextContributor,
 )
-from qitos.core.request_view import CompactionReceipt
+from qitos.core.memory import MemoryRecord
+from qitos.kit.context.compaction import ClosedExchangeWindowCompactor
+from qitos.kit.memory.adapter import MemorySourceAdapter
+from qitos.kit.memory.memdir_memory import MemdirMemory
 from qitos.qita.reader import default_reader
 from qitos.tracing.trajectory import PrivacyView
 
 from notes import FakeProvider, summarize_note, configuration
+
+
+class ContextProvider(FakeProvider):
+    """Four scripted tool turns make closed-exchange omission observable."""
+
+    def __init__(self):
+        self.stage = 0
+
+    def call_raw(self, messages, **options):
+        content = (f"Thought: inspect\nAction: summarize_note(index={self.stage % 2})"
+                   if self.stage < 4 else "Final Answer: Indexed 2 notes: Session, Artifact.")
+        self.stage += 1
+        return {"choices": [{"message": {"content": content}}]}
 
 
 class AuditedSelector(PriorityContextSelectionPolicy):
@@ -216,41 +241,27 @@ class AuditedSelector(PriorityContextSelectionPolicy):
         return super().select(contributions, **options)
 
 
-class OmitClosedExchange:
-    """Explicitly lossy omission for this arithmetic fixture only."""
-    policy_id = "tutorial.omit_closed"
-
-    def __init__(self):
-        self.calls = 0
-
-    def compact(self, **values):
-        self.calls += 1
-        return CompactionReceipt(
-            receipt_id="compaction_" + values["selected_digest"][:24],
-            input_exchange_ids=tuple(values["exchange_ids"]), policy_id=self.policy_id,
-            output_digest=hashlib.sha256(b"").hexdigest(),
-            declared_losses=("closed_exchange_omitted_without_summary",),
-        )
-
-
 def run(root):
     root.mkdir(parents=True, exist_ok=False)
     config = replace(
         configuration(root),
-        context={"contributors": ["project"], "selector": "selector", "budget_policy": "budget"},
-        memory={"sources": ["memory"]}, compaction={"provider": "compactor"})
-    selector, compactor = AuditedSelector(), OmitClosedExchange()
-    with build_agent_composition(config, model_override=FakeProvider(), extensions={
+        context={"contributors": ["project"], "selector": "selector", "budget_policy": "budget", "allow_codec_loss": True},
+        memory={"sources": ["project_memory"]}, compaction={"provider": "closed_window"})
+    config = replace(config, budgets=replace(config.budgets, max_steps=6, max_requests=6))
+    selector = AuditedSelector()
+    memory = MemdirMemory(str(root / "memory"), create=True)
+    memory.append(MemoryRecord("user", 'Session and Artifact are the two note titles.', 0))
+    with build_agent_composition(config, model_override=ContextProvider(), extensions={
         "project": lambda: StaticContextContributor("lesson.project", "project", "Use only the supplied notes."),
-        "memory": lambda: StaticContextContributor("lesson.memory", "memory", "Session and Artifact are the two note titles."),
-        "selector": selector, "compactor": compactor,
-        "budget": lambda: DeclaredContextBudgetPolicy(default_max_input_units=4096, protected_recent_exchanges=0),
+        "project_memory": lambda: MemorySourceAdapter(memory, namespace="notes", required=True),
+        "selector": selector, "closed_window": ClosedExchangeWindowCompactor,
+        "budget": lambda: DeclaredContextBudgetPolicy(default_max_input_units=30000, protected_recent_exchanges=2),
     }) as composition:
         composition.tool_registry.register(summarize_note)
         session = composition.session("Index both notes")
         assert session.run().state.final_result == "Indexed 2 notes: Session, Artifact."
-        assert {"lesson.project", "lesson.memory"} <= selector.seen
-        assert compactor.calls > 0
+        assert "lesson.project" in selector.seen
+        assert any(identity.startswith("memory:notes:") for identity in selector.seen)
         trajectory = default_reader(root).read_session(session.session_id.value, view=PrivacyView.RAW_PRIVATE)
         assert any(record.kind.value == "compaction" and not record.loss.is_lossless for record in trajectory.records)
     print("context selected; memory selected; compaction loss recorded")

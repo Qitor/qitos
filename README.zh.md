@@ -30,6 +30,7 @@ store、sink 和 sandbox 可扩展；qita 只读检查 Trajectory。
 - 旧 Read/Edit 现在正确保留分页窗口、拒绝非唯一编辑，并返回 canonical 失败结果。
 
 - 同一 Session 的 handoff 在 dispatch 前持久化 admission；目标 restore 与完成不再依赖迟到的源 callback。
+- 显式 memory adapter 与确定性 closed-exchange 压缩：已验证安装后两进程 Memdir 召回、namespace 隔离和实际 request selection；[用法与边界](examples/v5/r1_b_memory_context/README.md)。
 
 - 网页自足教程：资料整理 Agent 的完整代码、中英文学习路径、可核对源码签名的核心 API Reference；测试直接执行网页文件。
 

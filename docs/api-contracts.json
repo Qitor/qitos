@@ -254,6 +254,7 @@
     },
     {
       "slug": "context",
+      "baseline": "1710b2723238648e3d7394b262f06e97290cd093",
       "tutorial": "guides/memory-and-history",
       "symbols": [
         {
@@ -281,6 +282,68 @@
           "name": "CompactionReceipt",
           "methods": [],
           "example": "# receipt is returned by the compactor in the context tutorial.\nprint(receipt.declared_losses, receipt.output_digest)"
+        },
+        {
+          "module": "qitos.core.memory",
+          "name": "MemoryRecord",
+          "methods": [],
+          "example": "record = MemoryRecord(\"user\", \"remembered-value=17\", 0)"
+        },
+        {
+          "module": "qitos.core.memory",
+          "name": "MemoryResourceError",
+          "methods": [],
+          "example": "# Restore raises MemoryResourceError if the bound root is missing."
+        },
+        {
+          "module": "qitos.kit.memory.memdir_memory",
+          "name": "MemdirMemory",
+          "methods": [
+            "append",
+            "retrieve",
+            "summarize",
+            "reset",
+            "evict"
+          ],
+          "example": "memory = MemdirMemory(\"./project-memory\", create=True)\nmemory.append(MemoryRecord(\"user\", \"remembered-value=17\", 0))\n# Later process: MemdirMemory(\"./project-memory\")"
+        },
+        {
+          "module": "qitos.kit.memory.markdown_file_memory",
+          "name": "MarkdownFileMemory",
+          "methods": [],
+          "example": "memory = MarkdownFileMemory(\"./run-memory.md\")\n# Existing logs are not reloaded; recall is instance-scoped."
+        },
+        {
+          "module": "qitos.kit.memory.adapter",
+          "name": "MemorySourceAdapter",
+          "methods": [
+            "contribute",
+            "reset",
+            "close"
+          ],
+          "example": "source = MemorySourceAdapter(memory, namespace=\"project\", required=True)\n# Bind source as extensions[\"project_memory\"]."
+        },
+        {
+          "module": "qitos.kit.context.compaction",
+          "name": "ClosedExchangeWindowCompactor",
+          "methods": [
+            "compact"
+          ],
+          "example": "extensions[\"closed_window\"] = ClosedExchangeWindowCompactor\n# Configure compaction={\"provider\": \"closed_window\"}; the policy supplies receipts."
+        },
+        {
+          "module": "qitos.core.request_view",
+          "name": "RequestView",
+          "methods": [
+            "from_exchange_log"
+          ],
+          "example": "# Advanced direct projection; normal users select the configured compactor.\nview = RequestView.from_exchange_log(log, compaction_policy=ClosedExchangeWindowCompactor())"
+        },
+        {
+          "module": "qitos.core.request_view",
+          "name": "ContextBudgetExceededError",
+          "methods": [],
+          "example": "# Required/protected exchanges cannot be removed to make a request fit."
         },
         {
           "module": "qitos.engine.runtime",

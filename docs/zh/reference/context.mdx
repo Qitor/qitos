@@ -9,6 +9,11 @@ description: "QitOS public API: context"
 
 以下签名和字段由固定源码提取；签名是参考，不是可直接运行的程序。每个条目的源码链接绑定同一 runtime baseline。类型中的 Any 不代表任意对象均受支持，应结合上述行为契约和教程使用。
 
+
+具体 module API 为 `qitos.kit.memory.adapter.MemorySourceAdapter(memory, *, namespace, query=None, required=False, priority=0)` 和 `qitos.kit.context.compaction.ClosedExchangeWindowCompactor()`。通过现有 `extensions` mapping 绑定，不增加 root export 或 Engine 构造参数。Memdir 恢复时明确报告缺失资源（`create=True` 用于初始化）；Markdown 仅在当前实例内召回。required contribution 的优先级高于 optional contribution。
+
+RequestView 的预算驱动 exchange 省略现在要求显式 compaction policy。`compact` callback 收到符合省略条件的 IDs 和已选择 exchange projection 的 SHA-256 digest，必须返回对应的损失 receipt。已有 receipt 本身不授权新的省略。request builder 负责最近窗口和全部保护检查，continuation 采用保守保护。Python-only context 预算/损失设置和迁移边界见教程。
+
 {/* api-reference:start */}
 
 <span id="qitos-core-context-staticcontextcontributor" />
@@ -18,7 +23,7 @@ description: "QitOS public API: context"
 from qitos.core.context import StaticContextContributor
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/context.py#L300)
+[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/core/context.py#L302)
 
 [用法与可执行示例](/zh/guides/memory-and-history)
 
@@ -51,7 +56,7 @@ Small reusable contributor for project/user/session context.
 from qitos.core.context import PriorityContextSelectionPolicy
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/context.py#L118)
+[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/core/context.py#L118)
 
 [用法与可执行示例](/zh/guides/memory-and-history)
 
@@ -87,7 +92,7 @@ select(contributions: Iterable[ContextContribution], *, budget: ContextBudget, a
 | `already_used_units` | `int` | `0` |
 | `counter` | `UnitCounter` | `default_unit_counter` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/context.py#L123)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/core/context.py#L123)
 
 
 <span id="qitos-core-context-declaredcontextbudgetpolicy" />
@@ -97,7 +102,7 @@ select(contributions: Iterable[ContextContribution], *, budget: ContextBudget, a
 from qitos.core.context import DeclaredContextBudgetPolicy
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/context.py#L187)
+[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/core/context.py#L189)
 
 [用法与可执行示例](/zh/guides/memory-and-history)
 
@@ -126,7 +131,7 @@ Use adapter-declared capacity; never infer it from a model name.
 from qitos.core.request_view import CompactionReceipt
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/request_view.py#L525)
+[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/core/request_view.py#L530)
 
 [用法与可执行示例](/zh/guides/memory-and-history)
 
@@ -147,6 +152,421 @@ print(receipt.declared_losses, receipt.output_digest)
 | `model_reference` | `Optional[str]` | `None` |
 
 
+<span id="qitos-core-memory-memoryrecord" />
+## MemoryRecord
+
+```python
+from qitos.core.memory import MemoryRecord
+```
+
+[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/core/memory.py#L20)
+
+[用法与可执行示例](/zh/guides/memory-and-history)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+record = MemoryRecord("user", "remembered-value=17", 0)
+```
+
+```text
+One logical memory fact; independent equal facts receive distinct IDs.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `role` | `str` | `required` |
+| `content` | `Any` | `required` |
+| `step_id` | `int` | `required` |
+| `metadata` | `Dict[str, Any]` | `field(default_factory=dict)` |
+| `record_id` | `str` | `field(default_factory=lambda: uuid4().hex)` |
+
+
+<span id="qitos-core-memory-memoryresourceerror" />
+## MemoryResourceError
+
+```python
+from qitos.core.memory import MemoryResourceError
+```
+
+[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/core/memory.py#L13)
+
+[用法与可执行示例](/zh/guides/memory-and-history)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+# Restore raises MemoryResourceError if the bound root is missing.
+```
+
+```text
+A bound durable memory resource is missing or unavailable.
+```
+
+
+<span id="qitos-kit-memory-memdir_memory-memdirmemory" />
+## MemdirMemory
+
+```python
+from qitos.kit.memory.memdir_memory import MemdirMemory
+```
+
+[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/memdir_memory.py#L16)
+
+[用法与可执行示例](/zh/guides/memory-and-history)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+memory = MemdirMemory("./project-memory", create=True)
+memory.append(MemoryRecord("user", "remembered-value=17", 0))
+# Later process: MemdirMemory("./project-memory")
+```
+
+```text
+Persist text records with stable identity and fresh disk retrieval.
+
+Restore is the default and fails if a bound root is missing. Pass
+``create=True`` only to explicitly initialize a namespace. ``reset`` and
+``evict`` affect the append-time cache only; persistent deletion is external.
+Arbitrary Python/JSON content and metadata are not a durable round-trip API.
+```
+
+```text
+MemdirMemory(memory_dir: str='.qitos/memory', *, global_memory_dir: str | None=None, create: bool=False, max_index_entries: int=200, max_index_chars: int=25000) -> Any (see behavior contract)
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `memory_dir` | `str` | `'.qitos/memory'` |
+| `global_memory_dir` | `str \| None` | `None` |
+| `create` | `bool` | `False` |
+| `max_index_entries` | `int` | `200` |
+| `max_index_chars` | `int` | `25000` |
+
+<span id="qitos-kit-memory-memdir_memory-memdirmemory-append" />
+### MemdirMemory.append
+
+```text
+append(record: MemoryRecord) -> None
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `record` | `MemoryRecord` | `required` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/memdir_memory.py#L47)
+
+<span id="qitos-kit-memory-memdir_memory-memdirmemory-retrieve" />
+### MemdirMemory.retrieve
+
+```text
+retrieve(query: Optional[Dict[str, Any]]=None, state: Any=None, observation: Any=None) -> List[MemoryRecord]
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `query` | `Optional[Dict[str, Any]]` | `None` |
+| `state` | `Any` | `None` |
+| `observation` | `Any` | `None` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/memdir_memory.py#L78)
+
+<span id="qitos-kit-memory-memdir_memory-memdirmemory-summarize" />
+### MemdirMemory.summarize
+
+```text
+summarize(max_items: int=30) -> str
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `max_items` | `int` | `30` |
+
+```text
+Render current records, never stale index snippets after external edits.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/memdir_memory.py#L117)
+
+<span id="qitos-kit-memory-memdir_memory-memdirmemory-reset" />
+### MemdirMemory.reset
+
+```text
+reset(run_id: Optional[str]=None) -> None
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `run_id` | `Optional[str]` | `None` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/memdir_memory.py#L132)
+
+<span id="qitos-kit-memory-memdir_memory-memdirmemory-evict" />
+### MemdirMemory.evict
+
+```text
+evict() -> int
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/memdir_memory.py#L125)
+
+
+<span id="qitos-kit-memory-markdown_file_memory-markdownfilememory" />
+## MarkdownFileMemory
+
+```python
+from qitos.kit.memory.markdown_file_memory import MarkdownFileMemory
+```
+
+[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/markdown_file_memory.py#L12)
+
+[用法与可执行示例](/zh/guides/memory-and-history)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+memory = MarkdownFileMemory("./run-memory.md")
+# Existing logs are not reloaded; recall is instance-scoped.
+```
+
+```text
+Persist memory records in a local markdown log file.
+```
+
+```text
+MarkdownFileMemory(path: str='memory.md', max_in_memory: int=200) -> Any (see behavior contract)
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `path` | `str` | `'memory.md'` |
+| `max_in_memory` | `int` | `200` |
+
+
+<span id="qitos-kit-memory-adapter-memorysourceadapter" />
+## MemorySourceAdapter
+
+```python
+from qitos.kit.memory.adapter import MemorySourceAdapter
+```
+
+[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/adapter.py#L15)
+
+[用法与可执行示例](/zh/guides/memory-and-history)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+source = MemorySourceAdapter(memory, namespace="project", required=True)
+# Bind source as extensions["project_memory"].
+```
+
+```text
+Recall a factory-bound namespace as user-level context data.
+
+Namespace is a logical label, not a directory selector or an authorization.
+The factory must bind the correct Memory resource. No global memory is read
+by this adapter. Every request recalls fresh data, including after restore;
+revision is provenance, never a permanent suppression cache.
+```
+
+```text
+MemorySourceAdapter(memory: Memory, *, namespace: str, query: Mapping[str, Any] | None=None, required: bool=False, priority: int=0) -> None
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `memory` | `Memory` | `required` |
+| `namespace` | `str` | `required` |
+| `query` | `Mapping[str, Any] \| None` | `None` |
+| `required` | `bool` | `False` |
+| `priority` | `int` | `0` |
+
+<span id="qitos-kit-memory-adapter-memorysourceadapter-contribute" />
+### MemorySourceAdapter.contribute
+
+```text
+contribute(request: Any) -> Sequence[ContextContribution]
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `request` | `Any` | `required` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/adapter.py#L48)
+
+<span id="qitos-kit-memory-adapter-memorysourceadapter-reset" />
+### MemorySourceAdapter.reset
+
+```text
+reset(run_id: str | None=None) -> None
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `run_id` | `str \| None` | `None` |
+
+```text
+No owned state; never reset the borrowed memory.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/adapter.py#L79)
+
+<span id="qitos-kit-memory-adapter-memorysourceadapter-close" />
+### MemorySourceAdapter.close
+
+```text
+close() -> None
+```
+
+```text
+No owned resources; never close the borrowed memory.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/adapter.py#L82)
+
+
+<span id="qitos-kit-context-compaction-closedexchangewindowcompactor" />
+## ClosedExchangeWindowCompactor
+
+```python
+from qitos.kit.context.compaction import ClosedExchangeWindowCompactor
+```
+
+[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/context/compaction.py#L12)
+
+[用法与可执行示例](/zh/guides/memory-and-history)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+extensions["closed_window"] = ClosedExchangeWindowCompactor
+# Configure compaction={"provider": "closed_window"}; the policy supplies receipts.
+```
+
+```text
+Omit the oldest eligible closed exchanges without a summary.
+
+RequestView owns eligibility and the ContextBudget recent-window boundary.
+This stateless policy authorizes that derived selection and records its loss;
+it never modifies an ExchangeLog or widens a budget or codec loss setting.
+```
+
+<span id="qitos-kit-context-compaction-closedexchangewindowcompactor-compact" />
+### ClosedExchangeWindowCompactor.compact
+
+```text
+compact(*, exchange_ids: Sequence[str], selected_digest: str, required_units: int, available_units: int) -> CompactionReceipt | None
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `exchange_ids` | `Sequence[str]` | `required` |
+| `selected_digest` | `str` | `required` |
+| `required_units` | `int` | `required` |
+| `available_units` | `int` | `required` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/context/compaction.py#L22)
+
+
+<span id="qitos-core-request_view-requestview" />
+## RequestView
+
+```python
+from qitos.core.request_view import RequestView
+```
+
+[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/core/request_view.py#L794)
+
+[用法与可执行示例](/zh/guides/memory-and-history)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+# Advanced direct projection; normal users select the configured compactor.
+view = RequestView.from_exchange_log(log, compaction_policy=ClosedExchangeWindowCompactor())
+```
+
+```text
+One immutable, deterministic provider-neutral model request view.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `request_id` | `str` | `required` |
+| `target` | `RequestTarget` | `required` |
+| `source_log_id` | `str` | `required` |
+| `source_log_digest` | `str` | `required` |
+| `selected_items_json` | `tuple[str, ...]` | `field(repr=False)` |
+| `instructions_json` | `tuple[str, ...]` | `field(default=(), repr=False)` |
+| `tool_schemas_json` | `tuple[str, ...]` | `field(default=(), repr=False)` |
+| `context_json` | `tuple[str, ...]` | `field(default=(), repr=False)` |
+| `capability_requirements` | `tuple[str, ...]` | `()` |
+| `reasoning_policy` | `ReasoningPolicy` | `field(default_factory=ReasoningPolicy)` |
+| `continuation` | `Optional[ContinuationRef]` | `None` |
+| `context_budget` | `ContextBudget` | `field(default_factory=ContextBudget)` |
+| `selection` | `SelectionReport` | `field(default_factory=lambda: SelectionReport((), (), (), (), (), (), (), (), 0, 0, 0, 'characters'))` |
+| `compaction_receipts` | `tuple[CompactionReceipt, ...]` | `()` |
+| `artifact_refs` | `tuple[ArtifactRef, ...]` | `()` |
+| `steering_boundary_json` | `str` | `'{}'` |
+| `correlation_facts_json` | `tuple[str, ...]` | `field(default=(), repr=False)` |
+| `provenance_json` | `str` | `'{}'` |
+| `protocol_id` | `str` | `'unknown'` |
+| `tool_use_policy` | `str` | `'auto'` |
+| `tool_use_satisfied` | `bool` | `False` |
+| `schema_version` | `str` | `REQUEST_VIEW_SCHEMA_VERSION` |
+
+<span id="qitos-core-request_view-requestview-from-exchange-log" />
+### RequestView.from_exchange_log
+
+```text
+from_exchange_log(log: ExchangeLog, *, model: Any=None, target: Optional[RequestTarget]=None, instructions: Iterable[Mapping[str, Any]]=(), tool_schemas: Iterable[Mapping[str, Any]]=(), capability_requirements: Iterable[str]=(), reasoning_policy: Optional[ReasoningPolicy]=None, continuation: Optional[ContinuationRef]=None, context_budget: Optional[ContextBudget]=None, context_contributions: Iterable[ContextContribution]=(), context_selection_policy: Any=None, context_unit_counter: Any=None, compaction_receipts: Iterable[CompactionReceipt]=(), compaction_policy: Any=None, artifact_refs: Iterable[ArtifactRef]=(), available_artifact_ids: Optional[Iterable[str]]=None, protocol_id: str='unknown', tool_use_policy: str='auto', tool_use_satisfied: bool=False) -> 'RequestView'
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `log` | `ExchangeLog` | `required` |
+| `model` | `Any` | `None` |
+| `target` | `Optional[RequestTarget]` | `None` |
+| `instructions` | `Iterable[Mapping[str, Any]]` | `()` |
+| `tool_schemas` | `Iterable[Mapping[str, Any]]` | `()` |
+| `capability_requirements` | `Iterable[str]` | `()` |
+| `reasoning_policy` | `Optional[ReasoningPolicy]` | `None` |
+| `continuation` | `Optional[ContinuationRef]` | `None` |
+| `context_budget` | `Optional[ContextBudget]` | `None` |
+| `context_contributions` | `Iterable[ContextContribution]` | `()` |
+| `context_selection_policy` | `Any` | `None` |
+| `context_unit_counter` | `Any` | `None` |
+| `compaction_receipts` | `Iterable[CompactionReceipt]` | `()` |
+| `compaction_policy` | `Any` | `None` |
+| `artifact_refs` | `Iterable[ArtifactRef]` | `()` |
+| `available_artifact_ids` | `Optional[Iterable[str]]` | `None` |
+| `protocol_id` | `str` | `'unknown'` |
+| `tool_use_policy` | `str` | `'auto'` |
+| `tool_use_satisfied` | `bool` | `False` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/core/request_view.py#L1017)
+
+
+<span id="qitos-core-request_view-contextbudgetexceedederror" />
+## ContextBudgetExceededError
+
+```python
+from qitos.core.request_view import ContextBudgetExceededError
+```
+
+[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/core/request_view.py#L60)
+
+[用法与可执行示例](/zh/guides/memory-and-history)
+
+用法片段：接续上方完整教程中的对象，不是独立程序。
+
+```python
+# Required/protected exchanges cannot be removed to make a request fit.
+```
+
+
 <span id="qitos-engine-runtime-lifecyclepolicy" />
 ## LifecyclePolicy
 
@@ -154,7 +574,7 @@ print(receipt.declared_losses, receipt.output_digest)
 from qitos.engine.runtime import LifecyclePolicy
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/runtime.py#L88)
+[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/engine/runtime.py#L88)
 
 [用法与可执行示例](/zh/guides/memory-and-history)
 
@@ -182,6 +602,6 @@ should_pause(context: RuntimeSnapshotContext) -> bool
 | --- | --- | --- |
 | `context` | `RuntimeSnapshotContext` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/engine/runtime.py#L94)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/engine/runtime.py#L94)
 
 {/* api-reference:end */}
