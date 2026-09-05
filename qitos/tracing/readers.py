@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Protocol, Tuple, runtime_checkable
 
+from .paging import BoundedReadUnsupported, JournalPages, TrajectoryCursor, TrajectoryPage
 from .adapters import classify_event
 from .privacy import project_data
 from .sinks import project_record
@@ -32,6 +33,7 @@ class ReaderCapabilities:
     session_query: bool
     live_tail: bool = False
     default_qualified: bool = False
+    bounded_read: bool = False
 
 
 @dataclass(frozen=True)
@@ -478,7 +480,47 @@ class StoreTrajectoryReader:
     """Reader adapter for any conforming trajectory store."""
 
     def __init__(self, store: TrajectoryStore) -> None:
-        self._store = store
+        self._materialized: TrajectoryStore | None = store
+        self._pages: JournalPages | None = None
+
+    @classmethod
+    def from_journal(cls, path: str | Path) -> "StoreTrajectoryReader":
+        """Open a validated read-only journal without materializing its history."""
+        reader = cls.__new__(cls)
+        reader._materialized = None
+        reader._pages = JournalPages(path)
+        return reader
+
+    @property
+    def _store(self) -> TrajectoryStore:
+        # Old complete-read/discovery APIs keep their documented memory cost.
+        if self._materialized is None:
+            from .journal_store import JournalTrajectoryStore
+            if self._pages is None:
+                raise BoundedReadUnsupported("journal_source_unavailable")
+            return JournalTrajectoryStore(self._pages.path, read_only=True)
+        return self._materialized
+
+    @property
+    def work(self) -> Any:
+        return self._pages.work if self._pages is not None else None
+
+    def read_page(self, query: TrajectoryQuery, cursor: TrajectoryCursor | None = None,
+                  *, view: PrivacyView = PrivacyView.REDACTED_PUBLIC) -> TrajectoryPage:
+        if self._pages is None:
+            raise BoundedReadUnsupported("bounded_read_unsupported")
+        return self._pages.read_page(query, cursor, view=view)
+
+    def validate_snapshot(self, snapshot: TrajectoryCursor) -> None:
+        if self._pages is None:
+            raise BoundedReadUnsupported("bounded_read_unsupported")
+        self._pages.validate_snapshot(snapshot)
+
+    def close(self) -> None:
+        if self._pages is not None:
+            self._pages.close()
+        if self._materialized is not None:
+            self._materialized.close()
 
     @property
     def capabilities(self) -> ReaderCapabilities:
@@ -492,6 +534,7 @@ class StoreTrajectoryReader:
             ),
             session_query=True,
             default_qualified=False,
+            bounded_read=self._pages is not None,
         )
 
     @staticmethod
@@ -500,10 +543,11 @@ class StoreTrajectoryReader:
 
     def discover_runs(self) -> Tuple[RunSummary, ...]:
         records_list: List[TrajectoryRecord] = []
-        limit = self._store.capabilities.max_query_records
+        store = self._store
+        limit = store.capabilities.max_query_records
         query = TrajectoryQuery(limit=limit)
         while True:
-            page = self._store.query(query)
+            page = store.query(query)
             records_list.extend(page)
             if len(page) < limit:
                 break

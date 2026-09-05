@@ -41,6 +41,28 @@ class _DefaultReader:
         return replace(self.current.capabilities, reader_id="qitos.default_trajectory_reader",
                        source_kind="trajectory_with_trace_compatibility", default_qualified=True)
 
+    def read_page(self, query: Any, cursor: Any = None, **options: Any) -> Any:
+        from qitos.tracing.paging import BoundedReadUnsupported, read_page
+        from qitos.tracing.trajectory import TrajectoryQuery
+
+        historical = self.compatibility.discover_runs()
+        if query.run_id in {item.run_id for item in historical}:
+            presence = read_page(self.current, TrajectoryQuery(run_id=query.run_id, limit=1))
+            if presence.records:
+                raise ValueError("trajectory_source_identity_conflict")
+            raise BoundedReadUnsupported("historical_bounded_read_unsupported")
+        if historical and query.run_id is None and query.session_id is None:
+            raise BoundedReadUnsupported("mixed_source_bounded_read_unsupported")
+        return read_page(self.current, query, cursor, **options)
+
+    def validate_snapshot(self, snapshot: Any) -> None:
+        self.current.validate_snapshot(snapshot)
+
+    def close(self) -> None:
+        close = getattr(self.current, "close", None)
+        if close is not None:
+            close()
+
     def discover_runs(self) -> Any:
         current = self.current.discover_runs()
         historical = self.compatibility.discover_runs()
@@ -85,9 +107,7 @@ def candidate_file_reader(path: str | Path) -> Any:
     if not source.is_file():
         raise FileNotFoundError("candidate_store_unavailable")
     if source.suffix == ".journal":
-        from qitos.tracing.journal_store import JournalTrajectoryStore
-
-        return StoreTrajectoryReader(JournalTrajectoryStore(source, read_only=True))
+        return StoreTrajectoryReader.from_journal(source)
     value = json.loads(source.read_text(encoding="utf-8"))
     if not isinstance(value, dict) or not isinstance(value.get("records"), list):
         raise ValueError("candidate_store_invalid")

@@ -52,3 +52,18 @@ writes invalidate the parsing cache and retry re-verifies the journal. Append
 receipts identify `index_checkpoint_deferred`; close can report
 `index_rebuild_required` independently of journal persistence. Initial targeted
 existing journal/default-reader regressions: 21 passed on Python 3.12.7.
+
+## Bounded reader implementation
+
+`StoreTrajectoryReader.from_journal` validates through a bounded frame buffer and
+an owned temporary SQLite index. The existing `candidate_file_reader` and default
+selection use the same reader adapter. Old complete reads remain materialized but
+do not install a permanent payload cache in this adapter. `read_page`,
+`TrajectoryPage`, `TrajectoryCursor`, `iter_records` and typed unsupported/rejected
+errors live under tracing only. Cursors are HMAC-bound to a reader instance and
+expire at close. Query limit is the page size. Returned watermark is the captured
+journal head sequence, including filtered-out records. Polling explicitly starts
+a new capture with after_sequence=watermark. Temporary index startup/rebuild is
+O(N) decoding/disk work; each warm page rehashes snapshot bytes with fixed buffers.
+No mutation/recovery of source or sidecars occurs. The SQLite cache is 1 MiB;
+frame bytes remain subject to the existing 64 MiB bound (32 records in workloads).
