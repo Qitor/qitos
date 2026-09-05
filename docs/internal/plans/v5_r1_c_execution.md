@@ -67,3 +67,17 @@ Qualification pending; no passing claim yet.
 - First targeted run: 479 passed, 1 failed on bool/int alias equality; fixed by
   validating both supplied aliases. Expanded core/reducer/Env/history suite:
   497 passed (3.73s). No ToolResult wire or root export changes.
+
+### Full-suite compatibility finding and correction
+
+- First full run: 1 failed, 3459 passed, 51 skipped in 301.72s.
+  `test_engine_saves_checkpoints` exposed dataclasses.asdict attempting to
+  reconstruct Observation as a plain dict subclass. Isolated reproduction also
+  failed (1 failed, 0.40s); both logs retained.
+- Preserve `@dataclass(init=False)` metadata with the explicit validated
+  constructor and attribute routing. This preserves old checkpoint asdict and
+  dataclasses.replace behavior without storing fields in __dict__. A regression
+  explicitly proves __dict__ remains empty (one canonical state).
+
+- Corrected Observation + old checkpoint + full core/engine/kernel suites:
+  771 passed (11.96s).

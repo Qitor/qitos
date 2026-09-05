@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import ItemsView, Mapping, ValuesView
 from copy import deepcopy
+from dataclasses import dataclass
 from typing import Any, Dict, Iterator, List
 
 from .tool_result import ToolResult
@@ -13,6 +14,7 @@ _FIELDS = frozenset({"step", "task", "state", "decision", "action_results", "env
 _MISSING = object()
 
 
+@dataclass(init=False)
 class Observation(dict):
     """One mutable authority with a legacy mapping projection for tool results.
 

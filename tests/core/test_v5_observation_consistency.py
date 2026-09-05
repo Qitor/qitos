@@ -89,3 +89,17 @@ def test_extension_mutators_and_copy():
     copied.metadata["changed"] = True
     assert obs.metadata == {}
     assert deepcopy(obs).to_dict() == obs.to_dict()
+
+
+def test_dataclass_checkpoint_and_replace_compatibility():
+    from dataclasses import asdict, is_dataclass, replace
+
+    obs = Observation(step_id=3, task="checkpoint", action_results=[ToolResult(output="saved")])
+    assert is_dataclass(obs)
+    payload = asdict(obs)
+    assert payload["step_id"] == 3
+    assert payload["action_results"][0]["output"] == "saved"
+    updated = replace(obs, task="restored")
+    assert updated.task == updated["task"] == "restored"
+    assert obs.task == "checkpoint"
+    assert not vars(obs), "dataclass fields must not become a second state store"
