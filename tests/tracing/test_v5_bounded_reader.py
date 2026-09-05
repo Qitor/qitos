@@ -191,3 +191,14 @@ def test_continuous_traversal_work_is_linear_in_snapshot_bytes(journal):
     assert sum(1 for _ in iter_records(reader, TrajectoryQuery(limit=128))) == 259
     assert reader.work.hash_bytes - before == journal.stat().st_size * 3
     reader.close()
+
+
+def test_reader_anchors_source_identity_without_holding_writer_lock(journal):
+    reader = candidate_file_reader(journal)
+    original = journal.read_bytes()
+    replacement = journal.with_suffix(".new")
+    replacement.write_bytes(original)
+    replacement.replace(journal)
+    with pytest.raises(CursorRejected, match="source_replaced"):
+        reader.read_page(TrajectoryQuery(limit=128))
+    reader.close()

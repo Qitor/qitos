@@ -96,3 +96,8 @@ frames reject final completion. File export additionally validates before atomic
 replacement. Work tests assert traversal hashes exactly three snapshot lengths
 after initial reader construction, irrespective of page count. Discarded pilot
 measurements remain distinct from the final implementation's repeated results.
+
+A reader retains one unlocked source descriptor as an identity anchor until
+close, preventing inode reuse from making a replacement look like the original
+source. Per-operation locks still end before user yields. Replaced sources need
+a new reader; they are not silently adopted by a new capture on the old reader.

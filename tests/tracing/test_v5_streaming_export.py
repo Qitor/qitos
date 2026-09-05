@@ -8,7 +8,9 @@ from qitos.tracing.exporter import CanonicalTrajectoryExporter, ExportArtifact, 
 from qitos.tracing.paging import CursorRejected
 from qitos.tracing.readers import StoreTrajectoryReader
 from qitos.tracing.trajectory import LossReport, PrivacyView, TrajectoryQuery
-from test_v5_bounded_reader import journal  # fixture shared by these conformance gates
+from test_v5_bounded_reader import journal as _journal
+
+journal = _journal
 
 
 @pytest.mark.parametrize("view", list(PrivacyView))
@@ -62,7 +64,7 @@ def test_export_failure_keeps_target_and_cleans_only_owned_staging(journal, monk
 
     with pytest.raises((TrajectoryExportError, CursorRejected)):
         CanonicalTrajectoryExporter().export_file(reader, TrajectoryQuery(limit=128), target,
-                                                   cancelled=cancelled)
+                                                  cancelled=cancelled)
     assert target.read_bytes() == b"original"
     assert list(journal.parent.glob(".qitos-export-*")) == [sentinel]
     reader.close()
