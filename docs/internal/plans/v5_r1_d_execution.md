@@ -67,3 +67,14 @@ a new capture with after_sequence=watermark. Temporary index startup/rebuild is
 O(N) decoding/disk work; each warm page rehashes snapshot bytes with fixed buffers.
 No mutation/recovery of source or sidecars occurs. The SQLite cache is 1 MiB;
 frame bytes remain subject to the existing 64 MiB bound (32 records in workloads).
+
+## Streaming canonical export implementation
+
+`CanonicalTrajectoryExporter.export_file` reads snapshot pages and spools record
+JSON, loss entries and policy IDs to owned temporary disk files. It emits the
+unchanged canonical digest/layout; raw/public/diagnostic outputs match the old
+exporter byte-for-byte in conformance tests. Final source verification, file fsync
+and cancellation check precede atomic replacement. Failures preserve an existing
+target and clean only owned staging. There is no direct-stream completed receipt.
+`qita export --run ID --journal FILE --canonical OUTPUT` uses this path; public is
+the default, and `--raw-private` is explicit. HTML export remains compatible.

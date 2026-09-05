@@ -63,7 +63,11 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     p_export = sub.add_parser("export", help="Export one run to standalone HTML")
     p_export.add_argument("--run", required=True, help="Run directory path")
-    p_export.add_argument("--html", required=True, help="Output html file path")
+    outputs = p_export.add_mutually_exclusive_group(required=True)
+    outputs.add_argument("--html", help="Output html file path")
+    outputs.add_argument("--canonical", help="Bounded canonical JSON output file")
+    p_export.add_argument("--journal", help="Canonical journal file for bounded export")
+    p_export.add_argument("--raw-private", action="store_true", help="Explicit private projection")
 
     p_inspect = sub.add_parser(
         "inspect", help="Read-only Session and WorkGraph inspection"
@@ -90,6 +94,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     if args.command == "replay":
         return _cmd_replay(run=args.run, host=args.host, port=args.port)
     if args.command == "export":
+        if args.canonical:
+            return _cmd_canonical_export(args.run, args.journal, args.canonical, args.raw_private)
         return _cmd_export(run=args.run, html_path=args.html)
     if args.command == "inspect":
         return _cmd_inspect(
@@ -100,6 +106,25 @@ def main(argv: Optional[List[str]] = None) -> int:
             candidate_store=args.candidate_store,
         )
     return 1
+
+
+def _cmd_canonical_export(run: str, journal: Optional[str], target: str, raw: bool) -> int:
+    from qitos.tracing.exporter import CanonicalTrajectoryExporter
+    from qitos.tracing.readers import StoreTrajectoryReader
+    from qitos.tracing.trajectory import PrivacyView, TrajectoryQuery
+
+    if journal is None:
+        print("[qita] canonical export requires --journal", file=sys.stderr)
+        return 2
+    reader = StoreTrajectoryReader.from_journal(journal)
+    try:
+        receipt = CanonicalTrajectoryExporter().export_file(
+            reader, TrajectoryQuery(run_id=run, limit=128), target,
+            view=PrivacyView.RAW_PRIVATE if raw else PrivacyView.REDACTED_PUBLIC)
+        print(f"[qita] completed canonical export: {receipt.record_count} records")
+        return 0
+    finally:
+        reader.close()
 
 
 def _cmd_inspect(

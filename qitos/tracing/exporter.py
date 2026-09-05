@@ -138,6 +138,13 @@ class CanonicalTrajectoryExporter:
             loss=projected.loss,
         )
 
+    def export_file(self, reader: Any, query: Any, target: Any, *,
+                    view: PrivacyView = PrivacyView.REDACTED_PUBLIC,
+                    cancelled: Any = None) -> Any:
+        """Export a bounded snapshot through owned staging and atomic replacement."""
+        from .streaming import export_file
+        return export_file(reader, query, target, view=view, cancelled=cancelled)
+
     def reimport(self, artifact: ExportArtifact) -> Trajectory:
         if artifact.exporter_id != self.capabilities.exporter_id:
             raise TrajectoryExportError("exporter_id_mismatch")
