@@ -26,6 +26,7 @@ try:  # POSIX is the reference implementation; other platforms stay in-process.
 except ImportError:  # pragma: no cover - exercised on non-POSIX builders
     fcntl = None  # type: ignore[assignment]
 
+from .work import TrajectoryWork
 from .sinks import DurabilityReceipt, DurabilityStatus
 from .store import (
     IndexRebuildReport,
@@ -68,6 +69,7 @@ class JournalTrajectoryStore:
     ) -> None:
         if max_query_records <= 0:
             raise ValueError("max_query_records must be positive")
+        self.work = TrajectoryWork()
         self._path = Path(path)
         self._index_path = self._path.with_name(self._path.name + ".index.json")
         self._lock_path = self._path.with_name(self._path.name + ".lock")
@@ -200,6 +202,8 @@ class JournalTrajectoryStore:
                 with self._path.open("rb") as handle:
                     for chunk in iter(lambda: handle.read(256 * 1024), b""):
                         current.update(chunk)
+                        self.work.read_bytes += len(chunk)
+                        self.work.hash_bytes += len(chunk)
             except OSError:
                 raise StoreIOError("store_read_failed") from None
             if current.digest() == self._verified_hasher.digest():
@@ -212,6 +216,7 @@ class JournalTrajectoryStore:
         try:
             with self._path.open("rb") as handle:
                 while line := handle.readline(_MAX_FRAME_BYTES + 1):
+                    self.work.read_bytes += len(line)
                     if len(line) > _MAX_FRAME_BYTES:
                         raise StoreIntegrityError("journal_frame_limit_exceeded")
                     # The delimiter is part of the commit frame, even when the
@@ -230,12 +235,16 @@ class JournalTrajectoryStore:
                         value, expected_sequence=len(records),
                         previous_digest=previous_digest,
                     )
+                    self.work.decoded_records += len(frame_records)
                     records.extend(frame_records)
                     valid_end += len(line)
                     verified.update(line)
+                    self.work.hash_bytes += len(line)
         except OSError:
             raise StoreIOError("store_read_failed") from None
         self._memory._restore(records)
+        self.work.copied_records += len(records)
+        self.work.retain(len(records))
         report = self._memory.validate_integrity()
         if not report.valid:
             raise StoreIntegrityError("journal_record_integrity_mismatch")
@@ -247,6 +256,7 @@ class JournalTrajectoryStore:
             with self._path.open("r+b") as handle:
                 handle.truncate(size)
                 handle.flush()
+                self.work.fsync_calls += 1
                 os.fsync(handle.fileno())
         except OSError as exc:
             raise StoreIOError("partial_tail_recovery_failed") from exc
@@ -265,6 +275,7 @@ class JournalTrajectoryStore:
                     if count is None or count <= 0 or count > len(data) - written:
                         raise OSError("journal write made no valid progress")
                     written += count
+                self.work.fsync_calls += 1
                 os.fsync(handle.fileno())
         except OSError:
             raise StoreIOError(
@@ -280,6 +291,7 @@ class JournalTrajectoryStore:
         def positions(name: str) -> Dict[str, List[int]]:
             result: Dict[str, List[int]] = {}
             for record in records:
+                self.work.visited_index_entries += 1
                 value = getattr(record, name)
                 if value:
                     result.setdefault(str(value), []).append(int(record.sequence or 0))
@@ -299,6 +311,7 @@ class JournalTrajectoryStore:
 
     def _write_index(self, *, best_effort: bool) -> bool:
         data = canonical_json_bytes(self._index_document())
+        self.work.written_index_entries += len(self._memory._records) * 3
         descriptor = -1
         temp_name = ""
         try:
@@ -311,6 +324,7 @@ class JournalTrajectoryStore:
                 descriptor = -1
                 handle.write(data)
                 handle.flush()
+                self.work.fsync_calls += 1
                 os.fsync(handle.fileno())
             os.replace(temp_name, self._index_path)
             temp_name = ""
@@ -345,6 +359,8 @@ class JournalTrajectoryStore:
                     operation_id=str(uuid.uuid4()),
                 )
             before = self._memory._snapshot_records()
+            self.work.visited_index_entries += len(before)
+            self.work.copied_records += len(before)
             existing = {record.record_id: record for record in before}
             repeated = [record for record in batch if record.record_id in existing]
             if repeated:
@@ -372,6 +388,8 @@ class JournalTrajectoryStore:
             self._verified_hasher = None
             receipt = self._memory.append_batch(batch)
             after = self._memory._snapshot_records()
+            self.work.copied_records += len(after)
+            self.work.retain(len(after))
             assigned = after[len(before) :]
             transaction_id = receipt.operation_id or str(uuid.uuid4())
             document = self._frame_document(
@@ -499,6 +517,7 @@ class JournalTrajectoryStore:
     def _flush_unlocked(self) -> DurabilityReceipt:
         try:
             with self._path.open("rb") as handle:
+                self.work.fsync_calls += 1
                 os.fsync(handle.fileno())
         except OSError as exc:
             raise StoreIOError("store_flush_failed") from exc

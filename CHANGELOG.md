@@ -387,3 +387,7 @@ commits, not the current runtime identity above.
 ### Breaking
 
 - Default root exports from `qitos.kit` and `qitos.kit.tool` no longer include advanced/security-audit convenience surfaces; import those explicitly from their module paths when needed.
+
+### V5 R1 Lane D work evidence
+
+- Added tracing work counters separating verified bytes from decoded records and index work.

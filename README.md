@@ -62,3 +62,5 @@ Docker file tools fail closed when unavailable; they do not fall back to host ex
 The historical 2663 passed / 50 skipped result belongs only to the runtime SHA
 above, on Python 3.12.7. Advanced `AgentModule.run()` and historical trace
 compatibility remain supported; they are not a second beginner path.
+
+V5 R1 Lane D: trajectory work instrumentation now distinguishes historical byte verification from parsing and index maintenance.

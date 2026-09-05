@@ -61,3 +61,5 @@ Docker 文件工具不可用时 fail closed，不降级成 host 执行。
 
 G5 历史结果 2663 passed / 50 skipped 仅属于上述 runtime SHA（Python 3.12.7）。
 高级 `AgentModule.run()` 和兼容 historical trace 仍保留；它们不是第二条初学者路径。
+
+V5 R1 Lane D：轨迹工作量计数区分历史字节校验、解析和索引维护。
