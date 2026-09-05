@@ -104,8 +104,7 @@ def test_source_changes_typed_reject_without_repair(journal, damage):
         assert reader.read_page(query, cursor).records
         with pytest.raises(StoreIntegrityError, match="incomplete"):
             reader.read_page(query)
-        with pytest.raises(CursorRejected, match="index_rebuild"):
-            reader.read_page(query, cursor)
+        assert reader.read_page(query, cursor).records
     else:
         with pytest.raises(CursorRejected):
             reader.read_page(query, cursor)

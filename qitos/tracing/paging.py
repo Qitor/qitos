@@ -87,7 +87,7 @@ class JournalPages:
                                    check_same_thread=False)
         self._db.execute("PRAGMA cache_size=-1024")
         self._db.execute("PRAGMA temp_store=FILE")
-        self._db.execute("PRAGMA journal_mode=OFF")
+        self._db.execute("PRAGMA journal_mode=DELETE")
         self._db.execute("PRAGMA synchronous=OFF")
         self._db.execute("CREATE TABLE records (seq INTEGER PRIMARY KEY, id TEXT UNIQUE, "
                          "run TEXT, session TEXT, work TEXT, kind TEXT, offset INTEGER, "
@@ -160,7 +160,7 @@ class JournalPages:
         handle.seek(0)
         digest = hashlib.sha256()
         sequence, offset, previous = 0, 0, None
-        self._head = None
+        self._db.execute("BEGIN")
         self._db.execute("DELETE FROM records")
         try:
             while offset < size:
@@ -190,14 +190,17 @@ class JournalPages:
                 digest.update(line)
                 self.work.hash_bytes += len(line)
                 del records, value, line
+            head = {"source": source, "boundary": offset, "head_sequence": sequence - 1,
+                    "head_digest": previous, "bytes_digest": digest.hexdigest()}
+            self._verify(handle, head)
             self._db.commit()
-        except sqlite3.IntegrityError:
-            raise StoreIntegrityError("duplicate_record_id") from None
+        except BaseException as exc:
+            self._db.rollback()
+            if isinstance(exc, sqlite3.IntegrityError):
+                raise StoreIntegrityError("duplicate_record_id") from None
+            raise
         finally:
             self.work.retain(0)
-        head = {"source": source, "boundary": offset, "head_sequence": sequence - 1,
-                "head_digest": previous, "bytes_digest": digest.hexdigest()}
-        self._verify(handle, head)
         self._head = head
         return dict(head)
 
