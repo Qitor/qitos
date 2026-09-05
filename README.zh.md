@@ -25,6 +25,8 @@ store、sink 和 sandbox 可扩展；qita 只读检查 Trajectory。
 
 ## What's New
 
+- Observation 的属性与映射写入保持一致，提供原子校验和独立序列化快照。
+
 - 旧 Read/Edit 现在正确保留分页窗口、拒绝非唯一编辑，并返回 canonical 失败结果。
 
 - 同一 Session 的 handoff 在 dispatch 前持久化 admission；目标 restore 与完成不再依赖迟到的源 callback。

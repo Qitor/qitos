@@ -56,3 +56,14 @@ Qualification pending; no passing claim yet.
 - Read/Edit direct return migration: canonical ToolResult replaces strings; no
   permission/sandbox authority changes. Known toolset metadata mutation remains
   outside this lane, as do func inert retry and other excluded extensions.
+
+### Observation evidence
+
+- One canonical dict storage; attributes route to fields, mapping action_results
+  is an explicit fresh compatibility projection of validated canonical ToolResult.
+- Constructor inputs and explicit serialization are deep-copied; schema fields
+  reject deletion, extensions support normal removal. Atomic update checks both
+  step aliases before changing any field.
+- First targeted run: 479 passed, 1 failed on bool/int alias equality; fixed by
+  validating both supplied aliases. Expanded core/reducer/Env/history suite:
+  497 passed (3.73s). No ToolResult wire or root export changes.

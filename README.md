@@ -25,6 +25,8 @@ read-only qita. Framework correctness does not guarantee arbitrary model task su
 
 ## What's New
 
+- Observation attribute and mapping writes now stay consistent, with atomic validation and independent serialization snapshots.
+
 - Legacy Read/Edit now preserve line windows, reject ambiguous edits and expose canonical failure results.
 
 - Same-Session handoff persists admission before dispatch; destination restore and completion are independent of late source callbacks.

@@ -3,6 +3,20 @@ title: "Tools and parallel calls"
 description: "Learn QitOS with complete, executable notes-project code."
 ---
 
+`Observation` retains its `dict` compatibility but stores each field once.
+`obs.task = value` and `obs["task"] = value` update the same authority; mapping
+`step` and `step_id` name the `step_id` attribute. Contradictory aliases, invalid
+field types and deletion of schema fields reject atomically. `update` and `|=`
+validate the whole mutation first; extension keys support `pop`, `del`, `setdefault`
+and `popitem`. `clear` is rejected because it would remove required identity.
+State/metadata nested edits are shared between attribute and mapping access.
+Constructor inputs are copied; `to_dict` and `to_legacy_dict` are independent
+snapshots. Attribute action results are canonical `ToolResult` objects and
+`to_dict` serializes their canonical shape. Mapping action results remain a
+fresh legacy projection for existing reducers; assign `obs["action_results"]`
+to validate and replace them. Unbound `dict` mutators are outside this contract.
+
+
 Legacy host `Read` uses a zero-based offset and a positive line limit: offset 2,
 limit 2 selects only lines 3/4. Empty files and EOF return empty output; negative
 or non-integer windows fail. Selection metadata reports truncation and more lines.

@@ -25,6 +25,8 @@ How to update:
 
 ### Fixed
 
+- Give Observation one mutable authority for attribute and mapping writes, atomic alias validation and independent canonical/legacy snapshots.
+
 - Correct legacy Read pagination and Edit replace-all handling; return canonical ToolResult failures with useful error codes and preserve explicit SHA conflict rejection.
 
 - Persist same-Session handoff admission before scheduler invocation; destination ownership and terminal facts no longer depend on stale source callbacks. Admission is not business completion.

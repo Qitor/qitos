@@ -3,6 +3,17 @@ title: "工具与并行调用"
 description: "从网页完整代码学习 QitOS 资料整理项目。"
 ---
 
+`Observation` 保留 `dict` 兼容性，但每个字段只保存一次。
+`obs.task = value` 与 `obs["task"] = value` 写入同一权威状态；映射中的 `step`
+与 `step_id` 均对应属性 `step_id`。别名矛盾、非法类型和删除 schema 字段会原子拒绝。
+`update` 与 `|=` 先校验整次更新；扩展键支持 `pop`、`del`、`setdefault`、`popitem`。
+`clear` 会删除必需 identity，因此拒绝。state/metadata 的嵌套修改在两种访问方式下一致。
+构造输入防御性复制，`to_dict` 与 `to_legacy_dict` 返回独立快照。属性 action results
+使用 canonical `ToolResult`，`to_dict` 序列化其 canonical shape；映射中的 action results
+按需生成 legacy projection，以兼容既有 reducer。请通过 `obs["action_results"]` 赋值
+立即校验并替换结果；直接调用未绑定的 `dict` 修改方法不在此契约范围内。
+
+
 旧 host `Read` 使用从 0 开始的 offset 与正整数 limit：offset=2、limit=2
 只选择第 3/4 行。空文件与 EOF 返回空 output；负数或非整数窗口失败，selection
 元数据保留截断与后续行信息。`Edit` 默认要求唯一匹配，`replace_all=True` 才替换全部。
