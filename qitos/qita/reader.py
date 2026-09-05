@@ -55,6 +55,9 @@ class _DefaultReader:
             raise BoundedReadUnsupported("mixed_source_bounded_read_unsupported")
         return read_page(self.current, query, cursor, **options)
 
+    def validate_export_target(self, target: Any) -> None:
+        self.current.validate_export_target(target)
+
     def validate_snapshot(self, snapshot: Any) -> None:
         self.current.validate_snapshot(snapshot)
 

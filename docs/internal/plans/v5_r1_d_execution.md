@@ -78,3 +78,7 @@ and cancellation check precede atomic replacement. Failures preserve an existing
 target and clean only owned staging. There is no direct-stream completed receipt.
 `qita export --run ID --journal FILE --canonical OUTPUT` uses this path; public is
 the default, and `--raw-private` is explicit. HTML export remains compatible.
+
+The bounded export path also rejects the journal/lock/index as an output target;
+this preserves its read-only source contract even when given a conflicting filename.
+Cursor input length is capped before decoding its caller-supplied token.

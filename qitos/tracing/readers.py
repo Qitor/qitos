@@ -511,6 +511,16 @@ class StoreTrajectoryReader:
             raise BoundedReadUnsupported("bounded_read_unsupported")
         return self._pages.read_page(query, cursor, view=view)
 
+    def validate_export_target(self, target: str | Path) -> None:
+        """Keep the read-only source and its sidecars outside export replacement."""
+        from .exporter import TrajectoryExportError
+        if self._pages is not None:
+            source = self._pages.path
+            protected = (source, source.with_name(source.name + ".lock"),
+                         source.with_name(source.name + ".index.json"))
+            if Path(target).resolve() in {path.resolve() for path in protected}:
+                raise TrajectoryExportError("export_target_is_source")
+
     def validate_snapshot(self, snapshot: TrajectoryCursor) -> None:
         if self._pages is None:
             raise BoundedReadUnsupported("bounded_read_unsupported")

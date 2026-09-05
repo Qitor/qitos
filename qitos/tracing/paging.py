@@ -211,6 +211,8 @@ class JournalPages:
 
     def _unseal(self, cursor: TrajectoryCursor) -> dict[str, Any]:
         try:
+            if len(cursor.token) > 4096:
+                raise ValueError()
             body, signature = cursor.token.split(".")
             expected = hmac.new(self._key, body.encode(), hashlib.sha256).hexdigest()
             if not hmac.compare_digest(signature, expected):

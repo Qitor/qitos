@@ -53,6 +53,9 @@ def export_file(reader: Any, query: TrajectoryQuery, target: str | Path, *,
             raise TrajectoryExportError("export_cancelled")
 
     target = Path(target)
+    validate_target = getattr(reader, "validate_export_target", None)
+    if validate_target is not None:
+        validate_target(target)
     count = 0
     try:
         with tempfile.TemporaryDirectory(prefix=".qitos-export-", dir=target.parent) as staging:

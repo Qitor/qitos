@@ -66,3 +66,35 @@ def test_export_failure_keeps_target_and_cleans_only_owned_staging(journal, monk
     assert target.read_bytes() == b"original"
     assert list(journal.parent.glob(".qitos-export-*")) == [sentinel]
     reader.close()
+
+
+def test_public_sensitive_payload_and_nonempty_losses_match_old_export(tmp_path):
+    from qitos.tracing.journal_store import JournalTrajectoryStore
+    from qitos.tracing.trajectory import LossEntry, RecordKind, TrajectoryRecord
+
+    path = tmp_path / "trajectory.journal"
+    writer = JournalTrajectoryStore(path)
+    for i in range(3):
+        writer.append(TrajectoryRecord.create(
+            RecordKind.RUN, run_id="run", payload={"api_key": "private-value", "ordinal": i},
+            loss=LossReport(policy_id=f"policy-{i}", entries=(LossEntry("source_loss"),))))
+    writer.close()
+    reader = StoreTrajectoryReader.from_journal(path)
+    exporter = CanonicalTrajectoryExporter()
+    expected = exporter.export(reader.read_run("run", view=PrivacyView.RAW_PRIVATE))
+    target = tmp_path / "public.json"
+    exporter.export_file(reader, TrajectoryQuery(run_id="run", limit=1), target)
+    assert target.read_bytes() == expected.data
+    assert b"private-value" not in target.read_bytes()
+    reader.close()
+
+
+@pytest.mark.parametrize("suffix", ["", ".lock", ".index.json"])
+def test_export_cannot_replace_readonly_source_or_sidecar(journal, suffix):
+    reader = StoreTrajectoryReader.from_journal(journal)
+    target = journal.with_name(journal.name + suffix)
+    before = target.read_bytes()
+    with pytest.raises(TrajectoryExportError, match="export_target_is_source"):
+        CanonicalTrajectoryExporter().export_file(reader, TrajectoryQuery(limit=128), target)
+    assert target.read_bytes() == before
+    reader.close()

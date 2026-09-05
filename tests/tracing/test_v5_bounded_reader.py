@@ -137,3 +137,38 @@ def test_early_iterator_close_releases_locks_and_unsupported_is_explicit(journal
     reader.close()
     with pytest.raises(BoundedReadUnsupported):
         read_page(StoreTrajectoryReader(MemoryTrajectoryStore()), TrajectoryQuery())
+
+
+@pytest.mark.parametrize("count", [0, 1, 128, 129, 256])
+def test_exact_page_end_and_empty_filter(tmp_path, count):
+    path = tmp_path / "trajectory.journal"
+    writer = JournalTrajectoryStore(path)
+    for start in range(0, count, 32):
+        writer.append_batch(record(i) for i in range(start, min(start + 32, count)))
+    writer.close()
+    reader = candidate_file_reader(path)
+    query = TrajectoryQuery(limit=128)
+    observed = tuple(iter_records(reader, query, view=RAW))
+    assert [r.sequence for r in observed] == list(range(count))
+    first = reader.read_page(query)
+    assert (first.next_cursor is None) == (count <= 128)
+    empty = reader.read_page(replace(query, run_id="absent"))
+    assert empty.records == () and empty.next_cursor is None
+    assert empty.watermark == count - 1
+    reader.close()
+
+
+def test_corrupt_duplicate_ids_reject_even_with_valid_frame_digests(journal):
+    import json
+    from qitos.tracing.trajectory import canonical_json_bytes, integrity_digest
+
+    frames = [json.loads(line) for line in journal.read_bytes().splitlines()]
+    frames[-1]["records"][-1]["record_id"] = frames[0]["records"][0]["record_id"]
+    item = frames[-1]["records"][-1]
+    item.pop("digest")
+    item["digest"] = integrity_digest(item)
+    frames[-1].pop("frame_digest")
+    frames[-1]["frame_digest"] = integrity_digest(frames[-1])
+    journal.write_bytes(b"".join(canonical_json_bytes(frame) + b"\n" for frame in frames))
+    with pytest.raises(StoreIntegrityError, match="duplicate_record_id"):
+        candidate_file_reader(journal)
