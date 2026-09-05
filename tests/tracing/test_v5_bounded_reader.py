@@ -202,3 +202,15 @@ def test_reader_anchors_source_identity_without_holding_writer_lock(journal):
     with pytest.raises(CursorRejected, match="source_replaced"):
         reader.read_page(TrajectoryQuery(limit=128))
     reader.close()
+
+
+def test_one_shot_compatibility_calls_do_not_leak_anchor_descriptors(journal):
+    import gc
+    import weakref
+
+    reader = candidate_file_reader(journal)
+    anchor = weakref.ref(reader._pages._anchor)
+    assert reader.read_run("run").records
+    del reader
+    gc.collect()
+    assert anchor() is None

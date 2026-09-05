@@ -107,3 +107,8 @@ Final instrumentation audit counts only actually serialized position entries
 baseline observer uses the same document-entry accounting. This affects writer
 measurement counters only; byte validation, index checkpoint and read/export
 algorithms are unchanged. Final writer trials are repeated with this observer.
+
+The anchor uses an owned file object rather than an integer descriptor, so
+one-shot legacy reader calls also release it on garbage collection. Explicit
+close remains the recommended bounded-reader lifetime. A compatibility test
+checks reclamation without requiring callers to adopt a new close API.

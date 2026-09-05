@@ -17,7 +17,7 @@ import threading
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, BinaryIO, Iterator
 
 from .journal_store import JournalTrajectoryStore, _MAX_FRAME_BYTES, fcntl
 from .sinks import project_record
@@ -91,7 +91,7 @@ class JournalPages:
         self.path = Path(path)
         self.work = TrajectoryWork()
         self._key = secrets.token_bytes(32)
-        self._anchor: int | None = None
+        self._anchor: BinaryIO | None = None
         self._lock = threading.RLock()
         self._temporary = tempfile.TemporaryDirectory(prefix="qitos-pages-")
         self._db = sqlite3.connect(str(Path(self._temporary.name) / "index.db"),
@@ -137,8 +137,8 @@ class JournalPages:
     def _identity(self, handle: Any) -> str:
         actual, named = os.fstat(handle.fileno()), self.path.stat()
         if self._anchor is None:
-            self._anchor = os.dup(handle.fileno())
-        anchor = os.fstat(self._anchor)
+            self._anchor = os.fdopen(os.dup(handle.fileno()), "rb")
+        anchor = os.fstat(self._anchor.fileno())
         if (actual.st_dev, actual.st_ino) != (anchor.st_dev, anchor.st_ino):
             raise CursorRejected("source_replaced")
         if (actual.st_dev, actual.st_ino) != (named.st_dev, named.st_ino):
@@ -337,7 +337,7 @@ class JournalPages:
             if not self._closed:
                 self._db.close()
                 if self._anchor is not None:
-                    os.close(self._anchor)
+                    self._anchor.close()
                     self._anchor = None
                 self._temporary.cleanup()
                 self._closed = True
