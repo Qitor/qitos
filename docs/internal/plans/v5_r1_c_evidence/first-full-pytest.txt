@@ -64,8 +64,8 @@ self = <test_checkpoint.TestEngineCheckpointIntegration object at 0x10e408500>
 >           result = engine.run("test task")
                      ^^^^^^^^^^^^^^^^^^^^^^^
 
-tests/test_checkpoint.py:189: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_checkpoint.py:189:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 qitos/engine/engine.py:1530: in run
     self._save_checkpoint_if_needed(step_id, state, task_text, task_obj)
 qitos/engine/engine.py:2070: in _save_checkpoint_if_needed
@@ -98,7 +98,7 @@ qitos/core/observation.py:45: in __init__
 qitos/core/observation.py:104: in update
     prepared = {key: self._validate(key, value) for key, value in incoming.items()}
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 key = 'step'
 value = <generator object _asdict_inner.<locals>.<genexpr> at 0x10f887790>

@@ -11,10 +11,10 @@ tmp_path = PosixPath('<pytest-temp>')
         db = str(tmp_path / "handoff.sqlite3")
         store = SqliteCheckpointStore(db)
         children = []
-    
+
         class Resolver:
             resolver_id = "tests.handoff.events"
-    
+
             def resolve(self, descriptor):
                 def execute():
                     worker = context.Process(target=_destination, args=(
@@ -27,7 +27,7 @@ tmp_path = PosixPath('<pytest-temp>')
                     assert restored.wait(10)
                     return None
                 return execute
-    
+
         scheduler = _ObservedScheduler(Resolver(), restore_allowed)
         runtime = RuntimeComposition(checkpoint_store=store,
                                      lifecycle_policy=PauseOnce(),

@@ -129,3 +129,8 @@ Evidence files: [manifest](v5_r1_c_evidence/manifest.json),
 - Only remote operation: the required initial fetch. No push, merge of another
   lane, deployment, publication, model request, stash/reset or worktree deletion.
   The source checkout drafts were left in place.
+
+- Final archive review detected pytest trailing whitespace in newly tracked raw
+  failure logs. Archived copies were whitespace-normalized; raw originals and
+  the baseline SHA remain retained. A separate evidence-only commit records
+  this formatting correction; no runtime/test result or failing attempt changed.

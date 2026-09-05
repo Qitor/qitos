@@ -6,7 +6,7 @@
     "5d3cd79",
     "d1a4e42"
   ],
-  "baseline_log_note": "Only the pytest temporary directory was redacted in the committed baseline log.",
+  "baseline_log_note": "Committed logs redact pytest temporary paths and strip trailing whitespace; original raw logs remain in the task evidence directory.",
   "raw_baseline_sha256": "a4003e40c50eddb7443ad6a883d13e5843a1e913c481e4a9a671300d6a9ec01e",
   "wheel_sha256": "157b9425a4d25f3522dea60b1340f46c72ba15163b8fe6dc7e0c62ae1a306a71",
   "python": "3.12.7",

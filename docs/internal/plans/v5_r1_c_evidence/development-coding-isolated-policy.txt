@@ -22,8 +22,8 @@ env_tools = False, case = 'ambiguous'
 >       result = _executor(tmp_path, env_tools=env_tools, deny=case == "denied").execute_one(
             Action(name="edit_file" if env_tools else "Edit", args=args), env=env)
 
-tests/test_v5_coding_actual_files.py:71: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_v5_coding_actual_files.py:71:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 qitos/engine/action_executor.py:177: in execute_one
     execution = self.execute_batch(
 qitos/engine/action_executor.py:262: in execute_batch
@@ -37,42 +37,42 @@ qitos/engine/action_executor.py:953: in _execute_one
 qitos/engine/action_executor.py:1137: in _execute_one_inner
     approval = interrupt(approval_item)
                ^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 value = ToolApprovalItem(tool_name='Edit', tool_args={'file_path': 'file.txt', 'old_string': 'x', 'new_string': 'y', 'replace_all': False}, message="Tool 'Edit' requires approval before execution.", tool_spec=None)
 
     def interrupt(value: Any = None) -> Any:
         """Pause execution and wait for a resume value.
-    
+
         On **first call** within a step:
         - Saves a checkpoint (if checkpoint_store is configured).
         - Raises :class:`EngineInterrupt`, halting the step.
-    
+
         On **resume** (step re-executes):
         - Returns the resume value provided by the caller.
-    
+
         Multiple ``interrupt()`` calls in a single step are matched
         by their execution order.
-    
+
         Args:
             value: The value to surface to the client when the engine
                 is interrupted (e.g. a question, a prompt for approval).
-    
+
         Returns:
             The resume value on re-execution.
-    
+
         Raises:
             EngineInterrupt: On first invocation within the step.
         """
         counter = _interrupt_counter.get() + 1
         _interrupt_counter.set(counter)
         interrupt_id = f"int_{counter}"
-    
+
         # Check if we have a resume value for this interrupt
         resume_vals = _resume_values.get()
         if interrupt_id in resume_vals:
             return resume_vals[interrupt_id]
-    
+
         # No resume value — raise interrupt
 >       raise EngineInterrupt(value=value, interrupt_id=interrupt_id)
 E       qitos.engine.interrupt.EngineInterrupt: ToolApprovalItem(tool_name='Edit', tool_args={'file_path': 'file.txt', 'old_string': 'x', 'new_string': 'y', 'replace_all': False}, message="Tool 'Edit' requires approval before execution.", tool_spec=None)
@@ -100,8 +100,8 @@ env_tools = False, case = 'all'
 >       result = _executor(tmp_path, env_tools=env_tools, deny=case == "denied").execute_one(
             Action(name="edit_file" if env_tools else "Edit", args=args), env=env)
 
-tests/test_v5_coding_actual_files.py:71: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_v5_coding_actual_files.py:71:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 qitos/engine/action_executor.py:177: in execute_one
     execution = self.execute_batch(
 qitos/engine/action_executor.py:262: in execute_batch
@@ -115,42 +115,42 @@ qitos/engine/action_executor.py:953: in _execute_one
 qitos/engine/action_executor.py:1137: in _execute_one_inner
     approval = interrupt(approval_item)
                ^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 value = ToolApprovalItem(tool_name='Edit', tool_args={'file_path': 'file.txt', 'old_string': 'x', 'new_string': 'y', 'replace_all': True}, message="Tool 'Edit' requires approval before execution.", tool_spec=None)
 
     def interrupt(value: Any = None) -> Any:
         """Pause execution and wait for a resume value.
-    
+
         On **first call** within a step:
         - Saves a checkpoint (if checkpoint_store is configured).
         - Raises :class:`EngineInterrupt`, halting the step.
-    
+
         On **resume** (step re-executes):
         - Returns the resume value provided by the caller.
-    
+
         Multiple ``interrupt()`` calls in a single step are matched
         by their execution order.
-    
+
         Args:
             value: The value to surface to the client when the engine
                 is interrupted (e.g. a question, a prompt for approval).
-    
+
         Returns:
             The resume value on re-execution.
-    
+
         Raises:
             EngineInterrupt: On first invocation within the step.
         """
         counter = _interrupt_counter.get() + 1
         _interrupt_counter.set(counter)
         interrupt_id = f"int_{counter}"
-    
+
         # Check if we have a resume value for this interrupt
         resume_vals = _resume_values.get()
         if interrupt_id in resume_vals:
             return resume_vals[interrupt_id]
-    
+
         # No resume value — raise interrupt
 >       raise EngineInterrupt(value=value, interrupt_id=interrupt_id)
 E       qitos.engine.interrupt.EngineInterrupt: ToolApprovalItem(tool_name='Edit', tool_args={'file_path': 'file.txt', 'old_string': 'x', 'new_string': 'y', 'replace_all': True}, message="Tool 'Edit' requires approval before execution.", tool_spec=None)
@@ -178,8 +178,8 @@ env_tools = False, case = 'missing'
 >       result = _executor(tmp_path, env_tools=env_tools, deny=case == "denied").execute_one(
             Action(name="edit_file" if env_tools else "Edit", args=args), env=env)
 
-tests/test_v5_coding_actual_files.py:71: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_v5_coding_actual_files.py:71:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 qitos/engine/action_executor.py:177: in execute_one
     execution = self.execute_batch(
 qitos/engine/action_executor.py:262: in execute_batch
@@ -193,42 +193,42 @@ qitos/engine/action_executor.py:953: in _execute_one
 qitos/engine/action_executor.py:1137: in _execute_one_inner
     approval = interrupt(approval_item)
                ^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 value = ToolApprovalItem(tool_name='Edit', tool_args={'file_path': 'file.txt', 'old_string': 'absent', 'new_string': 'y', 'replace_all': False}, message="Tool 'Edit' requires approval before execution.", tool_spec=None)
 
     def interrupt(value: Any = None) -> Any:
         """Pause execution and wait for a resume value.
-    
+
         On **first call** within a step:
         - Saves a checkpoint (if checkpoint_store is configured).
         - Raises :class:`EngineInterrupt`, halting the step.
-    
+
         On **resume** (step re-executes):
         - Returns the resume value provided by the caller.
-    
+
         Multiple ``interrupt()`` calls in a single step are matched
         by their execution order.
-    
+
         Args:
             value: The value to surface to the client when the engine
                 is interrupted (e.g. a question, a prompt for approval).
-    
+
         Returns:
             The resume value on re-execution.
-    
+
         Raises:
             EngineInterrupt: On first invocation within the step.
         """
         counter = _interrupt_counter.get() + 1
         _interrupt_counter.set(counter)
         interrupt_id = f"int_{counter}"
-    
+
         # Check if we have a resume value for this interrupt
         resume_vals = _resume_values.get()
         if interrupt_id in resume_vals:
             return resume_vals[interrupt_id]
-    
+
         # No resume value — raise interrupt
 >       raise EngineInterrupt(value=value, interrupt_id=interrupt_id)
 E       qitos.engine.interrupt.EngineInterrupt: ToolApprovalItem(tool_name='Edit', tool_args={'file_path': 'file.txt', 'old_string': 'absent', 'new_string': 'y', 'replace_all': False}, message="Tool 'Edit' requires approval before execution.", tool_spec=None)
@@ -256,8 +256,8 @@ env_tools = False, case = 'sha'
 >       result = _executor(tmp_path, env_tools=env_tools, deny=case == "denied").execute_one(
             Action(name="edit_file" if env_tools else "Edit", args=args), env=env)
 
-tests/test_v5_coding_actual_files.py:71: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_v5_coding_actual_files.py:71:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 qitos/engine/action_executor.py:177: in execute_one
     execution = self.execute_batch(
 qitos/engine/action_executor.py:262: in execute_batch
@@ -271,42 +271,42 @@ qitos/engine/action_executor.py:953: in _execute_one
 qitos/engine/action_executor.py:1137: in _execute_one_inner
     approval = interrupt(approval_item)
                ^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 value = ToolApprovalItem(tool_name='Edit', tool_args={'file_path': 'file.txt', 'old_string': 'x', 'new_string': 'y', 'replace_...00000000000000000000000000000000000000000'}, message="Tool 'Edit' requires approval before execution.", tool_spec=None)
 
     def interrupt(value: Any = None) -> Any:
         """Pause execution and wait for a resume value.
-    
+
         On **first call** within a step:
         - Saves a checkpoint (if checkpoint_store is configured).
         - Raises :class:`EngineInterrupt`, halting the step.
-    
+
         On **resume** (step re-executes):
         - Returns the resume value provided by the caller.
-    
+
         Multiple ``interrupt()`` calls in a single step are matched
         by their execution order.
-    
+
         Args:
             value: The value to surface to the client when the engine
                 is interrupted (e.g. a question, a prompt for approval).
-    
+
         Returns:
             The resume value on re-execution.
-    
+
         Raises:
             EngineInterrupt: On first invocation within the step.
         """
         counter = _interrupt_counter.get() + 1
         _interrupt_counter.set(counter)
         interrupt_id = f"int_{counter}"
-    
+
         # Check if we have a resume value for this interrupt
         resume_vals = _resume_values.get()
         if interrupt_id in resume_vals:
             return resume_vals[interrupt_id]
-    
+
         # No resume value — raise interrupt
 >       raise EngineInterrupt(value=value, interrupt_id=interrupt_id)
 E       qitos.engine.interrupt.EngineInterrupt: ToolApprovalItem(tool_name='Edit', tool_args={'file_path': 'file.txt', 'old_string': 'x', 'new_string': 'y', 'replace_all': False, 'expected_sha256': '0000000000000000000000000000000000000000000000000000000000000000'}, message="Tool 'Edit' requires approval before execution.", tool_spec=None)
@@ -334,8 +334,8 @@ env_tools = False, case = 'denied'
 >       result = _executor(tmp_path, env_tools=env_tools, deny=case == "denied").execute_one(
             Action(name="edit_file" if env_tools else "Edit", args=args), env=env)
 
-tests/test_v5_coding_actual_files.py:71: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_v5_coding_actual_files.py:71:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 qitos/engine/action_executor.py:177: in execute_one
     execution = self.execute_batch(
 qitos/engine/action_executor.py:262: in execute_batch
@@ -349,42 +349,42 @@ qitos/engine/action_executor.py:953: in _execute_one
 qitos/engine/action_executor.py:1137: in _execute_one_inner
     approval = interrupt(approval_item)
                ^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 value = ToolApprovalItem(tool_name='Edit', tool_args={'file_path': 'file.txt', 'old_string': 'x', 'new_string': 'y', 'replace_all': False}, message="Tool 'Edit' requires approval before execution.", tool_spec=None)
 
     def interrupt(value: Any = None) -> Any:
         """Pause execution and wait for a resume value.
-    
+
         On **first call** within a step:
         - Saves a checkpoint (if checkpoint_store is configured).
         - Raises :class:`EngineInterrupt`, halting the step.
-    
+
         On **resume** (step re-executes):
         - Returns the resume value provided by the caller.
-    
+
         Multiple ``interrupt()`` calls in a single step are matched
         by their execution order.
-    
+
         Args:
             value: The value to surface to the client when the engine
                 is interrupted (e.g. a question, a prompt for approval).
-    
+
         Returns:
             The resume value on re-execution.
-    
+
         Raises:
             EngineInterrupt: On first invocation within the step.
         """
         counter = _interrupt_counter.get() + 1
         _interrupt_counter.set(counter)
         interrupt_id = f"int_{counter}"
-    
+
         # Check if we have a resume value for this interrupt
         resume_vals = _resume_values.get()
         if interrupt_id in resume_vals:
             return resume_vals[interrupt_id]
-    
+
         # No resume value — raise interrupt
 >       raise EngineInterrupt(value=value, interrupt_id=interrupt_id)
 E       qitos.engine.interrupt.EngineInterrupt: ToolApprovalItem(tool_name='Edit', tool_args={'file_path': 'file.txt', 'old_string': 'x', 'new_string': 'y', 'replace_all': False}, message="Tool 'Edit' requires approval before execution.", tool_spec=None)

@@ -6,7 +6,7 @@ tmp_path = PosixPath('<pytest-temp>')
 
     def test_same_expected_head_has_one_winner_then_explicit_restore(tmp_path):
         from test_work_runtime import IndependentSchedulerFake
-    
+
         db = str(tmp_path / "compete.sqlite3")
         store = SqliteCheckpointStore(db)
         runtime = RuntimeComposition(checkpoint_store=store, lifecycle_policy=PauseOnce(),
@@ -28,14 +28,14 @@ tmp_path = PosixPath('<pytest-temp>')
 >           restored = Engine.restore(source.session_id, runtime=fresh)
                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-tests/engine/test_v5_handoff_owner_race.py:254: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/engine/test_v5_handoff_owner_race.py:254:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 qitos/engine/engine.py:675: in restore
     return restore_session(
 qitos/engine/session_runtime.py:2844: in restore_session
     return Session._restore(engine_type, identity, runtime)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 cls = <class 'qitos.engine.session_runtime.Session'>
 engine_type = <class 'qitos.engine.engine.Engine'>
