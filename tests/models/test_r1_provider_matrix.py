@@ -144,3 +144,50 @@ def test_native_anthropic_tools(monkeypatch, truncated):
         assert raw['content'][0]['input'] == {'a': 2}
         assert raw['usage'] == {'input_tokens': 2, 'output_tokens': 3}
     assert closed == [True]
+
+
+@pytest.mark.parametrize('terminal', ['duplicate', 'eof'])
+def test_anthropic_text_terminal_and_partial_diagnostic(monkeypatch, terminal):
+    import requests
+    closed = []
+    events = [
+        {'type': 'message_start', 'message': {}},
+        {'type': 'content_block_start', 'index': 0,
+         'content_block': {'type': 'text', 'text': ''}},
+        {'type': 'content_block_delta', 'index': 0,
+         'delta': {'type': 'text_delta', 'text': 'partial'}},
+    ]
+    if terminal == 'duplicate':
+        events += [{'type': 'content_block_stop', 'index': 0},
+                   {'type': 'message_delta', 'delta': {'stop_reason': 'end_turn'}},
+                   {'type': 'message_stop'}, {'type': 'message_stop'}]
+    response = NS(raise_for_status=lambda: None,
+                  iter_lines=lambda **kw: iter('data: '+json.dumps(event) for event in events),
+                  close=lambda: closed.append(True))
+    monkeypatch.setattr(requests, 'post', lambda *a, **kw: response)
+    model = AnthropicModel(api_key='offline')
+    deltas = []
+    if terminal == 'eof':
+        with pytest.raises(ProviderFailure) as caught:
+            model.qitos_stream_transport({'messages': []}, on_delta=deltas.append)
+        assert caught.value.redacted_details['partial_text_characters'] == 7
+    else:
+        raw = model.qitos_stream_transport({'messages': []}, on_delta=deltas.append)
+        assert raw['stop_reason'] == 'end_turn'
+        assert 'usage' not in raw
+    assert deltas == ['partial']
+    assert closed == [True]
+
+
+def test_gemini_blocked_fallback_is_typed_not_answer(monkeypatch):
+    import requests
+    closed = []
+    response = NS(raise_for_status=lambda: None,
+                  json=lambda: {'promptFeedback': {'blockReason': 'SAFETY', 'private': 'payload'}},
+                  close=lambda: closed.append(True))
+    monkeypatch.setattr(requests, 'post', lambda *a, **kw: response)
+    with pytest.raises(ProviderFailure) as caught:
+        list(GeminiModel(api_key='offline').stream([]))
+    assert caught.value.category == 'provider_refusal'
+    assert 'payload' not in str(caught.value)
+    assert closed == [True]

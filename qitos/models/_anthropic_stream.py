@@ -19,6 +19,7 @@ def stream_message(model: Any, payload: dict[str, Any]) -> Iterator[ModelStreamC
     usage: dict[str, Any] = {}
     reason = None
     stopped = False
+    partial_text_characters = 0
     model._set_last_usage(None)
     try:
         response = requests.post(
@@ -39,6 +40,8 @@ def stream_message(model: Any, payload: dict[str, Any]) -> Iterator[ModelStreamC
             kind = event.get("type")
             if kind == "ping":
                 continue
+            if stopped and kind == "message_stop":
+                continue
             if stopped or kind == "error":
                 raise protocol_failure(model)
             index = event.get("index", 0)
@@ -57,6 +60,7 @@ def stream_message(model: Any, payload: dict[str, Any]) -> Iterator[ModelStreamC
                     text = delta.get("text", "")
                     blocks[index]["text"] = blocks[index].get("text", "") + text
                     if text:
+                        partial_text_characters += len(text)
                         yield ModelStreamChunk(text=text)
                 elif delta["type"] == "input_json_delta":
                     arguments[index] = arguments.get(index, "") + delta.get("partial_json", "")
@@ -99,6 +103,6 @@ def stream_message(model: Any, payload: dict[str, Any]) -> Iterator[ModelStreamC
         yield ModelStreamChunk(text="", done=True, usage=known_usage, tool_calls=calls or None,
                                event_metadata={"finish_reason": reason, "response": message})
     except Exception as exc:
-        raise failure(model, exc) from None
+        raise failure(model, exc, partial_text_characters=partial_text_characters) from None
     finally:
         close_owned(response)

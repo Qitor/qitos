@@ -499,7 +499,9 @@ class GeminiModel(Model):
         if not candidates:
             prompt_feedback = response.get("promptFeedback")
             if isinstance(prompt_feedback, dict) and prompt_feedback:
-                return f"Error: {prompt_feedback}"
+                from ._stream import refusal_failure
+
+                raise refusal_failure(self)
             return ""
 
         content = candidates[0].get("content") or {}
