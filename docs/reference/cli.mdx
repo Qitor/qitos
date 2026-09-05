@@ -88,6 +88,12 @@ qita export --run ./runs/<run_id> --html ./report.html
 
 Export a standalone HTML artifact.
 
+Bounded canonical export uses an explicit journal source and run ID. It defaults to the public projection; `--raw-private` is explicit. Output appears only after snapshot verification and atomic replacement. HTML export retains its existing behavior.
+
+```bash
+qita export --run RUN_ID --journal ./runs/trajectory.journal --canonical ./trajectory.json
+```
+
 ## qit bench
 
 `qit bench` is the canonical benchmark CLI in v0.3.

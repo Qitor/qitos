@@ -3,11 +3,16 @@ title: "Trajectory 与 reader"
 description: "QitOS public API: trajectory"
 ---
 
-default_reader 选择 canonical journal 和支持的历史 reader。读取与回放是观察，不执行或恢复 Agent。REDACTED_PUBLIC 导出明确声明损失；重新导入后记录数相同不能证明 raw 数据等价。当前读取会全量加载 journal。qit/qita 命令参考说明 CLI 的实际用法与退出行为。
+default_reader 选择 canonical journal 和支持的历史 reader。读取与回放是观察，不执行或恢复 Agent。REDACTED_PUBLIC 导出明确声明损失；重新导入后记录数相同不能证明 raw 数据等价。旧完整读取仍会全量加载 journal。qit/qita 命令参考说明 CLI 的实际用法与退出行为。
 
 [完整可运行教程 / Complete tutorial](/zh/guides/observability) · [API index](/zh/reference/api)
 
 以下签名和字段由固定源码提取；签名是参考，不是可直接运行的程序。每个条目的源码链接绑定同一 runtime baseline。类型中的 Any 不代表任意对象均受支持，应结合上述行为契约和教程使用。
+
+`StoreTrajectoryReader.from_journal` 与现有 file/default adapter 提供 `read_page(query, cursor=None)`。`page.records`、`page.next_cursor`、`page.watermark` 描述固定快照。warm page 仍 hash 全部快照字节，但仅解析寻址 frame；临时磁盘索引和固定 cache 避免保留全历史。旧完整读取和 re-import 仍物化。`export_file` 在最终校验后原子替换文件，失败保留原目标。
+
+
+连续 `iter_records` 与文件导出在开始、结束时校验完整快照，遍历时逐 frame 校验。迭代值在**耗尽前属于 partial**；提前 close 释放资源，但不证明遍历完成。文件仅在最终校验后发布。独立 `read_page` 每页仍校验全部历史字节。
 
 {/* api-reference:start */}
 
@@ -18,7 +23,7 @@ default_reader 选择 canonical journal 和支持的历史 reader。读取与回
 from qitos.qita.reader import default_reader
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/qita/reader.py#L12)
+[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/qita/reader.py#L12)
 
 [用法与可执行示例](/zh/guides/observability)
 
@@ -51,7 +56,7 @@ default_reader(root: str | Path, *, selector: str='trajectory') -> Any
 from qitos.tracing.exporter import CanonicalTrajectoryExporter
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/tracing/exporter.py#L95)
+[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/exporter.py#L95)
 
 [用法与可执行示例](/zh/guides/observability)
 
@@ -59,8 +64,8 @@ from qitos.tracing.exporter import CanonicalTrajectoryExporter
 
 ```python
 exporter = CanonicalTrajectoryExporter()
-exported = exporter.export(trajectory, view=PrivacyView.REDACTED_PUBLIC)
-print(exported.loss.is_lossless)
+receipt = exporter.export_file(reader, query, root / "public-trajectory.json")
+print(receipt.record_count)
 ```
 
 ```text
@@ -79,7 +84,28 @@ export(trajectory: Trajectory, *, view: PrivacyView=PrivacyView.REDACTED_PUBLIC)
 | `trajectory` | `Trajectory` | `required` |
 | `view` | `PrivacyView` | `PrivacyView.REDACTED_PUBLIC` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/tracing/exporter.py#L111)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/exporter.py#L111)
+
+<span id="qitos-tracing-exporter-canonicaltrajectoryexporter-export-file" />
+### CanonicalTrajectoryExporter.export_file
+
+```text
+export_file(reader: Any, query: Any, target: Any, *, view: PrivacyView=PrivacyView.REDACTED_PUBLIC, cancelled: Any=None) -> Any
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `reader` | `Any` | `required` |
+| `query` | `Any` | `required` |
+| `target` | `Any` | `required` |
+| `view` | `PrivacyView` | `PrivacyView.REDACTED_PUBLIC` |
+| `cancelled` | `Any` | `None` |
+
+```text
+Export a bounded snapshot through owned staging and atomic replacement.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/exporter.py#L141)
 
 <span id="qitos-tracing-exporter-canonicaltrajectoryexporter-reimport" />
 ### CanonicalTrajectoryExporter.reimport
@@ -92,7 +118,7 @@ reimport(artifact: ExportArtifact) -> Trajectory
 | --- | --- | --- |
 | `artifact` | `ExportArtifact` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/tracing/exporter.py#L141)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/exporter.py#L148)
 
 
 <span id="qitos-tracing-trajectory-privacyview" />
@@ -102,7 +128,7 @@ reimport(artifact: ExportArtifact) -> Trajectory
 from qitos.tracing.trajectory import PrivacyView
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/tracing/trajectory.py#L91)
+[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/trajectory.py#L91)
 
 [用法与可执行示例](/zh/guides/observability)
 
@@ -116,5 +142,304 @@ print(view.value)
 ```text
 Named projections over canonical raw data.
 ```
+
+
+<span id="qitos-tracing-readers-storetrajectoryreader" />
+## StoreTrajectoryReader
+
+```python
+from qitos.tracing.readers import StoreTrajectoryReader
+```
+
+[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/readers.py#L479)
+
+[用法与可执行示例](/zh/guides/observability)
+
+```text
+Reader adapter for any conforming trajectory store.
+```
+
+```text
+StoreTrajectoryReader(store: TrajectoryStore) -> None
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `store` | `TrajectoryStore` | `required` |
+
+<span id="qitos-tracing-readers-storetrajectoryreader-from-journal" />
+### StoreTrajectoryReader.from_journal
+
+```text
+from_journal(path: str | Path) -> 'StoreTrajectoryReader'
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `path` | `str &#124; Path` | `required` |
+
+```text
+Open a validated read-only journal without materializing its history.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/readers.py#L487)
+
+<span id="qitos-tracing-readers-storetrajectoryreader-read-page" />
+### StoreTrajectoryReader.read_page
+
+```text
+read_page(query: TrajectoryQuery, cursor: TrajectoryCursor | None=None, *, view: PrivacyView=PrivacyView.REDACTED_PUBLIC) -> TrajectoryPage
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `query` | `TrajectoryQuery` | `required` |
+| `cursor` | `TrajectoryCursor &#124; None` | `None` |
+| `view` | `PrivacyView` | `PrivacyView.REDACTED_PUBLIC` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/readers.py#L508)
+
+<span id="qitos-tracing-readers-storetrajectoryreader-close" />
+### StoreTrajectoryReader.close
+
+```text
+close() -> None
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/readers.py#L534)
+
+
+<span id="qitos-tracing-paging-trajectorycursor" />
+## TrajectoryCursor
+
+```python
+from qitos.tracing.paging import TrajectoryCursor
+```
+
+[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/paging.py#L38)
+
+[用法与可执行示例](/zh/guides/observability)
+
+```text
+Reader-local opaque token. No host path or credential is serialized.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `token` | `str` | `required` |
+
+
+<span id="qitos-tracing-paging-trajectorypage" />
+## TrajectoryPage
+
+```python
+from qitos.tracing.paging import TrajectoryPage
+```
+
+[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/paging.py#L45)
+
+[用法与可执行示例](/zh/guides/observability)
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `records` | `tuple[TrajectoryRecord, ...]` | `required` |
+| `next_cursor` | `TrajectoryCursor \| None` | `required` |
+| `snapshot` | `TrajectoryCursor` | `required` |
+| `watermark` | `int` | `required` |
+
+
+<span id="qitos-tracing-paging-boundedreadunsupported" />
+## BoundedReadUnsupported
+
+```python
+from qitos.tracing.paging import BoundedReadUnsupported
+```
+
+[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/paging.py#L29)
+
+[用法与可执行示例](/zh/guides/observability)
+
+```text
+The selected source has no bounded snapshot capability.
+```
+
+
+<span id="qitos-tracing-paging-cursorrejected" />
+## CursorRejected
+
+```python
+from qitos.tracing.paging import CursorRejected
+```
+
+[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/paging.py#L33)
+
+[用法与可执行示例](/zh/guides/observability)
+
+```text
+A cursor or its source no longer describes the captured snapshot.
+```
+
+
+<span id="qitos-tracing-paging-iter_records" />
+## iter_records
+
+```python
+from qitos.tracing.paging import iter_records
+```
+
+[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/paging.py#L60)
+
+[用法与可执行示例](/zh/guides/observability)
+
+```text
+Iterate a snapshot; output is partial until exhaustion/final validation.
+
+Early close releases resources but does not claim a completed traversal.
+Independent read_page calls always reverify the complete snapshot.
+```
+
+```text
+iter_records(reader: Any, query: TrajectoryQuery, *, view: PrivacyView=PrivacyView.REDACTED_PUBLIC) -> Iterator[TrajectoryRecord]
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `reader` | `Any` | `required` |
+| `query` | `TrajectoryQuery` | `required` |
+| `view` | `PrivacyView` | `PrivacyView.REDACTED_PUBLIC` |
+
+
+<span id="qitos-tracing-paging-read_page" />
+## read_page
+
+```python
+from qitos.tracing.paging import read_page
+```
+
+[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/paging.py#L52)
+
+[用法与可执行示例](/zh/guides/observability)
+
+```text
+Require bounded capability; never materialize a third-party fallback.
+```
+
+```text
+read_page(reader: Any, query: TrajectoryQuery, cursor: TrajectoryCursor | None=None, *, view: PrivacyView=PrivacyView.REDACTED_PUBLIC) -> TrajectoryPage
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `reader` | `Any` | `required` |
+| `query` | `TrajectoryQuery` | `required` |
+| `cursor` | `TrajectoryCursor &#124; None` | `None` |
+| `view` | `PrivacyView` | `PrivacyView.REDACTED_PUBLIC` |
+
+
+<span id="qitos-tracing-trajectory-trajectoryquery" />
+## TrajectoryQuery
+
+```python
+from qitos.tracing.trajectory import TrajectoryQuery
+```
+
+[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/trajectory.py#L413)
+
+[用法与可执行示例](/zh/guides/observability)
+
+```text
+Store-independent declarative trajectory query.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `session_id` | `Optional[str]` | `None` |
+| `run_id` | `Optional[str]` | `None` |
+| `work_item_id` | `Optional[str]` | `None` |
+| `kinds` | `Tuple[RecordKind, ...]` | `()` |
+| `after_sequence` | `Optional[int]` | `None` |
+| `limit` | `Optional[int]` | `None` |
+
+
+<span id="qitos-tracing-trajectory-lossreport" />
+## LossReport
+
+```python
+from qitos.tracing.trajectory import LossReport
+```
+
+[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/trajectory.py#L122)
+
+[用法与可执行示例](/zh/guides/observability)
+
+```text
+Explicit fidelity report carried by readers, exporters and evaluators.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `policy_id` | `str` | `'qitos.loss/none'` |
+| `entries` | `Tuple[LossEntry, ...]` | `()` |
+
+<span id="qitos-tracing-trajectory-lossreport-from-dict" />
+### LossReport.from_dict
+
+```text
+from_dict(value: Mapping[str, Any]) -> 'LossReport'
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `value` | `Mapping[str, Any]` | `required` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/trajectory.py#L149)
+
+
+<span id="qitos-tracing-exporter-exportartifact" />
+## ExportArtifact
+
+```python
+from qitos.tracing.exporter import ExportArtifact
+```
+
+[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/exporter.py#L40)
+
+[用法与可执行示例](/zh/guides/observability)
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `exporter_id` | `str` | `required` |
+| `format_version` | `str` | `required` |
+| `content_type` | `str` | `required` |
+| `data` | `bytes` | `required` |
+| `digest` | `str` | `required` |
+| `privacy_view` | `PrivacyView` | `required` |
+| `exact_reimport` | `bool` | `required` |
+| `provenance` | `Dict[str, Any]` | `required` |
+| `loss` | `LossReport` | `required` |
+
+
+<span id="qitos-tracing-streaming-fileexportreceipt" />
+## FileExportReceipt
+
+```python
+from qitos.tracing.streaming import FileExportReceipt
+```
+
+[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/streaming.py#L22)
+
+[用法与可执行示例](/zh/guides/observability)
+
+```text
+Returned only after full validation, fsync and atomic replacement.
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `record_count` | `int` | `required` |
+| `size_bytes` | `int` | `required` |
+| `digest` | `str` | `required` |
+| `privacy_view` | `PrivacyView` | `required` |
+| `completed` | `bool` | `True` |
 
 {/* api-reference:end */}

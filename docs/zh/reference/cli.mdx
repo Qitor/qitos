@@ -88,6 +88,12 @@ qita export --run ./runs/<run_id> --html ./report.html
 
 导出独立 HTML 产物。
 
+有界 canonical export 使用明确的 journal 来源与 run ID，默认 public 投影；私有视图需显式 `--raw-private`。输出仅在快照校验和原子替换成功后完成；HTML export 保持原行为。
+
+```bash
+qita export --run RUN_ID --journal ./runs/trajectory.journal --canonical ./trajectory.json
+```
+
 ## qit bench
 
 `qit bench` 是 v0.3 中基准测试的官方命令行。

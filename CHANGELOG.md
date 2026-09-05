@@ -20,6 +20,7 @@ How to update:
 ### Added
 
 - Module-level `MemorySourceAdapter` and model-free `ClosedExchangeWindowCompactor`, with a configured, installed-wheel two-process text-memory consumer.
+- Strict snapshot-bound journal pages and bounded canonical file export via the existing reader adapter, with typed unsupported/cursor failures and a qita canonical export consumer.
 
 - Self-contained EN/zh notes-Agent lessons with complete inline files, source-synchronized excerpts, core API signatures and page-extracted installed-wheel checks.
 - Explicit serialized handoff lesson and documented same-head concurrent callback limitation; runtime unchanged.
@@ -41,6 +42,7 @@ How to update:
 ### Changed
 
 - Memdir restores existing roots by default; pass `create=True` to initialize. Budget-driven exchange omission now requires an explicit compaction policy and a matching selection/loss receipt. Required context precedes optional priority.
+- Journal writers incrementally maintain ID/position bookkeeping and checkpoint derived JSON indexes at open/rebuild/close; ordinary flush remains journal fsync only. Full historical byte verification and frozen wire/privacy contracts remain unchanged.
 
 - Make CI prerequisites explicit (build tools, asyncio plugin, full history and owned Docker fixtures), preserve the qualified typing context, and remove test-only interpreter and queue-scheduling assumptions. The subsequent explicitly authorized runtime fixes are qualified separately from G5.
 

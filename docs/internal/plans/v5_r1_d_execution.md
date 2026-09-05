@@ -39,7 +39,10 @@ source descriptor. Iteration holds no lock across user yields.
 ## Status
 
 - Preflight and required contract/code review completed.
-- Implementation and qualification in progress; no qualified outcome yet.
+- Implementation and qualification completed on runtime `df9316415db7ec76f1e5d70a11ceabfd47744169`.
+- Final report, all 80 measurements, environment and check logs: [Lane D evidence](v5_r1_d_evidence/REPORT.md).
+- Full suite: 3473 passed / 51 existing skips; targeted tracing/qita/exporter: 191 passed; installed offline consumer: 10 records, complete round trip.
+- Documentation/evidence delivery follows the measured runtime with no runtime changes. Final clean HEAD is checked after the delivery commit.
 - Explicit non-goals: suffix-only I/O, Artifact GC, external training formats,
   campaign publication, bounded RSS for all old materializing APIs.
 

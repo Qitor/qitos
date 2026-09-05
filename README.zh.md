@@ -31,6 +31,7 @@ store、sink 和 sandbox 可扩展；qita 只读检查 Trajectory。
 
 - 同一 Session 的 handoff 在 dispatch 前持久化 admission；目标 restore 与完成不再依赖迟到的源 callback。
 - 显式 memory adapter 与确定性 closed-exchange 压缩：已验证安装后两进程 Memdir 召回、namespace 隔离和实际 request selection；[用法与边界](examples/v5/r1_b_memory_context/README.md)。
+- V5 R1 Lane D 新增严格快照分页与原子流式 canonical export，warm append 增量维护 ID/位置索引；仍校验全部历史字节。见[实施证据](docs/internal/plans/v5_r1_d_execution.md)。
 
 - 网页自足教程：资料整理 Agent 的完整代码、中英文学习路径、可核对源码签名的核心 API Reference；测试直接执行网页文件。
 

@@ -7,7 +7,7 @@ description: "从网页完整代码学习 QitOS 资料整理项目。"
 
 先运行资料项目，再用 `control.json` 中的准确 Session ID 检查结果。`default_reader` 默认读取 canonical journal，同时保留明确的历史 trace 支持。`read_session` 重建观察视图，不恢复执行。
 
-`inspect_run.py` 写入脱敏 public export，并检查重新导入后记录数一致。它也创建当前 qita HTML 导出 CLI 需要的 run selector 目录；这个目录不取代权威 journal。
+`inspect_run.py` 读取快照分页，通过本次自有 staging 流式写出 public canonical export。小规模 re-import 检查逐条比较投影后的记录；re-import 本身仍会物化数据。教程保留旧 replay/HTML CLI 所需的空 selector 目录。新的 canonical export 直接接受 journal 与 run ID。
 
 使用下方命令检查、回放和导出。replay 展示已记录执行，不调用模型、不重做工具。只读 board 用 Ctrl-C 退出。
 
@@ -15,10 +15,12 @@ description: "从网页完整代码学习 QitOS 资料整理项目。"
 
 ## 准备项目
 
+安装前将本地构建的 Lane D wheel（runtime source `df93164`）放在教程目录旁。本线尚未发布。确定性 installed 示例位于 `examples/v5/r1_d_trajectory/consumer.py`。
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install "qitos @ git+https://github.com/WhitzardAgent/WhitzardOS.git@60809b3be388d22ea40ea41b4aaa1f5540c76fda"
+python -m pip install ./qitos-0.6.0-py3-none-any.whl
 mkdir notes_lesson
 cd notes_lesson
 ```
@@ -52,12 +54,15 @@ qita inspect session "$session_id" --logdir ./notes-run
 run_id=$(python -c 'import json; print(json.load(open("notes-run/control.json"))["run_id"])')
 qita replay --run "notes-run/$run_id"
 qita export --run "notes-run/$run_id" --html notes-run/trajectory.html
+qita export --run "$run_id" --journal notes-run/trajectory.journal --canonical notes-run/streamed.json
 qita board --logdir ./notes-run
 ```
 
 ## 行为与支持边界
 
-inspect 不需要 Docker 或 credentials。journal 读取完整，但当前会全量加载。public export 声明损失，不能替代私有恢复数据。
+inspect 不需要 Docker 或 credentials。`read_page` 仅保留当前页、有 frame 大小上限的缓冲和固定 I/O/SQLite cache；临时磁盘索引随日志增长。每页仍 hash 快照全部历史字节。完整 `read_run`/`read_session`、旧 HTML export 和 re-import 仍会物化数据。public export 声明损失，不能替代私有恢复数据。
+
+cursor 绑定查询/视图、来源、committed head 与字节边界，reader close 后失效。并发 append 不混入当前遍历。末页后以该页 `watermark` 作为新查询的 `after_sequence`，显式捕获新 head 来 polling。查询变化、来源替换/截断和快照损坏均 typed reject。不支持此能力的历史或第三方来源抛出 `BoundedReadUnsupported`；旧完整读取保持原行为。
 
 ## 练习与参考答案
 
@@ -66,6 +71,9 @@ inspect 不需要 Docker 或 credentials。journal 读取完整，但当前会�
 ## 常见错误与清理
 
 `ModuleNotFoundError`：确认已激活安装指定 wheel/源码版本的环境，并保存本页所有文件。root 已存在：换一个新 `--root`，不要覆盖需要保留的证据。断言失败：检查第一个失败的工具或 typed error；不要只依赖最终文字。退出所有进程、停止 board 后，可自行删除本章新建且不再需要的运行目录；保留要调试的 SQLite、journal 和报告。
+
+
+连续 `iter_records` 与文件导出在开始、结束时校验完整快照，遍历时逐 frame 校验。迭代值在**耗尽前属于 partial**；提前 close 释放资源，但不证明遍历完成。文件仅在最终校验后发布。独立 `read_page` 每页仍校验全部历史字节。
 
 {/* tutorial-files:start */}
 
@@ -207,30 +215,44 @@ failure_policy:
 ```
 
 ```python title="inspect_run.py"
-"""Read an existing notes run, verify the index, and export a public view."""
+"""Page an existing notes journal, stream a public export and verify re-import."""
 import argparse
 import json
 from pathlib import Path
 
 from qitos.qita.reader import default_reader
-from qitos.tracing.exporter import CanonicalTrajectoryExporter
-from qitos.tracing.trajectory import PrivacyView
+from qitos.tracing.exporter import CanonicalTrajectoryExporter, ExportArtifact
+from qitos.tracing.paging import iter_records
+from qitos.tracing.trajectory import LossReport, PrivacyView, TrajectoryQuery
 
 
 def inspect(root):
     control = json.loads((root / "control.json").read_text())
-    trajectory = default_reader(root).read_session(control["session_id"], view=PrivacyView.RAW_PRIVATE)
-    assert trajectory.records
-    exporter = CanonicalTrajectoryExporter()
-    exported = exporter.export(trajectory, view=PrivacyView.REDACTED_PUBLIC)
-    imported = exporter.reimport(exported)
-    assert len(imported.records) == len(trajectory.records)
-    (root / "public-trajectory.json").write_bytes(exported.data)
-    # qita's --run selector currently requires an existing run directory.
-    # This directory is only a selector; the journal remains authoritative.
-    (root / control["run_id"]).mkdir(exist_ok=True)
-    print(json.dumps({"records": len(trajectory.records), "lossless": exported.loss.is_lossless,
-                      "run_selector": str(root / control["run_id"])}))
+    reader = default_reader(root)
+    try:
+        query = TrajectoryQuery(session_id=control["session_id"], limit=128)
+        page = reader.read_page(query)
+        assert page.records
+        exporter = CanonicalTrajectoryExporter()
+        target = root / "public-trajectory.json"
+        receipt = exporter.export_file(reader, query, target)
+        # Re-import remains a materializing API; this small lesson checks every record.
+        data = target.read_bytes()
+        value = json.loads(data)
+        artifact = ExportArtifact(exporter.capabilities.exporter_id, exporter.capabilities.format_version,
+                                  "application/json", data, receipt.digest, PrivacyView.REDACTED_PUBLIC,
+                                  True, value["provenance"], LossReport.from_dict(value["loss"]))
+        imported = exporter.reimport(artifact)
+        expected = iter_records(reader, query)
+        for actual in imported.records:
+            assert actual.to_dict() == next(expected).to_dict()
+        assert next(expected, None) is None
+        # Legacy replay/HTML CLI still accepts an existing directory selector.
+        (root / control["run_id"]).mkdir(exist_ok=True)
+        print(json.dumps({"records": receipt.record_count, "lossless": imported.loss.is_lossless,
+                          "run_selector": str(root / control["run_id"]), "bounded_export": True}))
+    finally:
+        reader.close()
 
 
 if __name__ == "__main__":

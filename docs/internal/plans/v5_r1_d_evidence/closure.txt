@@ -1,0 +1,7 @@
+Documentation-only closure after final runtime df9316415db7ec76f1e5d70a11ceabfd47744169:
+validate_docs.py: passed
+sync_api_reference.py --check with PYTHONPATH=.: passed
+sync_tutorial_docs.py --check: passed
+architecture/public/no-local-paths: 10 passed in 1.30s
+git diff --check: passed
+Initial API closure invocation without checkout import path selected a global installed qitos and failed; explicit source context passed without code changes. Installed consumer remained outside checkout with PYTHONPATH unset.

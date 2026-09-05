@@ -1,0 +1,32 @@
+{
+  "python": "3.12.7",
+  "platform": "macOS-15.7.3-arm64-arm-64bit",
+  "quality_context": {
+    "flake8": "7.0.0",
+    "mypy": "1.19.1",
+    "mccabe": "0.7.0",
+    "pyflakes": "3.2.0",
+    "pycodestyle": "2.11.1",
+    "pytest": "9.0.3",
+    "pytest-asyncio": "1.3.0",
+    "requests": "2.34.2",
+    "types-requests": "2.32.4.20260107",
+    "playwright": "1.58.0",
+    "build": "1.3.0",
+    "twine": "6.2.0",
+    "jsonschema": "4.23.0",
+    "setuptools": "81.0.0"
+  },
+  "baseline": "4dfb570fb7eef504c1e6d247c21a1984251b80e4",
+  "runtime_source": "df9316415db7ec76f1e5d70a11ceabfd47744169",
+  "driver_sha256": "150c5ab24567be7a588d12efafc7597ff81f419af4f6e7e4e1cb025dd2142ce0",
+  "wheel_sha256": "0638a2d3b555de33697e24b78952fd10d6419ca162101ae5f20bb9a79f01ed3e",
+  "installed_environment": "independent Python 3.12.7 venv; outside source; PYTHONPATH unset; wheel install",
+  "model_calls": "none; deterministic AgentModule and frozen-wire seeds only",
+  "quality_environment_note": "A separate newly resolved venv had different third-party typing context. Final checks use the recorded pinned toolchain/context, without source allowances or ignores.",
+  "build_context": {
+    "build": "1.6.0",
+    "twine": "7.0.0"
+  },
+  "wheel_source_files": "all qitos Python files compared byte-for-byte with final runtime source"
+}

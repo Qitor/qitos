@@ -426,17 +426,80 @@
           "name": "CanonicalTrajectoryExporter",
           "methods": [
             "export",
+            "export_file",
             "reimport"
           ],
-          "example": "exporter = CanonicalTrajectoryExporter()\nexported = exporter.export(trajectory, view=PrivacyView.REDACTED_PUBLIC)\nprint(exported.loss.is_lossless)"
+          "example": "exporter = CanonicalTrajectoryExporter()\nreceipt = exporter.export_file(reader, query, root / \"public-trajectory.json\")\nprint(receipt.record_count)"
         },
         {
           "module": "qitos.tracing.trajectory",
           "name": "PrivacyView",
           "methods": [],
           "example": "view = PrivacyView.REDACTED_PUBLIC\nprint(view.value)"
+        },
+        {
+          "module": "qitos.tracing.readers",
+          "name": "StoreTrajectoryReader",
+          "methods": [
+            "from_journal",
+            "read_page",
+            "close"
+          ]
+        },
+        {
+          "module": "qitos.tracing.paging",
+          "name": "TrajectoryCursor",
+          "methods": []
+        },
+        {
+          "module": "qitos.tracing.paging",
+          "name": "TrajectoryPage",
+          "methods": []
+        },
+        {
+          "module": "qitos.tracing.paging",
+          "name": "BoundedReadUnsupported",
+          "methods": []
+        },
+        {
+          "module": "qitos.tracing.paging",
+          "name": "CursorRejected",
+          "methods": []
+        },
+        {
+          "module": "qitos.tracing.paging",
+          "name": "iter_records",
+          "methods": []
+        },
+        {
+          "module": "qitos.tracing.paging",
+          "name": "read_page",
+          "methods": []
+        },
+        {
+          "module": "qitos.tracing.trajectory",
+          "name": "TrajectoryQuery",
+          "methods": []
+        },
+        {
+          "module": "qitos.tracing.trajectory",
+          "name": "LossReport",
+          "methods": [
+            "from_dict"
+          ]
+        },
+        {
+          "module": "qitos.tracing.exporter",
+          "name": "ExportArtifact",
+          "methods": []
+        },
+        {
+          "module": "qitos.tracing.streaming",
+          "name": "FileExportReceipt",
+          "methods": []
         }
-      ]
+      ],
+      "baseline": "df9316415db7ec76f1e5d70a11ceabfd47744169"
     }
   ]
 }

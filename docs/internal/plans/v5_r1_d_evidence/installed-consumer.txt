@@ -1,0 +1,2 @@
+[qita] completed canonical export: 10 records
+{"installed_consumer": "passed", "records": 10, "page_watermark": 9, "canonical_reimport": "record_equal"}

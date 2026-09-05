@@ -20,13 +20,42 @@ projection; it does not restore redacted private data. Content digests bind the
 exported projection, and loss remains explicit. Artifact references require the
 caller-composed resolver for content retrieval.
 
-Journal query results are bounded and expose pagination or typed limits.
-Complete run/session reads and exact exports materialize the complete selected
-trajectory. The current journal reloads all frames for queries and appends and
-rebuilds its index on append; total memory is not bounded by the query limit.
-See the G5 execution ledger and committed repeated measurements for observed
-costs. Schema freeze alone does not authorize default switching, local promotion
-or publication; these have independent validation gates.
+Journal query results expose pagination or typed limits. Complete run/session
+reads and the old in-memory export/re-import APIs remain materializing. The
+verified-content parsing cache still hashes every historical byte, including
+same-size edits with restored mtime; avoiding parsing does not avoid reading.
+
+Lane D adds `StoreTrajectoryReader.from_journal` and `read_page(query, cursor)`
+to the existing reader adapter, without changing the default source selector or
+frozen record/export schema. A reader-owned temporary SQLite index is rebuilt
+from verified journal frames; it is derived and stores no payloads. The source
+sidecar is never trusted for addressing. Fixed SQLite/I/O caches, one frame
+(existing 64 MiB limit), a page (default 128, maximum 10,000), and a signed cursor
+bound retained memory independently of history size. Cold index construction
+and explicit new-head rebuilds cost O(N) decoding and disk space. Warm pages
+hash all snapshot bytes and decode only addressed frames. Snapshot cursor tokens
+are reader-local, contain no paths, bind query/view/head/position/source, and
+expire at reader close. A failed later rebuild preserves the previous snapshot.
+Long traversals hold no source lock across user yields; this is advisory local
+coordination, not protection against an arbitrary hostile host after validation.
+
+Writer ID and run/session/work positions are maintained incrementally on warm
+append. The JSON sidecar is checkpointed at open, explicit rebuild and close;
+ordinary flush only fsyncs the journal. Checkpoints cost O(N) and carry
+record_count/journal_head_digest. Crash leaves at most a stale derived index,
+rebuildable from the sole journal truth. Journal durability precedes any derived
+index success: append reports `index_checkpoint_deferred`, while close may report
+`index_rebuild_required` with journal persistence still confirmed. External
+append still invalidates the full parsing cache and triggers verified rebuilding.
+
+`CanonicalTrajectoryExporter.export_file` spools bounded pages, losses and policy
+IDs to owned disk staging, verifies the snapshot again, fsyncs the completed file
+and atomically replaces the target. Failure/cancellation preserves an existing
+target and cleans only its own staging. Public redaction and exact selected-view
+re-import retain the frozen canonical wire; the importer itself still materializes.
+Continuous iterators/file exports verify the full snapshot at start/end and validate addressed frames between those boundaries. Iterator output is partial until exhaustion; early close never claims completion. Independent pages retain full-history verification per page. The qita canonical file-export command consumes this capability. Legacy readers
+without it return typed unsupported for bounded requests; their old complete
+read behavior remains available. Schema freeze does not authorize publication.
 
 ## Default writer selection
 
