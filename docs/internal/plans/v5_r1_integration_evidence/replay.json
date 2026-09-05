@@ -1,0 +1,179 @@
+[
+  {
+    "lane": "C",
+    "source": "12001c902c99515111f575988e394632b6c57acb",
+    "subject": "fix(runtime): commit handoff admission before destination dispatch",
+    "replay": "e0c3cff8f2dfb11481102b35ecba82b7000c723d"
+  },
+  {
+    "lane": "C",
+    "source": "40f14447d1e1b2d120853af4c6bfde4358c9c642",
+    "subject": "fix(tools): preserve Read windows and Edit replacement outcomes",
+    "replay": "d1b09121200b506356c94f330abdd814cb6b39f4"
+  },
+  {
+    "lane": "C",
+    "source": "5d3cd794e92722503fc298ba9a06f77996e772dd",
+    "subject": "fix(core): unify Observation attribute and mapping authority",
+    "replay": "de7e9c3cd9e628028dabc293fda3f049e69a48ad"
+  },
+  {
+    "lane": "C",
+    "source": "d1a4e425807e9bb346030ff05a9d010b19c2cd51",
+    "subject": "fix(core): retain Observation dataclass serialization compatibility",
+    "replay": "a46e02b3204f17ad962c32a00fdcfe1deca13be8"
+  },
+  {
+    "lane": "C",
+    "source": "b8e138da2d9f5f48e16e0f48925539ca8925a4f9",
+    "subject": "test(docs): qualify Lane C installed runtime and retain regression evidence",
+    "replay": "94a15204499dfa1822a251ad84b218e5299895b4"
+  },
+  {
+    "lane": "C",
+    "source": "5b8a4363e59fd01286009741b26597f197de706b",
+    "subject": "docs: normalize archived pytest evidence whitespace",
+    "replay": "a539e8f9fcf3c707a4d60045412b04184ac9a4a4"
+  },
+  {
+    "lane": "B",
+    "source": "20bfd50b882b2c1ea7cb159ca4a5b15e5a7e96e0",
+    "subject": "feat: add borrowed memory sources and explicit exchange compaction",
+    "replay": "57fb6944bf1b6f03a54e230f8d9f2a7ae214db56"
+  },
+  {
+    "lane": "B",
+    "source": "a2f09fcc7fd02e26fb36ef4ba1503334ef23121d",
+    "subject": "test: qualify restored artifacts and isolated namespace requests",
+    "replay": "be814c6958953951859c2e883ef7405d7c1aa5db"
+  },
+  {
+    "lane": "B",
+    "source": "1710b2723238648e3d7394b262f06e97290cd093",
+    "subject": "fix: protect unanswered input when an exchange identity is reused",
+    "replay": "ed3dcaf9f554a8b54f0beb82423a45ef70421f67"
+  },
+  {
+    "lane": "B",
+    "source": "4b62f46712f1683338c0b7590ae1290c492cb542",
+    "subject": "docs: document and qualify memory sources and exchange compaction",
+    "conflicts": [
+      "CHANGELOG.md",
+      "README.md",
+      "README.zh.md"
+    ],
+    "replay": "82290e5ce994d714cae6e43bffefbaba79defddc"
+  },
+  {
+    "lane": "D",
+    "source": "1b46fa8ca278327320badbecdf13ff11ef3a0cf0",
+    "subject": "Instrument strict journal work against fixed V5 R1 source",
+    "replay": "9efd03198e2bc7554df341bbe5ef0a9c7a851a29"
+  },
+  {
+    "lane": "D",
+    "source": "ac63d4705b0a5ac1061bc01e7d5084e8901832c0",
+    "subject": "Maintain journal identities incrementally and checkpoint derived indexes explicitly",
+    "replay": "4e6d011f935fb81813bfb8bc1e39c22445b51edc"
+  },
+  {
+    "lane": "D",
+    "source": "0a786d2e58c862b423a84d4150d5dd1bd8af6bd3",
+    "subject": "Add strict snapshot-bound paging to the existing journal reader adapter",
+    "replay": "68af11bf63bd347c2f880bcc782fa21e6c348047"
+  },
+  {
+    "lane": "D",
+    "source": "e41cfbcef01315319ab8ada6c3f7b072f2417645",
+    "subject": "Stream canonical snapshot exports atomically and wire qita consumer",
+    "replay": "274f620c080e41ad796cc41e57f856ecff65112e"
+  },
+  {
+    "lane": "D",
+    "source": "a0794497a36c53da097386cfb60d5fda0e626406",
+    "subject": "Preserve captured snapshots when a later index rebuild fails",
+    "replay": "8b416ba7c20d913b222f9f7582bc7e8a66632344"
+  },
+  {
+    "lane": "D",
+    "source": "2729102703a4b66d0dbc766ead472a05ad0e33a8",
+    "subject": "Cover exact page terminals and preserve read-only export sources",
+    "replay": "f02623336d38afa70a2d4b0ead1c0ec868c25b63"
+  },
+  {
+    "lane": "D",
+    "source": "3b7a0e144a0deabb5661924b998ba9b683c83208",
+    "subject": "Validate continuous bounded traversal at snapshot boundaries and each frame",
+    "replay": "026cd9a5cdb84f23c20d01b9bde758d52a2dd3d8"
+  },
+  {
+    "lane": "D",
+    "source": "f5ae01a1cdb126166430dd9134ed5455c766928b",
+    "subject": "Anchor bounded reader source identity without retaining writer locks",
+    "replay": "8b9b256299c378bfbba1a80b8fca654ed086a15a"
+  },
+  {
+    "lane": "D",
+    "source": "94124e71c3f15952b508c3634beef75c3b5cbb63",
+    "subject": "Count actual serialized position entries in checkpoint work evidence",
+    "replay": "23962c25ced2d887ac9ad03b046ba34d95e78d07"
+  },
+  {
+    "lane": "D",
+    "source": "df9316415db7ec76f1e5d70a11ceabfd47744169",
+    "subject": "Release source anchors for one-shot compatibility reader lifetimes",
+    "replay": "c9c2ff407d4ceaa36a8ba2a78772c5a08d4821da"
+  },
+  {
+    "lane": "D",
+    "source": "522ce90abf5a39fd5510fd254652a256ad283f4f",
+    "subject": "Qualify bounded trajectory paths with reproducible evidence and bilingual docs",
+    "conflicts": [
+      "CHANGELOG.md",
+      "README.md",
+      "README.zh.md"
+    ],
+    "replay": "b311a2add2aefe2e14b1a542f9dcf546442bf0db"
+  },
+  {
+    "lane": "A",
+    "source": "7a4451b75285c1cf93889ed15c54d94ff08e32ec",
+    "subject": "test(models): expose stream failure lifecycle and dispatch budget regressions",
+    "replay": "603a920873b1507bf518b3fd27a4689074ef61d4"
+  },
+  {
+    "lane": "A",
+    "source": "e8b028fd8734b2d8e4ec0c758f88f1216b3faef2",
+    "subject": "fix(models): validate stream terminals usage and owned transport cleanup",
+    "replay": "555ce8f59d2e2eea4843ca16ef1f7e028cd3d286"
+  },
+  {
+    "lane": "A",
+    "source": "68b4282cbdec2d477d7031beb9844beeb45c93e1",
+    "subject": "test(examples): prove installed multi-round provider workflow and interruption",
+    "replay": "656836e421585c5ff7bf4910311674f514c1204a"
+  },
+  {
+    "lane": "A",
+    "source": "a7bae625ac8cdf8ed52d2f4323fdd9c13db7ac13",
+    "subject": "fix(engine): retain tool completion order across model history projection",
+    "replay": "3d7728f9265437236cd2608b3ff80bce05dc2b06"
+  },
+  {
+    "lane": "A",
+    "source": "cd7bf90789f17af4c8409286ca7539024f509df8",
+    "subject": "fix(models): preserve duplicate stops partial diagnostics and typed refusal",
+    "replay": "dcd1b62ee8e091b1b4883eb567a6cca55df22394"
+  },
+  {
+    "lane": "A",
+    "source": "5c6c2c370c0465e5471024a6e4870a9feb8c2b2a",
+    "subject": "docs: record qualified offline model IO and installed workflow evidence",
+    "conflicts": [
+      "CHANGELOG.md",
+      "README.md",
+      "README.zh.md"
+    ],
+    "replay": "b7656e39472da4acec6f7eee54510e47570117d7"
+  }
+]

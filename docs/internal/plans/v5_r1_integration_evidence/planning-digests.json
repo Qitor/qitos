@@ -1,0 +1,94 @@
+{
+  "CHANGELOG.md": {
+    "sha256": "51490ab4f16a285675148940e289eac50ce20303915d4c29b4cbd150de7e7f91",
+    "tracked": true
+  },
+  "README.md": {
+    "sha256": "9793b759b4eeee6371c2223ac90c6081ec7b8bd2097e9d22097453a8a727f1a5",
+    "tracked": true
+  },
+  "README.zh.md": {
+    "sha256": "e6e2613815f847516b771d3b1aaba2ee6b5843413698b21995f2f0f632c57a54",
+    "tracked": true
+  },
+  "docs/architecture/architecture-debt.md": {
+    "sha256": "c2edf1e92435e596af3b21c5727a56abf2789cf0f8e4191346aa272657722b1c",
+    "tracked": true
+  },
+  "docs/internal/plans/post_g5_functional_e2e.md": {
+    "sha256": "d4fca26410a2dcec66aadd18191b73fd9ec2f5c88234eda3fea61544bf70a3ea",
+    "tracked": true
+  },
+  "docs/progress.md": {
+    "sha256": "44eac2ea0895fa3092a676a926c00be722c57ca4be03897fe527094b500ce7b7",
+    "tracked": true
+  },
+  "docs/v4/00-goal-metric.md": {
+    "sha256": "73510902f5e23c5880a87202387016800917f145b963e7b685d9fb3f30d2bc93",
+    "tracked": true
+  },
+  "docs/internal/plans/v5_dispatch.md": {
+    "sha256": "b8acd1b7ff5cfa55f40b0d3ec5e5b07cac61e79e9c9eb1568b4c74e984ef7604",
+    "tracked": false
+  },
+  "docs/internal/plans/v5_iteration_planning.md": {
+    "sha256": "d9d68b99a874e7fd7a8f230cc1e949aac363aa7e73fb237772910281ec4a196a",
+    "tracked": false
+  },
+  "docs/internal/plans/v5_r1_a_model_io.md": {
+    "sha256": "ff619cfc4e5a58f736a453ac0282b6248b5e5c4e2451cba0d1f2b054d4306ac6",
+    "tracked": false
+  },
+  "docs/internal/plans/v5_r1_b_memory_context.md": {
+    "sha256": "67221ff4f8f1e63432b4c45ec6c9f4fe75ed6035fec81fe8d5ad03b801e98072",
+    "tracked": false
+  },
+  "docs/internal/plans/v5_r1_c_runtime_correctness.md": {
+    "sha256": "8e52dfa410e3cbbb8ffeada5db50bee464f1f6bc4ce8d145378b073a99ca25ae",
+    "tracked": false
+  },
+  "docs/internal/plans/v5_r1_d_trajectory_efficiency.md": {
+    "sha256": "1d827a7b602f80d939f5a2fcdc12a8adbac85e653ff78a7bd1fc65216ad9b811",
+    "tracked": false
+  },
+  "docs/internal/plans/v5_r1_integration_plan.md": {
+    "sha256": "b29c733fb140c5decec3954dd725f9b7536ad1db5bdd7a2e4824db576209634e",
+    "tracked": false
+  },
+  "docs/internal/plans/v5_r1_integration_review.md": {
+    "sha256": "58b053fea2be663a15fdae97a0ffd8046b10dc2ea9ec655cdd6cd0385656bf41",
+    "tracked": false
+  },
+  "docs/internal/plans/v5_r1_review.md": {
+    "sha256": "4934b32a39c8a574920813bd4247103ba233a9ae1a0de903d114b03c66bd78fa",
+    "tracked": false
+  },
+  "docs/internal/plans/v5_r1_review_probes.py": {
+    "sha256": "b8afbf7f9ed621002d984889d5968e2494cb9b94cdf0c5e00f2bf184c85def04",
+    "tracked": false
+  },
+  "docs/v5/README.md": {
+    "sha256": "4f4a59f5308c0a8e2e83d393429a6577a68a8ad4e2546c8cba32dc32e04907d2",
+    "tracked": false
+  },
+  "docs/v5/01-developer-loop-and-model-io.md": {
+    "sha256": "5ca3a5408b75aae51cb7072cb5eb7725d9d122cef9a2d168413683a73c75fcfb",
+    "tracked": false
+  },
+  "docs/v5/02-context-memory-compaction.md": {
+    "sha256": "789e0befbaf2245ffe9832501e9cf749c298f431d84295cfea11487e8748d3da",
+    "tracked": false
+  },
+  "docs/v5/03-tools-and-architecture-consolidation.md": {
+    "sha256": "0e976d7ca556967ebeb70a3454e155a5bba1b176f3ecec53a54b98b84b100d90",
+    "tracked": false
+  },
+  "docs/v5/04-trajectory-and-research-data.md": {
+    "sha256": "30495bed07143f8af5d97ba4c61b107dded2b573634d475651cf883c18df7fe9",
+    "tracked": false
+  },
+  "docs/v5/05-interactive-session-and-sandbox.md": {
+    "sha256": "f2acd9b5aface55867c39917cee109948a1d1750be1419f3c5eddd81c84e8cce",
+    "tracked": false
+  }
+}
