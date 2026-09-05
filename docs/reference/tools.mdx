@@ -3,6 +3,19 @@ title: "Tools, results and artifacts"
 description: "QitOS public API: tools"
 ---
 
+Legacy host `Read` uses a zero-based offset and a positive line limit: offset 2,
+limit 2 selects only lines 3/4. Empty files and EOF return empty output; negative
+or non-integer windows fail. Selection metadata reports truncation and more lines.
+`Edit` requires a unique match unless `replace_all=True`; no match, ambiguous match,
+permission denial and explicit `expected_sha256` conflicts leave the file unchanged.
+These two aliases now return canonical `ToolResult` (read numbered text in `.output`,
+status/error in their named fields), rather than successful strings containing errors.
+Direct callers expecting strings should use `.output` after checking `.status`.
+The existing validation/permission pipeline remains authoritative. Host compatibility
+remains host execution; Env `read_file`/`edit_file` keep their Env-only operations and
+one-based `line_offset` interface. No fallback to host or new isolation guarantee is implied.
+
+
 Register tools before running. execute(args, runtime_context) is the class-tool contract; run is compatibility only. Inspect ToolResult status, error_code, output, artifact_refs, outcome_unknown and worker_still_running. Successful text alone is insufficient. Parallel execution requires truthful concurrency declarations. Completion and declaration order differ. Publication is opt-in and platform/file-shape limited; cleanup never publishes. SandboxPublicationTool is an advanced, explicitly registered adapter despite its internal module name, not a default tool.
 
 [完整可运行教程 / Complete tutorial](/concepts/tools-and-registry) · [API index](/reference/api)

@@ -3,6 +3,19 @@ title: "Tools and parallel calls"
 description: "Learn QitOS with complete, executable notes-project code."
 ---
 
+Legacy host `Read` uses a zero-based offset and a positive line limit: offset 2,
+limit 2 selects only lines 3/4. Empty files and EOF return empty output; negative
+or non-integer windows fail. Selection metadata reports truncation and more lines.
+`Edit` requires a unique match unless `replace_all=True`; no match, ambiguous match,
+permission denial and explicit `expected_sha256` conflicts leave the file unchanged.
+These two aliases now return canonical `ToolResult` (read numbered text in `.output`,
+status/error in their named fields), rather than successful strings containing errors.
+Direct callers expecting strings should use `.output` after checking `.status`.
+The existing validation/permission pipeline remains authoritative. Host compatibility
+remains host execution; Env `read_file`/`edit_file` keep their Env-only operations and
+one-based `line_offset` interface. No fallback to host or new isolation guarantee is implied.
+
+
 ## Goal and prerequisites
 
 Register a decorated function with ToolRegistry before an Agent can call it. The name and typed parameters form the callable interface; `read_only` and `concurrency_safe` describe this tool's behavior. These are commitments by the tool author, not an automatic permission grant.

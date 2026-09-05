@@ -25,6 +25,8 @@ read-only qita. Framework correctness does not guarantee arbitrary model task su
 
 ## What's New
 
+- Legacy Read/Edit now preserve line windows, reject ambiguous edits and expose canonical failure results.
+
 - Same-Session handoff persists admission before dispatch; destination restore and completion are independent of late source callbacks.
 
 - Self-contained web tutorials: complete notes-Agent code, bilingual learning path and source-checked core API reference; tests execute the files shown on each page.

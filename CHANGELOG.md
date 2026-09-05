@@ -25,6 +25,8 @@ How to update:
 
 ### Fixed
 
+- Correct legacy Read pagination and Edit replace-all handling; return canonical ToolResult failures with useful error codes and preserve explicit SHA conflict rejection.
+
 - Persist same-Session handoff admission before scheduler invocation; destination ownership and terminal facts no longer depend on stale source callbacks. Admission is not business completion.
 
 - Avoid reparsing unchanged journal bytes on each append/read while retaining full content hashing, external-write validation, crash recovery and durability checks.

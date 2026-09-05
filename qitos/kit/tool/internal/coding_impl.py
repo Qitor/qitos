@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import fnmatch
+import hashlib
 import os
 import re
 import subprocess
@@ -15,6 +16,7 @@ import requests
 
 from qitos.core.function_tool_decorator import function_tool
 from qitos.core.tool import ToolPermission
+from qitos.core.tool_result import ToolResult
 from qitos.kit.tool.internal.coding_utils import (
     build_diff,
     default_rule_scope,
@@ -576,6 +578,10 @@ class CodingToolSet:
         """
         _ = runtime_context
         try:
+            for name, value, minimum in (("offset", offset, 0), ("limit", limit, 1), ("max_chars", max_chars, 0)):
+                if not isinstance(value, int) or isinstance(value, bool) or value < minimum:
+                    return {"status": "error", "error_code": "invalid_read_window",
+                            "message": f"{name} must be an integer >= {minimum}"}
             resolved = _resolve_workspace_path(self.workspace_root, path)
             if not resolved.exists():
                 return {"status": "error", "message": f"File not found: {path}"}
@@ -583,8 +589,8 @@ class CodingToolSet:
                 return {"status": "error", "message": f"Path is a directory: {path}"}
             content, line_ending, _mtime = self._read_text_file(resolved)
             lines = content.splitlines()
-            start = max(0, int(offset))
-            size = max(1, int(limit))
+            start = offset
+            size = limit
             chunk, truncated = _select_line_chunk(lines, start, size, int(max_chars))
             chunk_text = "\n".join(chunk)
             return {
@@ -792,6 +798,9 @@ class CodingToolSet:
         replacement: str = "",
         expected_mtime: Optional[float] = None,
         runtime_context: Optional[Dict[str, Any]] = None,
+        *,
+        replace_all: bool = False,
+        expected_sha256: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Edit one workspace file using a structured action.
@@ -806,6 +815,8 @@ class CodingToolSet:
         :param replacement: Replacement content for `replace_lines`.
         :param expected_mtime: Optional optimistic concurrency check.
         :param runtime_context: Optional runtime context injected by the executor.
+        :param replace_all: Replace every match; otherwise require a unique match.
+        :param expected_sha256: Reject content changed since the caller's read.
         """
         _ = runtime_context
         try:
@@ -816,6 +827,10 @@ class CodingToolSet:
                     "message": f"File not found: {path}",
                     "path": path,
                 }
+            if not isinstance(replace_all, bool):
+                return {"status": "error", "error_code": "invalid_edit", "message": "replace_all must be boolean"}
+            if expected_sha256 is not None and hashlib.sha256(resolved.read_bytes()).hexdigest() != expected_sha256:
+                return {"status": "error", "error_code": "stale_file", "message": "File SHA does not match"}
             old_content, line_ending, current_mtime = self._read_text_file(resolved)
             if (
                 expected_mtime is not None
@@ -839,17 +854,19 @@ class CodingToolSet:
                     return {
                         "status": "error",
                         "message": f"Text not found in {path}",
+                        "error_code": "text_not_found",
                         "path": path,
                     }
-                if count > 1:
+                if count > 1 and not replace_all:
                     return {
                         "status": "error",
                         "message": "Text replacement must be unique",
+                        "error_code": "ambiguous_edit",
                         "path": path,
                         "occurrences": count,
                     }
-                new_content = old_content.replace(old_text, new_text, 1)
-                message = f"Replaced one occurrence in {path}"
+                new_content = old_content.replace(old_text, new_text, -1 if replace_all else 1)
+                message = f"Replaced {count if replace_all else 1} occurrence(s) in {path}"
             elif normalized_action == "insert":
                 try:
                     insert_line = int(insert_line)
@@ -2107,7 +2124,7 @@ class CodingToolSet:
         *,
         pages: Optional[str] = None,
         runtime_context: Optional[Dict[str, Any]] = None,
-    ) -> str:
+    ) -> ToolResult:
         """Read a file, image, PDF, or notebook. Returns content with line numbers.
 
         :param file_path: Absolute or relative path to the file.
@@ -2124,14 +2141,19 @@ class CodingToolSet:
             runtime_context=runtime_context,
         )
         if result.get("status") != "success":
-            return f"Error reading file: {result.get('error', 'unknown error')}"
-        content = result.get("content", "")
-        # Add line numbers like Claude Code
-        lines = content.split("\n")
-        numbered = []
-        for i, line in enumerate(lines[offset : offset + limit], start=offset + 1):
-            numbered.append(f"{i}\t{line}")
-        return "\n".join(numbered)
+            return ToolResult.semantic_error(
+                code=result.get("error_code", "file_read_failed"),
+                error=result.get("message", "Error reading file"), output=result, tool_name="Read",
+            )
+        # file_read_v2 already selected the window. Preserve blank physical lines
+        # using its count, without inventing a line for an empty file or EOF.
+        lines = result["content"].split("\n") if result["limit"] else []
+        numbered = "\n".join(f"{i}\t{line}" for i, line in enumerate(lines, start=result["offset"] + 1))
+        return ToolResult(
+            output=numbered, tool_name="Read", truncated=result["truncated"],
+            metadata={"selection_receipt": {key: result[key] for key in
+                      ("offset", "limit", "total_lines", "has_more", "truncated")}},
+        )
 
     @function_tool(
         name="Edit",
@@ -2154,13 +2176,16 @@ class CodingToolSet:
         new_string: str,
         replace_all: bool = False,
         runtime_context: Optional[Dict[str, Any]] = None,
-    ) -> str:
+        *,
+        expected_sha256: Optional[str] = None,
+    ) -> ToolResult:
         """Replace old_string with new_string in a file. old_string must be unique unless replace_all=True.
 
         :param file_path: Absolute or relative path to the file.
         :param old_string: Text to find and replace. Must appear exactly once unless replace_all=True.
         :param new_string: Replacement text.
         :param replace_all: Replace all occurrences of old_string.
+        :param expected_sha256: Optional SHA check against the current file.
         :param runtime_context: Optional runtime context injected by the executor.
         """
         result = self.file_edit_v2(
@@ -2169,10 +2194,15 @@ class CodingToolSet:
             old_text=old_string,
             new_text=new_string,
             runtime_context=runtime_context,
+            replace_all=replace_all,
+            expected_sha256=expected_sha256,
         )
         if result.get("status") != "success":
-            return f"Error editing file: {result.get('error', 'unknown error')}"
-        return result.get("content", "Edit applied successfully")
+            return ToolResult.semantic_error(
+                code=result.get("error_code", "file_edit_failed"),
+                error=result.get("message", "Error editing file"), output=result, tool_name="Edit",
+            )
+        return ToolResult(output=result, tool_name="Edit")
 
     @function_tool(
         name="Write",

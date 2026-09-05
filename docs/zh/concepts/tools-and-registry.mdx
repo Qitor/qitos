@@ -3,6 +3,17 @@ title: "工具与并行调用"
 description: "从网页完整代码学习 QitOS 资料整理项目。"
 ---
 
+旧 host `Read` 使用从 0 开始的 offset 与正整数 limit：offset=2、limit=2
+只选择第 3/4 行。空文件与 EOF 返回空 output；负数或非整数窗口失败，selection
+元数据保留截断与后续行信息。`Edit` 默认要求唯一匹配，`replace_all=True` 才替换全部。
+无匹配、非唯一匹配、权限拒绝与显式 `expected_sha256` 冲突均不修改文件。
+这两个 alias 现在返回 canonical `ToolResult`，编号文本在 `.output`，状态与错误在对应字段，
+不再把错误包装成成功字符串。原先直接使用字符串的调用方应先检查 `.status` 再读取 `.output`。
+既有 validation/permission pipeline 继续决定权限。Host compatibility 仍在 Host 执行；
+Env `read_file`/`edit_file` 仍只使用 Env ops，保留从 1 开始的 `line_offset`。
+不增加 Host 回退或隔离保证。
+
+
 ## 目标与前置条件
 
 函数经过装饰并注册到 ToolRegistry 后才能被 Agent 调用。函数名和参数类型构成调用接口；`read_only`、`concurrency_safe` 是工具作者对行为的声明，不会自动授予权限。

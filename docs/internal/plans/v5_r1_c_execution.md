@@ -43,3 +43,16 @@ Qualification pending; no passing claim yet.
 
 - Forced A interleaving: 20 independent pytest processes, 20 passed, 0 failed;
   each subprocess deadline 30s, observed 1.173–1.481s. All attempts retained.
+
+### Read/Edit evidence
+
+- Actual-file tests cover numbered pages, empty/blank files, EOF, invalid windows,
+  explicit truncation, ambiguous/all/missing edits, SHA mismatch, denied permission,
+  and Env missing-capability no-host fallback through ActionExecutor.
+- Combined tests: 140 passed. First combined run: 139 passed, 1 failed due to
+  existing toolset auto_approve mutating shared metadata; fixture now uses scoped
+  executor approval and the existing permission pipeline. Intermediate fixture
+  run correctly raised approval interrupts (5 failed, 22 passed); no runtime bypass added.
+- Read/Edit direct return migration: canonical ToolResult replaces strings; no
+  permission/sandbox authority changes. Known toolset metadata mutation remains
+  outside this lane, as do func inert retry and other excluded extensions.
