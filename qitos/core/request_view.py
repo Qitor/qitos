@@ -56,6 +56,10 @@ class UnsafeRequestBoundaryError(RequestContractError):
     code = "unsafe_request_boundary"
 
 
+class ContextBudgetExceededError(UnsafeRequestBoundaryError):
+    code = "context_budget_exceeded"
+
+
 class MissingArtifactError(RequestContractError):
     code = "missing_artifact"
 
@@ -715,6 +719,75 @@ def _target_from_model(model: Any) -> RequestTarget:
     raise RequestContractError("qitos_request_target() returned an invalid target")
 
 
+def _protected_exchanges(
+    items: Sequence[Any],
+    order: Sequence[str],
+    groups: Mapping[str, Sequence[Any]],
+    budget: ContextBudget,
+    continuation: Optional[ContinuationRef],
+) -> set[str]:
+    """Mechanical protection; opaque continuation dependencies fail closed."""
+    protected = set(order[-budget.protected_recent_exchanges:]
+                    if budget.protected_recent_exchanges else ())
+    if continuation is not None or any(
+        isinstance(item, AssistantItem) and item.continuation_attachments
+        for item in items
+    ):
+        # Opaque state cannot describe a smaller safe dependency closure.
+        return set(order)
+    last_assistant = max(
+        (index for index, item in enumerate(items) if isinstance(item, AssistantItem)),
+        default=-1,
+    )
+    for key, group in groups.items():
+        if not any(isinstance(item, AssistantItem) for item in group):
+            protected.add(key)
+        for item in group:
+            if getattr(item, "metadata", {}).get("required"):
+                protected.add(key)
+            if isinstance(item, ToolResultItem) and any(
+                ref.required for ref in item.result.artifact_refs
+            ):
+                protected.add(key)
+    for index, item in enumerate(items):
+        if isinstance(item, SteeringItem) and index > last_assistant:
+            protected.add(item.exchange_id)
+    return protected
+
+
+def _authorize_exchange_omission(
+    *,
+    policy: Any,
+    omitted: tuple[str, ...],
+    selected_digest: str,
+    required_units: int,
+    available_units: int,
+    receipts: Iterable[CompactionReceipt],
+) -> tuple[CompactionReceipt, ...]:
+    previous = tuple(receipts)
+    if not omitted:
+        return previous
+    if policy is None:
+        from .context import RejectingCompactionPolicy
+
+        policy = RejectingCompactionPolicy()
+    receipt = policy.compact(
+        exchange_ids=omitted,
+        selected_digest=selected_digest,
+        required_units=required_units,
+        available_units=available_units,
+    )
+    if (not isinstance(receipt, CompactionReceipt)
+            or receipt.input_exchange_ids != omitted
+            or not receipt.declared_losses
+            or receipt.policy_id != policy.policy_id
+            or receipt.output_digest != selected_digest):
+        raise UnsafeRequestBoundaryError(
+            "exchange omission requires a matching explicit loss receipt"
+        )
+    return (*previous, receipt)
+
+
 @dataclass(frozen=True)
 class RequestView:
     """One immutable, deterministic provider-neutral model request view."""
@@ -955,6 +1028,7 @@ class RequestView:
         context_selection_policy: Any = None,
         context_unit_counter: Any = None,
         compaction_receipts: Iterable[CompactionReceipt] = (),
+        compaction_policy: Any = None,
         artifact_refs: Iterable[ArtifactRef] = (),
         available_artifact_ids: Optional[Iterable[str]] = None,
         protocol_id: str = "unknown",
@@ -980,8 +1054,12 @@ class RequestView:
             _strict_json(schema, f"tool_schemas[{index}]")
 
         references = tuple(artifact_refs)
+        item_references = tuple(
+            reference for item in log.items if isinstance(item, ToolResultItem)
+            for reference in item.result.artifact_refs
+        )
         available = set(available_artifact_ids or ())
-        for reference in references:
+        for reference in (*references, *item_references):
             if reference.required and reference.artifact_id not in available:
                 raise MissingArtifactError(
                     f"required artifact {reference.artifact_id!r} is unresolved"
@@ -1031,7 +1109,16 @@ class RequestView:
         instruction_units = count_units(instruction_values, budget.unit)
         schema_units = count_units(schema_values, budget.unit)
 
-        used = instruction_units + schema_units
+        protected = _protected_exchanges(
+            items, exchange_order, exchange_items, budget, continuation
+        )
+        fixed_units = instruction_units + schema_units
+        protected_units = sum(group_units[key] for key in protected)
+        used = fixed_units + protected_units
+        if used > budget.available_input_units:
+            raise ContextBudgetExceededError(
+                "protected exchanges and instructions exceed the context budget"
+            )
         contributions = tuple(context_contributions)
         if context_selection_policy is None:
             from .context import PriorityContextSelectionPolicy
@@ -1048,32 +1135,42 @@ class RequestView:
             raise UnsafeRequestBoundaryError(str(exc)) from exc
         selected_context = list(context_selection.selected)
         omitted_context = list(context_selection.omitted)
-        used += int(context_selection.selected_units)
-
-        protected = set(
-            exchange_order[-budget.protected_recent_exchanges :]
-            if budget.protected_recent_exchanges
-            else ()
+        selected_context_ids = {item.contribution_id for item in selected_context}
+        if any(item.required and item.contribution_id not in selected_context_ids
+               for item in contributions):
+            raise ContextBudgetExceededError("required context was not selected")
+        used = fixed_units + sum(
+            count_units(item.content_value, budget.unit) for item in selected_context
         )
-        selected_exchange_set: set[str] = set()
-        for exchange_id in reversed(exchange_order):
-            units = group_units[exchange_id]
-            if exchange_id in protected or used + units <= budget.available_input_units:
-                if used + units > budget.available_input_units:
-                    raise UnsafeRequestBoundaryError(
-                        "protected recent exchange exceeds the request context budget"
-                    )
-                selected_exchange_set.add(exchange_id)
-                used += units
+        selected_exchange_set = set(exchange_order)
+        used += sum(group_units.values())
+        before_compaction_units = used
+        for exchange_id in exchange_order:
+            if used <= budget.available_input_units:
+                break
+            if exchange_id not in protected:
+                selected_exchange_set.remove(exchange_id)
+                used -= group_units[exchange_id]
+        if used > budget.available_input_units:
+            raise ContextBudgetExceededError(
+                "required context and protected exchanges exceed the context budget"
+            )
         selected_exchange_ids = tuple(
-            exchange_id
-            for exchange_id in exchange_order
-            if exchange_id in selected_exchange_set
+            key for key in exchange_order if key in selected_exchange_set
         )
         omitted_exchange_ids = tuple(
-            exchange_id
-            for exchange_id in exchange_order
-            if exchange_id not in selected_exchange_set
+            key for key in exchange_order if key not in selected_exchange_set
+        )
+        compaction_receipts = _authorize_exchange_omission(
+            policy=compaction_policy,
+            omitted=omitted_exchange_ids,
+            selected_digest=_digest([
+                projected_by_id[item.item_id] for item in items
+                if item.exchange_id in selected_exchange_set
+            ]),
+            required_units=before_compaction_units,
+            available_units=budget.available_input_units,
+            receipts=compaction_receipts,
         )
         selected_items = [
             exchange_item

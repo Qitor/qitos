@@ -30,8 +30,12 @@ def markdown_file_memory(
 def memdir_memory(
     memory_dir: str = ".qitos/memory",
     global_memory_dir: str | None = None,
+    *,
+    create: bool = False,
 ) -> MemdirMemory:
-    return MemdirMemory(memory_dir=memory_dir, global_memory_dir=global_memory_dir)
+    return MemdirMemory(
+        memory_dir=memory_dir, global_memory_dir=global_memory_dir, create=create
+    )
 
 
 __all__ = [

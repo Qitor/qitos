@@ -30,6 +30,7 @@ from qitos.core.conversation import (
     UserItem,
 )
 from qitos.core.multimodal import ContentBlock
+from qitos.kit.context.compaction import ClosedExchangeWindowCompactor
 from qitos.core.request_view import (
     CompactionReceipt,
     ContextBudget,
@@ -224,6 +225,7 @@ def _component(log: ExchangeLog | None = None, *, compacted: bool = False) -> Co
     request = RequestView.from_exchange_log(
         source,
         target=RequestTarget("openai", "gpt.test", "https", "responses"),
+        compaction_policy=ClosedExchangeWindowCompactor(),
         context_budget=ContextBudget(
             max_input_units=1400,
             reserved_output_units=100,

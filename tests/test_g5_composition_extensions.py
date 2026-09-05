@@ -126,27 +126,24 @@ def test_native_work_adapter_uses_real_durable_child_head(tmp_path):
 
 
 def test_configured_compactor_runs_on_closed_exchange_omission(tmp_path):
-    import hashlib
     from qitos.config import SessionConfig
     from qitos.core.context import DeclaredContextBudgetPolicy
     from qitos.core.function_tool_decorator import function_tool
-    from qitos.core.request_view import CompactionReceipt
+    from qitos.kit.context.compaction import ClosedExchangeWindowCompactor
     from qitos.engine.runtime import LifecyclePolicy
     from test_s4_lane_a_public_authoring import _PauseAfterFirstStep
 
     compacted = []
-    class Compactor:
+    class Compactor(ClosedExchangeWindowCompactor):
         policy_id = "g5.drop_closed_exchange"
 
         def compact(self, **values):
             compacted.append(values)
-            return CompactionReceipt(receipt_id="compaction-g5", input_exchange_ids=tuple(values["exchange_ids"]),
-                output_digest=hashlib.sha256(b"").hexdigest(), policy_id=self.policy_id,
-                declared_losses=("closed_exchange_omitted_without_summary",))
+            return super().compact(**values)
 
     class Model(_FinalModel):
         qitos_protocol = "json_decision_multi_v1"
-        context_window = 4096
+        context_window = 12000
         max_tokens = 64
         calls = 0
 
@@ -168,7 +165,7 @@ def test_configured_compactor_runs_on_closed_exchange_omission(tmp_path):
             trajectory=TrajectoryConfig(enabled=True, output=str(tmp_path / "trajectory.journal"))))
     model = Model()
     extensions = {"compactor": Compactor, "budget": lambda: DeclaredContextBudgetPolicy(
-        default_max_input_units=4096, protected_recent_exchanges=0)}
+        default_max_input_units=12000, protected_recent_exchanges=0)}
     with build_agent_composition(config, model_override=model, extensions=extensions) as first:
         first.tool_registry.register(large_fact)
         first.runtime.lifecycle_policy = _PauseAfterFirstStep()

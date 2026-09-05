@@ -42,6 +42,7 @@ from qitos.core.request_view import (
 )
 from qitos.core.tool_result import ToolResult
 from qitos.core.session import ContinuationIdentity
+from qitos.kit.context.compaction import ClosedExchangeWindowCompactor
 
 
 TARGET = RequestTarget(
@@ -217,6 +218,7 @@ def test_exchange_safe_budget_omits_whole_old_exchange_and_reports_context() -> 
             protected_recent_exchanges=1,
         ),
         context_contributions=context,
+        compaction_policy=ClosedExchangeWindowCompactor(),
     )
 
     assert request.selection.selected_exchange_ids[-1] == "exchange_final"

@@ -5,16 +5,26 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Protocol, Sequence, runtime_checkable
+from uuid import uuid4
 
 from .request_view import ContextContribution
 
 
+class MemoryResourceError(ValueError):
+    """A bound durable memory resource is missing or unavailable."""
+
+    code = "memory_resource_unavailable"
+
+
 @dataclass
 class MemoryRecord:
+    """One logical memory fact; independent equal facts receive distinct IDs."""
+
     role: str
     content: Any
     step_id: int
     metadata: Dict[str, Any] = field(default_factory=dict)
+    record_id: str = field(default_factory=lambda: uuid4().hex)
 
 
 class Memory(ABC):

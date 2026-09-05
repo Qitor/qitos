@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any, Dict, Iterable, List, Optional
 
+from ..core.artifact import require_artifact
 from ..core.context import (
     ArtifactRefContributor,
     ContextRequest,
@@ -179,6 +180,9 @@ class _ContextRuntime:
                     )
                 )
         references = tuple(artifact_refs)
+        for reference in references:
+            if reference.required:
+                require_artifact(reference, agent_config.get("artifact_resolver"))
         if references:
             contributors.append(
                 ArtifactRefContributor(

@@ -43,7 +43,7 @@ def test_phase_engine_prefers_high_priority_condition_over_force() -> None:
 
 
 def test_memdir_memory_roundtrip(tmp_path: Path) -> None:
-    memory = MemdirMemory(memory_dir=str(tmp_path / ".memdir"))
+    memory = MemdirMemory(memory_dir=str(tmp_path / ".memdir"), create=True)
     memory.append(
         MemoryRecord(
             role="feedback",

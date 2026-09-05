@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 import threading
@@ -16,7 +17,7 @@ from qitos.checkpoint.session import (
 )
 from qitos.core.action import Action, ActionExecutionPolicy
 from qitos.core.agent_module import AgentModule
-from qitos.core.artifact import ArtifactRef
+from qitos.core.artifact import ArtifactRef, ResolvedArtifact
 from qitos.core.conversation import (
     ArgumentParseStatus,
     AssistantContent,
@@ -265,6 +266,22 @@ class FixtureProvider:
         )
 
 
+class EffectArtifactResolver:
+    """Rebind the required fixture artifact in each process."""
+
+    resolver_key = "artifact-resolver:s2-g3"
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+
+    def probe(self, reference: ArtifactRef) -> bool:
+        return (self.path.is_file()
+                and hashlib.sha256(self.path.read_bytes()).hexdigest() == reference.sha256)
+
+    def resolve(self, reference: ArtifactRef) -> ResolvedArtifact:
+        return ResolvedArtifact(reference, self.path.read_bytes())
+
+
 class VerticalAgent(AgentModule[VerticalState, Any, Action]):
     name = "s2_g3_vertical"
 
@@ -295,13 +312,14 @@ class VerticalAgent(AgentModule[VerticalState, Any, Action]):
         )
         def committed_effect() -> ToolResult:
             increment("committed_effect")
+            counter_path.with_name("effect.json").write_bytes(b"{}")
             return ToolResult(
                 output="committed",
                 artifact_refs=(
                     ArtifactRef(
                         artifact_id="artifact:s2-g3-effect",
                         resolver_key="artifact-resolver:s2-g3",
-                        sha256="a" * 64,
+                        sha256=hashlib.sha256(b"{}").hexdigest(),
                         media_type="application/json",
                         byte_length=2,
                         model_summary="Committed effect receipt",
@@ -330,6 +348,7 @@ class VerticalAgent(AgentModule[VerticalState, Any, Action]):
             llm=FixtureProvider(resolver),
             model_parser=ReActTextParser(),
             continuation_resolver=resolver,
+            artifact_resolver=EffectArtifactResolver(counter_path.with_name("effect.json")),
         )
 
     def init_state(self, task: str, **kwargs: Any) -> VerticalState:

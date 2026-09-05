@@ -1,0 +1,36 @@
+schema: qitos.agent
+agent:
+  name: memory_context_consumer
+  protocol: react_text_v1
+model:
+  provider: openai_compatible
+  model: memory-context-deterministic
+  credential:
+    ref: deterministic-unused
+  request:
+    max_tokens: 128
+    retries: 0
+    timeout_seconds: 30
+tools:
+  preset: none
+memory:
+  sources: [project_memory]
+compaction:
+  provider: closed_window
+runtime:
+  environment:
+    type: unsafe_host
+    workspace: .
+  session:
+    mode: durable
+    store: sqlite
+    path: ./run/sessions.sqlite3
+  trajectory:
+    enabled: true
+    output: ./run/trajectory.journal
+budgets:
+  max_steps: 12
+  max_requests: 12
+  max_runtime_seconds: 60
+failure_policy:
+  tool: fail_closed

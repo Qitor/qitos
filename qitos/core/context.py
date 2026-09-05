@@ -130,7 +130,7 @@ class PriorityContextSelectionPolicy:
     ) -> ContextSelection:
         ordered = sorted(
             tuple(contributions),
-            key=lambda item: (-item.priority, item.contribution_id),
+            key=lambda item: (not item.required, -item.priority, item.contribution_id),
         )
         identities = [item.contribution_id for item in ordered]
         if len(identities) != len(set(identities)):
@@ -143,6 +143,8 @@ class PriorityContextSelectionPolicy:
         for contribution in ordered:
             units = counter(contribution.content_value, budget.unit)
             if not contribution.model_visible:
+                if contribution.required:
+                    raise RequiredContextMissingError("required context is not model-visible")
                 omitted.append(contribution)
                 omitted_units += units
                 continue
@@ -165,7 +167,7 @@ class PriorityContextSelectionPolicy:
             omitted_units=omitted_units,
             unit=budget.unit,
             policy_id=self.policy_id,
-            reasons=("priority_then_identity", "required_context_fails_closed"),
+            reasons=("required_then_priority_then_identity", "required_context_fails_closed"),
         )
 
 

@@ -452,10 +452,10 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             prompt_bundle=prompt_bundle,
             protocol=protocol,
         )
-        llm_messages = self._strip_internal_message_keys(messages)
+        # Exchange identity is consumed before the codec builds provider messages.
         transaction = self._execute_request_view(
             llm=engine.agent.llm,
-            messages=llm_messages,
+            messages=messages,
             prompt_bundle=prompt_bundle,
             request_options=request_options,
             record=record,
@@ -559,6 +559,7 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             "context_contributions": context_services["contributions"],
             "context_selection_policy": context_services["selection_policy"],
             "context_unit_counter": context_services["unit_counter"],
+            "compaction_policy": context_services.get("compaction_policy"),
             "artifact_refs": artifact_refs,
             "available_artifact_ids": [
                 reference.artifact_id for reference in artifact_refs
@@ -574,20 +575,6 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
             ),
         }
         request = RequestView.from_exchange_log(log, **request_kwargs)
-        compaction_policy = context_services.get("compaction_policy")
-        if (
-            compaction_policy is not None
-            and request.selection.omitted_exchange_ids
-        ):
-            receipt = compaction_policy.compact(
-                exchange_ids=request.selection.omitted_exchange_ids,
-                selected_digest=request.source_log_digest,
-                required_units=request.selection.total_units,
-                available_units=request.context_budget.available_input_units,
-            )
-            if receipt is not None:
-                request_kwargs["compaction_receipts"] = (receipt,)
-                request = RequestView.from_exchange_log(log, **request_kwargs)
         self.engine._emit(
             record.step_id,
             RuntimePhase.DECIDE,

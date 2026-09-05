@@ -2,24 +2,32 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from qitos.core.memory import Memory, MemoryRecord
+from qitos.core.memory import Memory, MemoryRecord, MemoryResourceError
 
 _VALID_TYPES = {"user", "feedback", "project", "reference", "runtime"}
 
 
 class MemdirMemory(Memory):
-    """Persist memory records into markdown files with YAML frontmatter."""
+    """Persist text records with stable identity and fresh disk retrieval.
+
+    Restore is the default and fails if a bound root is missing. Pass
+    ``create=True`` only to explicitly initialize a namespace. ``reset`` and
+    ``evict`` affect the append-time cache only; persistent deletion is external.
+    Arbitrary Python/JSON content and metadata are not a durable round-trip API.
+    """
 
     def __init__(
         self,
         memory_dir: str = ".qitos/memory",
         *,
         global_memory_dir: str | None = None,
+        create: bool = False,
         max_index_entries: int = 200,
         max_index_chars: int = 25_000,
     ):
@@ -32,30 +40,39 @@ class MemdirMemory(Memory):
         self.max_index_entries = max(10, int(max_index_entries))
         self.max_index_chars = max(2000, int(max_index_chars))
         self._records: List[MemoryRecord] = []
-        self._ensure_layout()
+        if create:
+            self._ensure_layout()
+        self._require_roots()
 
     def append(self, record: MemoryRecord) -> None:
-        self._records.append(record)
+        self._require_roots()
+        if not isinstance(record.content, str):
+            raise TypeError("MemdirMemory persists text records only")
+        if not re.fullmatch(r"[a-zA-Z0-9_.:-]{1,128}", record.record_id):
+            raise ValueError("memory record_id must be a logical identity")
+        if not re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", record.role):
+            raise ValueError("memory role must be a logical label")
         memory_type = self._memory_type_from_record(record)
         folder = self.memory_dir / memory_type
         folder.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
-        stem = _slugify(f"{record.role}_{record.step_id}_{ts}")
-        path = folder / f"{stem}.md"
+        stem = hashlib.sha256(record.record_id.encode()).hexdigest()
+        existing = sorted(self.memory_dir.glob(f"*/{stem}.md"))
+        path = existing[0] if existing else folder / f"{stem}.md"
         created_at = datetime.now(timezone.utc).isoformat()
-        body = str(record.content or "").strip()
+        body = record.content
         frontmatter = [
             "---",
+            f"record_id: {record.record_id}",
             f"type: {memory_type}",
             f"role: {record.role}",
             f"step_id: {int(record.step_id)}",
             f"created_at: {created_at}",
             "---",
-            "",
             body,
-            "",
         ]
         path.write_text("\n".join(frontmatter), encoding="utf-8")
+        self._records = [item for item in self._records if item.record_id != record.record_id]
+        self._records.append(record)
         self._append_index_entry(path=path, record=record, memory_type=memory_type)
 
     def retrieve(
@@ -66,6 +83,7 @@ class MemdirMemory(Memory):
     ) -> List[MemoryRecord]:
         _ = state
         _ = observation
+        self._require_roots()
         query = query or {}
         roles = (
             {str(item) for item in list(query.get("roles") or [])}
@@ -89,23 +107,20 @@ class MemdirMemory(Memory):
             if contains and contains not in str(parsed.content).lower():
                 continue
             items.append(parsed)
-        if self._records:
-            items.extend(self._records[-max_items:])
-        items = sorted(items, key=lambda item: int(item.step_id))
+        # Disk is authoritative: never merge stale append-time cache records.
+        by_id = {item.record_id: item for item in items}
+        items = sorted(by_id.values(), key=lambda item: (int(item.step_id), item.record_id))
         if max_items > 0:
             items = items[-max_items:]
         return items
 
     def summarize(self, max_items: int = 30) -> str:
-        index_path = self.memory_dir / "MEMORY.md"
-        if not index_path.exists():
-            return ""
-        text = index_path.read_text(encoding="utf-8")
-        lines = text.splitlines()
-        if max_items > 0 and len(lines) > max_items + 2:
-            lines = lines[:2] + lines[-max_items:]
-        joined = "\n".join(lines)
-        return joined[: self.max_index_chars]
+        """Render current records, never stale index snippets after external edits."""
+        records = self.retrieve({"max_items": max_items})
+        lines = ["# MEMORY", ""]
+        lines.extend(f"- role={item.role} step={item.step_id}: {item.content}"
+                     for item in records)
+        return "\n".join(lines)[:self.max_index_chars]
 
     def evict(self) -> int:
         if len(self._records) <= self.max_index_entries:
@@ -117,6 +132,13 @@ class MemdirMemory(Memory):
     def reset(self, run_id: Optional[str] = None) -> None:
         _ = run_id
         self._records = []
+
+    def _require_roots(self) -> None:
+        roots = [self.memory_dir]
+        if self.global_memory_dir is not None:
+            roots.append(self.global_memory_dir)
+        if any(not root.is_dir() for root in roots):
+            raise MemoryResourceError("bound memory root is unavailable")
 
     def _ensure_layout(self) -> None:
         self.memory_dir.mkdir(parents=True, exist_ok=True)
@@ -178,8 +200,8 @@ class MemdirMemory(Memory):
     def _read_memory_file(self, path: Path) -> MemoryRecord | None:
         try:
             text = path.read_text(encoding="utf-8")
-        except Exception:
-            return None
+        except OSError:
+            raise MemoryResourceError("bound memory record is unavailable") from None
         metadata: Dict[str, Any] = {}
         body = text
         if text.startswith("---\n"):
@@ -203,14 +225,22 @@ class MemdirMemory(Memory):
             hit = re.search(r"step=(\d+)", text)
             if hit:
                 step_id = int(hit.group(1))
-        metadata.setdefault("path", str(path))
-        return MemoryRecord(role=role, content=body.strip(), step_id=step_id, metadata=metadata)
-
-
-def _slugify(value: str) -> str:
-    text = re.sub(r"[^a-zA-Z0-9_.-]+", "_", str(value or "").strip())
-    text = re.sub(r"_+", "_", text).strip("_")
-    return text or "memory"
+        record_id = metadata.pop("record_id", None)
+        if record_id is None:
+            # Historical files have no persisted ID. Their namespace-relative
+            # location is a stable fallback; absolute host paths never escape.
+            root = self.memory_dir
+            scope = "local"
+            if not path.is_relative_to(root) and self.global_memory_dir is not None:
+                root = self.global_memory_dir
+                scope = "global"
+            relative = scope + ":" + path.relative_to(root).as_posix()
+            record_id = "legacy_" + hashlib.sha256(relative.encode()).hexdigest()
+            body = body.strip()
+        return MemoryRecord(
+            role=role, content=body, step_id=step_id,
+            metadata=metadata, record_id=record_id,
+        )
 
 
 __all__ = ["MemdirMemory"]
