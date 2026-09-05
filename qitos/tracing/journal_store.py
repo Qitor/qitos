@@ -319,7 +319,9 @@ class JournalTrajectoryStore:
 
     def _write_index(self, *, best_effort: bool) -> bool:
         data = canonical_json_bytes(self._index_document())
-        self.work.written_index_entries += len(self._memory._records) * 3
+        self.work.written_index_entries += sum(
+            len(values) for positions in self._positions.values() for values in positions.values()
+        )
         descriptor = -1
         temp_name = ""
         try:

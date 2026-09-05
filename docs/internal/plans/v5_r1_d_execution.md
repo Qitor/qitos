@@ -101,3 +101,9 @@ A reader retains one unlocked source descriptor as an identity anchor until
 close, preventing inode reuse from making a replacement look like the original
 source. Per-operation locks still end before user yields. Replaced sources need
 a new reader; they are not silently adopted by a new capture on the old reader.
+
+Final instrumentation audit counts only actually serialized position entries
+(truthy run/session/work IDs), rather than a three-per-record upper bound. The
+baseline observer uses the same document-entry accounting. This affects writer
+measurement counters only; byte validation, index checkpoint and read/export
+algorithms are unchanged. Final writer trials are repeated with this observer.
