@@ -1,7 +1,7 @@
 """Crash-safe append journal for the unfrozen Trajectory candidate.
 
 The journal is canonical. Its JSON index is derived, disposable, and rebuilt
-from verified transaction frames on every reopen. A batch is one checksummed
+from verified transaction frames on every reopen and checkpointed on close. A batch is one checksummed
 line, so an interrupted final write is recoverable without accepting a partial
 batch. Complete malformed or checksum-invalid frames are corruption.
 """
@@ -80,6 +80,10 @@ class JournalTrajectoryStore:
         self._memory = MemoryTrajectoryStore(
             store_id="qitos.journal_trajectory_store.memory"
         )
+        self._by_id: Dict[str, TrajectoryRecord] = {}
+        self._positions: Dict[str, Dict[str, List[int]]] = {
+            name: {} for name in ("run_id", "session_id", "work_item_id")
+        }
         self._closed = False
         self._recover_partial_tail = recover_partial_tail and not read_only
         self._max_query_records = max_query_records
@@ -248,6 +252,10 @@ class JournalTrajectoryStore:
         report = self._memory.validate_integrity()
         if not report.valid:
             raise StoreIntegrityError("journal_record_integrity_mismatch")
+        self._by_id.clear()
+        for positions in self._positions.values():
+            positions.clear()
+        self._bookkeep(self._memory._records)
         self._last_frame_digest = previous_digest
         self._verified_hasher = verified
 
@@ -285,26 +293,26 @@ class JournalTrajectoryStore:
             ) from None
         return data
 
-    def _index_document(self) -> Dict[str, Any]:
-        records = self._memory._snapshot_records()
-
-        def positions(name: str) -> Dict[str, List[int]]:
-            result: Dict[str, List[int]] = {}
-            for record in records:
-                self.work.visited_index_entries += 1
+    def _bookkeep(self, records: Iterable[TrajectoryRecord]) -> None:
+        for record in records:
+            self.work.visited_index_entries += 1
+            self._by_id[record.record_id] = record
+            for name, positions in self._positions.items():
                 value = getattr(record, name)
                 if value:
-                    result.setdefault(str(value), []).append(int(record.sequence or 0))
-            return result
+                    positions.setdefault(str(value), []).append(int(record.sequence or 0))
 
+    def _index_document(self) -> Dict[str, Any]:
+        # Explicit O(N) checkpoint, never called by an ordinary warm append/flush.
+        self.work.visited_index_entries += len(self._by_id) * 3
         document: Dict[str, Any] = {
             "index_schema": INDEX_SCHEMA_VERSION,
             "journal_schema": JOURNAL_SCHEMA_VERSION,
-            "record_count": len(records),
+            "record_count": len(self._by_id),
             "journal_head_digest": self._last_frame_digest,
-            "runs": positions("run_id"),
-            "sessions": positions("session_id"),
-            "work_items": positions("work_item_id"),
+            "runs": self._positions["run_id"],
+            "sessions": self._positions["session_id"],
+            "work_items": self._positions["work_item_id"],
         }
         document["index_digest"] = integrity_digest(document)
         return document
@@ -358,10 +366,8 @@ class JournalTrajectoryStore:
                     status=DurabilityStatus.PERSISTED,
                     operation_id=str(uuid.uuid4()),
                 )
-            before = self._memory._snapshot_records()
-            self.work.visited_index_entries += len(before)
-            self.work.copied_records += len(before)
-            existing = {record.record_id: record for record in before}
+            before_count = len(self._memory._records)
+            existing = self._by_id
             repeated = [record for record in batch if record.record_id in existing]
             if repeated:
                 if len(repeated) != len(batch) or len({r.record_id for r in batch}) != len(batch):
@@ -387,32 +393,32 @@ class JournalTrajectoryStore:
             verified = self._verified_hasher.copy()
             self._verified_hasher = None
             receipt = self._memory.append_batch(batch)
-            after = self._memory._snapshot_records()
-            self.work.copied_records += len(after)
-            self.work.retain(len(after))
-            assigned = after[len(before) :]
+            assigned = self._memory._records[before_count:]
+            self.work.copied_records += len(assigned)
+            self.work.retain(len(self._memory._records))
             transaction_id = receipt.operation_id or str(uuid.uuid4())
             document = self._frame_document(
                 assigned,
-                start_sequence=len(before),
+                start_sequence=before_count,
                 previous_digest=self._last_frame_digest,
                 transaction_id=transaction_id,
             )
             try:
                 frame = self._append_frame(document)
             except Exception:
-                self._memory._restore(before)
+                del self._memory._records[before_count:]
+                self._memory._record_ids.difference_update(r.record_id for r in assigned)
                 raise
             self._last_frame_digest = str(document["frame_digest"])
             verified.update(frame)
             self._verified_hasher = verified
-            index_persisted = self._write_index(best_effort=True)
+            self._bookkeep(assigned)
             return DurabilityReceipt(
                 status=DurabilityStatus.PERSISTED,
                 accepted_count=len(assigned),
                 persisted_count=len(assigned),
                 operation_id=transaction_id,
-                detail_code=None if index_persisted else "index_rebuild_required",
+                detail_code="index_checkpoint_deferred",
             )
 
     def _query_unlocked(
@@ -483,7 +489,7 @@ class JournalTrajectoryStore:
             except (StoreIntegrityError, StoreIOError):
                 return StoreIntegrityReport(
                     valid=False,
-                    record_count=len(self._memory._snapshot_records()),
+                    record_count=len(self._memory._records),
                     store_digest_valid=False,
                     recovered_tail_bytes=self._recovered_tail_bytes,
                 )
@@ -509,7 +515,7 @@ class JournalTrajectoryStore:
             self._load(recover=self._recover_partial_tail)
             return StorageMeasurement(
                 storage_schema=STORE_SCHEMA_VERSION,
-                record_count=len(self._memory._snapshot_records()),
+                record_count=len(self._memory._records),
                 size_bytes=self._path.stat().st_size,
                 measurement_kind="observed_journal_bytes",
             )
@@ -521,7 +527,7 @@ class JournalTrajectoryStore:
                 os.fsync(handle.fileno())
         except OSError as exc:
             raise StoreIOError("store_flush_failed") from exc
-        count = len(self._memory._snapshot_records())
+        count = len(self._memory._records)
         return DurabilityReceipt(
             status=DurabilityStatus.PERSISTED,
             accepted_count=count,
@@ -540,6 +546,10 @@ class JournalTrajectoryStore:
                 return DurabilityReceipt(status=DurabilityStatus.PERSISTED)
             receipt = (DurabilityReceipt(status=DurabilityStatus.ACCEPTED)
                        if self._read_only else self._flush_unlocked())
+            if not self._read_only:
+                self._load(recover=self._recover_partial_tail)
+                if not self._write_index(best_effort=True):
+                    receipt = replace(receipt, detail_code="index_rebuild_required")
             self._memory.close()
             self._closed = True
             return receipt

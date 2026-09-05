@@ -42,3 +42,13 @@ source descriptor. Iteration holds no lock across user yields.
 - Implementation and qualification in progress; no qualified outcome yet.
 - Explicit non-goals: suffix-only I/O, Artifact GC, external training formats,
   campaign publication, bounded RSS for all old materializing APIs.
+
+## Writer checkpoint implementation
+
+Warm append now uses `_by_id` and incrementally maintained positions; rollback
+removes only the just-assigned batch. `_load` retains the baseline full-byte hash
+and full decode on external changes. Journal fsync precedes bookkeeping; uncertain
+writes invalidate the parsing cache and retry re-verifies the journal. Append
+receipts identify `index_checkpoint_deferred`; close can report
+`index_rebuild_required` independently of journal persistence. Initial targeted
+existing journal/default-reader regressions: 21 passed on Python 3.12.7.
