@@ -354,7 +354,7 @@ class AnthropicModel(Model):
 
     def qitos_transport(self, payload: Mapping[str, Any]) -> Any:
         headers = {
-            "x-api-key": self.api_key,
+            "x-api-key": str(self.api_key),
             "anthropic-version": self.api_version,
             "content-type": "application/json",
         }
@@ -368,16 +368,22 @@ class AnthropicModel(Model):
             request_payload["system"] = payload["system"]
         if payload.get("tools"):
             request_payload["tools"] = payload["tools"]
-        response = requests.post(
-            f"{self.base_url}/v1/messages",
-            headers=headers,
-            json=request_payload,
-            timeout=self.timeout,
-        )
-        response.raise_for_status()
-        result = response.json()
-        self._set_last_usage(self._usage_from_response(result))
-        return result
+        response = None
+        try:
+            response = requests.post(
+                f"{self.base_url}/v1/messages",
+                headers=headers,
+                json=request_payload,
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+            result = response.json()
+            self._set_last_usage(self._usage_from_response(result))
+            return result
+        finally:
+            from ._stream import close_owned
+
+            close_owned(response)
 
     def __init__(
         self,
@@ -414,7 +420,7 @@ class AnthropicModel(Model):
 
     def _call_api(self, messages: List[Dict[str, Any]], **kwargs: Any) -> str:
         headers = {
-            "x-api-key": self.api_key,
+            "x-api-key": str(self.api_key),
             "anthropic-version": self.api_version,
             "content-type": "application/json",
         }
@@ -429,6 +435,7 @@ class AnthropicModel(Model):
         if system_text:
             payload["system"] = system_text
 
+        response = None
         try:
             response = requests.post(
                 f"{self.base_url}/v1/messages",
@@ -441,12 +448,14 @@ class AnthropicModel(Model):
             self._set_last_usage(self._usage_from_response(result))
             return self._parse_response(result)
         except requests.HTTPError as exc:
-            body = exc.response.text if exc.response is not None else ""
-            return f"HTTP Error: {body or str(exc)}"
-        except requests.RequestException as exc:
-            return f"Connection Error: {str(exc)}"
+            raise self.qitos_normalize_failure(exc) from None
         except Exception as exc:
-            return f"Error: {str(exc)}"
+            raise self.qitos_normalize_failure(exc) from None
+
+        finally:
+            from ._stream import close_owned
+
+            close_owned(response)
 
     def _system_text(self, messages: List[Dict[str, Any]]) -> str:
         parts: List[str] = []
@@ -525,89 +534,39 @@ class AnthropicModel(Model):
         }
 
     def stream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> Iterator[ModelStreamChunk]:
-        """Stream Anthropic Messages API response as chunks using SSE."""
-        headers = {
-            "x-api-key": self.api_key,
-            "anthropic-version": self.api_version,
-            "content-type": "application/json",
+        """Stream native SSE with complete tool blocks and a message terminal."""
+        from ._anthropic_stream import stream_message
+
+        payload = {
+            "model": self.model, "max_tokens": self.max_tokens,
+            "temperature": self.temperature, "messages": self._anthropic_messages(messages),
         }
-        payload: Dict[str, Any] = {
-            "model": self.model,
-            "max_tokens": self.max_tokens,
-            "temperature": self.temperature,
-            "messages": self._anthropic_messages(messages),
-            "stream": True,
-        }
-        system_text = self._system_text(messages)
-        if system_text:
-            payload["system"] = system_text
+        system = self._system_text(messages)
+        if system:
+            payload["system"] = system
         payload.update(kwargs)
+        yield from stream_message(self, payload)
 
-        self._last_usage = None
+    def qitos_stream_transport(self, payload: Mapping[str, Any], *, on_delta: Any = None) -> Any:
+        from ._anthropic_stream import stream_message
+        from ._stream import close_owned, protocol_failure
+
+        iterator = stream_message(self, {
+            "model": self.model, "max_tokens": self.max_tokens,
+            "temperature": self.temperature, **dict(payload),
+        })
+        result = None
         try:
-            response = requests.post(
-                f"{self.base_url}/v1/messages",
-                headers=headers,
-                json=payload,
-                timeout=self.timeout,
-                stream=True,
-            )
-            response.raise_for_status()
-
-            usage_data = None
-            for line in response.iter_lines(decode_unicode=True):
-                if not line or not line.startswith("data: "):
-                    continue
-                data_str = line[6:]
-                if data_str.strip() == "[DONE]":
-                    break
-                import json as _json
-
-                try:
-                    event = _json.loads(data_str)
-                except _json.JSONDecodeError:
-                    continue
-
-                event_type = event.get("type", "")
-
-                if event_type == "content_block_delta":
-                    delta = event.get("delta", {})
-                    if delta.get("type") == "text_delta":
-                        text = delta.get("text", "")
-                        if text:
-                            yield ModelStreamChunk(text=text, done=False)
-
-                elif event_type == "message_delta":
-                    delta = event.get("delta", {})
-                    if delta.get("stop_reason"):
-                        msg_usage = event.get("usage", {})
-                        if msg_usage:
-                            output_tokens = msg_usage.get("output_tokens")
-                            usage_data = {"completion_tokens": output_tokens}
-                        yield ModelStreamChunk(text="", done=True, usage=usage_data)
-                        break
-
-                elif event_type == "message_start":
-                    msg_data = event.get("message", {})
-                    msg_usage = msg_data.get("usage", {})
-                    if msg_usage:
-                        input_tokens = msg_usage.get("input_tokens")
-                        usage_data = {"prompt_tokens": input_tokens}
-
-                elif event_type == "message_stop":
-                    yield ModelStreamChunk(text="", done=True, usage=usage_data)
-                    break
-
-            if usage_data:
-                self._set_last_usage(usage_data)
-
-        except requests.HTTPError as exc:
-            body = exc.response.text if exc.response is not None else ""
-            yield ModelStreamChunk(text=f"HTTP Error: {body or str(exc)}", done=True)
-        except requests.RequestException as exc:
-            yield ModelStreamChunk(text=f"Connection Error: {str(exc)}", done=True)
-        except Exception as exc:
-            yield ModelStreamChunk(text=f"Error: {str(exc)}", done=True)
+            for chunk in iterator:
+                if chunk.text and callable(on_delta):
+                    on_delta(chunk.text)
+                if chunk.done:
+                    result = chunk.event_metadata["response"]
+        finally:
+            close_owned(iterator)
+        if result is None:
+            raise protocol_failure(self)
+        return result
 
 
 ModelFactory.register("anthropic")(AnthropicModel)

@@ -187,40 +187,62 @@ class Model(ABC):
         native_items: Optional[List[Dict[str, Any]]] = None
         accumulated_native_items: List[Dict[str, Any]] = []
         metadata: Dict[str, Any] = {}
-        for chunk in self.stream(messages, **options):
-            text = str(getattr(chunk, "text", "") or "")
-            if text:
-                text_parts.append(text)
-                if callable(on_delta):
-                    on_delta(text)
-            chunk_items = getattr(chunk, "native_items", None)
-            if isinstance(chunk_items, list):
-                accumulated_native_items.extend(
-                    dict(item) for item in chunk_items if isinstance(item, dict)
-                )
-            if getattr(chunk, "done", False):
+        from ._stream import close_owned, protocol_failure
+
+        done = False
+        finish_reason = None
+        iterator = self.stream(messages, **options)
+        try:
+            for chunk in iterator:
+                text = str(getattr(chunk, "text", "") or "")
+                if text:
+                    text_parts.append(text)
+                    if callable(on_delta):
+                        on_delta(text)
+                chunk_items = getattr(chunk, "native_items", None)
+                if isinstance(chunk_items, list) and not chunk.done:
+                    accumulated_native_items.extend(
+                        dict(item) for item in chunk_items if isinstance(item, dict)
+                    )
                 chunk_usage = getattr(chunk, "usage", None)
                 if isinstance(chunk_usage, dict):
+                    if usage is not None and usage != chunk_usage:
+                        raise protocol_failure(self)
                     usage = dict(chunk_usage)
-                chunk_calls = getattr(chunk, "tool_calls", None)
-                if isinstance(chunk_calls, list):
-                    tool_calls = [dict(item) for item in chunk_calls]
-                chunk_items = getattr(chunk, "native_items", None)
-                if isinstance(chunk_items, list):
-                    native_items = [dict(item) for item in chunk_items]
-                event_metadata = getattr(chunk, "event_metadata", None)
-                if isinstance(event_metadata, dict):
-                    metadata.update(event_metadata)
+                if done and (text or chunk.tool_calls or chunk.native_items):
+                    raise protocol_failure(self)
+                if getattr(chunk, "done", False):
+                    reason = chunk.event_metadata.get("finish_reason") or chunk.event_metadata.get("status") or "stop"
+                    if done and finish_reason != reason:
+                        raise protocol_failure(self)
+                    done = True
+                    finish_reason = reason
+                    chunk_usage = getattr(chunk, "usage", None)
+                    if isinstance(chunk_usage, dict):
+                        usage = dict(chunk_usage)
+                    chunk_calls = getattr(chunk, "tool_calls", None)
+                    if isinstance(chunk_calls, list):
+                        tool_calls = [dict(item) for item in chunk_calls]
+                    chunk_items = getattr(chunk, "native_items", None)
+                    if isinstance(chunk_items, list):
+                        native_items = [dict(item) for item in chunk_items]
+                    event_metadata = getattr(chunk, "event_metadata", None)
+                    if isinstance(event_metadata, dict):
+                        metadata.update(event_metadata)
+        finally:
+            close_owned(iterator)
+        if not done:
+            raise protocol_failure(self)
         return ModelResponse(
             text="".join(text_parts),
             raw=None,
             usage=usage,
-            finish_reason="stop",
+            finish_reason=finish_reason,
             tool_calls=tool_calls,
             model_name=str(self.model),
             provider=self.qitos_request_target()["provider"],
             metadata=metadata,
-            native_items=(accumulated_native_items or native_items),
+            native_items=(native_items or accumulated_native_items or None),
         )
 
     def qitos_normalize_failure(

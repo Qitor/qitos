@@ -267,12 +267,11 @@ class OllamaModel(Model):
                 return self._parse_response(result)
 
         except urllib.error.HTTPError as e:
-            error_body = e.read().decode("utf-8") if e.fp else ""
-            return f"HTTP Error {e.code}: {error_body}"
+            raise self.qitos_normalize_failure(e) from None
         except urllib.error.URLError as e:
-            return f"Connection Error: {str(e.reason)}"
+            raise self.qitos_normalize_failure(e) from None
         except Exception as e:
-            return f"Error: {str(e)}"
+            raise self.qitos_normalize_failure(e) from None
 
     def _parse_response(self, response: Dict[str, Any]) -> str:
         """
@@ -463,7 +462,7 @@ class OllamaGenerateModel(Model):
                 return self._parse_response(result)
 
         except Exception as e:
-            return f"Error: {str(e)}"
+            raise self.qitos_normalize_failure(e) from None
 
     def _build_prompt(self, messages: List[Dict[str, Any]]) -> str:
         """
@@ -596,9 +595,9 @@ class LMStudioModel(Model):
                 return self._parse_response(result)
 
         except urllib.error.HTTPError as e:
-            return f"HTTP Error: {str(e)}"
+            raise self.qitos_normalize_failure(e) from None
         except Exception as e:
-            return f"Error: {str(e)}"
+            raise self.qitos_normalize_failure(e) from None
 
     def _parse_response(self, response: Dict[str, Any]) -> str:
         """
@@ -751,7 +750,7 @@ class VLLMModel(Model):
                 return self._parse_response(result)
 
         except Exception as e:
-            return f"Error: {str(e)}"
+            raise self.qitos_normalize_failure(e) from None
 
     def _parse_response(self, response: Dict[str, Any]) -> str:
         """

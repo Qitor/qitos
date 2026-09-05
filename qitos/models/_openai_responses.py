@@ -362,17 +362,6 @@ def _event_chunk(
             )
     if event_type == "response.completed":
         return None, None, _field(event, "response")
-    if event_type in {"response.failed", "error"}:
-        return (
-            ModelStreamChunk(
-                text=f"API Error: {_field(event, 'error')}",
-                done=True,
-                event_type=event_type,
-                event_metadata=metadata,
-            ),
-            None,
-            None,
-        )
     return None, None, None
 
 
@@ -383,20 +372,12 @@ def _final_stream_chunk(
     *,
     provider: str,
 ) -> ModelStreamChunk:
+    from ._stream import protocol_failure, validate_calls
+
     if response is None:
-        normalized = _model_response_from_responses(
-            {"status": "completed", "output": completed_items},
-            provider=provider,
-        )
-        return ModelStreamChunk(
-            text="",
-            done=True,
-            tool_calls=normalized.tool_calls,
-            native_items=normalized.native_items,
-            event_type="response.completed",
-            event_metadata=dict(normalized.metadata),
-        )
+        raise protocol_failure(adapter)
     normalized = _model_response_from_responses(response, provider=provider)
+    validate_calls(adapter, normalized.tool_calls, normalized.finish_reason or "")
     adapter._set_last_usage(normalized.usage)
     return ModelStreamChunk(
         text="",
@@ -420,21 +401,33 @@ def _responses_stream(
     events = _responses_create(client)(
         **_request_payload(adapter, messages, kwargs, stream=True)
     )
+    from ._stream import close_owned, protocol_failure, refusal_failure
+
     completed_items: List[Dict[str, Any]] = []
     completed_response: Any = None
-    for event in events:
-        chunk, item, response = _event_chunk(event)
-        if isinstance(item, dict):
-            completed_items.append(item)
-        if response is not None:
-            completed_response = response
-        if chunk is not None:
-            yield chunk
-            if chunk.done:
-                return
-    yield _final_stream_chunk(
-        adapter, completed_response, completed_items, provider=provider
-    )
+    try:
+        for event in events:
+            kind = _field(event, "type", "")
+            if kind in {"response.refusal.delta", "response.refusal.done"}:
+                raise refusal_failure(adapter)
+            if kind in {"response.failed", "error", "response.incomplete"}:
+                raise protocol_failure(adapter)
+            if completed_response is not None:
+                if kind == "response.completed" and _native_value(_field(event, "response")) == _native_value(completed_response):
+                    continue
+                raise protocol_failure(adapter)
+            chunk, item, response = _event_chunk(event)
+            if isinstance(item, dict):
+                completed_items.append(item)
+            if response is not None:
+                completed_response = response
+            if chunk is not None:
+                yield chunk
+        yield _final_stream_chunk(
+            adapter, completed_response, completed_items, provider=provider
+        )
+    finally:
+        close_owned(events)
 
 
 async def _async_responses_stream(
@@ -448,21 +441,33 @@ async def _async_responses_stream(
     events = await _responses_create(client)(
         **_request_payload(adapter, messages, kwargs, stream=True)
     )
+    from ._stream import aclose_owned, protocol_failure, refusal_failure
+
     completed_items: List[Dict[str, Any]] = []
     completed_response: Any = None
-    async for event in events:
-        chunk, item, response = _event_chunk(event)
-        if isinstance(item, dict):
-            completed_items.append(item)
-        if response is not None:
-            completed_response = response
-        if chunk is not None:
-            yield chunk
-            if chunk.done:
-                return
-    yield _final_stream_chunk(
-        adapter, completed_response, completed_items, provider=provider
-    )
+    try:
+        async for event in events:
+            kind = _field(event, "type", "")
+            if kind in {"response.refusal.delta", "response.refusal.done"}:
+                raise refusal_failure(adapter)
+            if kind in {"response.failed", "error", "response.incomplete"}:
+                raise protocol_failure(adapter)
+            if completed_response is not None:
+                if kind == "response.completed" and _native_value(_field(event, "response")) == _native_value(completed_response):
+                    continue
+                raise protocol_failure(adapter)
+            chunk, item, response = _event_chunk(event)
+            if isinstance(item, dict):
+                completed_items.append(item)
+            if response is not None:
+                completed_response = response
+            if chunk is not None:
+                yield chunk
+        yield _final_stream_chunk(
+            adapter, completed_response, completed_items, provider=provider
+        )
+    finally:
+        await aclose_owned(events)
 
 
 __all__ = [

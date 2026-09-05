@@ -61,13 +61,16 @@ class LiteLLMModel(Model):
         try:
             import litellm
         except ImportError as exc:
-            raise RuntimeError("LiteLLM optional dependency is unavailable") from exc
+            from ._stream import failure
+
+            raise failure(self, exc, sent=False) from None
         request_kwargs: Dict[str, Any] = {
             "model": self.model,
             "messages": list(payload.get("messages") or []),
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
             "timeout": self.timeout,
+            "num_retries": 0,
         }
         if self.api_key:
             request_kwargs["api_key"] = self.api_key
@@ -111,11 +114,8 @@ class LiteLLMModel(Model):
     def _call_api(self, messages: List[Dict[str, Any]], **call_kwargs: Any) -> str:
         try:
             import litellm
-        except ImportError:
-            return (
-                "Error: LiteLLM is not installed. "
-                'Install optional model dependencies with `pip install "qitos[models]"`.'
-            )
+        except ImportError as exc:
+            raise self.qitos_normalize_failure(exc) from None
 
         request_kwargs: Dict[str, Any] = {
             "model": self.model,
@@ -123,6 +123,7 @@ class LiteLLMModel(Model):
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
             "timeout": self.timeout,
+            "num_retries": 0,
         }
         if self.api_key:
             request_kwargs["api_key"] = self.api_key
@@ -139,7 +140,7 @@ class LiteLLMModel(Model):
             self._set_last_usage(self._usage_from_response(response))
             return self._parse_response(response)
         except Exception as exc:
-            return f"Error: {str(exc)}"
+            raise self.qitos_normalize_failure(exc) from None
 
     def _parse_response(self, response: Any) -> str:
         choice = self._get_choice(response)

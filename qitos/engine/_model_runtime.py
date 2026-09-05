@@ -585,6 +585,7 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
         )
         stream_handler = to_stream_handler(self.stream_callback)
         stream_started = False
+        request_admitted = False
 
         def on_stream_delta(text: str) -> None:
             nonlocal stream_started
@@ -597,6 +598,7 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
 
         try:
             def admit_request() -> None:
+                nonlocal request_admitted
                 limit = self.engine.budget.max_model_requests
                 consumed = int(
                     getattr(self.engine, "_model_requests_consumed", 0)
@@ -621,12 +623,13 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                         provider_request_sent=False,
                     )
                 self.engine._model_requests_consumed = consumed + 1
+                request_admitted = True
                 self.engine._emit(
                     record.step_id,
                     RuntimePhase.DECIDE,
                     payload={
                         "stage": "provider_request_admitted",
-                        "provider_request_sent": True,
+                        "provider_request_sent": False,
                         "model_requests_consumed": consumed + 1,
                         "model_requests_reserved": reserved,
                         "model_request_limit": limit,
@@ -648,6 +651,8 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                 request_admission=admit_request,
             )
         except ProviderFailure as failure:
+            if request_admitted and not failure.provider_request_sent:
+                self.engine._model_requests_consumed -= 1
             self.engine._emit(
                 record.step_id,
                 RuntimePhase.DECIDE,

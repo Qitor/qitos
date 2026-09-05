@@ -389,16 +389,22 @@ class GeminiModel(Model):
             request_payload["systemInstruction"] = payload["systemInstruction"]
         if payload.get("tools"):
             request_payload["tools"] = payload["tools"]
-        response = requests.post(
-            f"{self.base_url}/models/{quote(self.model, safe='')}:generateContent",
-            params={"key": self.api_key},
-            json=request_payload,
-            timeout=self.timeout,
-        )
-        response.raise_for_status()
-        result = response.json()
-        self._set_last_usage(self._usage_from_response(result))
-        return result
+        response = None
+        try:
+            response = requests.post(
+                f"{self.base_url}/models/{quote(self.model, safe='')}:generateContent",
+                params={"key": self.api_key},
+                json=request_payload,
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+            result = response.json()
+            self._set_last_usage(self._usage_from_response(result))
+            return result
+        finally:
+            from ._stream import close_owned
+
+            close_owned(response)
 
     def __init__(
         self,
@@ -444,6 +450,7 @@ class GeminiModel(Model):
         if system_text:
             payload["systemInstruction"] = {"parts": [{"text": system_text}]}
 
+        response = None
         try:
             response = requests.post(
                 f"{self.base_url}/models/{quote(self.model, safe='')}:generateContent",
@@ -456,12 +463,14 @@ class GeminiModel(Model):
             self._set_last_usage(self._usage_from_response(result))
             return self._parse_response(result)
         except requests.HTTPError as exc:
-            body = exc.response.text if exc.response is not None else ""
-            return f"HTTP Error: {body or str(exc)}"
-        except requests.RequestException as exc:
-            return f"Connection Error: {str(exc)}"
+            raise self.qitos_normalize_failure(exc) from None
         except Exception as exc:
-            return f"Error: {str(exc)}"
+            raise self.qitos_normalize_failure(exc) from None
+
+        finally:
+            from ._stream import close_owned
+
+            close_owned(response)
 
     def _system_text(self, messages: List[Dict[str, Any]]) -> str:
         parts: List[str] = []

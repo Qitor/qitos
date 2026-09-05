@@ -71,7 +71,7 @@ def _usage_facts(value: Optional[Mapping[str, Any]]) -> Optional[Dict[str, int]]
     }
     result: Dict[str, int] = {}
     for canonical, names in aliases.items():
-        present = [value[name] for name in names if name in value]
+        present = [value[name] for name in names if name in value and value[name] is not None]
         if not present:
             continue
         selected = present[0]
@@ -344,6 +344,10 @@ def normalize_provider_failure(
         category = "timeout"
         code = "provider_timeout"
         stage = "timeout"
+    elif "decode" in error_name:
+        category = "decode"
+        code = "provider_response_decode_failed"
+        stage = "decode"
     elif "cancel" in error_name:
         category = "cancellation"
         code = "provider_request_cancelled"
@@ -599,8 +603,6 @@ def execute_provider_request(
     except ProviderFailure as failure:
         raise replace(
             failure,
-            stage="stream" if use_stream else failure.stage,
-            provider_request_sent=True,
             codec_report=failure.codec_report or report,
         ) from None
     except BaseException as exc:
