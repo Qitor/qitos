@@ -11,6 +11,36 @@ Signatures and fields below are extracted from the pinned source. Signatures are
 
 {/* api-reference:start */}
 
+<span id="qitos-config-fakecredentialresolver" />
+## FakeCredentialResolver
+
+```python
+from qitos.config import FakeCredentialResolver
+```
+
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/credentials.py#L195)
+
+[Usage and executable example](/quickstart)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+resolver = FakeCredentialResolver()  # offline fixtures only
+```
+
+```text
+Deterministic resolver for tests and offline qualification.
+```
+
+```text
+FakeCredentialResolver(values: Mapping[str, str] | None=None) -> None
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `values` | `Mapping[str, str] &#124; None` | `None` |
+
+
 <span id="qitos-config-agentcomposition" />
 ## AgentComposition
 

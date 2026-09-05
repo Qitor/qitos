@@ -317,6 +317,10 @@
         {
           "source": "examples/tutorials/notes/provider_extension.py",
           "target": "provider_extension.py"
+        },
+        {
+          "source": "examples/v5/r1_a_model_io/consumer.py",
+          "target": "consumer.py"
         }
       ],
       "commands": [
@@ -325,10 +329,15 @@
           "provider_extension.py",
           "--root",
           "extension-run"
+        ],
+        [
+          "python",
+          "consumer.py"
         ]
       ],
       "expected": [
-        "provider replaced; context observed; requests=3"
+        "provider replaced; context observed; requests=3",
+        "\"requests\": 3, \"executions\": 3"
       ],
       "runtime": "offline",
       "scaffold": false

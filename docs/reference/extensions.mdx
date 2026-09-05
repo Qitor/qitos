@@ -15,3 +15,11 @@ These are replaceable framework mechanisms, not an exhaustive package index or a
 | Evaluator | `qitos.evaluate.base.TrajectoryEvaluator.evaluate` | EvaluationContext to EvaluationResult, evidence, provenance and declared loss |
 
 [Complete provider/context extension](/guides/third-party-extensions) · [API index](/reference/api)
+
+## Provider stream lifecycle
+
+Built-in native Chat, Responses and Anthropic streams validate provider termination before publishing success. Partial tool input, premature EOF and conflicting terminals fail closed. Usage-only trailing chunks are collected without duplicate charging; missing usage is unknown. `chat_template_kwargs` is relocated to `extra_body` for the OpenAI SDK. Explicit output limits are preserved.
+
+Owned SDK clients and response iterators close on completion, failure and explicit close/aclose. Consumer callbacks propagate failure. Async cancellation cannot kill a running Python thread; AsyncEngine retains worker ownership until completion. Client construction is a proven unsent failure; transport failures remain conservatively possibly sent. Non-native LiteLLM, Gemini and local fallbacks emit one complete chunk and do not advertise token streaming.
+
+Model history rereads preserve recorded tool completion order; declaration-order result views remain derived views. The offline installed consumer verifies this across three model requests.

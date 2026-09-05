@@ -7,6 +7,13 @@
       "symbols": [
         {
           "module": "qitos.config",
+          "name": "FakeCredentialResolver",
+          "methods": [],
+          "example": "resolver = FakeCredentialResolver()  # offline fixtures only"
+        },
+
+        {
+          "module": "qitos.config",
           "name": "AgentComposition",
           "methods": [
             "session",
@@ -415,6 +422,27 @@
       "slug": "trajectory",
       "tutorial": "guides/observability",
       "symbols": [
+        {
+          "module": "qitos.core.conversation",
+          "name": "ExchangeLog",
+          "methods": [
+            "from_dict",
+            "declared_calls",
+            "results_for_batch",
+            "results_for_batch_in_declaration_order",
+            "open_batch_id"
+          ],
+          "example": "log = ExchangeLog.from_dict(conversation_payload)"
+        },
+        {
+          "module": "qitos.tracing.journal_store",
+          "name": "JournalTrajectoryStore",
+          "methods": [
+            "read_session"
+          ],
+          "example": "store = JournalTrajectoryStore(\"trajectory.journal\", read_only=True)"
+        },
+
         {
           "module": "qitos.qita.reader",
           "name": "default_reader",

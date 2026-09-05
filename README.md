@@ -32,6 +32,7 @@ read-only qita. Framework correctness does not guarantee arbitrary model task su
 - Same-Session handoff persists admission before dispatch; destination restore and completion are independent of late source callbacks.
 - Explicit memory adapters and deterministic closed-exchange compaction: installed two-process Memdir recall, namespace isolation, and actual request selection; [usage and limits](examples/v5/r1_b_memory_context/README.md).
 - V5 R1 Lane D adds strict snapshot paging and atomic streaming canonical export; warm journal append maintains IDs/positions incrementally. Full historical byte hashing remains enabled. See [execution evidence](docs/internal/plans/v5_r1_d_execution.md).
+- Model I/O stream regressions now cover sanitized failures, terminal validation, usage and owned cleanup; an offline multi-round composition consumer checks final 11 and truncated tool input.
 
 - Self-contained web tutorials: complete notes-Agent code, bilingual learning path and source-checked core API reference; tests execute the files shown on each page.
 

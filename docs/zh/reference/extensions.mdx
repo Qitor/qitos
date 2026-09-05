@@ -15,3 +15,11 @@ description: "Replace mechanisms while preserving their public contracts."
 | Evaluator | `qitos.evaluate.base.TrajectoryEvaluator.evaluate` | EvaluationContext 到 EvaluationResult、证据、provenance 与 loss |
 
 [Complete provider/context extension](/zh/guides/third-party-extensions) · [API index](/zh/reference/api)
+
+## Provider stream 生命周期
+
+内置原生 Chat、Responses 和 Anthropic stream 在发布成功前校验 provider 终态。部分工具输入、提前 EOF 和矛盾终态均失败关闭。尾部 usage-only chunk 被收集且不重复计费；缺失 usage 保持 unknown。OpenAI SDK 的 `chat_template_kwargs` 被移动到 `extra_body`，显式输出上限保持不变。
+
+自有 SDK client 和 response iterator 在正常、异常及显式 close/aclose 时关闭。Consumer callback 的错误向上传播。Async 取消无法强制终止 Python 线程；AsyncEngine 保留 worker 所有权直至完成。Client 构造失败可证明未发送；transport 失败保守记录为可能已发送。LiteLLM、Gemini 及本地非原生 fallback 只产生一个完整 chunk，不宣称逐 token streaming。
+
+模型历史重读保留工具实际完成顺序；声明顺序结果仍是派生视图。离线安装包消费者跨三次模型请求验证这一点。

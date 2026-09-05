@@ -34,6 +34,7 @@ How to update:
 
 - Persist same-Session handoff admission before scheduler invocation; destination ownership and terminal facts no longer depend on stale source callbacks. Admission is not business completion.
 - Memdir recalls durable records once by stable identity, reflects edits/deletions, and keeps equal independent records distinct. Preserve history step identity until ExchangeLog conversion so the recent-exchange window applies to real rounds.
+- Native model streams reject premature EOF and protocol contradictions, preserve termination and trailing usage, and close owned clients/iterators. Provider failures no longer become fallback answer text. Model history rereads retain recorded tool completion order while request views retain declaration order.
 
 - Avoid reparsing unchanged journal bytes on each append/read while retaining full content hashing, external-write validation, crash recovery and durability checks.
 - Resolve frozen historical producer identities from exact retained ancestry when retired source branches are absent; moved refs and untrusted inventory identities still fail.
