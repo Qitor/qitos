@@ -28,6 +28,8 @@ How to update:
 
 ### Fixed
 
+- Accept strict YAML context budget/loss options through existing factories; canonical unsafe-host config serialization omits inapplicable sandbox defaults so reload preserves config and digest.
+
 - Give Observation one mutable authority for attribute and mapping writes, atomic alias validation and independent canonical/legacy snapshots.
 
 - Correct legacy Read pagination and Edit replace-all handling; return canonical ToolResult failures with useful error codes and preserve explicit SHA conflict rejection.

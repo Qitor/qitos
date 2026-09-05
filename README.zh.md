@@ -25,6 +25,8 @@ store、sink 和 sandbox 可扩展；qita 只读检查 Trajectory。
 
 ## What's New
 
+- R1 融合：严格 YAML 通过现有 composition extensions 接通具名上下文预算与显式 codec loss。
+
 - Observation 的属性与映射写入保持一致，提供原子校验和独立序列化快照。
 
 - 旧 Read/Edit 现在正确保留分页窗口、拒绝非唯一编辑，并返回 canonical 失败结果。

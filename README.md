@@ -25,6 +25,8 @@ read-only qita. Framework correctness does not guarantee arbitrary model task su
 
 ## What's New
 
+- R1 integration: strict YAML now wires named context budgets and explicit codec loss through the existing composition extensions.
+
 - Observation attribute and mapping writes now stay consistent, with atomic validation and independent serialization snapshots.
 
 - Legacy Read/Edit now preserve line windows, reject ambiguous edits and expose canonical failure results.

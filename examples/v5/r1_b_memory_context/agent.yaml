@@ -34,3 +34,7 @@ budgets:
   max_runtime_seconds: 60
 failure_policy:
   tool: fail_closed
+
+context:
+  budget_policy: budget
+  allow_codec_loss: true

@@ -43,3 +43,15 @@ features; all EN/zh source bindings will be regenerated on repaired source.
 4. Qualified local FF, main revalidation, exact dispatch identity, safe retirement.
 
 Historical review failures remain in the original review and probe files.
+
+## R1-DX1 repair
+
+The new YAML regressions failed 4 cases before repair (12 validation negatives
+already passed); 67 YAML/config/security/extension tests pass after repair.
+Only SDK-free tests ran. Named policy uses existing resolve_extensions factories;
+loss requires a real boolean. B's context-only dataclasses.replace is removed.
+Roundtrip exposed an existing serializer issue: unsafe_host emitted sandbox-only
+neutral defaults rejected by its own loader. Serialization now emits type and
+workspace only for that backend; admission and Env execution constraints are
+unchanged. Config roundtrip and digest equality are asserted without a workaround.
+Installed consumers and final source bindings remain pending.

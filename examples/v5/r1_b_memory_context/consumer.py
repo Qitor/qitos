@@ -67,7 +67,7 @@ def run(root):
     other = MemorySourceAdapter(MemdirMemory(str(root / "other")), namespace="other")
     assert other.contribute(None) == ()
     config = load_agent_config(Path(__file__).with_name("agent.yaml"))
-    config = replace(config, context={"budget_policy": "budget", "allow_codec_loss": True}, runtime=replace(
+    config = replace(config, runtime=replace(
         config.runtime, data_root=str(root / "runtime"),
         environment=replace(config.runtime.environment, workspace=str(root)),
         session=replace(config.runtime.session, path=str(root / "sessions.sqlite3")),
@@ -75,7 +75,7 @@ def run(root):
     ))
     provider = DeterministicProvider()
     # The resolver/factory binds the namespace to its resource. Namespace does
-    # not grant directory access. The Python configuration explicitly opts into codec loss.
+    # not grant directory access. The YAML configuration explicitly opts into codec loss.
     with build_agent_composition(config, model_override=provider, extensions={
         "project_memory": lambda: MemorySourceAdapter(memory, namespace="project", required=True),
         "closed_window": ClosedExchangeWindowCompactor,

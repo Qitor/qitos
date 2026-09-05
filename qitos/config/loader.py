@@ -124,6 +124,9 @@ class EnvironmentConfig:
     cleanup_required: bool = True
 
     def to_dict(self) -> Dict[str, Any]:
+        if self.type == "unsafe_host":
+            # Canonical YAML must not invent sandbox claims for host execution.
+            return {"type": self.type, "workspace": self.workspace}
         return {
             "type": self.type,
             "image": self.image,
@@ -697,6 +700,7 @@ def _parse_context(raw: Mapping[str, Any]) -> Dict[str, Any]:
         "tool_call_loop_detection_enabled",
         "strict_overflow",
         "show_ui",
+        "allow_codec_loss",
     }
     int_fields = {
         "min_safety_reserve_tokens",
@@ -717,12 +721,14 @@ def _parse_context(raw: Mapping[str, Any]) -> Dict[str, Any]:
     _exact_keys(
         raw,
         required=set(),
-        optional=bool_fields | int_fields | ratio_fields | optional_int_fields,
+        optional=bool_fields | int_fields | ratio_fields | optional_int_fields | {"budget_policy"},
         field="context",
     )
     output: Dict[str, Any] = {}
     for name, value in raw.items():
-        if name in bool_fields:
+        if name == "budget_policy":
+            output[name] = _string(value, "context.budget_policy", non_empty=True)
+        elif name in bool_fields:
             output[name] = _boolean(value, f"context.{name}")
         elif name in int_fields:
             output[name] = _integer(value, f"context.{name}", minimum=1)

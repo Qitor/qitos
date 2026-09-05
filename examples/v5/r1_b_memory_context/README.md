@@ -20,10 +20,11 @@ the remembered value.
 `report.json` identifies the installed package and observed counts. This is
 mechanism evidence, not live model capability evidence.
 
-The loader already accepts `memory.sources` and `compaction.provider` in YAML.
-The existing Python configuration path (`dataclasses.replace`) supplies
-`context.budget_policy` and the explicit `context.allow_codec_loss=True` opt-in;
-the YAML loader does not accept those two context service keys. The compactor
+The YAML loader accepts `memory.sources`, `compaction.provider`,
+`context.budget_policy: budget` and `context.allow_codec_loss: true`.
+The caller binds the named budget through the existing extensions factory;
+unknown names and non-boolean loss values fail before model dispatch.
+The compactor
 itself never enables codec loss. The selected 100,000-character input budget
 also accommodates ConfiguredAgent's repeated recent-observation projection.
 It is an example policy, not a framework default or automatic budget increase.
