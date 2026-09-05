@@ -14,7 +14,9 @@ writes one text record. The run process restores the existing roots, resolves
 `project_memory` and `closed_window` through `extensions`, and executes ten
 real Engine requests with a deterministic provider. It checks actual encoded
 memory visibility, at least two budget compactions, the recent-two window,
-selected chunk visibility, recorded request identity and namespace isolation.
+selected chunk visibility and recorded request identity. An additional actual
+request through a composition bound to the other namespace verifies absence of
+the remembered value.
 `report.json` identifies the installed package and observed counts. This is
 mechanism evidence, not live model capability evidence.
 

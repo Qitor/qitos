@@ -32,11 +32,21 @@ class DeterministicProvider:
         snapshot = json.loads(json.dumps(messages))
         encoded = json.dumps(snapshot)
         assert encoded.count("remembered-value=17") == 1
+        assert all(not key.startswith("_") for message in snapshot for key in message)
         self.requests.append(snapshot)
         stage = len(self.requests) - 1
         content = (f"Thought: read a chunk\nAction: read_chunk(index={stage})"
                    if stage < 9 else "Final Answer: remembered-value=17")
         return {"choices": [{"message": {"content": content}}]}
+
+
+class EmptyNamespaceProvider:
+    model = "memory-context-deterministic"
+    qitos_protocol = "react_text_v1"
+
+    def call_raw(self, messages, **options):
+        assert "remembered-value=17" not in json.dumps(messages)
+        return {"choices": [{"message": {"content": "Final Answer: empty namespace"}}]}
 
 
 def seed(root):
@@ -94,9 +104,17 @@ def run(root):
                 assert (marker in projected) == (marker in encoded)
             assert str(root) not in json.dumps(view["context_contributions"])
         assert session.inspect().last_request_view.request_id == views[-1]["request_id"]
+    with build_agent_composition(config, model_override=EmptyNamespaceProvider(), extensions={
+        "project_memory": lambda: other,
+        "closed_window": ClosedExchangeWindowCompactor,
+        "budget": lambda: DeclaredContextBudgetPolicy(
+            default_max_input_units=100000, protected_recent_exchanges=2,
+        ),
+    }) as isolated:
+        assert isolated.session("Check the bound namespace.").run().state.final_result == "empty namespace"
     assert memory.retrieve()[0].content == "remembered-value=17"
     report = {"requests": len(views), "budget_compactions": len(compacted),
-              "memory_records": 1, "namespace_isolated": True,
+              "memory_records": 1, "namespace_isolated": True, "namespace_requests": 1,
               "qitos_source": qitos.__file__}
     (root / "report.json").write_text(json.dumps(report, indent=2))
     print(json.dumps(report))

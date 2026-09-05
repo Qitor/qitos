@@ -488,6 +488,7 @@ def bind_snapshot_resources(
             ResolverNamespace.MODEL: agent.llm,
             ResolverNamespace.TOOL_REGISTRY: agent.tool_registry,
             ResolverNamespace.PROVIDER_CONTINUATION: resolver,
+            ResolverNamespace.ARTIFACT_STORE: agent.config["artifact_resolver"],
             ResolverNamespace.RUNTIME_EVENT_SINK: sink,
         }
         resource = resources.get(reference.namespace)

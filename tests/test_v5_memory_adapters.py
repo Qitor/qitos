@@ -180,4 +180,5 @@ def test_installed_configured_two_process_consumer(installed, tmp_path):
     report = json.loads((root / "report.json").read_text())
     assert report["requests"] == 10 and report["budget_compactions"] >= 2
     assert report["memory_records"] == 1 and report["namespace_isolated"]
+    assert report["namespace_requests"] == 1
     assert "site-packages" in report["qitos_source"]
