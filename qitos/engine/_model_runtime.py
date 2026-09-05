@@ -825,7 +825,7 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
     def _restore_provider_parts(
         self, compatibility_log: ExchangeLog, previous: ExchangeLog
     ) -> ExchangeLog:
-        """Graft provider-owned reasoning/continuation onto compat rereads."""
+        """Restore provider parts and completion order on compat rereads."""
 
         current = compatibility_log.to_persistence_dict()
         prior = previous.to_persistence_dict()
@@ -875,6 +875,27 @@ class _ModelRuntime(Generic[StateT, ObservationT, ActionT]):
                 "continuation_attachments"
             ]
             item["metadata"] = source["metadata"]
+        # History projects results in declaration order for provider requests.
+        # Rereading that view must not overwrite the journal's completion order.
+        completion_order = {
+            (item["provider_scope"], item["call_id"]): index
+            for index, item in enumerate(prior["items"])
+            if item.get("kind") == "tool_result"
+        }
+        batch_slots: Dict[str, List[int]] = {}
+        for index, item in enumerate(current["items"]):
+            if item.get("kind") == "tool_result":
+                batch_slots.setdefault(item["batch_id"], []).append(index)
+        for slots in batch_slots.values():
+            results = sorted(
+                (current["items"][index] for index in slots),
+                key=lambda item: completion_order.get(
+                    (item["provider_scope"], item["call_id"]),
+                    len(prior["items"]),
+                ),
+            )
+            for index, result in zip(slots, results):
+                current["items"][index] = result
         return ExchangeLog.from_dict(current)
 
     def _write_assembled_messages_sidecar(
