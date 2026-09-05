@@ -37,6 +37,9 @@ How to update:
 
 ### Documentation consolidation
 
+- Add the v5 residual-goal roadmap and five actionable task groups, plus standalone exact-source R1 instructions with concrete user APIs, provider/ownership/cursor test oracles, installed-consumer acceptance, file leases and bounded live-test policy. Correct the mutable-journal integrity/performance tradeoff and prioritize the reported handoff ownership race. These are plans, not new runtime capabilities or release qualification.
+- Record the four delivered V5 R1 candidates, independent 198-test review and five offline counterexamples; plan one bounded repair/integration with an installed combined consumer. Preserve explicit compatibility and performance limits. No candidate runtime merge, live qualification or release is implied by this documentation update.
+
 - Correct current G5 status: framework qualification passed and S4 locally integrated
   at `717b4cf1b23f2ed252cd03234ffd8605038d9567`; runtime identity is unchanged by the later master promotion.
 - Add bilingual Session-first installation/configuration and runnable learning units,

@@ -27,6 +27,7 @@ store、sink 和 sandbox 可扩展；qita 只读检查 Trajectory。
 
 - 网页自足教程：资料整理 Agent 的完整代码、中英文学习路径、可核对源码签名的核心 API Reference；测试直接执行网页文件。
 
+- [v5 迭代路线](docs/v5/README.md)现已记录四条 R1 候选交付：模型 I/O、memory/compaction、runtime 正确性和有界轨迹消费。[独立审查](docs/internal/plans/v5_r1_integration_review.md)复跑 198 项测试，并列出组合验收前的五项有界修复；这些候选尚未融合进 master。
 
 - master 修复 Python 3.10 publication、journal 重复解析和历史证据可移植核验；这些后继修复独立验证，不改写 G5 历史资格。
 - G5 框架资格通过，S4 本地集成完成，runtime 身份固定为 `717b4cf1b23f2ed252cd03234ffd8605038d9567`。

@@ -1,5 +1,16 @@
 # Post-G5 functional E2E dispatch plan
 
+## v5 continuation
+
+This document remains the eight-scenario inventory. The operative work packages,
+responsibility split and live-budget policy now live in
+[V5-01](../../v5/01-developer-loop-and-model-io.md). Reuse the scenarios rather
+than launching a second competing E2E program. The numeric scenario/global
+ceilings below are the earlier proposal, not fresh execution authorization;
+before running, freeze the selected profile, per-scenario and aggregate limits
+in the actual launch configuration. No credential lookup or model call is
+authorized by publishing either plan.
+
 Status: planned_not_run. No model requests or private credential reads in the
 documentation task or master CI stabilization. Historical G5 qualification remains bound to
 `717b4cf1b23f2ed252cd03234ffd8605038d9567`.
@@ -17,7 +28,7 @@ explicit CredentialRef/resolver; secrets stay outside the checkout, 0600 file
 and 0700 directory. Do not reuse credentials from chat or historical logs.
 
 One run per scenario/profile. Default overall ceiling: 80 model requests,
-160,000 total measured tokens, 2,048 output tokens per response, 30 minutes,
+160,000 total measured tokens, 10,240 output tokens per response, 30 minutes,
 64 external tool calls, two concurrent tools/children. Each scenario also has
 its lower ceiling below. Stop when either ceiling is reached. No automatic
 provider fallback, SDK retry, or resubmission after an unknown effect.

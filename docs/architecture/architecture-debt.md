@@ -1,5 +1,16 @@
 # Architecture Debt
 
+The [v5 residual-goal roadmap](../v5/README.md) is the current iteration map.
+The [R1 implementation review](../internal/plans/v5_r1_integration_review.md)
+tracks candidate-only reasoning/cleanup, handoff attribution/admission and YAML
+integration gaps. These require bounded repairs before R1 promotion; they do not
+reopen completed G5 architecture or close the remaining V5-03 debt.
+The dated entries below retain their audit context: some G5 mechanisms are now
+implemented, while provider/legacy-interface, context/memory, data-efficiency
+and optional-integration debt remains. Revalidate each item against the exact
+implementation baseline; neither a historical P0 label nor a later stage closure
+proves its current status. This pointer does not mark any open debt resolved.
+
 Classified inventory of structural debt recovered by the
 [architecture audit](architecture-audit.md) and the
 [engineering-quality audit](../engineering-quality-audit.md). Recorded, not

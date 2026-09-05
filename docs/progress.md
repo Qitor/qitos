@@ -1,6 +1,118 @@
-# v4 integration progress
+# QitOS iteration progress — v4 history and v5 roadmap
 
-## Current status (2026-09-04)
+## V5 R1 candidate review and integration decision (2026-09-05)
+
+Status: **four candidate deliveries present; bounded repairs required before
+integration qualification**. This supersedes the dispatch/not-started statements
+in the historical entries below, not their original evidence.
+
+All four worktrees are clean and share exact baseline
+`4dfb570fb7eef504c1e6d247c21a1984251b80e4`:
+
+- A: `5c6c2c370c0465e5471024a6e4870a9feb8c2b2a` — model I/O and stream lifecycle;
+- B: `4b62f46712f1683338c0b7590ae1290c492cb542` — Memdir and explicit compaction;
+- C: `5b8a4363e59fd01286009741b26597f197de706b` — handoff, tools and Observation;
+- D: `522ce90abf5a39fd5510fd254652a256ad283f4f` — bounded trajectory consumption.
+
+The [independent review](internal/plans/v5_r1_integration_review.md) records source
+inspection and **198 independently rerun tests, all passed** (A 65/B 53/C 45/D 35).
+Five residual findings were reproduced with
+[offline source-bound probes](internal/plans/v5_r1_review_probes.py): Chat-stream
+reasoning loss; cleanup exceptions overriding typed stream failure; handoff
+reconciliation closing an unrelated same-Agent work item; known non-dispatch
+remaining admitted/unknown; and missing YAML budget/loss options. These are
+bounded framework/DX repairs, not model-quality or prompt-policy requirements.
+
+Next is [one R1 integration task](internal/plans/v5_r1_integration_plan.md): replay
+27 source commits in C -> B -> D -> A order, fix the five findings, preserve
+shared runtime/doc changes, and qualify one installed combination of config,
+memory/compaction, native multi-round tools, handoff/restore and page/export.
+The four lanes need not repeat their completed mechanisms or manufacture more
+producer-receipt layers. Real Agent migration, interactive approval/control,
+training export and remaining V5-03 debt remain separate subsequent work.
+
+D's reported warm-append/index and export-memory improvements are accepted as
+source-bound measurements, not universal speed claims: historical byte hashing
+and writer retention remain O(N), and some traversal costs increase.
+Read/Edit's direct ToolResult return and Memdir's explicit-create default require
+visible migration guidance, not an unconditional backward-compatibility claim.
+
+Local main remains `60809b3be388d22ea40ea41b4aaa1f5540c76fda` with the V5 draft
+preserved. Tracking/live remote master both remain at the R1 baseline; R1 source
+deliveries are not remotely integrated. No merged-tree full suite, live model,
+installed consumer or performance rerun is claimed by this review. No runtime
+patch, merge, commit, push, release, deployment or worktree removal was performed;
+all six registered worktrees remain. Planning/evidence files alone were updated.
+The main documentation draft passed 18 architecture/public/privacy/docs tests,
+public docs validation, 83 planning/ledger link checks and whitespace validation;
+these are separate from the 198 candidate source tests above.
+
+## Historical V5 R1 dispatch preparation (2026-09-05)
+
+Dispatch refinement: the four conversation instructions are now standalone
+execution contracts, not just links to local drafts. Provider/API coverage,
+fixed multi-round outputs, Memory/config target usage, handoff ownership/crash
+oracles, Observation mutation, snapshot cursors and retained-memory criteria are
+specified in the lane documents. Corrected the nonexistent ExtensionRegistry
+name to the real `build_agent_composition(..., extensions={...})` boundary.
+The source baseline is unchanged; no new implementation or promotion stage was
+introduced to distribute instructions.
+
+Status: **ready to dispatch; implementation not started**.
+Exact source: `4dfb570fb7eef504c1e6d247c21a1984251b80e4`; its remote
+CI/docs/Code Quality checks are green. Local master remains at 60809b3 with
+the V5 draft preserved; no merge, commit, push or worktree cleanup in this review.
+
+The [current-source review](internal/plans/v5_r1_review.md) revalidated remaining
+provider/alias/Observation/functional problems and consumed the completed CI
+and tutorial fixes. It also promoted the tutorial's same-Session handoff race
+to R1 investigation and corrected an incompatible journal I/O/integrity goal.
+
+The [dispatch contract](internal/plans/v5_dispatch.md) and four complete lane
+instructions cover A stream/model I/O; B usable memory/compaction; C handoff and
+public correctness; D strict-integrity index/reader/export efficiency. They have
+exact worktrees, file leases, installed consumers and merge order C → B → D → A.
+They are local task input files, not falsely claimed to exist in the remote SHA.
+
+Confirmed local regressions: 39 + 130 existing tests passed; five diagnostic
+counterexamples still expose missing regression coverage. Handoff was reviewed
+from source and the earlier tutorial report, not freshly reproduced here.
+Full V5 closure, live application qualification, original-Agent migration,
+functional API cleanup, approval/control and broader sandbox remain open.
+
+## Historical v5 residual-goal roadmap (2026-09-04)
+
+Status: **planned; no v5 implementation wave dispatched**.
+Planning source: `f9e45f372ba4b8a5c89982add56a667908893b30`.
+See [v5 overview and v4 mapping](v5/README.md) and
+[planning evidence](internal/plans/v5_iteration_planning.md).
+
+Five capability groups now own the remaining work: real Agent/provider workflow;
+long-task context and memory; tool/API/architecture consolidation; efficient
+Trajectory and research exports; interactive Session and sandbox extensions.
+Existing G5 mechanisms remain the foundation, not tasks to implement again.
+
+The preceding read-only audit reproduced streaming infrastructure failure as
+normal model content, legacy Read double-pagination, missing Edit replace_all
+forwarding, dual Observation state, and inert functional retry. It also found
+missing original-Agent migration evidence, incomplete memory/compaction adapters,
+full-scan journal costs, missing training exporters and retained optional/lifecycle
+debt. The v5 documents bind these to subpackages and acceptance criteria.
+
+Master CI stabilization is a separate concurrent task and may already repair
+part of the audited source, including publication portability and journal parsing.
+Before implementation, consume its exact committed result and revalidate the
+residual list. Do not replay already-fixed defects or inherit old test counts.
+This planning task does not change runtime, quality baselines, fixtures, CI,
+default branches or deployment state, and does not authorize live calls/push.
+Implementation dispatch will freeze a new exact baseline and file leases;
+no placeholder SHA or moving-branch implementation pin is published here.
+
+The earlier functional E2E inventory is reused by V5-01; recommended per-response
+output is 10,240 tokens, with explicit profile and aggregate authorization.
+Historical single-model failures do not replace deterministic framework gates.
+
+## Historical G5 status (2026-09-04)
 
 Historical qualified G5 runtime baseline: `717b4cf1b23f2ed252cd03234ffd8605038d9567`.
 Framework qualification **passed**; S4 local integration **complete**.

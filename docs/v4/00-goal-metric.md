@@ -4,6 +4,16 @@ Status: active acceptance anchor
 Updated: 2026-08-31
 Scope: Tasks 01–05 and 08–15
 
+## v5 continuation (2026-09-04)
+
+The [v5 roadmap](../v5/README.md) maps the remaining goals to five actionable
+capability groups. The gates below remain historical acceptance intent, but
+their dated stage-status paragraphs are not the current capability inventory.
+G5 already qualified the default Trajectory, local Session/WorkGraph and public
+composition paths. Real-Agent migration evidence, long-task efficiency,
+provider/legacy-surface convergence and the selected extensions remain separate
+follow-ups; v5 planning is not their implementation or release qualification.
+
 ---
 
 ## 1. North star
