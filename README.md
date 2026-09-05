@@ -25,6 +25,8 @@ read-only qita. Framework correctness does not guarantee arbitrary model task su
 
 ## What's New
 
+- Same-Session handoff persists admission before dispatch; destination restore and completion are independent of late source callbacks.
+
 - Self-contained web tutorials: complete notes-Agent code, bilingual learning path and source-checked core API reference; tests execute the files shown on each page.
 
 - The [v5 iteration roadmap](docs/v5/README.md) now records four delivered R1 candidates: model I/O, memory/compaction, runtime correctness and bounded trajectory consumption. An [independent review](docs/internal/plans/v5_r1_integration_review.md) reran 198 tests and identified five bounded repairs before combined qualification; these candidates are not yet integrated into master.

@@ -3,11 +3,21 @@ title: "Multi-agent work"
 description: "QitOS public API: work-graph"
 ---
 
-delegate/spawn/fan_out return operation receipts; join references operation IDs. WorkGraph records work ownership and attempts; it is not a worker executor. LocalWorkScheduler resolves descriptors through application-provided callables. handoff changes the owner of the same work item and fences the old source; fork branches independently. Transfer admission is not destination task completion. The tutorial serializes same-head handoff callbacks before destination restore to avoid the documented owner-CAS conflict.
+delegate/spawn/fan_out return operation receipts; join references operation IDs. WorkGraph records work ownership and attempts; it is not a worker executor. LocalWorkScheduler resolves descriptors through application-provided callables. handoff changes the owner of the same work item and fences the old source; fork branches independently. Transfer admission is not destination task completion.
 
 [完整可运行教程 / Complete tutorial](/guides/multi-agent-patterns) · [API index](/reference/api)
 
 Signatures and fields below are extracted from the pinned source. Signatures are reference material, not standalone programs. Source links bind the same runtime baseline. Any does not imply arbitrary objects are supported; use the behavioral contract above and the linked tutorial.
+
+Handoff persists its declaration, prepared ownership transfer and descriptor,
+then `transfer_admitted` before invoking the scheduler. The receipt acknowledges
+transfer admission only; `outcome_unknown=True` means destination execution is
+not yet known. A callable returning `None` is not task completion. The destination
+uses the existing restore/CAS to persist `ownership_committed`, then its own
+`running` and business terminal state. Late source callbacks cannot write the
+Session head. A restored current owner can reconcile the transfer without the
+source process. An admitted operation whose invocation was lost is not replayed;
+waiting policy, business retries and manual reconciliation remain application responsibilities.
 
 {/* api-reference:start */}
 

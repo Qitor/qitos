@@ -308,6 +308,12 @@ class DurableWorkRuntime:
             original = list(graph.operation_receipts)
             dirty = False
             for receipt in tuple(graph.operation_receipts):
+                if receipt.operation == "handoff" and receipt.state in {
+                    "transfer_admitted", "ownership_committed", "running",
+                    "completed", "failed", "cancelled", "outcome_unknown",
+                }:
+                    recovered.append(receipt)
+                    continue
                 if receipt.state == "declared":
                     if receipt.descriptor is None or prepare is None:
                         continue
@@ -382,6 +388,8 @@ class DurableWorkRuntime:
         descriptor: WorkDescriptor,
         persist: Callable[[], None],
     ) -> WorkOperationReceipt:
+        if descriptor.operation == "handoff":
+            return self._dispatch_handoff(graph, receipt, descriptor, persist)
         attempt = receipt.attempt + 1
         request = WorkDispatch(
             receipt.operation_id,
@@ -446,6 +454,36 @@ class DurableWorkRuntime:
         )
         return dispatched
 
+    def _dispatch_handoff(
+        self,
+        graph: WorkGraph,
+        receipt: WorkOperationReceipt,
+        descriptor: WorkDescriptor,
+        persist: Callable[[], None],
+    ) -> WorkOperationReceipt:
+        # Commit the last required source fact BEFORE a scheduler can restore
+        # this same Session. A lost invocation is unknown, never auto-replayed.
+        admitted = replace(
+            receipt, state="transfer_admitted", attempt=receipt.attempt + 1,
+            admission_state="admitted", outcome_unknown=True, queue_position=None,
+        )
+        self._replace(graph, admitted)
+        try:
+            persist()
+        except Exception:
+            self._replace(graph, receipt)
+            raise
+        request = WorkDispatch(
+            admitted.operation_id, admitted.payload_digest, admitted.attempt,
+            admitted.generation, descriptor,
+        )
+        handle = self.scheduler.dispatch(request)
+        self._handles[receipt.operation_id] = handle
+        handle.add_terminal_callback(
+            lambda result, error: self._terminal(graph, admitted, result, error, persist)
+        )
+        return admitted
+
     def request_cancel(
         self,
         graph: WorkGraph,
@@ -457,6 +495,11 @@ class DurableWorkRuntime:
             receipt = _operation(graph, operation_id)
             if receipt is None:
                 raise WorkRuntimeError("operation_not_found", "operation identity is unknown", operation_id=operation_id)
+            if receipt.operation == "handoff":
+                raise WorkRuntimeError(
+                    "superseded_owner", "handoff cancellation belongs to the destination",
+                    operation_id=operation_id,
+                )
             handle = self._handles.get(operation_id)
             stopped = handle.request_cancel() if handle is not None else False
             state = "cancelled" if stopped else "cancellation_requested_worker_still_running"
@@ -480,10 +523,15 @@ class DurableWorkRuntime:
         error: BaseException | None,
         persist: Callable[[], None],
     ) -> None:
+        # A handoff callback acknowledges only the scheduler callable. Its
+        # result (including None) is not destination execution or task truth.
+        # The current Session owner reconciles from the persisted transfer.
+        if receipt.operation == "handoff":
+            return
         del result  # Result ownership stays with canonical child Task/ToolResult storage.
         with self._lock:
             current = _operation(graph, receipt.operation_id)
-            if current is None or current.state.startswith("cancel"):
+            if current is None or current.state.startswith("cancel") or current.state in {"completed", "failed"}:
                 return
             terminal = replace(
                 current,

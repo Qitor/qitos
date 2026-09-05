@@ -25,6 +25,8 @@ store、sink 和 sandbox 可扩展；qita 只读检查 Trajectory。
 
 ## What's New
 
+- 同一 Session 的 handoff 在 dispatch 前持久化 admission；目标 restore 与完成不再依赖迟到的源 callback。
+
 - 网页自足教程：资料整理 Agent 的完整代码、中英文学习路径、可核对源码签名的核心 API Reference；测试直接执行网页文件。
 
 - [v5 迭代路线](docs/v5/README.md)现已记录四条 R1 候选交付：模型 I/O、memory/compaction、runtime 正确性和有界轨迹消费。[独立审查](docs/internal/plans/v5_r1_integration_review.md)复跑 198 项测试，并列出组合验收前的五项有界修复；这些候选尚未融合进 master。

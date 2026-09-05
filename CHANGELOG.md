@@ -25,6 +25,8 @@ How to update:
 
 ### Fixed
 
+- Persist same-Session handoff admission before scheduler invocation; destination ownership and terminal facts no longer depend on stale source callbacks. Admission is not business completion.
+
 - Avoid reparsing unchanged journal bytes on each append/read while retaining full content hashing, external-write validation, crash recovery and durability checks.
 - Resolve frozen historical producer identities from exact retained ancestry when retired source branches are absent; moved refs and untrusted inventory identities still fail.
 - Restore Python 3.10 explicit publication by hashing validated file descriptors in bounded chunks; containment, special-file rejection, source-conflict checks and rollback remain enforced.

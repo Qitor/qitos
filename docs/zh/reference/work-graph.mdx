@@ -9,6 +9,14 @@ delegate/spawn/fan_out 返回 operation receipt，join 引用 operation ID。Wor
 
 以下签名和字段由固定源码提取；签名是参考，不是可直接运行的程序。每个条目的源码链接绑定同一 runtime baseline。类型中的 Any 不代表任意对象均受支持，应结合上述行为契约和教程使用。
 
+Handoff 依次持久化 declaration、准备好的 ownership transfer 与 descriptor，
+再在调用 scheduler 前提交 `transfer_admitted`。该 receipt 只确认 transfer admission；
+`outcome_unknown=True` 表示尚不知道目标是否执行，callable 返回 `None` 不代表任务完成。
+目标使用既有 restore/CAS 提交 `ownership_committed`，再自行记录 `running` 与业务终态。
+迟到的源 callback 不写 Session head。恢复后的当前 owner 可仅凭持久事实 reconcile，
+不依赖源进程。已 admission 但调用结果未知的 operation 不自动重放；等待策略、业务重试
+与人工 reconciliation 仍由应用负责。
+
 {/* api-reference:start */}
 
 <span id="qitos-engine-session_runtime-session" />

@@ -2532,6 +2532,7 @@ class Session:
         expected_owner_run_id: Optional[str] = None,
         pause_safety: Any = None,
     ) -> SessionHeadRecord:
+        self._reconcile_handoff(lifecycle)
         generation = 0 if expected_head is None else expected_head.generation + 1
         snapshot_id = SnapshotIdentity.generate()
         checkpoint_id = CheckpointIdentity.generate()
@@ -2635,6 +2636,34 @@ class Session:
                             "snapshot_id": receipt.snapshot_id, "owner_generation": receipt.generation,
                         })
         return self._require_head()
+
+    def _reconcile_handoff(self, lifecycle: SessionLifecycle) -> None:
+        """Record destination facts in the same owner-fenced snapshot commit."""
+        graph = getattr(self._engine, "_qitos_work_graph", None)
+        if not isinstance(graph, WorkGraph):
+            return
+        work = graph.work_items.get(self._work_item_id)
+        if work is None or work.owner.agent_id != self._agent_id:
+            return
+        transfers = {item.transfer_id: item for item in graph.transfers}
+        for index, operation in enumerate(graph.operation_receipts):
+            transfer = transfers.get(f"ownership:{operation.operation_id}")
+            if (operation.operation != "handoff" or transfer is None
+                    or transfer.to_agent_id != self._agent_id
+                    or operation.state in {"completed", "failed", "cancelled"}):
+                continue
+            state = lifecycle.value
+            terminal = state in {"completed", "failed", "cancelled"}
+            if not terminal:
+                state = "running" if state == "running" else "ownership_committed"
+            graph.operation_receipts[index] = replace(
+                operation, state=state, outcome_unknown=False,
+                admission_state="closed" if terminal else "admitted",
+                terminal_receipt_ref=(
+                    f"session:{self._session_id.value}:{self._run_id.value}:{state}"
+                    if terminal else None
+                ),
+            )
 
     def _snapshot_references(self) -> tuple[ResolverReference, ...]:
         graph = getattr(self._engine, "_qitos_work_graph", None)
