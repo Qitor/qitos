@@ -82,3 +82,17 @@ the default, and `--raw-private` is explicit. HTML export remains compatible.
 The bounded export path also rejects the journal/lock/index as an output target;
 this preserves its read-only source contract even when given a conflicting filename.
 Cursor input length is capped before decoding its caller-supplied token.
+
+## Continuous traversal refinement
+
+Initial immutable `a079449` measurements exposed repeated whole-snapshot hashing
+when continuous iteration/export called independent pages (roughly 137 seconds
+for the first 100k traversal). Keep these independent page guarantees, but use an
+internal continuous page stream for `iter_records`/file export: full snapshot
+verification at start/end, descriptor/source checks per finite page, and verified
+frame digests while processing. No writer lock crosses a yield. Direct iterator
+values are explicitly partial until exhaustion; late changes to already-yielded
+frames reject final completion. File export additionally validates before atomic
+replacement. Work tests assert traversal hashes exactly three snapshot lengths
+after initial reader construction, irrespective of page count. Discarded pilot
+measurements remain distinct from the final implementation's repeated results.

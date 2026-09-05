@@ -172,3 +172,22 @@ def test_corrupt_duplicate_ids_reject_even_with_valid_frame_digests(journal):
     journal.write_bytes(b"".join(canonical_json_bytes(frame) + b"\n" for frame in frames))
     with pytest.raises(StoreIntegrityError, match="duplicate_record_id"):
         candidate_file_reader(journal)
+
+
+def test_continuous_iterator_is_partial_until_final_integrity_check(journal):
+    reader = candidate_file_reader(journal)
+    iterator = iter_records(reader, TrajectoryQuery(limit=128), view=RAW)
+    next(iterator)
+    # Damage an already yielded frame: final validation must reject completion.
+    journal.write_bytes(journal.read_bytes().replace(b'"i":0', b'"i":9', 1))
+    with pytest.raises(CursorRejected):
+        tuple(iterator)
+    reader.close()
+
+
+def test_continuous_traversal_work_is_linear_in_snapshot_bytes(journal):
+    reader = candidate_file_reader(journal)
+    before = reader.work.hash_bytes
+    assert sum(1 for _ in iter_records(reader, TrajectoryQuery(limit=128))) == 259
+    assert reader.work.hash_bytes - before == journal.stat().st_size * 3
+    reader.close()

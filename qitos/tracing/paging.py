@@ -59,7 +59,17 @@ def read_page(reader: Any, query: TrajectoryQuery, cursor: TrajectoryCursor | No
 
 def iter_records(reader: Any, query: TrajectoryQuery, *,
                  view: PrivacyView = PrivacyView.REDACTED_PUBLIC) -> Iterator[TrajectoryRecord]:
-    """Iterate one snapshot, releasing source locks before each user yield."""
+    """Iterate a snapshot; output is partial until exhaustion/final validation.
+
+    Early close releases resources but does not claim a completed traversal.
+    Independent read_page calls always reverify the complete snapshot.
+    """
+    pages = getattr(reader, "_export_pages", None)
+    if pages is not None:
+        for page in pages(query, view=view):
+            yield from page.records
+            del page
+        return
     cursor = None
     while True:
         page = read_page(reader, query, cursor, view=view)
@@ -228,6 +238,22 @@ class JournalPages:
 
     def read_page(self, query: TrajectoryQuery, cursor: TrajectoryCursor | None = None,
                   *, view: PrivacyView = PrivacyView.REDACTED_PUBLIC) -> TrajectoryPage:
+        return self._read_page(query, cursor, view=view, verify_history=True)
+
+    def _export_pages(self, query: TrajectoryQuery, *, view: PrivacyView) -> Iterator[TrajectoryPage]:
+        """Continuous stream: partial until the final whole-snapshot verification."""
+        cursor = None
+        while True:
+            page = self._read_page(query, cursor, view=view, verify_history=cursor is None)
+            snapshot, cursor = page.snapshot, page.next_cursor
+            yield page
+            del page
+            if cursor is None:
+                self.validate_snapshot(snapshot)
+                return
+
+    def _read_page(self, query: TrajectoryQuery, cursor: TrajectoryCursor | None,
+                   *, view: PrivacyView, verify_history: bool) -> TrajectoryPage:
         limit = query.limit if query.limit is not None else 128
         if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 10_000:
             raise TrajectoryStoreError("page_limit_invalid")
@@ -244,7 +270,11 @@ class JournalPages:
                 head, position = token["head"], token["position"]
                 if self._head is None:
                     raise CursorRejected("index_rebuild_required")
-                self._verify(handle, head)
+                if verify_history:
+                    self._verify(handle, head)
+                elif (self._identity(handle) != head["source"]
+                      or os.fstat(handle.fileno()).st_size < head["boundary"]):
+                    raise CursorRejected("snapshot_source_changed")
             snapshot = self._seal({"head": head, "filter": binding, "position": position})
             clauses = ["seq > ?", "seq <= ?"]
             params: list[Any] = [position, head["head_sequence"]]
@@ -269,6 +299,7 @@ class JournalPages:
                     more = True
                     break
                 if frame_offset != offset:
+                    frame = ()
                     handle.seek(offset)
                     line = handle.readline(_MAX_FRAME_BYTES + 1)
                     self.work.read_bytes += len(line)
@@ -279,6 +310,7 @@ class JournalPages:
                             json.loads(line), expected_sequence=start, previous_digest=previous)
                     except (ValueError, UnicodeError):
                         raise CursorRejected("snapshot_frame_changed") from None
+                    del line
                     if actual != expected:
                         raise CursorRejected("snapshot_frame_changed")
                     self.work.decoded_records += len(frame)
@@ -287,7 +319,8 @@ class JournalPages:
                 self.work.copied_records += 1
                 self.work.retain(len(selected) + len(frame))
             rows.close()
-            self._verify(handle, head)
+            if verify_history:
+                self._verify(handle, head)
             next_cursor = (self._seal({"head": head, "filter": binding,
                                        "position": selected[-1].sequence}) if more else None)
             self.work.retain(len(selected))

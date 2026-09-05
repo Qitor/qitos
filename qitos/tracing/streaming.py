@@ -76,10 +76,19 @@ def export_file(reader: Any, query: TrajectoryQuery, target: str | Path, *,
                             entries.write(canonical_json_bytes(entry.to_dict()))
                             loss_count += 1
 
-                    cursor = None
-                    while True:
+                    def fallback_pages() -> Any:
+                        cursor = None
+                        while True:
+                            page = read_page(reader, query, cursor, view=view)
+                            yield page
+                            cursor = page.next_cursor
+                            if cursor is None:
+                                return
+
+                    stream = getattr(reader, "_export_pages", None)
+                    pages = stream(query, view=view) if stream is not None else fallback_pages()
+                    for page in pages:
                         check_cancel()
-                        page = read_page(reader, query, cursor, view=view)
                         for record in page.records:
                             if count:
                                 records.write(b",")
@@ -88,10 +97,7 @@ def export_file(reader: Any, query: TrajectoryQuery, target: str | Path, *,
                             if view != PrivacyView.RAW_PRIVATE:
                                 add_loss(record.loss)
                         snapshot = page.snapshot
-                        cursor = page.next_cursor
                         del page
-                        if cursor is None:
-                            break
                     metadata = {"store_id": "qitos.journal_trajectory_store", "complete": True}
                     provenance = {"source": "trajectory_journal"}
                     if view != PrivacyView.RAW_PRIVATE:

@@ -511,6 +511,11 @@ class StoreTrajectoryReader:
             raise BoundedReadUnsupported("bounded_read_unsupported")
         return self._pages.read_page(query, cursor, view=view)
 
+    def _export_pages(self, query: TrajectoryQuery, *, view: PrivacyView) -> Any:
+        if self._pages is None:
+            raise BoundedReadUnsupported("bounded_read_unsupported")
+        return self._pages._export_pages(query, view=view)
+
     def validate_export_target(self, target: str | Path) -> None:
         """Keep the read-only source and its sidecars outside export replacement."""
         from .exporter import TrajectoryExportError
