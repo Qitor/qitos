@@ -494,3 +494,41 @@ def test_configured_session_persists_terminal_root_failure_and_trajectory(
     assert expected_code in trajectory
     assert "provider-private-payload" not in trajectory
     assert "/Users/" not in trajectory
+
+
+@pytest.mark.parametrize('construction', [True, False])
+def test_stream_budget_distinguishes_construction_from_dispatch(tmp_path, monkeypatch, construction):
+    from types import SimpleNamespace
+    import openai
+
+    path = tmp_path / 'stream.yaml'
+    path.write_text(_config_text('stream-budget', 'enable_thinking', False))
+    attempts = []
+    closed = []
+
+    class Client:
+        def __init__(self, **kwargs):
+            if construction:
+                raise ConnectionError('private endpoint')
+            self.chat = SimpleNamespace(completions=self)
+
+        def create(self, **kwargs):
+            attempts.append(kwargs)
+            raise ConnectionError('private endpoint')
+
+        def close(self):
+            closed.append(True)
+
+    monkeypatch.setattr(openai, 'OpenAI', Client)
+    with build_agent_composition(load_agent_config(path),
+                                 credential_resolver=FakeCredentialResolver(),
+                                 env_override=HostEnv(workspace_root=str(tmp_path))) as composition:
+        deltas = []
+        composition.engine.stream_callback = deltas.append
+        session = composition.session('controlled failure')
+        result = session.run()
+        assert result.error_code == 'provider_connection_failed'
+        assert result.state.final_result is None
+        assert session.inspect().budget['model_requests_consumed'] == (0 if construction else 1)
+        assert len(attempts) == len(closed) == (0 if construction else 1)
+        assert deltas == []

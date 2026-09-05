@@ -489,7 +489,7 @@ def test_responses_stream_emits_typed_text_and_completed_tool_call(
     assert chunks[-1].usage["prompt_tokens"] == 11
 
 
-def test_responses_stream_can_finish_from_output_item_events(
+def test_responses_stream_requires_message_terminal_after_output_items(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     function_item = _response_with_function_calls().output[1]
@@ -518,11 +518,11 @@ def test_responses_stream_can_finish_from_output_item_events(
         api_mode="responses",
     )
 
-    chunks = list(model.stream([{"role": "user", "content": "go"}]))
+    from qitos.models.codec import ProviderFailure
 
-    assert chunks[-1].done is True
-    assert chunks[-1].tool_calls and chunks[-1].tool_calls[0]["id"] == "call_1"
-    assert chunks[-1].native_items and chunks[-1].native_items[0]["id"] == "fc_1"
+    with pytest.raises(ProviderFailure) as caught:
+        list(model.stream([{"role": "user", "content": "go"}]))
+    assert caught.value.error_code == "provider_stream_protocol_error"
 
 
 def test_async_responses_transport_uses_shared_normalization(
