@@ -25,6 +25,7 @@ from .conversation import (
     ReasoningReference,
     SteeringItem,
     ToolResultItem,
+    UserItem,
     _item_to_dict,
     history_messages_to_exchange_log,
 )
@@ -740,7 +741,8 @@ def _protected_exchanges(
         default=-1,
     )
     for key, group in groups.items():
-        if not any(isinstance(item, AssistantItem) for item in group):
+        if (not any(isinstance(item, AssistantItem) for item in group)
+                or isinstance(group[-1], (UserItem, SteeringItem))):
             protected.add(key)
         for item in group:
             if getattr(item, "metadata", {}).get("required"):

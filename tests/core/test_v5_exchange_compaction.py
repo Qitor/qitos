@@ -251,3 +251,14 @@ def test_nonmatching_or_absent_receipt_cannot_authorize_loss():
                 policy_id="invalid", output_digest="a" * 64,
             ),
         })())
+
+
+def test_unanswered_input_in_reused_exchange_cannot_be_omitted_with_zero_window():
+    log = ExchangeLog("reused", items=[closed(0), UserItem(
+        "unanswered", "e0", [ContentBlock(type="text", text="x" * 4000)]
+    )])
+    with pytest.raises(ContextBudgetExceededError):
+        RequestView.from_exchange_log(log, target=TARGET,
+            compaction_policy=ClosedExchangeWindowCompactor(),
+            context_budget=ContextBudget(max_input_units=3000, reserved_output_units=0,
+                                         protected_recent_exchanges=0))
