@@ -1,0 +1,3 @@
+qitos/core/observation.py:150: error: Signatures of "__ior__" and "__or__" are incompatible  [misc]
+qitos/core/state.py:27: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+Found 1 error in 1 file (checked 94 source files)

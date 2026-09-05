@@ -39,7 +39,7 @@ durable children=4; join=closed
 handoff destination ran
 ```
 
-本例 handoff 明确串行执行：先持久化转交接收回执、关闭源 composition，再启动目标进程。接收回执不是目标任务完成；目标进程退出后的断言才证明执行。当前同一个 Session 的目标 restore 若与源 terminal callback 并发，会发生 owner CAS 冲突；本例不宣称支持这种并发调度。
+Handoff 同时演示原有串行路径与 `--concurrent`：后者在 scheduler callable 内立即 restore/run 同一 Session。源在 dispatch 前持久化 transfer admission，迟到 callback 不再写 head。Admission wait 与目标子进程结果分开，只有后者证明业务完成。目标 restore 使用既有 owner/generation CAS；未知调用结果不自动重放，等待策略、业务重试与 reconciliation 由应用负责。
 
 ## 行为与支持边界
 
@@ -225,6 +225,12 @@ def wait(session, operation):
     while time.monotonic() < deadline:
         graph = WorkGraph.from_canonical_dict(session.inspect().work_graph)
         receipt = next(item for item in graph.operation_receipts if item.operation_id == operation.operation_id)
+        if operation.operation == "handoff" and receipt.state in {
+            "transfer_admitted", "ownership_committed", "running", "completed",
+        }:
+            # A bounded admission wait, distinct from waiting for task completion.
+            assert graph.transfers
+            return graph
         if receipt.state in {"completed", "failed", "outcome_unknown"}:
             assert receipt.state == "completed", receipt.state
             return graph
@@ -285,23 +291,41 @@ import argparse
 from pathlib import Path
 import subprocess
 import sys
+import threading
 
 from notes import compose
 from multi_agent import wait
 from qitos.engine.work_runtime import DurableWorkRuntime, LocalWorkScheduler, WorkRuntimeError
 
 
-def run(root):
+def run(root, *, concurrent=False):
     root.mkdir(parents=True, exist_ok=False)
+
+    destination_done = threading.Event()
+    destination_errors = []
+
+    def destination(identity):
+        result = subprocess.run([
+            sys.executable, __file__, "--root", str(root), "--destination", identity,
+        ], capture_output=True, text=True, timeout=20)
+        if result.returncode:
+            raise RuntimeError(result.stderr)
 
     class Resolver:
         resolver_id = "notes.handoff.worker"
 
         def resolve(self, descriptor):
             def execute():
-                # Acknowledge transfer before the destination claims this same
-                # Session head. This receipt is not destination task completion.
-                return {"destination": descriptor.parent_session_id, "admitted": True}
+                # Runtime admission is already durable. This worker may restore
+                # and run the same Session before the source callback returns.
+                if concurrent:
+                    try:
+                        destination(descriptor.parent_session_id)
+                    except Exception as error:
+                        destination_errors.append(error)
+                    finally:
+                        destination_done.set()
+                return None
             return execute
 
     with compose(root, pause=True) as composition:
@@ -321,12 +345,12 @@ def run(root):
         else:
             raise AssertionError("Superseded source unexpectedly dispatched")
         identity = source.session_id.value
-    # Serialized handoff: source callbacks and resource cleanup finish first.
-    result = subprocess.run([
-        sys.executable, __file__, "--root", str(root), "--destination", identity,
-    ], capture_output=True, text=True, timeout=20)
-    if result.returncode:
-        raise RuntimeError(result.stderr)
+    if concurrent:
+        assert destination_done.wait(20), "destination deadline exceeded"
+        assert not destination_errors, destination_errors
+    else:
+        # The original serial path remains supported as an application choice.
+        destination(identity)
     print("handoff destination ran; owner changed; source fenced")
 
 
@@ -334,13 +358,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--destination")
+    parser.add_argument("--concurrent", action="store_true")
     args = parser.parse_args()
     if args.destination:
         with compose(args.root.resolve(), start=1, pause=True) as composition:
             result = composition.restore(args.destination).run()
             assert result.state.final_result == "Indexed 2 notes: Session, Artifact."
     else:
-        run(args.root.resolve())
+        run(args.root.resolve(), concurrent=args.concurrent)
 ```
 
 {/* tutorial-files:end */}

@@ -1,0 +1,24 @@
+........................................................................ [ 51%]
+............................F.......................................     [100%]
+=================================== FAILURES ===================================
+_____ TestCodingFunctionToolMigration.test_destructive_tools_need_approval _____
+
+self = <core.test_coding_function_tool_migration.TestCodingFunctionToolMigration object at 0x10aa0b9e0>
+
+    def test_destructive_tools_need_approval(self):
+        """Tools with side effects should have needs_approval=True."""
+        cts = CodingToolSet(workspace_root="/tmp", include_notebook=False, enable_lsp=False, enable_tasks=False, enable_web=False)
+        destructive_tools = ["shell", "file_write", "file_edit", "replace_lines", "create_file", "delete_file", "mkdir"]
+        for tool_name in destructive_tools:
+            attr = getattr(cts, tool_name, None)
+            if attr and hasattr(attr, 'meta'):
+>               assert attr.meta.needs_approval is True, f"{tool_name} should need approval"
+E               AssertionError: replace_lines should need approval
+E               assert False is True
+E                +  where False = ToolMeta(name='replace_lines', description=None, prompt='', timeout_s=None, max_retries=0, retry_policy=None, on_failu... rule_scope_builder=<function _default_rule_scope at 0x10a968cc0>, lifecycle=None, lifecycle_adapter=None, effect=None).needs_approval
+E                +    where ToolMeta(name='replace_lines', description=None, prompt='', timeout_s=None, max_retries=0, retry_policy=None, on_failu... rule_scope_builder=<function _default_rule_scope at 0x10a968cc0>, lifecycle=None, lifecycle_adapter=None, effect=None) = <qitos.core.tool.FunctionTool object at 0x10ae09d00>.meta
+
+tests/core/test_coding_function_tool_migration.py:25: AssertionError
+=========================== short test summary info ============================
+FAILED tests/core/test_coding_function_tool_migration.py::TestCodingFunctionToolMigration::test_destructive_tools_need_approval
+1 failed, 139 passed in 0.70s

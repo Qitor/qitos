@@ -1,0 +1,49 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______________ test_destination_restores_before_source_terminal _______________
+
+tmp_path = PosixPath('<pytest-temp>')
+
+    def test_destination_restores_before_source_terminal(tmp_path: Path):
+        context = multiprocessing.get_context("spawn")
+        restore_allowed, restored, run_allowed = (context.Event() for _ in range(3))
+        results = context.Queue()
+        db = str(tmp_path / "handoff.sqlite3")
+        store = SqliteCheckpointStore(db)
+        children = []
+    
+        class Resolver:
+            resolver_id = "tests.handoff.events"
+    
+            def resolve(self, descriptor):
+                def execute():
+                    worker = context.Process(target=_destination, args=(
+                        db, descriptor.parent_session_id, restore_allowed,
+                        restored, run_allowed, results,
+                    ))
+                    children.append(worker)
+                    worker.start()
+                    # The source terminal callback cannot happen before restore.
+                    assert restored.wait(10)
+                    return None
+                return execute
+    
+        scheduler = _ObservedScheduler(Resolver(), restore_allowed)
+        runtime = RuntimeComposition(checkpoint_store=store,
+                                     lifecycle_policy=PauseOnce(),
+                                     work_runtime=DurableWorkRuntime(scheduler))
+        source = Engine(ForkAgent(), runtime=runtime).session("handoff race")
+        source.run()
+        assert source.lifecycle.value == "paused"
+        try:
+            receipt = source.handoff("fork-agent", operation_id="handoff:race")
+            assert scheduler.callback_done.wait(15)
+>           assert not scheduler.callback_errors, scheduler.callback_errors
+E           AssertionError: [CheckpointConflictError('This run no longer owns the session head.')]
+E           assert not [CheckpointConflictError('This run no longer owns the session head.')]
+E            +  where [CheckpointConflictError('This run no longer owns the session head.')] = <test_v5_handoff_owner_race._ObservedScheduler object at 0x113a3aea0>.callback_errors
+
+tests/engine/test_v5_handoff_owner_race.py:91: AssertionError
+=========================== short test summary info ============================
+FAILED tests/engine/test_v5_handoff_owner_race.py::test_destination_restores_before_source_terminal
+1 failed in 1.06s

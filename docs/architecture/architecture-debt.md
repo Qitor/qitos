@@ -164,3 +164,16 @@ serializes transfer admission, source cleanup and destination execution. Concurr
 same-head dispatch requires separate runtime investigation; see
 [reproduction and scope](../internal/plans/docs_self_contained_learning.md).
 No runtime or ownership checks were weakened for the tutorial.
+
+Lane C follow-up: the fixed `4dfb570` baseline reproduced this conflict with
+SQLite and process Events. Admission now commits before scheduler invocation;
+source callbacks do not write the transferred head, and the destination records
+ownership/execution/terminal facts through the existing CAS. Both serial and
+concurrent installed examples are exercised. See the
+[Lane C evidence](../internal/plans/v5_r1_c_execution.md). This does not provide
+a distributed scheduler, automatic replay of unknown effects, or external exactly-once.
+
+The same lane's tests also exposed existing `CodingToolSet(auto_approve=True)`
+mutation of shared tool metadata. That broader permission-authority issue remains
+open; Lane C tests use executor-scoped approval instead and do not change the
+permission implementation.

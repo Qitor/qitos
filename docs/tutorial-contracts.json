@@ -246,6 +246,13 @@
           "handoff.py",
           "--root",
           "handoff-run"
+        ],
+        [
+          "python",
+          "handoff.py",
+          "--root",
+          "handoff-concurrent-run",
+          "--concurrent"
         ]
       ],
       "expected": [

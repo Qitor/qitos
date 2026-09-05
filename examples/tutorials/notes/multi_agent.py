@@ -30,6 +30,12 @@ def wait(session, operation):
     while time.monotonic() < deadline:
         graph = WorkGraph.from_canonical_dict(session.inspect().work_graph)
         receipt = next(item for item in graph.operation_receipts if item.operation_id == operation.operation_id)
+        if operation.operation == "handoff" and receipt.state in {
+            "transfer_admitted", "ownership_committed", "running", "completed",
+        }:
+            # A bounded admission wait, distinct from waiting for task completion.
+            assert graph.transfers
+            return graph
         if receipt.state in {"completed", "failed", "outcome_unknown"}:
             assert receipt.state == "completed", receipt.state
             return graph

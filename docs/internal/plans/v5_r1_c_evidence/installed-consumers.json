@@ -1,0 +1,32 @@
+[
+  {
+    "command": [
+      "handoff.py",
+      "--root",
+      "serial"
+    ],
+    "exit_code": 0,
+    "stdout": "handoff destination ran; owner changed; source fenced\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "handoff.py",
+      "--root",
+      "concurrent",
+      "--concurrent"
+    ],
+    "exit_code": 0,
+    "stdout": "handoff destination ran; owner changed; source fenced\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "public_consumer.py",
+      "public-api"
+    ],
+    "exit_code": 0,
+    "stdout": "installed public API: Read/Edit/Observation passed\n",
+    "stderr": ""
+  }
+]

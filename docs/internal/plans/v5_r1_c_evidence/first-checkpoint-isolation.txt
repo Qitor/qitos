@@ -1,0 +1,69 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ TestEngineCheckpointIntegration.test_engine_saves_checkpoints _________
+
+self = <test_checkpoint.TestEngineCheckpointIntegration object at 0x11813abd0>
+
+    def test_engine_saves_checkpoints(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mgr = CheckpointManager(tmpdir, interval=1)
+            agent = DemoAgent(answer="checkpointed")
+            engine = Engine(
+                agent=agent,
+                budget=RuntimeBudget(max_steps=5),
+                checkpoint_manager=mgr,
+            )
+>           result = engine.run("test task")
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_checkpoint.py:189: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+qitos/engine/engine.py:1530: in run
+    self._save_checkpoint_if_needed(step_id, state, task_text, task_obj)
+qitos/engine/engine.py:2070: in _save_checkpoint_if_needed
+    step_records=[asdict(r) for r in self.records],
+                  ^^^^^^^^^
+/opt/anaconda3/lib/python3.12/dataclasses.py:1329: in asdict
+    return _asdict_inner(obj, dict_factory)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/dataclasses.py:1339: in _asdict_inner
+    f.name: _asdict_inner(getattr(obj, f.name), dict)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/dataclasses.py:1373: in _asdict_inner
+    return type(obj)(_asdict_inner(v, dict_factory) for v in obj)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/dataclasses.py:1373: in <genexpr>
+    return type(obj)(_asdict_inner(v, dict_factory) for v in obj)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/dataclasses.py:1339: in _asdict_inner
+    f.name: _asdict_inner(getattr(obj, f.name), dict)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/dataclasses.py:1382: in _asdict_inner
+    return type(obj)((_asdict_inner(k, dict_factory),
+/opt/anaconda3/lib/python3.12/dataclasses.py:1383: in <genexpr>
+    _asdict_inner(v, dict_factory))
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/dataclasses.py:1382: in _asdict_inner
+    return type(obj)((_asdict_inner(k, dict_factory),
+qitos/core/observation.py:45: in __init__
+    self.update({
+qitos/core/observation.py:104: in update
+    prepared = {key: self._validate(key, value) for key, value in incoming.items()}
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+key = 'step'
+value = <generator object _asdict_inner.<locals>.<genexpr> at 0x119a4d120>
+
+    @staticmethod
+    def _validate(key: str, value: Any) -> Any:
+        if not isinstance(key, str):
+            raise TypeError("observation keys must be strings")
+        if key == "step" and (not isinstance(value, int) or isinstance(value, bool) or value < 0):
+>           raise ValueError("step must be a non-negative integer")
+E           ValueError: step must be a non-negative integer
+
+qitos/core/observation.py:112: ValueError
+=========================== short test summary info ============================
+FAILED tests/test_checkpoint.py::TestEngineCheckpointIntegration::test_engine_saves_checkpoints
+1 failed in 0.40s

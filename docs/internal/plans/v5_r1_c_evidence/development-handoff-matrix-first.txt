@@ -1,0 +1,75 @@
+....F                                                                    [100%]
+=================================== FAILURES ===================================
+_________ test_same_expected_head_has_one_winner_then_explicit_restore _________
+
+tmp_path = PosixPath('<pytest-temp>')
+
+    def test_same_expected_head_has_one_winner_then_explicit_restore(tmp_path):
+        from test_work_runtime import IndependentSchedulerFake
+    
+        db = str(tmp_path / "compete.sqlite3")
+        store = SqliteCheckpointStore(db)
+        runtime = RuntimeComposition(checkpoint_store=store, lifecycle_policy=PauseOnce(),
+                                     work_runtime=DurableWorkRuntime(IndependentSchedulerFake()))
+        source = Engine(ForkAgent(), runtime=runtime).session("compete")
+        source.run()
+        source.handoff("fork-agent")
+        context = multiprocessing.get_context("spawn")
+        barrier, results = context.Barrier(2), context.Queue()
+        workers = [context.Process(target=_competing_restore,
+                                   args=(db, source.session_id.value, barrier, results)) for _ in range(2)]
+        try:
+            for worker in workers:
+                worker.start()
+            outcomes = [results.get(timeout=15) for _ in workers]
+            assert sorted(item[0] for item in outcomes) == ["CheckpointConflictError", "owner"]
+            fresh = RuntimeComposition(checkpoint_store=store)
+            fresh.bind_engine_resources(Engine(ForkAgent(), runtime=fresh))
+>           restored = Engine.restore(source.session_id, runtime=fresh)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/engine/test_v5_handoff_owner_race.py:254: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+qitos/engine/engine.py:675: in restore
+    return restore_session(
+qitos/engine/session_runtime.py:2844: in restore_session
+    return Session._restore(engine_type, identity, runtime)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cls = <class 'qitos.engine.session_runtime.Session'>
+engine_type = <class 'qitos.engine.engine.Engine'>
+session_id = SessionIdentity(value='session_09f6e30b7d8341f79cad0b87bacec326')
+runtime = RuntimeComposition(checkpoint_store=<qitos.checkpoint.sqlite_store.SqliteCheckpointStore object at 0x1074a88f0>, resol..., tool_execution_policy=None, launch_metadata={}, context_model_runtime=None, work_runtime=None, event_sink_reports=[])
+
+    @classmethod
+    def _restore(
+        cls,
+        engine_type: type["Engine[Any, Any, Any]"],
+        session_id: SessionIdentity,
+        runtime: RuntimeComposition,
+    ) -> "Session":
+        store = runtime.ensure_checkpoint_store()
+        if runtime.durability_mode is not DurabilityMode.SYNC:
+            raise _session_error(
+                SessionErrorCode.UNSUPPORTED_CAPABILITY,
+                "Durable Session restoration requires synchronous atomic persistence.",
+                recoverable=True,
+                metadata={"capability": ATOMIC_SESSION_COMMIT},
+            )
+        head = store.get_session_head(session_id.value)
+        if head is None:
+            raise _session_error(
+                SessionErrorCode.SESSION_NOT_FOUND,
+                "Session head was not found.",
+                recoverable=True,
+            )
+        lifecycle = SessionLifecycle(head.lifecycle)
+        if not lifecycle_allows(lifecycle, SessionOperation.RESTORE):
+>           raise _invalid_operation(lifecycle, SessionOperation.RESTORE)
+E           qitos.core.session.SessionContractError: Session operation restore is invalid while restoring.
+
+qitos/engine/session_runtime.py:2259: SessionContractError
+=========================== short test summary info ============================
+FAILED tests/engine/test_v5_handoff_owner_race.py::test_same_expected_head_has_one_winner_then_explicit_restore
+1 failed, 4 passed in 2.91s

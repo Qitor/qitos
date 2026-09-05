@@ -1,0 +1,28 @@
+{
+  "source": "4dfb570fb7eef504c1e6d247c21a1984251b80e4",
+  "runtime_commits": [
+    "12001c9",
+    "40f1444",
+    "5d3cd79",
+    "d1a4e42"
+  ],
+  "baseline_log_note": "Only the pytest temporary directory was redacted in the committed baseline log.",
+  "raw_baseline_sha256": "a4003e40c50eddb7443ad6a883d13e5843a1e913c481e4a9a671300d6a9ec01e",
+  "wheel_sha256": "157b9425a4d25f3522dea60b1340f46c72ba15163b8fe6dc7e0c62ae1a306a71",
+  "python": "3.12.7",
+  "quality_baseline_count": 356,
+  "quality_allowance_delta": 0,
+  "matrix": {
+    "A": "destination restore before source callback; source wait, run fence, destination completion",
+    "B": "source SIGKILL before transfer commit: declared intent only, no transfer",
+    "C": "source SIGKILL after transfer commit and before dispatch; new destination process completes",
+    "D": "destination restore then source SIGKILL; destination completes independently",
+    "E": "duplicate success/error callbacks after destination completion leave head unchanged",
+    "F": "two processes read identical expected head at barrier: one CAS winner; later paused restore succeeds",
+    "G": "same operation payload reads existing completion; changed payload raises typed identity conflict"
+  },
+  "initial_wheel_sha256": "376453c437f2823c169587e4ef89d7a54116cfabf0f03b7e42678915b3991e2a",
+  "final_source_note": "d1a4e42 runtime plus synchronized tutorials and evidence; all required gates passed",
+  "full_pytest": "3461 passed, 51 skipped in 304.58s (0:05:04)",
+  "qualified": true
+}

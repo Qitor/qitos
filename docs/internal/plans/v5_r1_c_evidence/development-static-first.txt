@@ -1,0 +1,2 @@
+static quality ratchet failed: new findings (source debt; baseline additions require an exception):
+  qitos/core/observation.py:151:5: mypy:misc [contract] symbol=Observation.__ior__ Signatures of "__ior__" and "__or__" are incompatible

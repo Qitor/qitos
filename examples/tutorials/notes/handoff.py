@@ -3,23 +3,41 @@ import argparse
 from pathlib import Path
 import subprocess
 import sys
+import threading
 
 from notes import compose
 from multi_agent import wait
 from qitos.engine.work_runtime import DurableWorkRuntime, LocalWorkScheduler, WorkRuntimeError
 
 
-def run(root):
+def run(root, *, concurrent=False):
     root.mkdir(parents=True, exist_ok=False)
+
+    destination_done = threading.Event()
+    destination_errors = []
+
+    def destination(identity):
+        result = subprocess.run([
+            sys.executable, __file__, "--root", str(root), "--destination", identity,
+        ], capture_output=True, text=True, timeout=20)
+        if result.returncode:
+            raise RuntimeError(result.stderr)
 
     class Resolver:
         resolver_id = "notes.handoff.worker"
 
         def resolve(self, descriptor):
             def execute():
-                # Acknowledge transfer before the destination claims this same
-                # Session head. This receipt is not destination task completion.
-                return {"destination": descriptor.parent_session_id, "admitted": True}
+                # Runtime admission is already durable. This worker may restore
+                # and run the same Session before the source callback returns.
+                if concurrent:
+                    try:
+                        destination(descriptor.parent_session_id)
+                    except Exception as error:
+                        destination_errors.append(error)
+                    finally:
+                        destination_done.set()
+                return None
             return execute
 
     with compose(root, pause=True) as composition:
@@ -39,12 +57,12 @@ def run(root):
         else:
             raise AssertionError("Superseded source unexpectedly dispatched")
         identity = source.session_id.value
-    # Serialized handoff: source callbacks and resource cleanup finish first.
-    result = subprocess.run([
-        sys.executable, __file__, "--root", str(root), "--destination", identity,
-    ], capture_output=True, text=True, timeout=20)
-    if result.returncode:
-        raise RuntimeError(result.stderr)
+    if concurrent:
+        assert destination_done.wait(20), "destination deadline exceeded"
+        assert not destination_errors, destination_errors
+    else:
+        # The original serial path remains supported as an application choice.
+        destination(identity)
     print("handoff destination ran; owner changed; source fenced")
 
 
@@ -52,10 +70,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--destination")
+    parser.add_argument("--concurrent", action="store_true")
     args = parser.parse_args()
     if args.destination:
         with compose(args.root.resolve(), start=1, pause=True) as composition:
             result = composition.restore(args.destination).run()
             assert result.state.final_result == "Indexed 2 notes: Session, Artifact."
     else:
-        run(args.root.resolve())
+        run(args.root.resolve(), concurrent=args.concurrent)

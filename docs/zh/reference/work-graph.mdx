@@ -3,7 +3,7 @@ title: "多 Agent 工作"
 description: "QitOS public API: work-graph"
 ---
 
-delegate/spawn/fan_out 返回 operation receipt，join 引用 operation ID。WorkGraph 记录所有权与 attempt，本身不执行 worker。LocalWorkScheduler 通过应用提供的 callable 解析 descriptor。handoff 改变同一 work item 的 owner 并阻止旧 source；fork 独立分支。转交接收不等于目标完成；教程在目标 restore 前串行完成同 head 的源回调，避开已记录的 owner CAS 冲突。
+delegate/spawn/fan_out 返回 operation receipt，join 引用 operation ID。WorkGraph 记录所有权与 attempt，本身不执行 worker。LocalWorkScheduler 通过应用提供的 callable 解析 descriptor。handoff 改变同一 work item 的 owner 并阻止旧 source；fork 独立分支。转交接收不等于目标完成；教程同时验证串行与同一 Session 的并发 handoff。
 
 [完整可运行教程 / Complete tutorial](/zh/guides/multi-agent-patterns) · [API index](/zh/reference/api)
 

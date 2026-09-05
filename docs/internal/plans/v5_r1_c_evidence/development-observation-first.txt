@@ -1,0 +1,35 @@
+........................................................................ [ 15%]
+........................................................................ [ 30%]
+........................................................................ [ 45%]
+........................................................................ [ 60%]
+........................................................................ [ 75%]
+...........................................................F............ [ 90%]
+................................................                         [100%]
+=================================== FAILURES ===================================
+_________________ test_invalid_mutations_are_atomic[<lambda>1] _________________
+
+mutation = <function <lambda> at 0x112231bc0>
+
+    @pytest.mark.parametrize("mutation", [
+        lambda o: o.update(task="partial", step=2, step_id=3),
+        lambda o: o.update(task="partial", step=True, step_id=1),
+        lambda o: o.update(task="partial", state=[]),
+        lambda o: o.update(task=None),
+        lambda o: o.update(action_results={}),
+        lambda o: o.update(step=-1),
+        lambda o: o.pop("step"),
+        lambda o: o.pop("step_id"),
+        lambda o: o.clear(),
+        lambda o: o.__delitem__("metadata"),
+    ])
+    def test_invalid_mutations_are_atomic(mutation):
+        obs = Observation(step_id=1, task="original", metadata={"keep": [1]})
+        before = obs.to_dict()
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (<class 'TypeError'>, <class 'ValueError'>)
+
+tests/core/test_v5_observation_consistency.py:53: Failed
+=========================== short test summary info ============================
+FAILED tests/core/test_v5_observation_consistency.py::test_invalid_mutations_are_atomic[<lambda>1]
+1 failed, 479 passed in 3.94s

@@ -1,0 +1,47 @@
+[
+  {
+    "check": "quality",
+    "exit_code": 0,
+    "seconds": 67.46
+  },
+  {
+    "check": "flake8",
+    "exit_code": 0,
+    "seconds": 0.71
+  },
+  {
+    "check": "mypy",
+    "exit_code": 0,
+    "seconds": 15.95
+  },
+  {
+    "check": "boundaries",
+    "exit_code": 0,
+    "seconds": 2.04
+  },
+  {
+    "check": "twine",
+    "exit_code": 0,
+    "seconds": 0.35
+  },
+  {
+    "check": "docs",
+    "exit_code": 0,
+    "seconds": 0.06
+  },
+  {
+    "check": "api-sync",
+    "exit_code": 0,
+    "seconds": 1.83
+  },
+  {
+    "check": "tutorial-sync",
+    "exit_code": 0,
+    "seconds": 0.04
+  },
+  {
+    "check": "diff",
+    "exit_code": 0,
+    "seconds": 0.02
+  }
+]
