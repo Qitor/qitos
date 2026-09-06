@@ -139,3 +139,8 @@ precommit group passed, so this wider run supplied necessary combination evidenc
 Directed lint also found formatting in the three new regression files. Formatting
 is normalized with AST equality checked; their executable behavior is unchanged.
 A new full suite will qualify the final tutorial tree using the same runtime wheel.
+
+The first tutorial edit incorrectly passed budget to the convenience delegate/spawn
+methods, whose signatures do not accept it. The second full run exposed that TypeError;
+it is retained as failed evidence. The corrected tutorial uses the existing public
+submit_work operation payload for explicit child allocations. No new API is added.

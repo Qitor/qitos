@@ -62,9 +62,11 @@ def run(root):
         parent = composition.session("Index, then ask independent note workers")
         parent.run()
         assert parent.lifecycle.value == "paused"
-        delegated = parent.delegate("notes_agent", task="Describe the Session note", budget={"model_requests": 2})
+        delegated = parent.submit_work("delegate", {"agent": "notes_agent", "task": "Describe the Session note",
+                                                    "budget": {"model_requests": 2}})
         wait(parent, delegated)
-        spawned = parent.spawn("notes_agent", task="Describe the Artifact note", budget={"model_requests": 2})
+        spawned = parent.submit_work("spawn", {"agent": "notes_agent", "task": "Describe the Artifact note",
+                                               "budget": {"model_requests": 2}})
         wait(parent, spawned)
         batch = parent.fan_out([{"agent": "notes_agent", "task": "Review Session", "budget": {"model_requests": 2}},
                                 {"agent": "notes_agent", "task": "Review Artifact", "budget": {"model_requests": 2}}])
