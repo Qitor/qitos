@@ -1,0 +1,252 @@
+{
+  "status": "in_development",
+  "baseline": "f1545414913d2e0668d0eccdcd82fe91c3b28d01",
+  "units": [
+    {
+      "page": "tutorials/design-lab-react",
+      "source_dir": "examples/projects/react_research",
+      "example": "examples/projects/react_research/src/qitos_lab_react/agent.py",
+      "files": [
+        {
+          "source": "examples/projects/react_research/src/qitos_lab_react/__main__.py",
+          "target": "src/qitos_lab_react/__main__.py"
+        },
+        {
+          "source": "examples/projects/react_research/src/qitos_lab_react/tasks.json",
+          "target": "src/qitos_lab_react/tasks.json"
+        },
+        {
+          "source": "examples/projects/react_research/src/qitos_lab_react/evaluate.py",
+          "target": "src/qitos_lab_react/evaluate.py"
+        },
+        {
+          "source": "examples/projects/react_research/src/qitos_lab_react/agent.py",
+          "target": "src/qitos_lab_react/agent.py"
+        },
+        {
+          "source": "examples/projects/react_research/src/qitos_lab_react/__init__.py",
+          "target": "src/qitos_lab_react/__init__.py"
+        },
+        {
+          "source": "examples/projects/react_research/pyproject.toml",
+          "target": "pyproject.toml"
+        },
+        {
+          "source": "examples/projects/react_research/agent.yaml",
+          "target": "agent.yaml"
+        }
+      ],
+      "runtime": "live_opt_in",
+      "module": "qitos_lab_react"
+    },
+    {
+      "page": "tutorials/design-lab-planact",
+      "source_dir": "examples/projects/planact_research",
+      "example": "examples/projects/planact_research/src/qitos_lab_planact/agent.py",
+      "files": [
+        {
+          "source": "examples/projects/planact_research/src/qitos_lab_planact/__main__.py",
+          "target": "src/qitos_lab_planact/__main__.py"
+        },
+        {
+          "source": "examples/projects/planact_research/src/qitos_lab_planact/tasks.json",
+          "target": "src/qitos_lab_planact/tasks.json"
+        },
+        {
+          "source": "examples/projects/planact_research/src/qitos_lab_planact/evaluate.py",
+          "target": "src/qitos_lab_planact/evaluate.py"
+        },
+        {
+          "source": "examples/projects/planact_research/src/qitos_lab_planact/agent.py",
+          "target": "src/qitos_lab_planact/agent.py"
+        },
+        {
+          "source": "examples/projects/planact_research/src/qitos_lab_planact/__init__.py",
+          "target": "src/qitos_lab_planact/__init__.py"
+        },
+        {
+          "source": "examples/projects/planact_research/pyproject.toml",
+          "target": "pyproject.toml"
+        },
+        {
+          "source": "examples/projects/planact_research/agent.yaml",
+          "target": "agent.yaml"
+        },
+        {
+          "source": "examples/projects/planact_research/src/qitos_lab_planact/with_notebook.py",
+          "target": "src/qitos_lab_planact/with_notebook.py"
+        }
+      ],
+      "runtime": "live_opt_in",
+      "module": "qitos_lab_planact"
+    },
+    {
+      "page": "tutorials/design-lab-pi",
+      "source_dir": "examples/projects/pi_coding",
+      "example": "examples/projects/pi_coding/src/qitos_lab_pi/agent.py",
+      "files": [
+        {
+          "source": "examples/projects/pi_coding/src/qitos_lab_pi/__main__.py",
+          "target": "src/qitos_lab_pi/__main__.py"
+        },
+        {
+          "source": "examples/projects/pi_coding/src/qitos_lab_pi/tasks.json",
+          "target": "src/qitos_lab_pi/tasks.json"
+        },
+        {
+          "source": "examples/projects/pi_coding/src/qitos_lab_pi/evaluate.py",
+          "target": "src/qitos_lab_pi/evaluate.py"
+        },
+        {
+          "source": "examples/projects/pi_coding/src/qitos_lab_pi/agent.py",
+          "target": "src/qitos_lab_pi/agent.py"
+        },
+        {
+          "source": "examples/projects/pi_coding/src/qitos_lab_pi/extension.py",
+          "target": "src/qitos_lab_pi/extension.py"
+        },
+        {
+          "source": "examples/projects/pi_coding/src/qitos_lab_pi/__init__.py",
+          "target": "src/qitos_lab_pi/__init__.py"
+        },
+        {
+          "source": "examples/projects/pi_coding/pyproject.toml",
+          "target": "pyproject.toml"
+        },
+        {
+          "source": "examples/projects/pi_coding/agent.yaml",
+          "target": "agent.yaml"
+        }
+      ],
+      "runtime": "live_opt_in",
+      "module": "qitos_lab_pi"
+    },
+    {
+      "page": "tutorials/design-lab-claude",
+      "source_dir": "examples/projects/claude_coding",
+      "example": "examples/projects/claude_coding/src/qitos_lab_claude/agent.py",
+      "files": [
+        {
+          "source": "examples/projects/claude_coding/src/qitos_lab_claude/__main__.py",
+          "target": "src/qitos_lab_claude/__main__.py"
+        },
+        {
+          "source": "examples/projects/claude_coding/src/qitos_lab_claude/tasks.json",
+          "target": "src/qitos_lab_claude/tasks.json"
+        },
+        {
+          "source": "examples/projects/claude_coding/src/qitos_lab_claude/evaluate.py",
+          "target": "src/qitos_lab_claude/evaluate.py"
+        },
+        {
+          "source": "examples/projects/claude_coding/src/qitos_lab_claude/agent.py",
+          "target": "src/qitos_lab_claude/agent.py"
+        },
+        {
+          "source": "examples/projects/claude_coding/src/qitos_lab_claude/extension.py",
+          "target": "src/qitos_lab_claude/extension.py"
+        },
+        {
+          "source": "examples/projects/claude_coding/src/qitos_lab_claude/review.py",
+          "target": "src/qitos_lab_claude/review.py"
+        },
+        {
+          "source": "examples/projects/claude_coding/src/qitos_lab_claude/__init__.py",
+          "target": "src/qitos_lab_claude/__init__.py"
+        },
+        {
+          "source": "examples/projects/claude_coding/pyproject.toml",
+          "target": "pyproject.toml"
+        },
+        {
+          "source": "examples/projects/claude_coding/agent.yaml",
+          "target": "agent.yaml"
+        }
+      ],
+      "runtime": "live_opt_in",
+      "module": "qitos_lab_claude"
+    },
+    {
+      "page": "tutorials/design-lab-hermes",
+      "source_dir": "examples/projects/hermes_notebook",
+      "example": "examples/projects/hermes_notebook/src/qitos_lab_hermes/agent.py",
+      "files": [
+        {
+          "source": "examples/projects/hermes_notebook/agent.yaml",
+          "target": "agent.yaml"
+        },
+        {
+          "source": "examples/projects/hermes_notebook/pyproject.toml",
+          "target": "pyproject.toml"
+        },
+        {
+          "source": "examples/projects/hermes_notebook/src/qitos_lab_hermes/__init__.py",
+          "target": "src/qitos_lab_hermes/__init__.py"
+        },
+        {
+          "source": "examples/projects/hermes_notebook/src/qitos_lab_hermes/agent.py",
+          "target": "src/qitos_lab_hermes/agent.py"
+        },
+        {
+          "source": "examples/projects/hermes_notebook/src/qitos_lab_hermes/evaluate.py",
+          "target": "src/qitos_lab_hermes/evaluate.py"
+        },
+        {
+          "source": "examples/projects/hermes_notebook/src/qitos_lab_hermes/tasks.json",
+          "target": "src/qitos_lab_hermes/tasks.json"
+        },
+        {
+          "source": "examples/projects/hermes_notebook/src/qitos_lab_hermes/__main__.py",
+          "target": "src/qitos_lab_hermes/__main__.py"
+        }
+      ],
+      "runtime": "live_opt_in",
+      "module": "qitos_lab_hermes"
+    },
+    {
+      "page": "tutorials/design-lab-voyager",
+      "source_dir": "examples/projects/voyager_skills",
+      "example": "examples/projects/voyager_skills/src/qitos_lab_voyager/agent.py",
+      "files": [
+        {
+          "source": "examples/projects/voyager_skills/src/qitos_lab_voyager/__main__.py",
+          "target": "src/qitos_lab_voyager/__main__.py"
+        },
+        {
+          "source": "examples/projects/voyager_skills/src/qitos_lab_voyager/tasks.json",
+          "target": "src/qitos_lab_voyager/tasks.json"
+        },
+        {
+          "source": "examples/projects/voyager_skills/src/qitos_lab_voyager/evaluate.py",
+          "target": "src/qitos_lab_voyager/evaluate.py"
+        },
+        {
+          "source": "examples/projects/voyager_skills/src/qitos_lab_voyager/agent.py",
+          "target": "src/qitos_lab_voyager/agent.py"
+        },
+        {
+          "source": "examples/projects/voyager_skills/src/qitos_lab_voyager/extension.py",
+          "target": "src/qitos_lab_voyager/extension.py"
+        },
+        {
+          "source": "examples/projects/voyager_skills/src/qitos_lab_voyager/__init__.py",
+          "target": "src/qitos_lab_voyager/__init__.py"
+        },
+        {
+          "source": "examples/projects/voyager_skills/pyproject.toml",
+          "target": "pyproject.toml"
+        },
+        {
+          "source": "examples/projects/voyager_skills/agent.yaml",
+          "target": "agent.yaml"
+        },
+        {
+          "source": "examples/projects/voyager_skills/src/qitos_lab_voyager/curriculum.py",
+          "target": "src/qitos_lab_voyager/curriculum.py"
+        }
+      ],
+      "runtime": "live_opt_in",
+      "module": "qitos_lab_voyager"
+    }
+  ]
+}

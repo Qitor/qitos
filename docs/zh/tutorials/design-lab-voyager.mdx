@@ -1,0 +1,739 @@
+---
+title: "Voyager-inspired 可执行技能积累"
+description: "使用专业项目学习可替换的 Agent 设计；当前为开发中课程。"
+---
+
+状态：开发中，尚未完成课程资格验证。下列源码是工作实现，不是已通过 3×3 真实矩阵的发布承诺。基础机制与已发生的结果见[实施记录](/internal/plans/agent_design_lab_execution)。
+
+## 原始思想与改编边界
+
+从执行反馈学习并保留可复用程序。课程使用 Docker 数据程序而非 Minecraft，不宣称复现开放世界探索或向量检索。 [原始来源](https://voyager.minedojo.org/)。
+
+## 框架与用户的分工
+
+CurriculumState 记录掌握项和实际加载；publish_skill 执行控制端检查并绑定源码/产物摘要；load_skill 仅通过配置 Env 写入选定程序，不在宿主 exec。
+
+QitOS 已提供：模型事务与 usage、工具权限/校验、Env 执行、Session、ArtifactRef 和 Trajectory。用户编写：任务、策略、完成检查及记忆/技能选择。本轮补齐：自定义 agent_factory 接入、持久技能版本、完整正文加载、显式 Memdir 删除与产物引用的数据权限修正。
+
+核心增量位于完整源码中的 agent.py；CLI 负责显式配置与资源生命周期，evaluate.py 是控制端检查器。任务由项目自有合成材料组成，不是论文基准或真实客户数据。
+
+## 安装、配置与运行
+
+先按仓库构建说明安装本轮 QitOS wheel（当前 PyPI 版本不能替代未发布实现），再安装本课程。真实地址与凭据仅放在仓库外。模型配置采用完整 qitos.agent 文件，课程只读取其中 model；不是通过环境变量注入 key。
+
+先执行 --phase learn，再用新的 --root 执行 --phase recall；两次必须使用同一仓库外 --shared-root。不要复用上一轮 input 目录。
+
+默认输出上限 10,240，可通过私有模型配置提高；单任务步数、请求数和运行时间读取公开配置。validate 不调用模型，真实执行必须显式 --live。Docker 不可用时不能降级到宿主。模型失败、未完成任务和人工干预均保留，不能自动改为通过。
+
+## 验证、练习与组合
+
+独立检查器核验资料/数值或实际代码结果，不接受模型自报成功。计划修订、技能实际加载、子 Session 身份与失败也须单独验收。Session 恢复不是文件回滚；生成代码只在受限 Env 内执行。
+
+练习：替换课程排序，仍须通过验证才能标记掌握，并保留失败尝试。
+
+组合：在 summarize 目标中组合 normalize 与 weighted 技能；用隔离技能库运行 no-skills 对照。
+
+完整矩阵：三种任务各三轮。ReAct/PlanAct 使用同样任务；PlanAct 的 static、Hermes 的 no-memory、Voyager 的 no-skills 是明确对照，不以一次成功作性能结论。私有原始轨迹不能直接公开；仅在检查许可与脱敏后发布衍生摘要。
+
+```bash
+python -m pip install .
+python -m qitos_lab_voyager validate --config agent.yaml --root /tmp/lab-validation
+python -m qitos_lab_voyager run --config agent.yaml --model-config /private-config/model.yaml --credentials /private-config/credentials.yaml --root /private-runs/voyager-attempt --task 0 --live --phase learn --shared-root /private-runs/shared-notebook
+```
+
+完整实现路径: `examples/projects/voyager_skills/src/qitos_lab_voyager/agent.py`.
+
+## 从完整源码提取：设计增量
+
+下列片段由完整项目同步生成，不是另一份手工维护的实现。完整安装文件在后面。
+
+{/* tutorial-snippet:src/qitos_lab_voyager/agent.py:design */}
+```python
+    def prepare(self, state):
+        return json.dumps(
+            {
+                "objective": state.task,
+                "mastered": state.mastered,
+                "actually_loaded": state.reused,
+                "feedback": state.feedback[-3:],
+            }
+        )
+
+    def reduce(self, state, observation, decision):
+        for item in observation.action_results:
+            value = item.output
+            if isinstance(value, dict):
+                if value.get("published"):
+                    state.mastered = sorted(set(state.mastered + [value["published"]]))
+                if value.get("loaded"):
+                    state.reused.append(value["loaded"])
+            state.feedback.append(item.to_model_dict(max_chars=6000))
+        state.feedback = state.feedback[-6:]
+        return state
+```
+{/* tutorial-snippet:end */}
+
+{/* tutorial-files:start */}
+
+## 完整文件：复制到项目根目录
+
+```python title="src/qitos_lab_voyager/__main__.py"
+"""Explicit launch configuration; no credentials or model calls during validate."""
+
+import argparse
+from dataclasses import asdict, replace
+from contextlib import ExitStack
+from importlib.resources import files
+import json
+from pathlib import Path
+import sys
+
+from qitos.config import (
+    BudgetConfig,
+    LocalCredentialFileResolver,
+    SessionConfig,
+    TrajectoryConfig,
+    build_agent_composition,
+    load_agent_config,
+)
+
+from .agent import build_factory
+from .evaluate import evaluate
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("command", choices=["validate", "run", "resume", "inspect"])
+    parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument("--model-config", type=Path)
+    parser.add_argument("--credentials", type=Path)
+    parser.add_argument("--root", type=Path, required=True)
+    parser.add_argument("--task", type=int, choices=[0, 1, 2], default=0)
+    parser.add_argument("--session")
+    parser.add_argument("--shared-root", type=Path)
+    parser.add_argument("--phase", choices=["learn", "recall"], default="recall")
+    parser.add_argument("--live", action="store_true")
+    parser.add_argument(
+        "--variant",
+        choices=["default", "static", "no-memory", "no-skills"],
+        default="default",
+    )
+    args = parser.parse_args()
+    config = load_agent_config(args.config)
+    tasks = json.loads(files(__package__).joinpath("tasks.json").read_text())
+    task = tasks[args.task]
+    if args.phase == "learn":
+        task = dict(task, task=task.get("learning_task", task["task"]))
+    elif "recall_inputs" in task:
+        task = dict(task, inputs=task["recall_inputs"])
+    if args.command == "validate":
+        print(
+            json.dumps(
+                {"status": "configuration_valid", "tasks": len(tasks), "live": False}
+            )
+        )
+        return 0
+    root = args.root.resolve()
+    if any((parent / ".git").exists() for parent in (root, *root.parents)):
+        raise ValueError("run_root_must_be_outside_git")
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if args.shared_root is not None:
+        shared = args.shared_root.resolve()
+        if any((parent / ".git").exists() for parent in (shared, *shared.parents)):
+            raise ValueError("shared_root_must_be_outside_git")
+    if args.command == "inspect":
+        from qitos.qita.reader import candidate_file_reader
+
+        reader = candidate_file_reader(root / "trajectory.journal")
+        print(json.dumps({"runs": [asdict(run) for run in reader.discover_runs()]}))
+        return 0
+    if not args.live or args.credentials is None:
+        raise ValueError("explicit_live_and_credentials_required")
+    if args.model_config is not None:
+        private = args.model_config.resolve()
+        if any((parent / ".git").exists() for parent in private.parents):
+            raise ValueError("model_config_must_be_outside_git")
+        config = replace(config, model=load_agent_config(private).model)
+    output_limit = max(10240, config.model.request.max_tokens or 0)
+    request = replace(config.model.request, max_tokens=output_limit)
+    config = replace(
+        config, model=replace(config.model, request=request, max_tokens=output_limit)
+    )
+    workspace = root / "input"
+    if args.command == "run":
+        workspace.mkdir(exist_ok=False)
+        for name, content in task["inputs"].items():
+            target = workspace / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content)
+    config = replace(
+        config,
+        budgets=config.budgets
+        or BudgetConfig(max_steps=80, max_requests=80, max_runtime_seconds=3600),
+        runtime=replace(
+            config.runtime,
+            environment=replace(config.runtime.environment, workspace=str(workspace)),
+            session=SessionConfig(store="sqlite", path=str(root / "sessions.sqlite3")),
+            trajectory=TrajectoryConfig(output=str(root / "trajectory.journal")),
+        ),
+    )
+    resolver = LocalCredentialFileResolver(args.credentials, repository_root=Path.cwd())
+    with ExitStack() as stack:
+        factory = stack.enter_context(
+            build_factory(
+                task, root=root, shared_root=args.shared_root, variant=args.variant
+            )
+        )
+        composition = stack.enter_context(
+            build_agent_composition(
+                config, credential_resolver=resolver, agent_factory=factory
+            )
+        )
+        session = (
+            composition.restore(args.session)
+            if args.command == "resume"
+            else composition.session(task["task"])
+        )
+        (root / "session.json").write_text(
+            json.dumps({"session_id": session.session_id.value})
+        )
+        result = session.run()
+        verdict = evaluate(result, task)
+        checks = verdict["checks"]
+        if args.variant != "no-skills":
+            stored = factory.library.get(task["skill"])
+            checks["verified_skill_persisted"] = (
+                stored is not None and stored.metadata.get("verified") is True
+            )
+            if args.phase == "recall":
+                checks["actual_skill_reuse"] = task["skill"] in result.state.reused
+        verdict["passed"] = all(checks.values())
+        report = {
+            "session_id": session.session_id.value,
+            "run_id": result.run_id,
+            "stop_reason": str(result.state.stop_reason),
+            "evaluation": verdict,
+            "tool_calls": result.tool_calls_by_name,
+            "variant": args.variant,
+        }
+        (root / "report.json").write_text(
+            json.dumps(report, ensure_ascii=False, indent=2)
+        )
+        print(json.dumps(report, ensure_ascii=False))
+        return 0 if verdict["passed"] else 2
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except Exception as error:
+        # Raw transport/factory errors can contain private endpoint details.
+        print(
+            json.dumps({"status": "failed", "error_type": type(error).__name__}),
+            file=sys.stderr,
+        )
+        raise SystemExit(2) from None
+```
+
+```json title="src/qitos_lab_voyager/tasks.json"
+[
+  {
+    "id": "V31",
+    "task": "Learn a reusable normalize_rows(rows) function in skill.py: trim all string fields, parse value as float, count as nonnegative int, reject missing/invalid data. Verify and publish it as normalize. On reuse, load and execute the existing skill; do not regenerate it.",
+    "inputs": {
+      "requirements.md": "Use only stdlib. normalize_rows returns fresh dictionaries, preserves other fields and rejects negative count. Never mutate input.\n"
+    },
+    "outputs": [
+      "skill.py"
+    ],
+    "checks": "from skill import normalize_rows\nr=[{'name':' x ','value':'2.5','count':'3','tag':'keep'}]\no=normalize_rows(r)\nassert o==[{'name':'x','value':2.5,'count':3,'tag':'keep'}]\nassert r[0]['value']=='2.5'\ntry: normalize_rows([{'value':'x','count':'1'}])\nexcept ValueError: pass\nelse: raise AssertionError('invalid row accepted')\ntry: normalize_rows([{'value':'2','count':'-1'}])\nexcept ValueError: pass\nelse: raise AssertionError('negative count accepted')\n",
+    "skill": "normalize"
+  },
+  {
+    "id": "V32",
+    "task": "Learn a reusable weighted_mean(rows) function in skill.py for numeric value/count dicts: exact weighted result, empty or zero total rejects, negative weights reject. Verify/publish as weighted. On reuse, compose with previously learned normalize if available.",
+    "inputs": {
+      "requirements.md": "weighted_mean accepts numeric dictionaries. Use stdlib only; do not round intermediate values.\n"
+    },
+    "outputs": [
+      "skill.py"
+    ],
+    "checks": "from skill import weighted_mean\nassert weighted_mean([{'value':10,'count':8},{'value':30,'count':2}])==14\nfor rows in ([],[{'value':10,'count':0}],[{'value':2,'count':-1}]):\n    try: weighted_mean(rows)\n    except ValueError: pass\n    else: raise AssertionError('invalid weights accepted')\n",
+    "skill": "weighted"
+  },
+  {
+    "id": "V33",
+    "task": "Compose reusable summarize(rows) in skill.py. Use previously learned normalize and weighted skills if available. Return per-group weighted means, preserving group isolation. Verify/publish as summarize. On reuse, actually load and execute the published code.",
+    "inputs": {
+      "requirements.md": "summarize returns dict group -> weighted mean. Strip group whitespace, parse numeric strings, do not mutate input. Empty input returns {}. Use stdlib.\n"
+    },
+    "outputs": [
+      "skill.py"
+    ],
+    "checks": "from skill import summarize\nr=[{'group':' a ','value':'10','count':'8'},{'group':'a','value':'30','count':'2'},{'group':'b','value':'5','count':'1'}]\nassert summarize(r)=={'a':14,'b':5}\nassert r[0]['group']==' a '\nassert summarize([])=={}\n",
+    "skill": "summarize"
+  }
+]
+```
+
+```python title="src/qitos_lab_voyager/evaluate.py"
+"""Read successful controller-owned verification, not the model's final claim."""
+
+
+def evaluate(result, task, *, prior_records=()):
+    verified_step = -1
+    edited_step = -1
+    source_digests = {}
+    for record in [*prior_records, *result.records]:
+        for item in record.action_results:
+            if item.tool_name in {
+                "write_file",
+                "edit_file",
+                "run_command",
+                "load_skill",
+            }:
+                edited_step = record.step_id
+            if item.tool_name == "verify_project" and item.status == "success":
+                output = item.output
+                if isinstance(output, dict) and output.get("verified") is True:
+                    verified_step = record.step_id
+                    source_digests = output.get("source_digests", {})
+                else:
+                    verified_step = -1
+    checks = {
+        "independent_checks": verified_step >= 0,
+        "no_edits_after_verification": verified_step >= edited_step,
+        "all_outputs_captured": set(task["outputs"]) == set(source_digests),
+        "read_before_edit": result.tool_calls_by_name.get("read_file", 0) > 0,
+        "final": str(result.state.stop_reason) == "final",
+    }
+    return {
+        "passed": all(checks.values()),
+        "checks": checks,
+        "source_digests": source_digests,
+    }
+```
+
+```python title="src/qitos_lab_voyager/agent.py"
+"""Automatic curriculum state and verified executable skill accumulation."""
+
+from dataclasses import dataclass, field
+import hashlib
+from pathlib import Path
+import re
+from typing import Any, Dict, Optional
+import json
+
+from qitos.core.agent_module import AgentModule
+from qitos.core.function_tool_decorator import function_tool
+from qitos.core.state import StateSchema
+from qitos.core.tool_result import ToolResult
+from qitos.core.tool import ToolPermission
+from qitos.kit.tool.library.base import ToolArtifact
+from qitos.kit.tool.library.sqlite_store import SqliteToolLibrary
+from .extension import verification_tools
+
+
+@dataclass
+class CurriculumState(StateSchema):
+    mastered: list[str] = field(default_factory=list)
+    reused: list[str] = field(default_factory=list)
+    feedback: list[dict] = field(default_factory=list)
+
+
+class SkillAgent(AgentModule):
+    def init_state(self, task, **kwargs):
+        return CurriculumState(task=task, max_steps=self.config.get("max_steps", 80))
+
+    def base_persona_prompt(self, state):
+        return (
+            "Learn reusable Python skills through actual execution feedback. "
+            "This is a Docker data-programming adaptation of Voyager, not Minecraft. "
+            "Inspect requirements, search the skill catalog, load useful complete programs, "
+            "compose them when appropriate, test, and only publish verified programs."
+        )
+
+    def task_policy_prompt(self, state):
+        return (
+            "Write the current solution to skill.py. catalog_skills returns only descriptions; "
+            "load_skill retrieves one full version into the sandbox, using skill.py for the "
+            "current objective and name.py for dependencies. Use verify_project for feedback, "
+            "then publish_skill. Never claim a failed program has been mastered. "
+            "The current objective is the next curriculum item; previous skills persist "
+            "across processes but the environment is disposable."
+        )
+
+    # docs:start design
+    def prepare(self, state):
+        return json.dumps(
+            {
+                "objective": state.task,
+                "mastered": state.mastered,
+                "actually_loaded": state.reused,
+                "feedback": state.feedback[-3:],
+            }
+        )
+
+    def reduce(self, state, observation, decision):
+        for item in observation.action_results:
+            value = item.output
+            if isinstance(value, dict):
+                if value.get("published"):
+                    state.mastered = sorted(set(state.mastered + [value["published"]]))
+                if value.get("loaded"):
+                    state.reused.append(value["loaded"])
+            state.feedback.append(item.to_model_dict(max_chars=6000))
+        state.feedback = state.feedback[-6:]
+        return state
+
+    # docs:end design
+
+
+class SkillFactory:
+    def __init__(self, task, *, root, shared_root=None, variant="default", **kwargs):
+        self.task, self.variant = task, variant
+        location = Path(shared_root or root / "library")
+        location.mkdir(parents=True, exist_ok=True)
+        self.library = SqliteToolLibrary(
+            location / "skills.sqlite3", namespace="data-programming"
+        )
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.library.close()
+
+    def __call__(self, *, config, model, tool_registry, protocol, parser):
+        verify = verification_tools(self.task)[0]
+
+        @function_tool(read_only=True)
+        def catalog_skills(query: str):
+            """Search descriptions without loading executable bodies."""
+            return (
+                []
+                if self.variant == "no-skills"
+                else self.library.catalog(query, limit=8)
+            )
+
+        @function_tool(
+            required_ops=["file"],
+            permissions=ToolPermission(filesystem_write=True),
+            concurrency_safe=False,
+        )
+        def load_skill(name: str, runtime_context: Optional[Dict[str, Any]] = None):
+            """Load an exact verified skill version into the configured sandbox."""
+            if not re.fullmatch(r"[a-z][a-z0-9_]{0,48}", name):
+                raise ValueError("invalid_skill_name")
+            item = None if self.variant == "no-skills" else self.library.get(name)
+            if (
+                item is None
+                or not item.active
+                or item.metadata.get("verified") is not True
+            ):
+                raise ValueError("verified_skill_unavailable")
+            target = "skill.py" if name == self.task["skill"] else name + ".py"
+            (runtime_context or {})["ops"]["file"].atomic_write_text(
+                target, item.source
+            )
+            return {
+                "loaded": name,
+                "version": item.version,
+                "path": target,
+                "source": item.source,
+                "sha256": hashlib.sha256(item.source.encode()).hexdigest(),
+                "provenance": item.metadata,
+            }
+
+        @function_tool(
+            required_ops=["file", "process"],
+            permissions=ToolPermission(filesystem_read=True, command=True),
+            concurrency_safe=False,
+        )
+        def publish_skill(
+            description: str, runtime_context: Optional[Dict[str, Any]] = None
+        ):
+            """Re-test exact source; publish only on a controller-owned passing receipt."""
+            context = runtime_context or {}
+            tested = verify.execute({}, context)
+            if not tested.output.get("verified"):
+                return tested
+            source = context["ops"]["file"].read_text("skill.py")
+            if (
+                hashlib.sha256(source.encode()).hexdigest()
+                != tested.output["source_digests"]["skill.py"]
+            ):
+                raise ValueError("skill_changed_after_validation")
+            name = self.task["skill"]
+            if self.variant == "no-skills":
+                return ToolResult(
+                    output={
+                        "verified": True,
+                        "published": None,
+                        "persistence": "disabled",
+                    },
+                    tool_name="publish_skill",
+                )
+            item = self.library.add_or_update(
+                ToolArtifact(
+                    name,
+                    description,
+                    source,
+                    metadata={
+                        "verified": True,
+                        "objective": self.task["id"],
+                        "checks_digest": tested.output["checks_digest"],
+                        "artifacts": [ref.to_dict() for ref in tested.artifact_refs],
+                    },
+                )
+            )
+            return ToolResult(
+                output={"published": name, "version": item.version, "verified": True},
+                tool_name="publish_skill",
+                artifact_refs=tested.artifact_refs,
+            )
+
+        for tool in (verify, catalog_skills, load_skill, publish_skill):
+            tool_registry.register(tool)
+        return SkillAgent(
+            llm=model,
+            tool_registry=tool_registry,
+            model_protocol=protocol.id,
+            max_steps=config.max_steps,
+            model_parser=parser,
+        )
+
+
+def build_factory(task, **resources):
+    return SkillFactory(task, **resources)
+```
+
+```python title="src/qitos_lab_voyager/extension.py"
+"""Installable project extension. All generated-code execution stays in Env."""
+
+import hashlib
+import shlex
+from typing import Optional, Dict, Any
+
+from qitos.core.artifact import ArtifactRef
+from qitos.core.function_tool_decorator import function_tool
+from qitos.core.tool import ToolPermission
+from qitos.core.tool_result import ToolResult
+
+
+def verification_tools(task):
+    @function_tool(
+        required_ops=["file", "process"],
+        permissions=ToolPermission(filesystem_read=True, command=True),
+        concurrency_safe=False,
+    )
+    def verify_project(runtime_context: Optional[Dict[str, Any]] = None):
+        """Run controller-owned checks, capture exact tested source artifacts."""
+        context = runtime_context or {}
+        fs, process = context["ops"]["file"], context["ops"]["process"]
+        bodies = {path: fs.read_text(path).encode() for path in task["outputs"]}
+        outcome = dict(
+            process.run("python -c " + shlex.quote(task["checks"]), timeout=30)
+        )
+        unchanged = all(
+            fs.read_text(path).encode() == body for path, body in bodies.items()
+        )
+        passed = (
+            outcome.get("returncode") == 0
+            and not outcome.get("outcome_unknown")
+            and unchanged
+        )
+        refs = []
+        for path, body in bodies.items():
+            digest = hashlib.sha256(body).hexdigest()
+            ref = ArtifactRef(
+                artifact_id="sha256:" + digest,
+                resolver_key="tool-result-output",
+                sha256=digest,
+                byte_length=len(body),
+                media_type="text/x-python",
+            )
+            context["artifact_resolver"].put(ref, body)
+            refs.append(ref)
+        report = {
+            "verified": passed,
+            "source_digests": {
+                path: hashlib.sha256(body).hexdigest() for path, body in bodies.items()
+            },
+            "checks_digest": hashlib.sha256(task["checks"].encode()).hexdigest(),
+            "returncode": outcome.get("returncode"),
+            "source_unchanged": unchanged,
+            "feedback": str(outcome.get("stderr", ""))[-3000:],
+        }
+        return ToolResult(
+            output=report,
+            model_output=report,
+            artifact_refs=tuple(refs),
+            tool_name="verify_project",
+        )
+
+    return (verify_project,)
+```
+
+```python title="src/qitos_lab_voyager/__init__.py"
+"""Persistent learning application over QitOS."""
+```
+
+```toml title="pyproject.toml"
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qitos-lab-voyager"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = ["qitos[openai]"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+qitos_lab_voyager = ["tasks.json"]
+```
+
+```yaml title="agent.yaml"
+schema: qitos.agent
+agent:
+  name: design-lab-voyager-research
+  protocol: json_decision_multi_v1
+model:
+  provider: openai_compatible
+  model: example-model
+  base_url: https://provider.example/v1
+  credential:
+    ref: research-model
+  request:
+    max_tokens: 10240
+    timeout_seconds: 180
+    retries: 0
+tools:
+  preset: env_coding
+runtime:
+  environment:
+    type: docker
+    workspace: .
+    image: python:3.12-slim
+  session:
+    mode: durable
+    store: sqlite
+    path: ./sessions.sqlite3
+  trajectory:
+    enabled: true
+    output: ./trajectory.journal
+budgets:
+  max_steps: 80
+  max_requests: 80
+  max_runtime_seconds: 3600
+failure_policy:
+  tool: continue
+```
+
+```python title="src/qitos_lab_voyager/curriculum.py"
+"""A bounded mastery-driven curriculum; ordering is replaceable application policy."""
+
+import argparse
+from importlib.resources import files
+import json
+from pathlib import Path
+import subprocess
+import sys
+
+from qitos.kit.tool.library.sqlite_store import SqliteToolLibrary
+
+
+def next_objective(tasks, library):
+    """Advance only past controller-verified persisted skills, not model claims."""
+    for index, task in enumerate(tasks):
+        skill = library.get(task["skill"])
+        if (
+            skill is None
+            or not skill.active
+            or skill.metadata.get("verified") is not True
+        ):
+            return index
+    return None
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, required=True)
+    parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument("--model-config", type=Path, required=True)
+    parser.add_argument("--credentials", type=Path, required=True)
+    parser.add_argument("--live", action="store_true")
+    args = parser.parse_args()
+    if not args.live:
+        raise ValueError("explicit_live_required")
+    root = args.root.resolve()
+    if any((parent / ".git").exists() for parent in (root, *root.parents)):
+        raise ValueError("curriculum_root_must_be_outside_git")
+    root.mkdir(parents=True, exist_ok=False, mode=0o700)
+    shared = root / "skills"
+    shared.mkdir()
+    tasks = json.loads(files(__package__).joinpath("tasks.json").read_text())
+    with SqliteToolLibrary(
+        shared / "skills.sqlite3", namespace="data-programming"
+    ) as library:
+        for attempt in range(len(tasks)):
+            index = next_objective(tasks, library)
+            if index is None:
+                break
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "qitos_lab_voyager",
+                    "run",
+                    "--config",
+                    str(args.config.resolve()),
+                    "--model-config",
+                    str(args.model_config.resolve()),
+                    "--credentials",
+                    str(args.credentials.resolve()),
+                    "--root",
+                    str(root / f"objective-{attempt}"),
+                    "--shared-root",
+                    str(shared),
+                    "--task",
+                    str(index),
+                    "--phase",
+                    "learn",
+                    "--live",
+                ],
+                timeout=3900,
+            )
+            if result.returncode:
+                print(
+                    json.dumps(
+                        {
+                            "status": "objective_unmastered",
+                            "objective": tasks[index]["id"],
+                        }
+                    )
+                )
+                return 2
+        complete = next_objective(tasks, library) is None
+        print(
+            json.dumps(
+                {
+                    "status": (
+                        "curriculum_complete" if complete else "curriculum_incomplete"
+                    ),
+                    "skills": library.catalog(),
+                }
+            )
+        )
+        return 0 if complete else 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+```
+
+{/* tutorial-files:end */}

@@ -7,7 +7,7 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 START = "{/* tutorial-files:start */}"
 END = "{/* tutorial-files:end */}"
-FILE_BLOCK = re.compile(r'```(?:python|yaml|json) title="([^"]+)"\n(.*?)\n```', re.S)
+FILE_BLOCK = re.compile(r'```(?:python|yaml|json|toml) title="([^"]+)"\n(.*?)\n```', re.S)
 
 
 def contracts():
@@ -34,7 +34,7 @@ def render_files(unit, chinese):
     blocks = [START, "", f"## {heading}", ""]
     for item in unit["files"]:
         source = ROOT / item["source"]
-        language = {".py": "python", ".yaml": "yaml", ".json": "json"}[source.suffix]
+        language = {".py": "python", ".yaml": "yaml", ".json": "json", ".toml": "toml"}[source.suffix]
         blocks.extend([f'```{language} title="{item["target"]}"', source.read_text().rstrip(), "```", ""])
     blocks.append(END)
     return "\n".join(blocks)
@@ -42,7 +42,11 @@ def render_files(unit, chinese):
 
 def synchronize(check=False):
     errors = []
-    for unit in contracts()["units"]:
+    units = contracts()["units"]
+    lab = ROOT / "docs/agent-design-lab-contracts.json"
+    if lab.exists():
+        units += json.loads(lab.read_text())["units"]
+    for unit in units:
         for prefix in ("", "zh/"):
             page = ROOT / "docs" / f"{prefix}{unit['page']}.mdx"
             text = page.read_text()

@@ -49,6 +49,18 @@
                   "guides/observability",
                   "guides/third-party-extensions"
                 ]
+              },
+              {
+                "group": "Agent Design Lab",
+                "pages": [
+                  "tutorials/agent-design-lab",
+                  "tutorials/design-lab-react",
+                  "tutorials/design-lab-planact",
+                  "tutorials/design-lab-pi",
+                  "tutorials/design-lab-claude",
+                  "tutorials/design-lab-hermes",
+                  "tutorials/design-lab-voyager"
+                ]
               }
             ]
           },
@@ -160,7 +172,8 @@
                   "reference/model-family-matrix",
                   "reference/g5-migration",
                   "reference/kit",
-                  "reference/legacy-api"
+                  "reference/legacy-api",
+                  "reference/skill-library"
                 ]
               }
             ]
@@ -199,6 +212,18 @@
                   "zh/guides/multi-agent-patterns",
                   "zh/guides/observability",
                   "zh/guides/third-party-extensions"
+                ]
+              },
+              {
+                "group": "Agent 设计实验室",
+                "pages": [
+                  "zh/tutorials/agent-design-lab",
+                  "zh/tutorials/design-lab-react",
+                  "zh/tutorials/design-lab-planact",
+                  "zh/tutorials/design-lab-pi",
+                  "zh/tutorials/design-lab-claude",
+                  "zh/tutorials/design-lab-hermes",
+                  "zh/tutorials/design-lab-voyager"
                 ]
               }
             ]
@@ -311,7 +336,8 @@
                   "zh/reference/model-family-matrix",
                   "zh/reference/g5-migration",
                   "zh/reference/kit",
-                  "zh/reference/legacy-api"
+                  "zh/reference/legacy-api",
+                  "zh/reference/skill-library"
                 ]
               }
             ]

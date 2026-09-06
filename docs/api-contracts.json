@@ -1,5 +1,5 @@
 {
-  "baseline": "f7d4b2d666a156d361da496a41868278f84ffabf",
+  "baseline": "114f2420f72bf08512a291bb022a818f24e2df8a",
   "groups": [
     {
       "slug": "composition",
@@ -87,7 +87,8 @@
           "methods": [],
           "example": "trajectory = TrajectoryConfig(output=\"./notes-run/trajectory.journal\")"
         }
-      ]
+      ],
+      "baseline": "d000a42aff30b87c812850ac1019ca197f420c09"
     },
     {
       "slug": "agent-runtime",
@@ -260,7 +261,7 @@
     },
     {
       "slug": "context",
-      "baseline": "f7d4b2d666a156d361da496a41868278f84ffabf",
+      "baseline": "d000a42aff30b87c812850ac1019ca197f420c09",
       "tutorial": "guides/memory-and-history",
       "symbols": [
         {
@@ -309,7 +310,8 @@
             "retrieve",
             "summarize",
             "reset",
-            "evict"
+            "evict",
+            "delete"
           ],
           "example": "memory = MemdirMemory(\"./project-memory\", create=True)\nmemory.append(MemoryRecord(\"user\", \"remembered-value=17\", 0))\n# Later process: MemdirMemory(\"./project-memory\")"
         },
@@ -526,6 +528,58 @@
         }
       ],
       "baseline": "f7d4b2d666a156d361da496a41868278f84ffabf"
+    },
+    {
+      "slug": "skill-library",
+      "tutorial": "tutorials/design-lab-hermes",
+      "symbols": [
+        {
+          "module": "qitos.kit.tool.library.base",
+          "name": "ToolArtifact",
+          "methods": [],
+          "example": "artifact = ToolArtifact(name=\"audit\", description=\"Check evidence\", source=\"Read, calculate, verify.\")"
+        },
+        {
+          "module": "qitos.kit.tool.library.base",
+          "name": "BaseToolLibrary",
+          "methods": [
+            "get",
+            "search",
+            "add_or_update"
+          ],
+          "example": "# Implement this existing contract to replace the local SQLite mechanism."
+        },
+        {
+          "module": "qitos.kit.tool.library.sqlite_store",
+          "name": "SqliteToolLibrary",
+          "methods": [
+            "add_or_update",
+            "get",
+            "get_version",
+            "catalog",
+            "search",
+            "deprecate",
+            "close"
+          ],
+          "example": "with SqliteToolLibrary(private_path, namespace=\"research\") as library:\n    stored = library.add_or_update(artifact)\n    print(library.catalog(\"audit\"))\n    assert library.get_version(stored.name, stored.version).source == artifact.source"
+        },
+        {
+          "module": "qitos.kit.tool.library.sqlite_store",
+          "name": "ToolLibraryError",
+          "methods": [],
+          "example": "# Catch ToolLibraryError and inspect error.code; do not infer success from absence of output."
+        },
+        {
+          "module": "qitos.kit.memory.memdir_memory",
+          "name": "MemdirMemory",
+          "methods": [
+            "append",
+            "retrieve",
+            "delete"
+          ],
+          "example": "memory = MemdirMemory(private_memory_path, create=True)\n# Subsequent processes reopen with create=False (the default).\nremoved = memory.delete(record_id)"
+        }
+      ]
     }
   ]
 }

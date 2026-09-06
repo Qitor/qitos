@@ -39,10 +39,6 @@ the gate; the named semantic lane owns the reproducer and fix.
 - `qitos/kit/env/web/providers.py:181:22` — `mypy:attr-defined` / `unbound-resource`: "None" has no attribute "new_page"
 - `qitos/kit/env/web/providers.py:184:9` — `mypy:attr-defined` / `unbound-resource`: "None" has no attribute "goto"
 - `qitos/kit/patterns/debate.py:45:16` — `mypy:name-defined` / `undefined-name`: Name "Annotated" is not defined
-- `qitos/kit/skill/injector.py:138:34` — `flake8:F821` / `undefined-name`: undefined name 'SkillRegistry'
-- `qitos/kit/skill/injector.py:138:34` — `mypy:name-defined` / `undefined-name`: Name "SkillRegistry" is not defined
-- `qitos/kit/skill/injector.py:164:34` — `flake8:F821` / `undefined-name`: undefined name 'SkillRegistry'
-- `qitos/kit/skill/injector.py:164:34` — `mypy:name-defined` / `undefined-name`: Name "SkillRegistry" is not defined
 - `qitos/kit/tool/cron/scheduler.py:156:17` — `mypy:attr-defined` / `unbound-resource`: "None" has no attribute "start"
 - `qitos/kit/tool/cron/scheduler.py:172:13` — `mypy:attr-defined` / `unbound-resource`: "None" has no attribute "add_job"
 

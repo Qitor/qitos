@@ -1,0 +1,90 @@
+[
+  {
+    "task": "Recall the previously learned protocol and procedure from the durable notebook, then Audit whether candidate B reduces latency without reducing reliability. Reconcile the preliminary memo with raw data and the registered weighting rule. Compute weighted_latency_a, weighted_latency_b, latency_reduction_percent and failure_rate_b_percent. Produce a qualified recommendation, not a blanket claim.",
+    "inputs": {
+      "protocol.md": "Protocol R17. Compare weighted latency using production mix 80% small, 20% large. Report failure rate over all attempted requests; do not remove failures. Latency measurements are milliseconds for successful requests. This is a synthetic teaching dataset, not a real deployment benchmark.\n",
+      "results.csv": "group,latency_a,latency_b,attempts_b,failures_b\nsmall,100,80,800,8\nlarge,500,450,200,12\n",
+      "preliminary.md": "PRELIMINARY, not validated: candidate B halves latency and has no errors. Based only on a smoke test. Superseded by results.csv.\n",
+      "operations.md": "Reliability policy: failure rate must be <=1%. A performance improvement alone is insufficient for adoption. Error recovery must be investigated separately.\n",
+      "limitations.md": "Two workload groups, one run. No confidence interval or long-duration measurement is available.\n"
+    },
+    "required_sources": [
+      "protocol.md",
+      "results.csv",
+      "operations.md"
+    ],
+    "expected_metrics": {
+      "weighted_latency_a": 180,
+      "weighted_latency_b": 154,
+      "latency_reduction_percent": 14.444444,
+      "failure_rate_b_percent": 2
+    },
+    "learning_task": "Read all inputs. Remember this project's protocol with explicit source: The registered mixture for R17 is 80% small and 20% large; reliability threshold is at most 1%. Preserve that protocol when evaluating a later run. Save a reusable checking procedure under r17-audit. Submit a concise structured report of what was learned. A later independent Session will receive fresh data without the original protocol file.",
+    "recall_inputs": {
+      "results.csv": "group,latency_a,latency_b,attempts_b,failures_b\nsmall,100,80,800,8\nlarge,500,450,200,12\n",
+      "preliminary.md": "PRELIMINARY, not validated: candidate B halves latency and has no errors. Based only on a smoke test. Superseded by results.csv.\n",
+      "operations.md": "Reliability policy: failure rate must be <=1%. A performance improvement alone is insufficient for adoption. Error recovery must be investigated separately.\n",
+      "limitations.md": "Two workload groups, one run. No confidence interval or long-duration measurement is available.\n",
+      "continuation.md": "This is a new Session. The original protocol remains authoritative and is in the previously approved notebook. Do not invent a missing protocol."
+    }
+  },
+  {
+    "task": "Recall the previously learned protocol and procedure from the durable notebook, then Audit experiment R18 for sample leakage and subgroup regressions. Compute valid_samples, excluded_samples, baseline_accuracy_percent, candidate_accuracy_percent, minority_change_points using only valid rows. Explain why aggregate results are insufficient for adoption.",
+    "inputs": {
+      "protocol.md": "R18: exclude rows with split=leaked. Accuracy = total correct / total count. Report minority change as candidate accuracy minus baseline accuracy, in percentage points. Real deployment qualification is out of scope.\n",
+      "results.csv": "group,split,count,correct_a,correct_b\nmajority,valid,80,64,72\nminority,valid,20,16,12\nmajority,leaked,10,10,10\n",
+      "preliminary.md": "An early memo claims all subgroups improved. It included leaked samples and did not break down minority outcomes.\n",
+      "operations.md": "Adoption requires no subgroup regression. Minority group is small; collect more evidence before a final deployment decision.\n",
+      "limitations.md": "Synthetic teaching experiment, no repeat runs or variance estimates.\n"
+    },
+    "required_sources": [
+      "protocol.md",
+      "results.csv",
+      "operations.md"
+    ],
+    "expected_metrics": {
+      "valid_samples": 100,
+      "excluded_samples": 10,
+      "baseline_accuracy_percent": 80,
+      "candidate_accuracy_percent": 84,
+      "minority_change_points": -20
+    },
+    "learning_task": "Read all inputs. Remember this project's protocol with explicit source: R18 excludes the leaked split. Report minority accuracy separately; never let majority weighting hide subgroup harm. Save a reusable checking procedure under r18-audit. Submit a concise structured report of what was learned. A later independent Session will receive fresh data without the original protocol file.",
+    "recall_inputs": {
+      "results.csv": "group,split,count,correct_a,correct_b\nmajority,valid,80,64,72\nminority,valid,20,16,12\nmajority,leaked,10,10,10\n",
+      "preliminary.md": "An early memo claims all subgroups improved. It included leaked samples and did not break down minority outcomes.\n",
+      "operations.md": "Adoption requires no subgroup regression. Minority group is small; collect more evidence before a final deployment decision.\n",
+      "limitations.md": "Synthetic teaching experiment, no repeat runs or variance estimates.\n",
+      "continuation.md": "This is a new Session. The original protocol remains authoritative and is in the previously approved notebook. Do not invent a missing protocol."
+    }
+  },
+  {
+    "task": "Recall the previously learned protocol and procedure from the durable notebook, then Reconcile R19 throughput and recovery claims. Compute steady_throughput, recovery_seconds, availability_percent from the authoritative log under the registered formula. Explain the contradiction with the sales memo and distinguish process recovery from external exactly-once effects.",
+    "inputs": {
+      "protocol.md": "R19 window is 100 seconds. Availability excludes seconds explicitly marked unavailable. Steady throughput excludes recovery and equals steady completed tasks / steady seconds. Recovery duration is restored_at minus failure_at.\n",
+      "results.csv": "steady_tasks,steady_seconds,failure_at,restored_at,unavailable_seconds\n720,90,30,40,10\n",
+      "preliminary.md": "Sales draft: zero downtime, throughput 10/s, exactly-once external effects. These statements were never independently tested.\n",
+      "operations.md": "Logs prove process restoration only. External write acknowledgement was lost; effect reconciliation remains unresolved. Do not equate retry success with exactly-once delivery.\n",
+      "limitations.md": "One induced failure; no cross-host replication or high-availability evidence.\n"
+    },
+    "required_sources": [
+      "protocol.md",
+      "results.csv",
+      "operations.md"
+    ],
+    "expected_metrics": {
+      "steady_throughput": 8,
+      "recovery_seconds": 10,
+      "availability_percent": 90
+    },
+    "learning_task": "Read all inputs. Remember this project's protocol with explicit source: R19 recovery time is the unavailable interval, not whole observation duration. Throughput uses only steady-state seconds. Do not claim external exactly-once from local receipts. Save a reusable checking procedure under r19-audit. Submit a concise structured report of what was learned. A later independent Session will receive fresh data without the original protocol file.",
+    "recall_inputs": {
+      "results.csv": "steady_tasks,steady_seconds,failure_at,restored_at,unavailable_seconds\n720,90,30,40,10\n",
+      "preliminary.md": "Sales draft: zero downtime, throughput 10/s, exactly-once external effects. These statements were never independently tested.\n",
+      "operations.md": "Logs prove process restoration only. External write acknowledgement was lost; effect reconciliation remains unresolved. Do not equate retry success with exactly-once delivery.\n",
+      "limitations.md": "One induced failure; no cross-host replication or high-availability evidence.\n",
+      "continuation.md": "This is a new Session. The original protocol remains authoritative and is in the previously approved notebook. Do not invent a missing protocol."
+    }
+  }
+]
+

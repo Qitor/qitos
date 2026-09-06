@@ -1,0 +1,47 @@
+[
+  {
+    "id": "C21",
+    "task": "Repair a small CSV analysis package. Normalize whitespace, reject malformed rows with a useful error, compute weighted means without rounding early, and keep the CLI JSON contract. Read AGENTS.md, modify multiple modules, run verify_project, and finish only after verification passes.",
+    "inputs": {
+      "AGENTS.md": "Use stdlib only. Keep existing public names. Handle empty and invalid data explicitly. Do not change the data files to make checks pass.\n",
+      "parser.py": "import csv\n\ndef parse(text):\n    return [(r['group'], float(r['value']), int(r['count'])) for r in csv.DictReader(text.splitlines())]\n",
+      "analysis.py": "def weighted_mean(rows):\n    return sum(value for _, value, count in rows) / len(rows)\n",
+      "cli.py": "import json, sys\nfrom parser import parse\nfrom analysis import weighted_mean\nif __name__ == '__main__':\n    print(json.dumps({'mean': weighted_mean(parse(sys.stdin.read()))}))\n",
+      "sample.csv": "group,value,count\n small ,10,8\nlarge,30,2\n"
+    },
+    "outputs": [
+      "parser.py",
+      "analysis.py"
+    ],
+    "checks": "from parser import parse\nfrom analysis import weighted_mean\nrows=parse('group,value,count\\n a ,10,8\\nb,30,2\\n')\nassert rows[0][0]=='a'\nassert weighted_mean(rows)==14\ntry: weighted_mean([])\nexcept ValueError: pass\nelse: raise AssertionError('empty weights must be rejected')\ntry: parse('group,value,count\\nx,abc,2\\n')\nexcept ValueError: pass\nelse: raise AssertionError('invalid numeric data must be rejected')\n"
+  },
+  {
+    "id": "C22",
+    "task": "Repair a versioned event migration library. Preserve unknown payload fields, reject unknown schema versions, never mutate caller input, and make summarization idempotent by event identity. Read the project contract; verify both modules.",
+    "inputs": {
+      "AGENTS.md": "No external dependencies. Current schema is 2; schema 1 maps id->event_id without losing payload. Unknown versions reject. Duplicate identical IDs are ignored; conflicting duplicates reject.\n",
+      "migration.py": "def migrate(event):\n    event['event_id'] = event.pop('id', event.get('event_id'))\n    event['schema'] = 2\n    return event\n",
+      "summary.py": "def total(events):\n    return sum(event['value'] for event in events)\n"
+    },
+    "outputs": [
+      "migration.py",
+      "summary.py"
+    ],
+    "checks": "from migration import migrate\nfrom summary import total\nx={'schema':1,'id':'a','value':3,'tag':'keep'}\ny=migrate(x)\nassert x=={'schema':1,'id':'a','value':3,'tag':'keep'}\nassert y=={'schema':2,'event_id':'a','value':3,'tag':'keep'}\nassert migrate(y)==y\nassert total([y,y])==3\ntry: migrate({'schema':99,'id':'x'})\nexcept ValueError: pass\nelse: raise AssertionError('unknown schema accepted')\ntry: total([y,dict(y,value=4)])\nexcept ValueError: pass\nelse: raise AssertionError('conflicting duplicate accepted')\n"
+  },
+  {
+    "id": "C23",
+    "task": "Repair a bounded job scheduler's pure policy modules: deterministic admission, FIFO pending work, duplicate suppression, and quorum join decisions. This is a teaching application, not a replacement for QitOS's runtime. Read AGENTS.md and verify the two modules together.",
+    "inputs": {
+      "AGENTS.md": "admit(pending, active, limit) returns new IDs, leaves inputs untouched, preserves FIFO and excludes active/duplicate IDs. Negative limit rejects. join_state(outcomes, required, total) counts successful unique work IDs, returns success when quorum met, impossible when remaining capacity is insufficient, otherwise pending.\n",
+      "admission.py": "def admit(pending, active, limit):\n    return pending[:limit]\n",
+      "join.py": "def join_state(outcomes, required, total):\n    return 'success' if len(outcomes)>=required else 'pending'\n"
+    },
+    "outputs": [
+      "admission.py",
+      "join.py"
+    ],
+    "checks": "from admission import admit\nfrom join import join_state\np=['a','b','b','c','d']; a=['a']\nassert admit(p,a,3)==['b','c']\nassert p==['a','b','b','c','d'] and a==['a']\ntry: admit(p,a,-1)\nexcept ValueError: pass\nelse: raise AssertionError('negative limit accepted')\nassert join_state({'a':'success','b':'failed'},2,3)=='pending'\nassert join_state({'a':'success','b':'failed','c':'failed'},2,3)=='impossible'\nassert join_state({'a':'success','b':'success'},2,3)=='success'\n"
+  }
+]
+

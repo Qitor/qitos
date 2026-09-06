@@ -1,6 +1,6 @@
 # QitOS v5 — 从可运行内核到好用的 Agent 开发框架
 
-**当前实施增量：Agent Design Lab。** 基于 `f1545414913d2e0668d0eccdcd82fe91c3b28d01`，以六个可独立安装的专业课程消费者同步完善 composition、工具、记忆、技能、Session 和观测机制。见[实施与缺口账本](../internal/plans/agent_design_lab_execution.md)。本轮仍在开发，尚未通过完整真实任务/组合/安装矩阵；不替代下方历史 R1 证据，也未获推送、发布或部署授权。
+**当前实施增量：Agent Design Lab。** 基于 `f1545414913d2e0668d0eccdcd82fe91c3b28d01`，以六个可独立安装的专业课程消费者同步完善 composition、工具、记忆、技能、Session 和观测机制。见[实施与缺口账本](../internal/plans/agent_design_lab_execution.md)。安装、组合与真实 Docker 消费者已通过；真实模型矩阵单独记录，不替代下方历史 R1 证据。用户已授权收口后推送，未授权 package release 或部署。
 
 **当前 R1 状态：** 本地融合、27 笔重放、五项修复、Python 3.10 兼容资格和正式远端同步已完成。原本地融合接受源码为
 `d17a6ab4f6b09b0dd8a9c8896f859d26de17f3ec`。新增 Python 3.10 cleanup 兼容修复、

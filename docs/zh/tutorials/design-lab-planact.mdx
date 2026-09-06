@@ -1,0 +1,616 @@
+---
+title: "PlanAct 动态规划研究"
+description: "使用专业项目学习可替换的 Agent 设计；当前为开发中课程。"
+---
+
+状态：开发中，尚未完成课程资格验证。下列源码是工作实现，不是已通过 3×3 真实矩阵的发布承诺。基础机制与已发生的结果见[实施记录](/internal/plans/agent_design_lab_execution)。
+
+## 原始思想与改编边界
+
+分离规划与执行，并依据反馈更新计划。本课改编运行时思想，不复现论文的规划器训练或基准成绩。 [原始来源](https://arxiv.org/abs/2503.09572)。
+
+## 框架与用户的分工
+
+持久 phase 与 plan_version 区分角色；revise_plan 是统一工具调用，不是绕过记录的规划器 SDK 请求。static 对照关闭执行后的自动重规划。
+
+QitOS 已提供：模型事务与 usage、工具权限/校验、Env 执行、Session、ArtifactRef 和 Trajectory。用户编写：任务、策略、完成检查及记忆/技能选择。本轮补齐：自定义 agent_factory 接入、持久技能版本、完整正文加载、显式 Memdir 删除与产物引用的数据权限修正。
+
+核心增量位于完整源码中的 agent.py；CLI 负责显式配置与资源生命周期，evaluate.py 是控制端检查器。任务由项目自有合成材料组成，不是论文基准或真实客户数据。
+
+## 安装、配置与运行
+
+先按仓库构建说明安装本轮 QitOS wheel（当前 PyPI 版本不能替代未发布实现），再安装本课程。真实地址与凭据仅放在仓库外。模型配置采用完整 qitos.agent 文件，课程只读取其中 model；不是通过环境变量注入 key。
+
+每次 run 使用新的仓库外目录；resume 只接受同一项目重构的工厂与 resolver。
+
+默认输出上限 10,240，可通过私有模型配置提高；单任务步数、请求数和运行时间读取公开配置。validate 不调用模型，真实执行必须显式 --live。Docker 不可用时不能降级到宿主。模型失败、未完成任务和人工干预均保留，不能自动改为通过。
+
+## 验证、练习与组合
+
+独立检查器核验资料/数值或实际代码结果，不接受模型自报成功。计划修订、技能实际加载、子 Session 身份与失败也须单独验收。Session 恢复不是文件回滚；生成代码只在受限 Env 内执行。
+
+练习：把每步重规划改成证据触发策略，同时比较失败和请求成本。
+
+组合：组合笔记本的记忆适配器与独立验证扩展，不修改 Engine。此组合的安装验收仍待完成。
+
+完整矩阵：三种任务各三轮。ReAct/PlanAct 使用同样任务；PlanAct 的 static、Hermes 的 no-memory、Voyager 的 no-skills 是明确对照，不以一次成功作性能结论。私有原始轨迹不能直接公开；仅在检查许可与脱敏后发布衍生摘要。
+
+```bash
+python -m pip install .
+python -m qitos_lab_planact validate --config agent.yaml --root /tmp/lab-validation
+python -m qitos_lab_planact run --config agent.yaml --model-config /private-config/model.yaml --credentials /private-config/credentials.yaml --root /private-runs/planact-attempt --task 0 --live
+```
+
+完整实现路径: `examples/projects/planact_research/src/qitos_lab_planact/agent.py`.
+
+## 从完整源码提取：设计增量
+
+下列片段由完整项目同步生成，不是另一份手工维护的实现。完整安装文件在后面。
+
+{/* tutorial-snippet:src/qitos_lab_planact/agent.py:design */}
+```python
+    def prepare(self, state):
+        role = (
+            "Planner: use revise_plan alone to update the remaining high-level plan. "
+            "Include concrete verification criteria. Do not execute an environment action this turn."
+            if state.phase == "plan"
+            else "Executor: ground the current plan in actual tools and observations. "
+            "A tool succeeding does not by itself verify a research claim."
+        )
+        return (
+            role
+            + "\n"
+            + json.dumps(
+                {
+                    "task": state.task,
+                    "phase": state.phase,
+                    "plan": state.plan,
+                    "plan_version": state.plan_version,
+                    "recent_results": state.evidence[-4:],
+                },
+                ensure_ascii=False,
+            )
+        )
+
+    def reduce(self, state, observation, decision):
+        planned = False
+        for item in observation.action_results:
+            state.evidence.append(item.to_model_dict(max_chars=6000))
+            output = item.output
+            if isinstance(output, dict) and "remaining_plan" in output:
+                # Even multiple proposals in one batch cannot change the static
+                # control after its first accepted plan. State owns acceptance.
+                if not self.dynamic and state.plan_version:
+                    continue
+                state.plan = output["remaining_plan"]
+                state.plan_version += 1
+                state.phase = "execute"
+                planned = True
+        if not planned and decision.actions and self.dynamic:
+            state.phase = "plan"
+        state.evidence = state.evidence[-8:]
+        return state
+```
+{/* tutorial-snippet:end */}
+
+{/* tutorial-files:start */}
+
+## 完整文件：复制到项目根目录
+
+```python title="src/qitos_lab_planact/__main__.py"
+"""Explicit launch configuration; no credentials or model calls during validate."""
+
+import argparse
+from dataclasses import asdict, replace
+from importlib.resources import files
+import json
+from pathlib import Path
+import sys
+
+from qitos.config import (
+    BudgetConfig,
+    LocalCredentialFileResolver,
+    SessionConfig,
+    TrajectoryConfig,
+    build_agent_composition,
+    load_agent_config,
+)
+
+from .agent import build_factory
+from .evaluate import evaluate
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("command", choices=["validate", "run", "resume", "inspect"])
+    parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument("--model-config", type=Path)
+    parser.add_argument("--credentials", type=Path)
+    parser.add_argument("--root", type=Path, required=True)
+    parser.add_argument("--task", type=int, choices=[0, 1, 2], default=0)
+    parser.add_argument("--session")
+    parser.add_argument("--live", action="store_true")
+    parser.add_argument(
+        "--variant",
+        choices=["default", "static", "no-memory", "no-skills"],
+        default="default",
+    )
+    args = parser.parse_args()
+    config = load_agent_config(args.config)
+    tasks = json.loads(files(__package__).joinpath("tasks.json").read_text())
+    task = tasks[args.task]
+    if args.command == "validate":
+        print(
+            json.dumps(
+                {"status": "configuration_valid", "tasks": len(tasks), "live": False}
+            )
+        )
+        return 0
+    root = args.root.resolve()
+    if any((parent / ".git").exists() for parent in (root, *root.parents)):
+        raise ValueError("run_root_must_be_outside_git")
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if args.command == "inspect":
+        from qitos.qita.reader import candidate_file_reader
+
+        reader = candidate_file_reader(root / "trajectory.journal")
+        print(json.dumps({"runs": [asdict(run) for run in reader.discover_runs()]}))
+        return 0
+    if not args.live or args.credentials is None:
+        raise ValueError("explicit_live_and_credentials_required")
+    if args.model_config is not None:
+        private = args.model_config.resolve()
+        if any((parent / ".git").exists() for parent in private.parents):
+            raise ValueError("model_config_must_be_outside_git")
+        config = replace(config, model=load_agent_config(private).model)
+    output_limit = max(10240, config.model.request.max_tokens or 0)
+    request = replace(config.model.request, max_tokens=output_limit)
+    config = replace(
+        config, model=replace(config.model, request=request, max_tokens=output_limit)
+    )
+    workspace = root / "input"
+    if args.command == "run":
+        workspace.mkdir(exist_ok=False)
+        for name, content in task["inputs"].items():
+            target = workspace / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content)
+    config = replace(
+        config,
+        budgets=config.budgets
+        or BudgetConfig(max_steps=80, max_requests=80, max_runtime_seconds=3600),
+        runtime=replace(
+            config.runtime,
+            environment=replace(config.runtime.environment, workspace=str(workspace)),
+            session=SessionConfig(store="sqlite", path=str(root / "sessions.sqlite3")),
+            trajectory=TrajectoryConfig(output=str(root / "trajectory.journal")),
+        ),
+    )
+    resolver = LocalCredentialFileResolver(args.credentials, repository_root=Path.cwd())
+    factory = build_factory(task, root=root, variant=args.variant)
+    with build_agent_composition(
+        config, credential_resolver=resolver, agent_factory=factory
+    ) as composition:
+        session = (
+            composition.restore(args.session)
+            if args.command == "resume"
+            else composition.session(task["task"])
+        )
+        (root / "session.json").write_text(
+            json.dumps({"session_id": session.session_id.value})
+        )
+        result = session.run()
+        verdict = evaluate(result, task)
+        verdict["checks"]["plan_mechanism"] = (
+            result.state.plan_version == 1
+            if args.variant == "static"
+            else result.state.plan_version >= 2
+        )
+        verdict["passed"] = all(verdict["checks"].values())
+        report = {
+            "session_id": session.session_id.value,
+            "run_id": result.run_id,
+            "stop_reason": str(result.state.stop_reason),
+            "evaluation": verdict,
+            "tool_calls": result.tool_calls_by_name,
+            "variant": args.variant,
+            "plan_version": result.state.plan_version,
+        }
+        (root / "report.json").write_text(
+            json.dumps(report, ensure_ascii=False, indent=2)
+        )
+        print(json.dumps(report, ensure_ascii=False))
+        return 0 if verdict["passed"] else 2
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except Exception as error:
+        # Raw transport/factory errors can contain private endpoint details.
+        print(
+            json.dumps({"status": "failed", "error_type": type(error).__name__}),
+            file=sys.stderr,
+        )
+        raise SystemExit(2) from None
+```
+
+```json title="src/qitos_lab_planact/tasks.json"
+[
+  {
+    "task": "Audit whether candidate B reduces latency without reducing reliability. Reconcile the preliminary memo with raw data and the registered weighting rule. Compute weighted_latency_a, weighted_latency_b, latency_reduction_percent and failure_rate_b_percent. Produce a qualified recommendation, not a blanket claim.",
+    "inputs": {
+      "protocol.md": "Protocol R17. Compare weighted latency using production mix 80% small, 20% large. Report failure rate over all attempted requests; do not remove failures. Latency measurements are milliseconds for successful requests. This is a synthetic teaching dataset, not a real deployment benchmark.\n",
+      "results.csv": "group,latency_a,latency_b,attempts_b,failures_b\nsmall,100,80,800,8\nlarge,500,450,200,12\n",
+      "preliminary.md": "PRELIMINARY, not validated: candidate B halves latency and has no errors. Based only on a smoke test. Superseded by results.csv.\n",
+      "operations.md": "Reliability policy: failure rate must be <=1%. A performance improvement alone is insufficient for adoption. Error recovery must be investigated separately.\n",
+      "limitations.md": "Two workload groups, one run. No confidence interval or long-duration measurement is available.\n"
+    },
+    "required_sources": [
+      "protocol.md",
+      "results.csv",
+      "operations.md"
+    ],
+    "expected_metrics": {
+      "weighted_latency_a": 180,
+      "weighted_latency_b": 154,
+      "latency_reduction_percent": 14.444444,
+      "failure_rate_b_percent": 2
+    }
+  },
+  {
+    "task": "Audit experiment R18 for sample leakage and subgroup regressions. Compute valid_samples, excluded_samples, baseline_accuracy_percent, candidate_accuracy_percent, minority_change_points using only valid rows. Explain why aggregate results are insufficient for adoption.",
+    "inputs": {
+      "protocol.md": "R18: exclude rows with split=leaked. Accuracy = total correct / total count. Report minority change as candidate accuracy minus baseline accuracy, in percentage points. Real deployment qualification is out of scope.\n",
+      "results.csv": "group,split,count,correct_a,correct_b\nmajority,valid,80,64,72\nminority,valid,20,16,12\nmajority,leaked,10,10,10\n",
+      "preliminary.md": "An early memo claims all subgroups improved. It included leaked samples and did not break down minority outcomes.\n",
+      "operations.md": "Adoption requires no subgroup regression. Minority group is small; collect more evidence before a final deployment decision.\n",
+      "limitations.md": "Synthetic teaching experiment, no repeat runs or variance estimates.\n"
+    },
+    "required_sources": [
+      "protocol.md",
+      "results.csv",
+      "operations.md"
+    ],
+    "expected_metrics": {
+      "valid_samples": 100,
+      "excluded_samples": 10,
+      "baseline_accuracy_percent": 80,
+      "candidate_accuracy_percent": 84,
+      "minority_change_points": -20
+    }
+  },
+  {
+    "task": "Reconcile R19 throughput and recovery claims. Compute steady_throughput, recovery_seconds, availability_percent from the authoritative log under the registered formula. Explain the contradiction with the sales memo and distinguish process recovery from external exactly-once effects.",
+    "inputs": {
+      "protocol.md": "R19 window is 100 seconds. Availability excludes seconds explicitly marked unavailable. Steady throughput excludes recovery and equals steady completed tasks / steady seconds. Recovery duration is restored_at minus failure_at.\n",
+      "results.csv": "steady_tasks,steady_seconds,failure_at,restored_at,unavailable_seconds\n720,90,30,40,10\n",
+      "preliminary.md": "Sales draft: zero downtime, throughput 10/s, exactly-once external effects. These statements were never independently tested.\n",
+      "operations.md": "Logs prove process restoration only. External write acknowledgement was lost; effect reconciliation remains unresolved. Do not equate retry success with exactly-once delivery.\n",
+      "limitations.md": "One induced failure; no cross-host replication or high-availability evidence.\n"
+    },
+    "required_sources": [
+      "protocol.md",
+      "results.csv",
+      "operations.md"
+    ],
+    "expected_metrics": {
+      "steady_throughput": 8,
+      "recovery_seconds": 10,
+      "availability_percent": 90
+    }
+  }
+]
+```
+
+```python title="src/qitos_lab_planact/evaluate.py"
+"""Controller-side evaluator, never staged into the agent's workspace."""
+
+import math
+
+
+def evaluate(result, task):
+    submitted = []
+    read_sources = set()
+    for record in result.records:
+        for item in record.action_results:
+            output = item.output
+            if (
+                item.tool_name == "read_file"
+                and item.status == "success"
+                and isinstance(output, dict)
+            ):
+                if isinstance(output.get("path"), str):
+                    read_sources.add(output["path"])
+            if (
+                item.tool_name == "submit_report"
+                and item.status == "success"
+                and isinstance(output, dict)
+            ):
+                if "submitted_report" in output:
+                    submitted.append(output["submitted_report"])
+    report = submitted[-1] if submitted and isinstance(submitted[-1], dict) else {}
+    citations = report.get("citations", [])
+    valid_citations = isinstance(citations, list) and all(
+        isinstance(item, str) for item in citations
+    )
+    limitations = report.get("limitations", [])
+    checks = {
+        "report_submitted": bool(submitted),
+        "conclusion": isinstance(report.get("conclusion"), str)
+        and bool(report.get("conclusion")),
+        "limitations": isinstance(limitations, list)
+        and bool(limitations)
+        and all(isinstance(item, str) and item.strip() for item in limitations),
+        "citations": valid_citations
+        and set(task["required_sources"]) <= set(citations),
+        "actual_reads": set(task["required_sources"]) <= read_sources,
+        "final": str(result.state.stop_reason) == "final",
+    }
+    metrics = report.get("metrics", {})
+    for key, expected in task["expected_metrics"].items():
+        value = metrics.get(key) if isinstance(metrics, dict) else None
+        checks[key] = type(value) in (int, float) and math.isclose(
+            value, expected, rel_tol=0.005, abs_tol=0.005
+        )
+    return {"passed": all(checks.values()), "checks": checks, "submitted": report}
+```
+
+```python title="src/qitos_lab_planact/agent.py"
+"""Evidence-driven policy: the framework owns requests, tools and Session."""
+
+from dataclasses import dataclass, field
+import json
+from typing import Any, Dict, Optional
+
+from qitos.core.agent_module import AgentModule
+from qitos.core.state import StateSchema
+from qitos.core.function_tool_decorator import function_tool
+from qitos.core.tool_result import ToolResult
+
+
+@dataclass
+class ResearchState(StateSchema):
+    evidence: list[dict] = field(default_factory=list)
+    plan: list[str] = field(default_factory=list)
+    plan_version: int = 0
+    phase: str = "execute"
+
+
+class ResearchAgent(AgentModule):
+    def __init__(self, *, dynamic=True, **kwargs):
+        super().__init__(**kwargs)
+        self.dynamic = dynamic
+
+    def init_state(self, task, **kwargs):
+        return ResearchState(
+            task=task, max_steps=self.config.get("max_steps", 80), phase="plan"
+        )
+
+    def base_persona_prompt(self, state):
+        return (
+            "You are an evidence-driven research agent. Inspect the actual input files. "
+            "Distinguish preliminary claims from verified evidence. Do calculations "
+            "with tools. Correct mistaken assumptions when observations disagree."
+        )
+
+    def task_policy_prompt(self, state):
+        return (
+            "Produce report.json containing conclusion (string), metrics (object of numbers), "
+            "citations (list of exact input filenames), and limitations (list of strings). "
+            "Cite at least three relevant sources. Read before concluding. Use submit_report "
+            "to submit the full JSON as a string, then give a concise final answer. "
+            "Do not claim evidence that you did not inspect."
+        )
+
+    # docs:start design
+    def prepare(self, state):
+        role = (
+            "Planner: use revise_plan alone to update the remaining high-level plan. "
+            "Include concrete verification criteria. Do not execute an environment action this turn."
+            if state.phase == "plan"
+            else "Executor: ground the current plan in actual tools and observations. "
+            "A tool succeeding does not by itself verify a research claim."
+        )
+        return (
+            role
+            + "\n"
+            + json.dumps(
+                {
+                    "task": state.task,
+                    "phase": state.phase,
+                    "plan": state.plan,
+                    "plan_version": state.plan_version,
+                    "recent_results": state.evidence[-4:],
+                },
+                ensure_ascii=False,
+            )
+        )
+
+    def reduce(self, state, observation, decision):
+        planned = False
+        for item in observation.action_results:
+            state.evidence.append(item.to_model_dict(max_chars=6000))
+            output = item.output
+            if isinstance(output, dict) and "remaining_plan" in output:
+                # Even multiple proposals in one batch cannot change the static
+                # control after its first accepted plan. State owns acceptance.
+                if not self.dynamic and state.plan_version:
+                    continue
+                state.plan = output["remaining_plan"]
+                state.plan_version += 1
+                state.phase = "execute"
+                planned = True
+        if not planned and decision.actions and self.dynamic:
+            state.phase = "plan"
+        state.evidence = state.evidence[-8:]
+        return state
+
+    # docs:end design
+
+
+def build_factory(task, **resources):
+    dynamic = resources.get("variant") != "static"
+
+    @function_tool(read_only=True)
+    def revise_plan(
+        steps: list[str],
+        evidence: str,
+        runtime_context: Optional[Dict[str, Any]] = None,
+    ):
+        """Declare remaining high-level steps and the evidence behind this revision."""
+        state = (runtime_context or {}).get("state")
+        if not dynamic and getattr(state, "plan_version", 0) > 0:
+            return ToolResult(
+                status="error",
+                error_kind="policy",
+                error_code="static_plan_locked",
+                error="The static control keeps its first accepted plan.",
+                tool_name="revise_plan",
+                recoverable=False,
+            )
+        if not steps or len(steps) > 12 or any(not step.strip() for step in steps):
+            raise ValueError("invalid_remaining_plan")
+        return {"remaining_plan": steps, "revision_evidence": evidence}
+
+    @function_tool(read_only=True)
+    def submit_report(report_json: str):
+        """Submit the complete report JSON; independent evaluation runs afterwards."""
+        value = json.loads(report_json)
+        if not isinstance(value, dict):
+            raise ValueError("report_must_be_object")
+        return {"submitted_report": value}
+
+    def factory(*, config, model, tool_registry, protocol, parser):
+        tool_registry.register(submit_report)
+        tool_registry.register(revise_plan)
+        return ResearchAgent(
+            llm=model,
+            tool_registry=tool_registry,
+            model_protocol=protocol.id,
+            max_steps=config.max_steps,
+            model_parser=parser,
+            dynamic=resources.get("variant") != "static",
+        )
+
+    return factory
+```
+
+```python title="src/qitos_lab_planact/__init__.py"
+"""Independently installable research course."""
+```
+
+```toml title="pyproject.toml"
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "qitos-lab-planact"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = ["qitos[openai]"]
+[tool.setuptools.packages.find]
+where = ["src"]
+[tool.setuptools.package-data]
+qitos_lab_planact = ["tasks.json"]
+```
+
+```yaml title="agent.yaml"
+schema: qitos.agent
+agent:
+  name: design-lab-planact
+  protocol: json_decision_multi_v1
+model:
+  provider: openai_compatible
+  model: example-model
+  base_url: https://provider.example/v1
+  credential:
+    ref: research-model
+  request:
+    max_tokens: 10240
+    timeout_seconds: 180
+    retries: 0
+tools:
+  preset: env_coding
+runtime:
+  environment:
+    type: docker
+    workspace: .
+    image: python:3.12-slim
+  session:
+    mode: durable
+    store: sqlite
+    path: ./sessions.sqlite3
+  trajectory:
+    enabled: true
+    output: ./trajectory.journal
+budgets:
+  max_steps: 80
+  max_requests: 80
+  max_runtime_seconds: 3600
+failure_policy:
+  tool: continue
+```
+
+```python title="src/qitos_lab_planact/with_notebook.py"
+"""Compose installed projects through public extension slots, not Engine changes.
+
+Install qitos-lab-pi alongside this project before importing this optional module.
+The caller selects/owns the Memdir root and explicitly opts into compaction loss.
+"""
+
+from contextlib import contextmanager
+from dataclasses import replace
+
+from qitos.config import build_agent_composition
+from qitos.kit.context.compaction import ClosedExchangeWindowCompactor
+from qitos.kit.memory.adapter import MemorySourceAdapter
+from qitos.kit.memory.memdir_memory import MemdirMemory
+from qitos_lab_pi.extension import statistics_tools
+from .agent import build_factory
+
+
+@contextmanager
+def composition_with_notebook(
+    config,
+    task,
+    *,
+    notebook,
+    credential_resolver=None,
+    model_override=None,
+    context_budget=None
+):
+    memory = MemdirMemory(str(notebook))  # Reopen; never clear or silently initialize.
+    base_factory = build_factory(task)
+
+    def factory(**bindings):
+        for tool in statistics_tools():
+            bindings["tool_registry"].register(tool)
+        return base_factory(**bindings)
+
+    config = replace(
+        config,
+        memory={"sources": ["research_notebook"]},
+        context={**dict(config.context), "allow_codec_loss": True},
+        compaction={"provider": "closed_window"},
+    )
+    extensions = {
+        "research_notebook": MemorySourceAdapter(memory, namespace="research"),
+        "closed_window": ClosedExchangeWindowCompactor(),
+    }
+    if context_budget is not None:
+        config = replace(
+            config, context={**dict(config.context), "budget_policy": "research_budget"}
+        )
+        extensions["research_budget"] = context_budget
+    with build_agent_composition(
+        config,
+        credential_resolver=credential_resolver,
+        model_override=model_override,
+        agent_factory=factory,
+        extensions=extensions,
+    ) as current:
+        yield current
+```
+
+{/* tutorial-files:end */}

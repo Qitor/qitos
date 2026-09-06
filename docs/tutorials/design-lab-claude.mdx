@@ -1,0 +1,742 @@
+---
+title: "Claude-Code-like review"
+description: "Professional, replaceable agent designs; course qualification in progress."
+---
+
+Status: in development, not course-qualified. The working source below is not a claim of a passed 3×3 live matrix. See the [execution ledger](/internal/plans/agent_design_lab_execution) for qualified facts and open gaps.
+
+## Design and adaptation boundary
+
+Gather project context, edit, verify, then request an independently scoped review. The course is not a reproduction of proprietary behavior or a file-rewind service. [Primary source](https://code.claude.com/docs/en/how-claude-code-works).
+
+## Framework versus application
+
+ReviewBoundary requests a safe pause after verification. DurableWorkRuntime owns spawn/join and Session restore. The reviewer receives a separate Session and restricted registry; reviews are advice, not parent write authority.
+
+QitOS supplies model transactions/usage, tool permission/validation, Env execution, Session, ArtifactRef and Trajectory. The application supplies tasks, policy, independent acceptance checks and memory/skill selection. This iteration adds custom agent_factory composition, persistent skill revisions, full-body selection, explicit Memdir deletion and correct artifact data authority.
+
+The core design increment is in agent.py below. The CLI shows configuration and resource ownership explicitly; evaluate.py is the controller checker. Tasks use repository-owned synthetic professional scenarios, not paper benchmarks or customer data.
+
+## Install, configure and run
+
+First install the QitOS wheel built from this iteration; the current PyPI release cannot stand in for unpublished APIs. Then install this project. Keep actual addresses and credentials outside Git. The private model file is a full qitos.agent configuration; this launcher selects only its model section, never an environment-variable key.
+
+Use a new external directory for every run; resume reconstructs this project's factory and resolver.
+
+The output default is 10,240 and may be raised in private model configuration. Task request/step/time guards come from configuration. validate does not call a model; --live is mandatory for execution. Docker failure must not silently fall back to the host. Retain unsuccessful results and human interventions.
+
+## Verification, exercise and composition
+
+Independent checks examine sources/numbers or executed code, not a model's success claim. Plan revisions, actual skill loading and child identities require separate mechanism evidence. Session restore is not filesystem rollback. Generated code executes only in the restricted Env.
+
+Exercise: Replace the reviewer policy with a compatibility-focused reviewer; retain child identity and return evidence.
+
+Composition: Use Pi's verifier; later add Hermes procedures as selected context, not an extra execution loop.
+
+The required matrix is three tasks, three repetitions each. ReAct/PlanAct share tasks; static planning, no-memory and no-skills are explicit controls. A single pass is not a performance result. Raw traces stay private until redistribution and sanitization checks authorize a derived publication.
+
+```bash
+python -m pip install .
+python -m qitos_lab_claude validate --config agent.yaml --root /tmp/lab-validation
+python -m qitos_lab_claude run --config agent.yaml --model-config /private-config/model.yaml --credentials /private-config/credentials.yaml --root /private-runs/claude-attempt --task 0 --live
+```
+
+Complete implementation: `examples/projects/claude_coding/src/qitos_lab_claude/agent.py`.
+
+## Extracted from complete source: the design increment
+
+This excerpt is generated from the complete project, not a separately maintained implementation. Complete installable files follow.
+
+{/* tutorial-snippet:src/qitos_lab_claude/agent.py:design */}
+```python
+    def prepare(self, state):
+        return json.dumps(
+            {"task": state.task, "recent_results": state.observations[-4:]}
+        )
+
+    def reduce(self, state, observation, decision):
+        for item in observation.action_results:
+            output = item.output
+            if isinstance(output, dict) and output.get("verified") is True:
+                state.verified = True
+            if isinstance(output, dict) and "review" in output:
+                state.review = output["review"]
+            elif item.tool_name in {"write_file", "edit_file", "run_command"}:
+                state.verified = False
+        state.observations.extend(
+            item.to_model_dict(max_chars=6000) for item in observation.action_results
+        )
+        state.observations = state.observations[-8:]
+        return state
+
+    def decide(self, state, observation):
+        # Finish through the normal Engine decision boundary with a typed payload.
+        if self.reviewer and state.review is not None and state.verified:
+            return Decision.final(json.dumps({"review": state.review}))
+        return None
+```
+{/* tutorial-snippet:end */}
+
+{/* tutorial-files:start */}
+
+## Complete files: save in the project root
+
+```python title="src/qitos_lab_claude/__main__.py"
+"""Explicit launch configuration; no credentials or model calls during validate."""
+
+import argparse
+from dataclasses import asdict, replace
+from importlib.resources import files
+import json
+from pathlib import Path
+import sys
+
+from qitos.config import (
+    BudgetConfig,
+    LocalCredentialFileResolver,
+    SessionConfig,
+    TrajectoryConfig,
+    build_agent_composition,
+    load_agent_config,
+)
+
+from .agent import build_factory
+from .evaluate import evaluate
+from .review import ReviewBoundary, independent_review
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("command", choices=["validate", "run", "resume", "inspect"])
+    parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument("--model-config", type=Path)
+    parser.add_argument("--credentials", type=Path)
+    parser.add_argument("--root", type=Path, required=True)
+    parser.add_argument("--task", type=int, choices=[0, 1, 2], default=0)
+    parser.add_argument("--session")
+    parser.add_argument("--live", action="store_true")
+    parser.add_argument(
+        "--variant",
+        choices=["default", "static", "no-memory", "no-skills"],
+        default="default",
+    )
+    args = parser.parse_args()
+    config = load_agent_config(args.config)
+    tasks = json.loads(files(__package__).joinpath("tasks.json").read_text())
+    task = tasks[args.task]
+    if args.command == "validate":
+        print(
+            json.dumps(
+                {"status": "configuration_valid", "tasks": len(tasks), "live": False}
+            )
+        )
+        return 0
+    root = args.root.resolve()
+    if any((parent / ".git").exists() for parent in (root, *root.parents)):
+        raise ValueError("run_root_must_be_outside_git")
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if args.command == "inspect":
+        from qitos.qita.reader import candidate_file_reader
+
+        reader = candidate_file_reader(root / "trajectory.journal")
+        print(json.dumps({"runs": [asdict(run) for run in reader.discover_runs()]}))
+        return 0
+    if not args.live or args.credentials is None:
+        raise ValueError("explicit_live_and_credentials_required")
+    if args.model_config is not None:
+        private = args.model_config.resolve()
+        if any((parent / ".git").exists() for parent in private.parents):
+            raise ValueError("model_config_must_be_outside_git")
+        config = replace(config, model=load_agent_config(private).model)
+    output_limit = max(10240, config.model.request.max_tokens or 0)
+    request = replace(config.model.request, max_tokens=output_limit)
+    config = replace(
+        config, model=replace(config.model, request=request, max_tokens=output_limit)
+    )
+    workspace = root / "input"
+    if args.command == "run":
+        workspace.mkdir(exist_ok=False)
+        for name, content in task["inputs"].items():
+            target = workspace / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content)
+    config = replace(
+        config,
+        budgets=config.budgets
+        or BudgetConfig(max_steps=80, max_requests=80, max_runtime_seconds=3600),
+        runtime=replace(
+            config.runtime,
+            environment=replace(config.runtime.environment, workspace=str(workspace)),
+            session=SessionConfig(store="sqlite", path=str(root / "sessions.sqlite3")),
+            trajectory=TrajectoryConfig(output=str(root / "trajectory.journal")),
+        ),
+    )
+    resolver = LocalCredentialFileResolver(args.credentials, repository_root=Path.cwd())
+    factory = build_factory(task, root=root, variant=args.variant)
+    with build_agent_composition(
+        config, credential_resolver=resolver, agent_factory=factory
+    ) as composition:
+        boundary = ReviewBoundary()
+        composition.runtime.lifecycle_policy = boundary
+        session = (
+            composition.restore(args.session)
+            if args.command == "resume"
+            else composition.session(task["task"])
+        )
+        (root / "session.json").write_text(
+            json.dumps({"session_id": session.session_id.value})
+        )
+        result = session.run()
+        review = None
+        first_records = tuple(result.records)
+        if session.lifecycle.value == "paused" and result.state.verified:
+            review = independent_review(composition, session, task, resolver)
+            boundary.enabled = False
+            result = session.run(
+                steering="Independent child review: "
+                + json.dumps(review)
+                + ". Address material findings; re-verify any edits, then summarize limitations."
+            )
+        verdict = evaluate(result, task)
+        if review is not None:
+            verdict = evaluate(result, task, prior_records=first_records)
+            verdict["checks"]["independent_review"] = bool(review["outcomes"])
+            verdict["passed"] = all(verdict["checks"].values())
+            verdict["review"] = review
+        report = {
+            "session_id": session.session_id.value,
+            "run_id": result.run_id,
+            "stop_reason": str(result.state.stop_reason),
+            "evaluation": verdict,
+            "tool_calls": result.tool_calls_by_name,
+            "variant": args.variant,
+        }
+        (root / "report.json").write_text(
+            json.dumps(report, ensure_ascii=False, indent=2)
+        )
+        print(json.dumps(report, ensure_ascii=False))
+        return 0 if verdict["passed"] else 2
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except Exception as error:
+        # Raw transport/factory errors can contain private endpoint details.
+        print(
+            json.dumps({"status": "failed", "error_type": type(error).__name__}),
+            file=sys.stderr,
+        )
+        raise SystemExit(2) from None
+```
+
+```json title="src/qitos_lab_claude/tasks.json"
+[
+  {
+    "id": "C21",
+    "task": "Repair a small CSV analysis package. Normalize whitespace, reject malformed rows with a useful error, compute weighted means without rounding early, and keep the CLI JSON contract. Read AGENTS.md, modify multiple modules, run verify_project, and finish only after verification passes.",
+    "inputs": {
+      "AGENTS.md": "Use stdlib only. Keep existing public names. Handle empty and invalid data explicitly. Do not change the data files to make checks pass.\n",
+      "parser.py": "import csv\n\ndef parse(text):\n    return [(r['group'], float(r['value']), int(r['count'])) for r in csv.DictReader(text.splitlines())]\n",
+      "analysis.py": "def weighted_mean(rows):\n    return sum(value for _, value, count in rows) / len(rows)\n",
+      "cli.py": "import json, sys\nfrom parser import parse\nfrom analysis import weighted_mean\nif __name__ == '__main__':\n    print(json.dumps({'mean': weighted_mean(parse(sys.stdin.read()))}))\n",
+      "sample.csv": "group,value,count\n small ,10,8\nlarge,30,2\n"
+    },
+    "outputs": [
+      "parser.py",
+      "analysis.py"
+    ],
+    "checks": "from parser import parse\nfrom analysis import weighted_mean\nrows=parse('group,value,count\\n a ,10,8\\nb,30,2\\n')\nassert rows[0][0]=='a'\nassert weighted_mean(rows)==14\ntry: weighted_mean([])\nexcept ValueError: pass\nelse: raise AssertionError('empty weights must be rejected')\ntry: parse('group,value,count\\nx,abc,2\\n')\nexcept ValueError: pass\nelse: raise AssertionError('invalid numeric data must be rejected')\n"
+  },
+  {
+    "id": "C22",
+    "task": "Repair a versioned event migration library. Preserve unknown payload fields, reject unknown schema versions, never mutate caller input, and make summarization idempotent by event identity. Read the project contract; verify both modules.",
+    "inputs": {
+      "AGENTS.md": "No external dependencies. Current schema is 2; schema 1 maps id->event_id without losing payload. Unknown versions reject. Duplicate identical IDs are ignored; conflicting duplicates reject.\n",
+      "migration.py": "def migrate(event):\n    event['event_id'] = event.pop('id', event.get('event_id'))\n    event['schema'] = 2\n    return event\n",
+      "summary.py": "def total(events):\n    return sum(event['value'] for event in events)\n"
+    },
+    "outputs": [
+      "migration.py",
+      "summary.py"
+    ],
+    "checks": "from migration import migrate\nfrom summary import total\nx={'schema':1,'id':'a','value':3,'tag':'keep'}\ny=migrate(x)\nassert x=={'schema':1,'id':'a','value':3,'tag':'keep'}\nassert y=={'schema':2,'event_id':'a','value':3,'tag':'keep'}\nassert migrate(y)==y\nassert total([y,y])==3\ntry: migrate({'schema':99,'id':'x'})\nexcept ValueError: pass\nelse: raise AssertionError('unknown schema accepted')\ntry: total([y,dict(y,value=4)])\nexcept ValueError: pass\nelse: raise AssertionError('conflicting duplicate accepted')\n"
+  },
+  {
+    "id": "C23",
+    "task": "Repair a bounded job scheduler's pure policy modules: deterministic admission, FIFO pending work, duplicate suppression, and quorum join decisions. This is a teaching application, not a replacement for QitOS's runtime. Read AGENTS.md and verify the two modules together.",
+    "inputs": {
+      "AGENTS.md": "admit(pending, active, limit) returns new IDs, leaves inputs untouched, preserves FIFO and excludes active/duplicate IDs. Negative limit rejects. join_state(outcomes, required, total) counts successful unique work IDs, returns success when quorum met, impossible when remaining capacity is insufficient, otherwise pending.\n",
+      "admission.py": "def admit(pending, active, limit):\n    return pending[:limit]\n",
+      "join.py": "def join_state(outcomes, required, total):\n    return 'success' if len(outcomes)>=required else 'pending'\n"
+    },
+    "outputs": [
+      "admission.py",
+      "join.py"
+    ],
+    "checks": "from admission import admit\nfrom join import join_state\np=['a','b','b','c','d']; a=['a']\nassert admit(p,a,3)==['b','c']\nassert p==['a','b','b','c','d'] and a==['a']\ntry: admit(p,a,-1)\nexcept ValueError: pass\nelse: raise AssertionError('negative limit accepted')\nassert join_state({'a':'success','b':'failed'},2,3)=='pending'\nassert join_state({'a':'success','b':'failed','c':'failed'},2,3)=='impossible'\nassert join_state({'a':'success','b':'success'},2,3)=='success'\n"
+  }
+]
+```
+
+```python title="src/qitos_lab_claude/evaluate.py"
+"""Read successful controller-owned verification, not the model's final claim."""
+
+
+def evaluate(result, task, *, prior_records=()):
+    verified_step = -1
+    edited_step = -1
+    source_digests = {}
+    read = False
+    for record in [*prior_records, *result.records]:
+        for item in record.action_results:
+            read = read or (item.tool_name == "read_file" and item.status == "success")
+            if item.tool_name in {"write_file", "edit_file", "run_command"}:
+                edited_step = record.step_id
+            if item.tool_name == "verify_project" and item.status == "success":
+                output = item.output
+                if isinstance(output, dict) and output.get("verified") is True:
+                    verified_step = record.step_id
+                    source_digests = output.get("source_digests", {})
+                else:
+                    verified_step = -1
+    checks = {
+        "independent_checks": verified_step >= 0,
+        "no_edits_after_verification": verified_step >= edited_step,
+        "all_outputs_captured": set(task["outputs"]) == set(source_digests),
+        "read_before_edit": read,
+        "final": str(result.state.stop_reason) == "final",
+    }
+    return {
+        "passed": all(checks.values()),
+        "checks": checks,
+        "source_digests": source_digests,
+    }
+```
+
+```python title="src/qitos_lab_claude/agent.py"
+"""A small replaceable coding policy, not a second agent execution loop."""
+
+from dataclasses import dataclass, field
+import json
+
+from qitos.core.agent_module import AgentModule
+from qitos.core.state import StateSchema
+from qitos.core.function_tool_decorator import function_tool
+from qitos.core.decision import Decision
+from qitos.kit.toolset.env_coding import read_file, write_file, edit_file, run_command
+from .extension import verification_tools
+
+
+@dataclass
+class CodingState(StateSchema):
+    observations: list[dict] = field(default_factory=list)
+    verified: bool = False
+    review: dict | None = None
+
+
+class CodingAgent(AgentModule):
+    def __init__(self, *, reviewer=False, **kwargs):
+        super().__init__(**kwargs)
+        self.reviewer = reviewer
+
+    def init_state(self, task, **kwargs):
+        return CodingState(task=task, max_steps=self.config.get("max_steps", 80))
+
+    def base_persona_prompt(self, state):
+        if self.reviewer:
+            return (
+                "You are an independent reviewer in an isolated child Session. Read the changed "
+                "source, independently run verify_project, identify concrete defects or missing "
+                "coverage, then call submit_review. Do not modify the project. Your conclusion "
+                "is advice, not authority to mutate the parent workspace."
+            )
+        return (
+            "Inspect, change and test a real multi-file project. Use the four native "
+            "read/write/edit/command tools; do not invent a framework executor. "
+            "Read AGENTS.md first. Commands run only in the configured Docker Env."
+        )
+
+    def task_policy_prompt(self, state):
+        if self.reviewer:
+            return "Read every changed module; submit_review with findings and limitations; finish."
+        return (
+            "Use the installed verify_project extension for independent checks. "
+            "A successful shell exit alone is not project completion. If checks fail, "
+            "inspect their evidence and correct the cause. Do not edit tests to pass. "
+            "After verify_project passes, make no further edits and give a final answer."
+        )
+
+    # docs:start design
+    def prepare(self, state):
+        return json.dumps(
+            {"task": state.task, "recent_results": state.observations[-4:]}
+        )
+
+    def reduce(self, state, observation, decision):
+        for item in observation.action_results:
+            output = item.output
+            if isinstance(output, dict) and output.get("verified") is True:
+                state.verified = True
+            if isinstance(output, dict) and "review" in output:
+                state.review = output["review"]
+            elif item.tool_name in {"write_file", "edit_file", "run_command"}:
+                state.verified = False
+        state.observations.extend(
+            item.to_model_dict(max_chars=6000) for item in observation.action_results
+        )
+        state.observations = state.observations[-8:]
+        return state
+
+    def decide(self, state, observation):
+        # Finish through the normal Engine decision boundary with a typed payload.
+        if self.reviewer and state.review is not None and state.verified:
+            return Decision.final(json.dumps({"review": state.review}))
+        return None
+
+    # docs:end design
+
+
+def build_factory(task, **resources):
+    reviewer = resources.get("reviewer", False)
+
+    @function_tool(read_only=True)
+    def submit_review(findings: list[str], limitations: list[str]):
+        """Return a review to the parent; no parent filesystem authority is granted."""
+        return {"review": {"findings": findings, "limitations": limitations}}
+
+    def factory(*, config, model, tool_registry, protocol, parser):
+        base = (
+            (read_file,)
+            if reviewer
+            else (read_file, write_file, edit_file, run_command)
+        )
+        for tool in (*base, *verification_tools(task), submit_review):
+            tool_registry.register(tool)
+        return CodingAgent(
+            llm=model,
+            tool_registry=tool_registry,
+            model_protocol=protocol.id,
+            max_steps=config.max_steps,
+            model_parser=parser,
+            reviewer=reviewer,
+        )
+
+    return factory
+```
+
+```python title="src/qitos_lab_claude/extension.py"
+"""Installable project extension. All generated-code execution stays in Env."""
+
+import hashlib
+import shlex
+from typing import Optional, Dict, Any
+
+from qitos.core.artifact import ArtifactRef
+from qitos.core.function_tool_decorator import function_tool
+from qitos.core.tool import ToolPermission
+from qitos.core.tool_result import ToolResult
+
+
+def verification_tools(task):
+    @function_tool(
+        required_ops=["file", "process"],
+        permissions=ToolPermission(filesystem_read=True, command=True),
+        concurrency_safe=False,
+    )
+    def verify_project(runtime_context: Optional[Dict[str, Any]] = None):
+        """Run controller-owned checks, capture exact tested source artifacts."""
+        context = runtime_context or {}
+        fs, process = context["ops"]["file"], context["ops"]["process"]
+        bodies = {path: fs.read_text(path).encode() for path in task["outputs"]}
+        outcome = dict(
+            process.run("python -c " + shlex.quote(task["checks"]), timeout=30)
+        )
+        unchanged = all(
+            fs.read_text(path).encode() == body for path, body in bodies.items()
+        )
+        passed = (
+            outcome.get("returncode") == 0
+            and not outcome.get("outcome_unknown")
+            and unchanged
+        )
+        refs = []
+        for path, body in bodies.items():
+            digest = hashlib.sha256(body).hexdigest()
+            ref = ArtifactRef(
+                artifact_id="sha256:" + digest,
+                resolver_key="tool-result-output",
+                sha256=digest,
+                byte_length=len(body),
+                media_type="text/x-python",
+            )
+            context["artifact_resolver"].put(ref, body)
+            refs.append(ref)
+        report = {
+            "verified": passed,
+            "source_digests": {
+                path: hashlib.sha256(body).hexdigest() for path, body in bodies.items()
+            },
+            "checks_digest": hashlib.sha256(task["checks"].encode()).hexdigest(),
+            "returncode": outcome.get("returncode"),
+            "source_unchanged": unchanged,
+            "feedback": str(outcome.get("stderr", ""))[-3000:],
+        }
+        return ToolResult(
+            output=report,
+            model_output=report,
+            artifact_refs=tuple(refs),
+            tool_name="verify_project",
+        )
+
+    return (verify_project,)
+```
+
+```python title="src/qitos_lab_claude/review.py"
+"""Use the framework's durable scheduler, Session fork and join, not a nested loop."""
+
+import json
+import time
+
+from qitos.config import build_agent_composition
+from qitos.core.work_graph import WorkGraph
+from qitos.engine.runtime import LifecyclePolicy
+from qitos.engine.work_runtime import (
+    DurableWorkRuntime,
+    LocalWorkScheduler,
+    WorkRuntimePolicy,
+)
+from .agent import build_factory
+
+
+class ReviewBoundary(LifecyclePolicy):
+    policy_id = "lab.review_after_verified_edit"
+
+    def __init__(self):
+        self.enabled = True
+
+    def should_pause(self, context):
+        return self.enabled and context.state.verified
+
+
+def wait_terminal(session, operation, timeout=1800):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        graph = WorkGraph.from_canonical_dict(session.inspect().work_graph)
+        receipt = next(
+            item
+            for item in graph.operation_receipts
+            if item.operation_id == operation.operation_id
+        )
+        if receipt.state in {"completed", "failed", "outcome_unknown"}:
+            if receipt.state != "completed":
+                raise RuntimeError("review_operation_not_completed")
+            return receipt
+        time.sleep(
+            0.1
+        )  # Live polling, not a deterministic race-test ordering primitive.
+    raise TimeoutError("review_operation_deadline")
+
+
+def independent_review(composition, session, task, resolver, *, model_factory=None):
+    failures = []
+
+    class ReviewResolver:
+        resolver_id = "lab.independent_reviewer"
+
+        def resolve(self, descriptor):
+            stage = "construct"
+
+            def execute():
+                try:
+                    return execute_review()
+                except Exception as exc:
+                    # Only a type name is diagnostic; provider/host messages stay private.
+                    failures.append(stage + ":" + type(exc).__name__)
+                    raise
+
+            def execute_review():
+                nonlocal stage
+                if descriptor.operation == "join":
+                    return {"joined": list(descriptor.child_session_ids)}
+                reviews = []
+                for identity in descriptor.child_session_ids:
+                    with build_agent_composition(
+                        composition.config,
+                        credential_resolver=resolver,
+                        model_override=model_factory() if model_factory else None,
+                        agent_factory=build_factory(task, reviewer=True),
+                    ) as child_composition:
+                        stage = "restore"
+                        child = child_composition.restore(identity)
+                        stage = "run"
+                        result = child.run()
+                        stage = "validate-state"
+                        if result.state.review is None or not result.state.verified:
+                            failures.append(
+                                json.dumps(
+                                    {
+                                        "review_present": result.state.review
+                                        is not None,
+                                        "verified": bool(result.state.verified),
+                                        "steps": len(result.records),
+                                        "reads": result.tool_calls_by_name.get(
+                                            "read_file", 0
+                                        ),
+                                        "checks": result.tool_calls_by_name.get(
+                                            "verify_project", 0
+                                        ),
+                                        "reviews": result.tool_calls_by_name.get(
+                                            "submit_review", 0
+                                        ),
+                                        "check_succeeded": any(
+                                            outcome.tool_name == "verify_project"
+                                            and outcome.status == "success"
+                                            for record in result.records
+                                            for outcome in record.action_results
+                                        ),
+                                        "check_returncodes": [
+                                            outcome.output.get("returncode")
+                                            for record in result.records
+                                            for outcome in record.action_results
+                                            if outcome.tool_name == "verify_project"
+                                            and isinstance(outcome.output, dict)
+                                        ],
+                                    }
+                                )
+                            )
+                            raise RuntimeError("review_state_not_verified")
+                        stage = "validate-final"
+                        try:
+                            returned = json.loads(result.state.final_result)
+                        except (TypeError, ValueError):
+                            raise RuntimeError("review_final_not_structured") from None
+                        if returned != {"review": result.state.review}:
+                            raise RuntimeError("review_final_state_mismatch")
+                        stage = "validate-reads"
+                        if result.tool_calls_by_name.get("read_file", 0) < len(
+                            task["outputs"]
+                        ):
+                            raise RuntimeError("review_did_not_inspect_changed_files")
+                        for record in result.records:
+                            for outcome in record.action_results:
+                                if (
+                                    outcome.tool_name == "submit_review"
+                                    and outcome.status == "success"
+                                ):
+                                    reviews.append(outcome.output["review"])
+                if descriptor.operation != "join" and not reviews:
+                    raise RuntimeError("review_missing")
+                return {
+                    "reviews": reviews,
+                    "child_sessions": list(descriptor.child_session_ids),
+                }
+
+            return execute
+
+    runtime = DurableWorkRuntime(
+        LocalWorkScheduler(ReviewResolver(), max_workers=1),
+        policy=WorkRuntimePolicy(timeout_seconds=1800),
+    )
+    composition.runtime.work_runtime = runtime
+    try:
+        operation = session.submit_work(
+            "spawn",
+            {
+                "agent": composition.config.name,
+                "task": "Independently review the changed source and its limitations.",
+                "budget": {"model_requests": 30},
+            },
+            operation_id="independent-review",
+        )
+        try:
+            receipt = wait_terminal(session, operation)
+        except RuntimeError:
+            raise RuntimeError(
+                "review_operation_failed:" + ",".join(failures)
+            ) from None
+        join = session.join(
+            [operation.operation_id], operation_id="independent-review-join"
+        )
+        wait_terminal(session, join)
+        graph = WorkGraph.from_canonical_dict(session.inspect().work_graph)
+        outcomes = []
+        for completion in graph.completions:
+            output = completion.outcome.get("output")
+            if isinstance(output, dict) and isinstance(output.get("final_result"), str):
+                try:
+                    final = json.loads(output["final_result"])
+                except ValueError:
+                    continue
+                if isinstance(final, dict) and isinstance(final.get("review"), dict):
+                    outcomes.append(final)
+        return {
+            "operation_id": receipt.operation_id,
+            "state": receipt.state,
+            "child_sessions": list(operation.descriptor["child_session_ids"]),
+            "outcomes": outcomes,
+        }
+    finally:
+        runtime.close()
+```
+
+```python title="src/qitos_lab_claude/__init__.py"
+"""Agent Design Lab: independently installed coding project."""
+```
+
+```toml title="pyproject.toml"
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qitos-lab-claude"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = ["qitos[openai]"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+qitos_lab_claude = ["tasks.json"]
+```
+
+```yaml title="agent.yaml"
+schema: qitos.agent
+agent:
+  name: design-lab-claude-research
+  protocol: json_decision_multi_v1
+model:
+  provider: openai_compatible
+  model: example-model
+  base_url: https://provider.example/v1
+  credential:
+    ref: research-model
+  request:
+    max_tokens: 10240
+    timeout_seconds: 180
+    retries: 0
+tools:
+  preset: none
+runtime:
+  environment:
+    type: docker
+    workspace: .
+    image: python:3.12-slim
+  session:
+    mode: durable
+    store: sqlite
+    path: ./sessions.sqlite3
+  trajectory:
+    enabled: true
+    output: ./trajectory.journal
+budgets:
+  max_steps: 80
+  max_requests: 80
+  max_runtime_seconds: 3600
+failure_policy:
+  tool: continue
+```
+
+{/* tutorial-files:end */}

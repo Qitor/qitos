@@ -1,5 +1,16 @@
 # Architecture Audit
 
+September 2026 implementation addendum: [Agent Design Lab](../internal/plans/agent_design_lab_execution.md)
+keeps the same kernel. Custom policies enter the existing config composition via
+`agent_factory`; ownership and Session creation stay at the composition root.
+`BaseToolLibrary` / `ToolArtifact` remain the skill seam, with a concrete SQLite
+revision store in kit. Full-body skill selection and memory deletion are mechanisms;
+curriculum, planner, review and retention policy stay in the six external-style
+learning projects. No core-to-kit or engine-to-kit dependency is added.
+External child snapshot resources are restored before authorized conversation
+projection, and historical pause receipts cannot suppress continuation completion.
+The following original audit retains its dated source scope.
+
 Status: recovered from code as of 2026-08 (v0.6.0). This document records how the repository **actually works**, distinguished from intended architecture and debt.
 Method: full-repo review plus AST-verified import analysis (module-level vs function-level imports, absolute and relative).
 Companion documents: [module-boundaries.md](module-boundaries.md) · [architecture-debt.md](architecture-debt.md) · [change-guide.md](change-guide.md).

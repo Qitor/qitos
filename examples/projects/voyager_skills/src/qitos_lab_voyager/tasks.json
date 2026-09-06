@@ -1,0 +1,39 @@
+[
+  {
+    "id": "V31",
+    "task": "Learn a reusable normalize_rows(rows) function in skill.py: trim all string fields, parse value as float, count as nonnegative int, reject missing/invalid data. Verify and publish it as normalize. On reuse, load and execute the existing skill; do not regenerate it.",
+    "inputs": {
+      "requirements.md": "Use only stdlib. normalize_rows returns fresh dictionaries, preserves other fields and rejects negative count. Never mutate input.\n"
+    },
+    "outputs": [
+      "skill.py"
+    ],
+    "checks": "from skill import normalize_rows\nr=[{'name':' x ','value':'2.5','count':'3','tag':'keep'}]\no=normalize_rows(r)\nassert o==[{'name':'x','value':2.5,'count':3,'tag':'keep'}]\nassert r[0]['value']=='2.5'\ntry: normalize_rows([{'value':'x','count':'1'}])\nexcept ValueError: pass\nelse: raise AssertionError('invalid row accepted')\ntry: normalize_rows([{'value':'2','count':'-1'}])\nexcept ValueError: pass\nelse: raise AssertionError('negative count accepted')\n",
+    "skill": "normalize"
+  },
+  {
+    "id": "V32",
+    "task": "Learn a reusable weighted_mean(rows) function in skill.py for numeric value/count dicts: exact weighted result, empty or zero total rejects, negative weights reject. Verify/publish as weighted. On reuse, compose with previously learned normalize if available.",
+    "inputs": {
+      "requirements.md": "weighted_mean accepts numeric dictionaries. Use stdlib only; do not round intermediate values.\n"
+    },
+    "outputs": [
+      "skill.py"
+    ],
+    "checks": "from skill import weighted_mean\nassert weighted_mean([{'value':10,'count':8},{'value':30,'count':2}])==14\nfor rows in ([],[{'value':10,'count':0}],[{'value':2,'count':-1}]):\n    try: weighted_mean(rows)\n    except ValueError: pass\n    else: raise AssertionError('invalid weights accepted')\n",
+    "skill": "weighted"
+  },
+  {
+    "id": "V33",
+    "task": "Compose reusable summarize(rows) in skill.py. Use previously learned normalize and weighted skills if available. Return per-group weighted means, preserving group isolation. Verify/publish as summarize. On reuse, actually load and execute the published code.",
+    "inputs": {
+      "requirements.md": "summarize returns dict group -> weighted mean. Strip group whitespace, parse numeric strings, do not mutate input. Empty input returns {}. Use stdlib.\n"
+    },
+    "outputs": [
+      "skill.py"
+    ],
+    "checks": "from skill import summarize\nr=[{'group':' a ','value':'10','count':'8'},{'group':'a','value':'30','count':'2'},{'group':'b','value':'5','count':'1'}]\nassert summarize(r)=={'a':14,'b':5}\nassert r[0]['group']==' a '\nassert summarize([])=={}\n",
+    "skill": "summarize"
+  }
+]
+

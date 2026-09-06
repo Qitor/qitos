@@ -1,0 +1,1 @@
+"""Independently installable research course."""

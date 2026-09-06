@@ -1,0 +1,123 @@
+---
+title: "Agent Design Lab"
+description: "Express six professional agent designs through one replaceable execution framework."
+---
+
+This is the next learning path after the [notes Agent](/tutorials/index): six
+independently installable projects, with complete source in English and Chinese.
+The courses are under qualification, not a released product or a claim of parity
+with the original systems. Real-model results and failure analysis are recorded
+separately from deterministic framework tests.
+
+## Choose the mechanism you want to study
+
+| Project | Design increment written by the user | Infrastructure provided by QitOS |
+| --- | --- | --- |
+| [ReAct research](/tutorials/design-lab-react) | Evidence-driven action/feedback policy and qualified conclusions | Tracked model requests, canonical tools, stop rules and durable state |
+| [PlanAct research](/tutorials/design-lab-planact) | Planner/Executor phases, persisted plans and replanning policy | The same model transaction path and Session recovery |
+| [Pi-like coding](/tutorials/design-lab-pi) | Four-tool policy and an installable verification extension | Native Env tools, permissions, conflicts, artifacts and cleanup |
+| [Claude-Code-like review](/tutorials/design-lab-claude) | Project context, verification boundary and independent reviewer policy | Durable spawn/join, isolated child Session and workspace artifact restoration |
+| [Hermes-like notebook](/tutorials/design-lab-hermes) | What to remember, retrieve, forget and load on demand | Memdir records, persistent revisions and complete selected skill bodies |
+| [Voyager-inspired skills](/tutorials/design-lab-voyager) | Generate, test, retain and combine executable skills | Restricted Env, versioned library, artifact identity and lifecycle |
+
+All six use `AgentModule + Engine + Session`; none embeds a second tool executor
+or direct model SDK loop. The framework does not prescribe a planner, a memory
+policy, a scoring rubric or a universal definition of agent success.
+
+## What changed in the framework
+
+`build_agent_composition` accepts an optional `agent_factory` with named arguments
+`config`, `model`, `tool_registry`, `protocol`, `parser`. Return an AgentModule
+bound to these supplied objects; the resolved protocol may be bound by its ID.
+The default is still ConfiguredAgent. A factory can register project tools using
+the supplied registry. Composition validates bindings and required-tool policy,
+owns the model/environment/runtime/Engine, and cleans its resources on failure.
+Explicitly injected resources remain borrowed. Recreate the factory and resolver
+in the new process when restoring; callable objects are never serialized.
+
+The [composition reference](/reference/composition) documents signatures and
+ownership. The [skill library reference](/reference/skill-library) documents durable
+revisions, full-body selection and explicit Memdir deletion. A child transfer fix
+also restores external snapshot components before recapturing projected input,
+so independent review receives the verified artifact rather than pristine files.
+These mechanisms replace repeated resource, persistence and dispatch boilerplate;
+task strategies stay in the projects where researchers can change them.
+
+## Install and run without private configuration in Git
+
+Build and install the QitOS wheel from the implementation checkout; these APIs are
+not yet a separately published PyPI release. Then install each desired project
+from `examples/projects/`. Use Python 3.10 or 3.12 and the declared provider extra
+(`qitos[openai]`) for the live OpenAI-compatible backend. Each course includes its
+own pyproject, public `agent.yaml`, three tasks, policy, launcher and checker.
+
+Keep the real model configuration, credential file, database, artifacts and raw
+trajectory in private directories outside any Git checkout. The public model URL
+is a placeholder, not a working credential. The default output ceiling is 10,240;
+raise it in private model configuration if needed. Step/request/time budgets and
+retry policy are per-task guards, not a hidden total experiment quota.
+
+`validate` makes no model request. `run --live` opts into actual execution.
+`resume --session` reconstructs a paused Session through the same factory.
+`inspect` reads the trajectory. Resuming a Session is not undoing external effects
+or rolling back a Git working tree. The Docker component supports bounded,
+artifact-backed cold file restoration; it is not a live-process checkpoint or VM.
+Workspace snapshot size/file limits can block large repositories explicitly.
+
+## Learn a design, then replace or combine it
+
+Every course begins with the original idea and the adaptation boundary. A named
+excerpt is generated from complete source, so a short teaching snippet cannot
+drift from the executable project. Follow the chapter's task, inspect actual tool
+and phase events, study failure receipts, replace one module, then compare results.
+
+For horizontal composition, install PlanAct and Pi alongside QitOS and import
+`qitos_lab_planact.with_notebook.composition_with_notebook`. It binds an existing
+Memdir namespace, a replaceable context budget and compactor, and Pi's independent
+`weighted_summary` extension. The installed consumer verifies real request memory,
+plan changes and budget compaction. It does not change Engine or hide another loop.
+
+Hermes stores procedural documents; Voyager stores checked programs. Both use the
+same library seam. Catalog lookup is not loading; actual selected versions and
+their complete bodies must be observed. Voyager's bounded mastery scheduler
+advances only after a persisted verified skill. Its three data-programming tasks
+are not Minecraft exploration or the original paper's learned curriculum.
+
+## Four different acceptance questions
+
+1. **Framework correctness:** do permissions, failures, cleanup, restoration and
+   namespace isolation hold under deterministic counterexamples?
+2. **Design mechanisms:** did replanning, independent review, selected loading or
+   executable reuse actually happen, rather than appear in a final message?
+3. **Installed usability:** do both Python versions run outside the source tree
+   using only the installed framework and declared packages?
+4. **Task effects:** do three tasks per project, repeated three times, pass an
+   independent checker with actual model requests?
+
+ReAct and PlanAct share evidence audits. Compare dynamic with static planning,
+memory with no-memory, and reuse with no-skills. Retain failed attempts, transport
+errors and interventions. A control may fail: that is a result, not permission to
+change its task or erase the run. Synthetic professional tasks demonstrate design
+mechanisms; they do not establish broad research, production or benchmark scores.
+
+`scripts/qualify_agent_design_lab.py` runs the opt-in matrix serially against the
+installed packages. It stores raw evidence privately. A model's own `success`
+claim is never the checker. The code checker runs controller-selected tests inside
+Docker and binds source digests; it is not a proof against malicious code designed
+to subvert Python's own test process. Public summaries require separate privacy
+and redistribution review; hashes alone do not authorize publication.
+
+## Primary sources and boundaries
+
+- [ReAct](https://react-lm.github.io/): interleave reasoning, action and observation;
+  this course does not demand or invent hidden reasoning tokens.
+- [Plan-and-Act](https://arxiv.org/abs/2503.09572): separate high-level planning from
+  execution; this is a runtime adaptation, not planner training or benchmark reproduction.
+- [Pi coding agent](https://github.com/earendil-works/pi/tree/main/packages/coding-agent):
+  a small core with extensions; no TUI or package ecosystem parity is claimed.
+- [Claude Code design](https://code.claude.com/docs/en/how-claude-code-works):
+  context gathering, tools and verification; no proprietary internals are copied.
+- [Hermes skills](https://hermes-agent.nousresearch.com/docs/user-guide/features/skills/):
+  progressive loading; hub, messaging and complete Agent Skills interoperability are out of scope.
+- [Voyager](https://voyager.minedojo.org/): verified executable skill accumulation
+  and reuse; this adaptation uses Docker data tasks, not Minecraft or embedding retrieval.

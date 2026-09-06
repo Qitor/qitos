@@ -1,0 +1,506 @@
+---
+title: "Pi-like 精简可扩展编码"
+description: "使用专业项目学习可替换的 Agent 设计；当前为开发中课程。"
+---
+
+状态：开发中，尚未完成课程资格验证。下列源码是工作实现，不是已通过 3×3 真实矩阵的发布承诺。基础机制与已发生的结果见[实施记录](/internal/plans/agent_design_lab_execution)。
+
+## 原始思想与改编边界
+
+以精简工具面起步，显式组合扩展；不复刻 Pi 的 TypeScript runtime、TUI 或完整插件生态。 [原始来源](https://github.com/earendil-works/pi/tree/main/packages/coding-agent)。
+
+## 框架与用户的分工
+
+四个原生 Env 工具加 verification_tools 构成注册表。扩展在 Docker 中执行控制端固定检查，并将测试源码摘要关联 ArtifactRef。
+
+QitOS 已提供：模型事务与 usage、工具权限/校验、Env 执行、Session、ArtifactRef 和 Trajectory。用户编写：任务、策略、完成检查及记忆/技能选择。本轮补齐：自定义 agent_factory 接入、持久技能版本、完整正文加载、显式 Memdir 删除与产物引用的数据权限修正。
+
+核心增量位于完整源码中的 agent.py；CLI 负责显式配置与资源生命周期，evaluate.py 是控制端检查器。任务由项目自有合成材料组成，不是论文基准或真实客户数据。
+
+## 安装、配置与运行
+
+先按仓库构建说明安装本轮 QitOS wheel（当前 PyPI 版本不能替代未发布实现），再安装本课程。真实地址与凭据仅放在仓库外。模型配置采用完整 qitos.agent 文件，课程只读取其中 model；不是通过环境变量注入 key。
+
+每次 run 使用新的仓库外目录；resume 只接受同一项目重构的工厂与 resolver。
+
+默认输出上限 10,240，可通过私有模型配置提高；单任务步数、请求数和运行时间读取公开配置。validate 不调用模型，真实执行必须显式 --live。Docker 不可用时不能降级到宿主。模型失败、未完成任务和人工干预均保留，不能自动改为通过。
+
+## 验证、练习与组合
+
+独立检查器核验资料/数值或实际代码结果，不接受模型自报成功。计划修订、技能实际加载、子 Session 身份与失败也须单独验收。Session 恢复不是文件回滚；生成代码只在受限 Env 内执行。
+
+练习：安装验证 CLI 合同的另一种检查器，不改变 Agent 策略。
+
+组合：在 Claude-like 子审查或 Voyager 发布门中复用检查器。
+
+完整矩阵：三种任务各三轮。ReAct/PlanAct 使用同样任务；PlanAct 的 static、Hermes 的 no-memory、Voyager 的 no-skills 是明确对照，不以一次成功作性能结论。私有原始轨迹不能直接公开；仅在检查许可与脱敏后发布衍生摘要。
+
+```bash
+python -m pip install .
+python -m qitos_lab_pi validate --config agent.yaml --root /tmp/lab-validation
+python -m qitos_lab_pi run --config agent.yaml --model-config /private-config/model.yaml --credentials /private-config/credentials.yaml --root /private-runs/pi-attempt --task 0 --live
+```
+
+完整实现路径: `examples/projects/pi_coding/src/qitos_lab_pi/agent.py`.
+
+## 从完整源码提取：设计增量
+
+下列片段由完整项目同步生成，不是另一份手工维护的实现。完整安装文件在后面。
+
+{/* tutorial-snippet:src/qitos_lab_pi/agent.py:design */}
+```python
+    def prepare(self, state):
+        return json.dumps(
+            {"task": state.task, "recent_results": state.observations[-4:]}
+        )
+
+    def reduce(self, state, observation, decision):
+        state.observations.extend(
+            item.to_model_dict(max_chars=6000) for item in observation.action_results
+        )
+        state.observations = state.observations[-8:]
+        return state
+```
+{/* tutorial-snippet:end */}
+
+{/* tutorial-files:start */}
+
+## 完整文件：复制到项目根目录
+
+```python title="src/qitos_lab_pi/__main__.py"
+"""Explicit launch configuration; no credentials or model calls during validate."""
+
+import argparse
+from dataclasses import asdict, replace
+from importlib.resources import files
+import json
+from pathlib import Path
+import sys
+
+from qitos.config import (
+    BudgetConfig,
+    LocalCredentialFileResolver,
+    SessionConfig,
+    TrajectoryConfig,
+    build_agent_composition,
+    load_agent_config,
+)
+
+from .agent import build_factory
+from .evaluate import evaluate
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("command", choices=["validate", "run", "resume", "inspect"])
+    parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument("--model-config", type=Path)
+    parser.add_argument("--credentials", type=Path)
+    parser.add_argument("--root", type=Path, required=True)
+    parser.add_argument("--task", type=int, choices=[0, 1, 2], default=0)
+    parser.add_argument("--session")
+    parser.add_argument("--live", action="store_true")
+    parser.add_argument(
+        "--variant",
+        choices=["default", "static", "no-memory", "no-skills"],
+        default="default",
+    )
+    args = parser.parse_args()
+    config = load_agent_config(args.config)
+    tasks = json.loads(files(__package__).joinpath("tasks.json").read_text())
+    task = tasks[args.task]
+    if args.command == "validate":
+        print(
+            json.dumps(
+                {"status": "configuration_valid", "tasks": len(tasks), "live": False}
+            )
+        )
+        return 0
+    root = args.root.resolve()
+    if any((parent / ".git").exists() for parent in (root, *root.parents)):
+        raise ValueError("run_root_must_be_outside_git")
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if args.command == "inspect":
+        from qitos.qita.reader import candidate_file_reader
+
+        reader = candidate_file_reader(root / "trajectory.journal")
+        print(json.dumps({"runs": [asdict(run) for run in reader.discover_runs()]}))
+        return 0
+    if not args.live or args.credentials is None:
+        raise ValueError("explicit_live_and_credentials_required")
+    if args.model_config is not None:
+        private = args.model_config.resolve()
+        if any((parent / ".git").exists() for parent in private.parents):
+            raise ValueError("model_config_must_be_outside_git")
+        config = replace(config, model=load_agent_config(private).model)
+    output_limit = max(10240, config.model.request.max_tokens or 0)
+    request = replace(config.model.request, max_tokens=output_limit)
+    config = replace(
+        config, model=replace(config.model, request=request, max_tokens=output_limit)
+    )
+    workspace = root / "input"
+    if args.command == "run":
+        workspace.mkdir(exist_ok=False)
+        for name, content in task["inputs"].items():
+            target = workspace / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content)
+    config = replace(
+        config,
+        budgets=config.budgets
+        or BudgetConfig(max_steps=80, max_requests=80, max_runtime_seconds=3600),
+        runtime=replace(
+            config.runtime,
+            environment=replace(config.runtime.environment, workspace=str(workspace)),
+            session=SessionConfig(store="sqlite", path=str(root / "sessions.sqlite3")),
+            trajectory=TrajectoryConfig(output=str(root / "trajectory.journal")),
+        ),
+    )
+    resolver = LocalCredentialFileResolver(args.credentials, repository_root=Path.cwd())
+    factory = build_factory(task, root=root, variant=args.variant)
+    with build_agent_composition(
+        config, credential_resolver=resolver, agent_factory=factory
+    ) as composition:
+        session = (
+            composition.restore(args.session)
+            if args.command == "resume"
+            else composition.session(task["task"])
+        )
+        (root / "session.json").write_text(
+            json.dumps({"session_id": session.session_id.value})
+        )
+        result = session.run()
+        verdict = evaluate(result, task)
+        report = {
+            "session_id": session.session_id.value,
+            "run_id": result.run_id,
+            "stop_reason": str(result.state.stop_reason),
+            "evaluation": verdict,
+            "tool_calls": result.tool_calls_by_name,
+            "variant": args.variant,
+        }
+        (root / "report.json").write_text(
+            json.dumps(report, ensure_ascii=False, indent=2)
+        )
+        print(json.dumps(report, ensure_ascii=False))
+        return 0 if verdict["passed"] else 2
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except Exception as error:
+        # Raw transport/factory errors can contain private endpoint details.
+        print(
+            json.dumps({"status": "failed", "error_type": type(error).__name__}),
+            file=sys.stderr,
+        )
+        raise SystemExit(2) from None
+```
+
+```json title="src/qitos_lab_pi/tasks.json"
+[
+  {
+    "id": "C21",
+    "task": "Repair a small CSV analysis package. Normalize whitespace, reject malformed rows with a useful error, compute weighted means without rounding early, and keep the CLI JSON contract. Read AGENTS.md, modify multiple modules, run verify_project, and finish only after verification passes.",
+    "inputs": {
+      "AGENTS.md": "Use stdlib only. Keep existing public names. Handle empty and invalid data explicitly. Do not change the data files to make checks pass.\n",
+      "parser.py": "import csv\n\ndef parse(text):\n    return [(r['group'], float(r['value']), int(r['count'])) for r in csv.DictReader(text.splitlines())]\n",
+      "analysis.py": "def weighted_mean(rows):\n    return sum(value for _, value, count in rows) / len(rows)\n",
+      "cli.py": "import json, sys\nfrom parser import parse\nfrom analysis import weighted_mean\nif __name__ == '__main__':\n    print(json.dumps({'mean': weighted_mean(parse(sys.stdin.read()))}))\n",
+      "sample.csv": "group,value,count\n small ,10,8\nlarge,30,2\n"
+    },
+    "outputs": [
+      "parser.py",
+      "analysis.py"
+    ],
+    "checks": "from parser import parse\nfrom analysis import weighted_mean\nrows=parse('group,value,count\\n a ,10,8\\nb,30,2\\n')\nassert rows[0][0]=='a'\nassert weighted_mean(rows)==14\ntry: weighted_mean([])\nexcept ValueError: pass\nelse: raise AssertionError('empty weights must be rejected')\ntry: parse('group,value,count\\nx,abc,2\\n')\nexcept ValueError: pass\nelse: raise AssertionError('invalid numeric data must be rejected')\n"
+  },
+  {
+    "id": "C22",
+    "task": "Repair a versioned event migration library. Preserve unknown payload fields, reject unknown schema versions, never mutate caller input, and make summarization idempotent by event identity. Read the project contract; verify both modules.",
+    "inputs": {
+      "AGENTS.md": "No external dependencies. Current schema is 2; schema 1 maps id->event_id without losing payload. Unknown versions reject. Duplicate identical IDs are ignored; conflicting duplicates reject.\n",
+      "migration.py": "def migrate(event):\n    event['event_id'] = event.pop('id', event.get('event_id'))\n    event['schema'] = 2\n    return event\n",
+      "summary.py": "def total(events):\n    return sum(event['value'] for event in events)\n"
+    },
+    "outputs": [
+      "migration.py",
+      "summary.py"
+    ],
+    "checks": "from migration import migrate\nfrom summary import total\nx={'schema':1,'id':'a','value':3,'tag':'keep'}\ny=migrate(x)\nassert x=={'schema':1,'id':'a','value':3,'tag':'keep'}\nassert y=={'schema':2,'event_id':'a','value':3,'tag':'keep'}\nassert migrate(y)==y\nassert total([y,y])==3\ntry: migrate({'schema':99,'id':'x'})\nexcept ValueError: pass\nelse: raise AssertionError('unknown schema accepted')\ntry: total([y,dict(y,value=4)])\nexcept ValueError: pass\nelse: raise AssertionError('conflicting duplicate accepted')\n"
+  },
+  {
+    "id": "C23",
+    "task": "Repair a bounded job scheduler's pure policy modules: deterministic admission, FIFO pending work, duplicate suppression, and quorum join decisions. This is a teaching application, not a replacement for QitOS's runtime. Read AGENTS.md and verify the two modules together.",
+    "inputs": {
+      "AGENTS.md": "admit(pending, active, limit) returns new IDs, leaves inputs untouched, preserves FIFO and excludes active/duplicate IDs. Negative limit rejects. join_state(outcomes, required, total) counts successful unique work IDs, returns success when quorum met, impossible when remaining capacity is insufficient, otherwise pending.\n",
+      "admission.py": "def admit(pending, active, limit):\n    return pending[:limit]\n",
+      "join.py": "def join_state(outcomes, required, total):\n    return 'success' if len(outcomes)>=required else 'pending'\n"
+    },
+    "outputs": [
+      "admission.py",
+      "join.py"
+    ],
+    "checks": "from admission import admit\nfrom join import join_state\np=['a','b','b','c','d']; a=['a']\nassert admit(p,a,3)==['b','c']\nassert p==['a','b','b','c','d'] and a==['a']\ntry: admit(p,a,-1)\nexcept ValueError: pass\nelse: raise AssertionError('negative limit accepted')\nassert join_state({'a':'success','b':'failed'},2,3)=='pending'\nassert join_state({'a':'success','b':'failed','c':'failed'},2,3)=='impossible'\nassert join_state({'a':'success','b':'success'},2,3)=='success'\n"
+  }
+]
+```
+
+```python title="src/qitos_lab_pi/evaluate.py"
+"""Read successful controller-owned verification, not the model's final claim."""
+
+
+def evaluate(result, task, *, prior_records=()):
+    verified_step = -1
+    edited_step = -1
+    source_digests = {}
+    for record in [*prior_records, *result.records]:
+        for item in record.action_results:
+            if item.tool_name in {"write_file", "edit_file", "run_command"}:
+                edited_step = record.step_id
+            if item.tool_name == "verify_project" and item.status == "success":
+                output = item.output
+                if isinstance(output, dict) and output.get("verified") is True:
+                    verified_step = record.step_id
+                    source_digests = output.get("source_digests", {})
+                else:
+                    verified_step = -1
+    checks = {
+        "independent_checks": verified_step >= 0,
+        "no_edits_after_verification": verified_step >= edited_step,
+        "all_outputs_captured": set(task["outputs"]) == set(source_digests),
+        "read_before_edit": result.tool_calls_by_name.get("read_file", 0) > 0,
+        "final": str(result.state.stop_reason) == "final",
+    }
+    return {
+        "passed": all(checks.values()),
+        "checks": checks,
+        "source_digests": source_digests,
+    }
+```
+
+```python title="src/qitos_lab_pi/agent.py"
+"""A small replaceable coding policy, not a second agent execution loop."""
+
+from dataclasses import dataclass, field
+import json
+
+from qitos.core.agent_module import AgentModule
+from qitos.core.state import StateSchema
+from qitos.kit.toolset.env_coding import read_file, write_file, edit_file, run_command
+from .extension import verification_tools
+
+
+@dataclass
+class CodingState(StateSchema):
+    observations: list[dict] = field(default_factory=list)
+
+
+class CodingAgent(AgentModule):
+    def init_state(self, task, **kwargs):
+        return CodingState(task=task, max_steps=self.config.get("max_steps", 80))
+
+    def base_persona_prompt(self, state):
+        return (
+            "Inspect, change and test a real multi-file project. Use the four native "
+            "read/write/edit/command tools; do not invent a framework executor. "
+            "Read AGENTS.md first. Commands run only in the configured Docker Env."
+        )
+
+    def task_policy_prompt(self, state):
+        return (
+            "Use the installed verify_project extension for independent checks. "
+            "A successful shell exit alone is not project completion. If checks fail, "
+            "inspect their evidence and correct the cause. Do not edit tests to pass. "
+            "After verify_project passes, make no further edits and give a final answer."
+        )
+
+    # docs:start design
+    def prepare(self, state):
+        return json.dumps(
+            {"task": state.task, "recent_results": state.observations[-4:]}
+        )
+
+    def reduce(self, state, observation, decision):
+        state.observations.extend(
+            item.to_model_dict(max_chars=6000) for item in observation.action_results
+        )
+        state.observations = state.observations[-8:]
+        return state
+
+    # docs:end design
+
+
+def build_factory(task, **resources):
+    def factory(*, config, model, tool_registry, protocol, parser):
+        for tool in (
+            read_file,
+            write_file,
+            edit_file,
+            run_command,
+            *verification_tools(task),
+        ):
+            tool_registry.register(tool)
+        return CodingAgent(
+            llm=model,
+            tool_registry=tool_registry,
+            model_protocol=protocol.id,
+            max_steps=config.max_steps,
+            model_parser=parser,
+        )
+
+    return factory
+```
+
+```python title="src/qitos_lab_pi/extension.py"
+"""Installable project extension. All generated-code execution stays in Env."""
+
+import hashlib
+import shlex
+from typing import Optional, Dict, Any
+
+from qitos.core.artifact import ArtifactRef
+from qitos.core.function_tool_decorator import function_tool
+from qitos.core.tool import ToolPermission
+from qitos.core.tool_result import ToolResult
+
+
+def verification_tools(task):
+    @function_tool(
+        required_ops=["file", "process"],
+        permissions=ToolPermission(filesystem_read=True, command=True),
+        concurrency_safe=False,
+    )
+    def verify_project(runtime_context: Optional[Dict[str, Any]] = None):
+        """Run controller-owned checks, capture exact tested source artifacts."""
+        context = runtime_context or {}
+        fs, process = context["ops"]["file"], context["ops"]["process"]
+        bodies = {path: fs.read_text(path).encode() for path in task["outputs"]}
+        outcome = dict(
+            process.run("python -c " + shlex.quote(task["checks"]), timeout=30)
+        )
+        unchanged = all(
+            fs.read_text(path).encode() == body for path, body in bodies.items()
+        )
+        passed = (
+            outcome.get("returncode") == 0
+            and not outcome.get("outcome_unknown")
+            and unchanged
+        )
+        refs = []
+        for path, body in bodies.items():
+            digest = hashlib.sha256(body).hexdigest()
+            ref = ArtifactRef(
+                artifact_id="sha256:" + digest,
+                resolver_key="tool-result-output",
+                sha256=digest,
+                byte_length=len(body),
+                media_type="text/x-python",
+            )
+            context["artifact_resolver"].put(ref, body)
+            refs.append(ref)
+        report = {
+            "verified": passed,
+            "source_digests": {
+                path: hashlib.sha256(body).hexdigest() for path, body in bodies.items()
+            },
+            "checks_digest": hashlib.sha256(task["checks"].encode()).hexdigest(),
+            "returncode": outcome.get("returncode"),
+            "source_unchanged": unchanged,
+            "feedback": str(outcome.get("stderr", ""))[-3000:],
+        }
+        return ToolResult(
+            output=report,
+            model_output=report,
+            artifact_refs=tuple(refs),
+            tool_name="verify_project",
+        )
+
+    return (verify_project,)
+
+
+def statistics_tools():
+    """Optional pure-data extension reused by the PlanAct composition lesson."""
+
+    @function_tool(read_only=True, concurrency_safe=True)
+    def weighted_summary(values: list[float], weights: list[int]):
+        """Calculate a weighted mean with explicit dimension/weight validation."""
+        if (
+            not values
+            or len(values) != len(weights)
+            or any(weight < 0 for weight in weights)
+        ):
+            raise ValueError("invalid_weighted_series")
+        total = sum(weights)
+        if total <= 0:
+            raise ValueError("empty_weighted_series")
+        return {
+            "mean": sum(value * weight for value, weight in zip(values, weights))
+            / total,
+            "total_weight": total,
+        }
+
+    return (weighted_summary,)
+```
+
+```python title="src/qitos_lab_pi/__init__.py"
+"""Agent Design Lab: independently installed coding project."""
+```
+
+```toml title="pyproject.toml"
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qitos-lab-pi"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = ["qitos[openai]"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+qitos_lab_pi = ["tasks.json"]
+```
+
+```yaml title="agent.yaml"
+schema: qitos.agent
+agent:
+  name: design-lab-pi-research
+  protocol: json_decision_multi_v1
+model:
+  provider: openai_compatible
+  model: example-model
+  base_url: https://provider.example/v1
+  credential:
+    ref: research-model
+  request:
+    max_tokens: 10240
+    timeout_seconds: 180
+    retries: 0
+tools:
+  preset: none
+runtime:
+  environment:
+    type: docker
+    workspace: .
+    image: python:3.12-slim
+  session:
+    mode: durable
+    store: sqlite
+    path: ./sessions.sqlite3
+  trajectory:
+    enabled: true
+    output: ./trajectory.journal
+budgets:
+  max_steps: 80
+  max_requests: 80
+  max_runtime_seconds: 3600
+failure_policy:
+  tool: continue
+```
+
+{/* tutorial-files:end */}

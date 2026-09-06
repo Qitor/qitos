@@ -1,0 +1,92 @@
+---
+title: "Agent Design Lab"
+description: "通过同一个可替换执行框架，表达六种专业 Agent 设计。"
+---
+
+这是[笔记 Agent](/zh/tutorials/index)之后的进阶课程：六个可分别安装的项目，
+中英文页面均包含完整源码。课程正在验收，不是已发布产品，也不宣称复刻原系统。
+真实模型成绩与失败分析，必须和确定性框架测试分别记录。
+
+## 选择要研究的机制
+
+| 项目 | 用户编写的设计增量 | QitOS 提供的基础设施 |
+| --- | --- | --- |
+| [ReAct 研究](/zh/tutorials/design-lab-react) | 证据驱动的行动反馈与有条件结论 | 模型请求事实、工具、停止规则与持久状态 |
+| [PlanAct 研究](/zh/tutorials/design-lab-planact) | Planner/Executor 阶段、计划与重规划策略 | 同一模型事务路径与 Session 恢复 |
+| [Pi-like 编码](/zh/tutorials/design-lab-pi) | 四工具策略与可安装验证扩展 | 原生 Env 工具、权限、冲突、artifact 与清理 |
+| [Claude-Code-like 审查](/zh/tutorials/design-lab-claude) | 项目上下文、验证边界、独立审查策略 | 持久 spawn/join、独立 child Session 与工作区 artifact 恢复 |
+| [Hermes-like 笔记本](/zh/tutorials/design-lab-hermes) | 记什么、检索什么、何时遗忘或加载 | Memdir 记录、持久版本与完整选定技能正文 |
+| [Voyager-inspired 技能](/zh/tutorials/design-lab-voyager) | 生成、验证、保存和组合程序技能 | 受限 Env、版本化技能库、artifact 身份与生命周期 |
+
+六课均使用 `AgentModule + Engine + Session`，没有第二个 executor 或直接 SDK
+模型循环。框架不固化 Planner、记忆策略、评分规则或统一的“任务成功”定义。
+
+## 本轮补齐的框架能力
+
+`build_agent_composition` 新增可选 `agent_factory`，传入具名参数
+`config、model、tool_registry、protocol、parser`。返回绑定这些对象的 AgentModule；
+protocol 可通过其 ID 绑定。默认仍为 ConfiguredAgent。工厂可以在传入 registry
+注册课程工具；composition 校验绑定与必需工具策略，拥有 model、env、runtime、
+Engine，并在失败时清理自有资源。显式注入的资源仍由调用者拥有。
+恢复时在新进程重新构造工厂和 resolver，不持久化 callable。
+
+[Composition 参考](/zh/reference/composition)说明接口与所有权；
+[技能库参考](/zh/reference/skill-library)说明持久版本、完整加载和显式记忆删除。
+本轮还修复了 child 输入投影前的外部组件恢复顺序，避免新分配资源把已验证工作区
+覆盖成初始文件。这些机制减少资源、持久化和分发接线；策略仍留给研究者修改。
+
+## 安装与私有配置
+
+从实施源码构建并安装 QitOS wheel，再安装 `examples/projects/` 下需要的项目。
+这些接口尚未单独发布到 PyPI。使用 Python 3.10 或 3.12；真实 OpenAI-compatible
+调用需要声明的 `qitos[openai]` 依赖。每课包含独立 pyproject、公开 agent.yaml、
+三种任务、策略、启动器与检查器。
+
+真实模型配置、凭据、数据库、artifact 和原始轨迹均放在 Git 外的私有目录。
+公开 URL 只是占位示例。默认输出上限 10,240，可提高；步数、请求数、超时和重试
+是可配置的单任务保护，不是隐藏的实验总额度。
+
+`validate` 不调用模型，`run --live` 显式执行，`resume --session` 用同一工厂恢复
+已暂停 Session，`inspect` 查看轨迹。Session 恢复不是外部效果撤销或 Git 文件回滚。
+Docker 组件提供有界、artifact 驱动的冷文件恢复，不是进程快照或虚拟机。
+大仓库可能被工作区文件数和体积上限明确阻断。
+
+## 学习、替换与组合
+
+每课先解释原设计和教学改编边界。核心片段从完整源码同步提取，不另写无法运行的
+传播版代码。运行任务后查看真实工具与阶段事件，分析失败，替换一个模块并对照。
+
+横向组合可同时安装 PlanAct 与 Pi，使用
+`qitos_lab_planact.with_notebook.composition_with_notebook`：绑定已有 Memdir、
+可替换上下文预算和 compactor，再装入 Pi 的 `weighted_summary` 扩展。
+安装消费者检查模型实际看见记忆、计划修订和真实预算压缩，不修改 Engine。
+
+Hermes 保存流程文档，Voyager 保存验证后的程序，两者复用同一技能库。
+目录检索不等于加载；必须观察选定版本和完整正文。Voyager 的有界课程调度器只在
+持久技能验证通过后推进下一个目标。三种数据编程任务不等于 Minecraft 开放探索，
+也不等于原论文的课程生成和向量检索。
+
+## 四层验收不能混为一谈
+
+1. **框架正确性：** 确定性反例下，权限、错误、清理、恢复、隔离是否成立？
+2. **设计机制：** 是否真的重规划、独立审查、按需加载或执行复用，而非 final 中声称？
+3. **安装可用性：** 两个 Python 版本能否在源码树外，只依赖已安装包运行？
+4. **任务效果：** 每项目三种任务、每种三轮，真实请求是否通过独立检查器？
+
+ReAct/PlanAct 共享审计任务；比较动态/静态规划、启用/关闭记忆、启用/关闭技能。
+保留失败、网络错误和人工干预。对照失败也是结果，不能改任务或删掉失败轮。
+合成专业场景用于验证机制，不证明广泛研究能力、生产成熟度或论文基准成绩。
+
+`scripts/qualify_agent_design_lab.py` 串行运行安装包的显式 live 矩阵，原始证据
+保存私有。代码检查器在 Docker 中执行控制端选定的测试并绑定源码摘要，
+但不能冒充抵抗恶意代码篡改 Python 测试进程的安全证明。
+公开摘要须另行检查隐私与再分发资格；哈希不能替代出版许可。
+
+## 原始来源与改编边界
+
+- [ReAct](https://react-lm.github.io/)：推理、行动和观察交替；不要求或编造隐藏 reasoning。
+- [Plan-and-Act](https://arxiv.org/abs/2503.09572)：高层规划与执行分离；不复现 Planner 训练或论文成绩。
+- [Pi](https://github.com/earendil-works/pi/tree/main/packages/coding-agent)：精简核心与扩展；不宣称 TUI 或生态等价。
+- [Claude Code](https://code.claude.com/docs/en/how-claude-code-works)：上下文收集、工具和验证；不复制私有实现。
+- [Hermes skills](https://hermes-agent.nousresearch.com/docs/user-guide/features/skills/)：渐进加载；不实现 Hub、消息平台或完整 Agent Skills 兼容。
+- [Voyager](https://voyager.minedojo.org/)：可执行技能积累与复用；这里使用 Docker 数据任务，不是 Minecraft 或向量检索。

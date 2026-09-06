@@ -18,6 +18,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  design-lab-installed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Build and install the framework and six independent projects
+        run: |
+          python -m pip install build
+          python -m build --wheel
+          python -m venv "$RUNNER_TEMP/lab-consumer"
+          "$RUNNER_TEMP/lab-consumer/bin/python" -m pip install dist/*.whl examples/projects/react_research examples/projects/planact_research examples/projects/pi_coding examples/projects/claude_coding examples/projects/hermes_notebook examples/projects/voyager_skills
+      - name: Run offline mechanisms and horizontal composition outside checkout
+        working-directory: ${{ runner.temp }}
+        run: |
+          unset PYTHONPATH
+          "$RUNNER_TEMP/lab-consumer/bin/python" "$GITHUB_WORKSPACE/tests/fixtures/design_lab/installed_consumer.py" "$GITHUB_WORKSPACE/examples/projects"
+          "$RUNNER_TEMP/lab-consumer/bin/python" "$GITHUB_WORKSPACE/tests/fixtures/design_lab/composition_consumer.py" "$GITHUB_WORKSPACE/examples/projects/planact_research/agent.yaml"
+
   tests:
     runs-on: ubuntu-latest
     timeout-minutes: 30

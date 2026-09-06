@@ -1,0 +1,35 @@
+schema: qitos.agent
+agent:
+  name: design-lab-claude-research
+  protocol: json_decision_multi_v1
+model:
+  provider: openai_compatible
+  model: example-model
+  base_url: https://provider.example/v1
+  credential:
+    ref: research-model
+  request:
+    max_tokens: 10240
+    timeout_seconds: 180
+    retries: 0
+tools:
+  preset: none
+runtime:
+  environment:
+    type: docker
+    workspace: .
+    image: python:3.12-slim
+  session:
+    mode: durable
+    store: sqlite
+    path: ./sessions.sqlite3
+  trajectory:
+    enabled: true
+    output: ./trajectory.journal
+budgets:
+  max_steps: 80
+  max_requests: 80
+  max_runtime_seconds: 3600
+failure_policy:
+  tool: continue
+

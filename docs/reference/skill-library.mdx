@@ -1,0 +1,382 @@
+---
+title: "Durable skills and explicit forgetting"
+description: "Store selected procedural documents or programs without executing them."
+---
+
+Use the existing `ToolArtifact` / `BaseToolLibrary` seam for procedural documents
+and executable source. `SqliteToolLibrary(path, namespace=...)` is an owned local
+SQLite implementation: close it or use a context manager. The caller selects a
+trusted private database path. Namespace labels isolate records, not operating
+system users who can read that same file.
+
+`add_or_update(..., expected_version=...)` atomically publishes a new immutable
+revision and detects stale writers. `catalog` returns descriptions without bodies;
+`get` and `get_version` load complete selected bodies. Selection, validation,
+trust, code execution and retention policy remain the agent author's decisions.
+The library never executes a program and is not a permission bypass. Store JSON
+metadata such as source, checker digest and ArtifactRef declarations; never live
+clients, credentials or Python callables. Rejecting invalid data does not repair it.
+
+The Hermes and Voyager courses use the same store for different payloads. Neither
+silently shortens a selected skill to fit a prompt: request budgets must fit it or
+fail explicitly. Existing in-memory implementations remain usable through the same
+base seam; this is not a new root-level export.
+
+`MemdirMemory.delete(record_id)` forgets a local hashed record and its index entry.
+Missing identities return false; malformed or symlink-backed resources are rejected.
+It is not secure erasure, historical trajectory deletion, a multi-file transaction,
+or a concurrent-writer protocol. Reopening a memory root does not initialize it.
+
+[Hermes course](/tutorials/design-lab-hermes) · [Voyager course](/tutorials/design-lab-voyager)
+
+The source links below pin immutable implementation commits. Install a wheel built
+from the matching repository source; this is not a separate PyPI release.
+
+{/* api-reference:start */}
+
+<span id="qitos-kit-tool-library-base-toolartifact" />
+## ToolArtifact
+
+```python
+from qitos.kit.tool.library.base import ToolArtifact
+```
+
+[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/base.py#L11)
+
+[Usage and executable example](/tutorials/design-lab-hermes)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+artifact = ToolArtifact(name="audit", description="Check evidence", source="Read, calculate, verify.")
+```
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `name` | `str` | `required` |
+| `description` | `str` | `required` |
+| `source` | `str` | `required` |
+| `summary` | `Optional[str]` | `None` |
+| `tags` | `List[str]` | `field(default_factory=list)` |
+| `version` | `int` | `1` |
+| `created_at` | `str` | `field(default_factory=lambda: datetime.now(timezone.utc).isoformat())` |
+| `updated_at` | `str` | `field(default_factory=lambda: datetime.now(timezone.utc).isoformat())` |
+| `metadata` | `Dict[str, Any]` | `field(default_factory=dict)` |
+| `active` | `bool` | `True` |
+
+
+<span id="qitos-kit-tool-library-base-basetoollibrary" />
+## BaseToolLibrary
+
+```python
+from qitos.kit.tool.library.base import BaseToolLibrary
+```
+
+[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/base.py#L32)
+
+[Usage and executable example](/tutorials/design-lab-hermes)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+# Implement this existing contract to replace the local SQLite mechanism.
+```
+
+<span id="qitos-kit-tool-library-base-basetoollibrary-get" />
+### BaseToolLibrary.get
+
+```text
+get(name: str) -> Optional[ToolArtifact]
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `name` | `str` | `required` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/base.py#L38)
+
+<span id="qitos-kit-tool-library-base-basetoollibrary-search" />
+### BaseToolLibrary.search
+
+```text
+search(query: str, top_k: int=5) -> List[ToolArtifact]
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `query` | `str` | `required` |
+| `top_k` | `int` | `5` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/base.py#L41)
+
+<span id="qitos-kit-tool-library-base-basetoollibrary-add-or-update" />
+### BaseToolLibrary.add_or_update
+
+```text
+add_or_update(artifact: ToolArtifact) -> ToolArtifact
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `artifact` | `ToolArtifact` | `required` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/base.py#L33)
+
+
+<span id="qitos-kit-tool-library-sqlite_store-sqlitetoollibrary" />
+## SqliteToolLibrary
+
+```python
+from qitos.kit.tool.library.sqlite_store import SqliteToolLibrary
+```
+
+[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/sqlite_store.py#L23)
+
+[Usage and executable example](/tutorials/design-lab-hermes)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+with SqliteToolLibrary(private_path, namespace="research") as library:
+    stored = library.add_or_update(artifact)
+    print(library.catalog("audit"))
+    assert library.get_version(stored.name, stored.version).source == artifact.source
+```
+
+```text
+Atomic revisions scoped to an explicitly selected namespace.
+
+A catalog exposes descriptions, never executable source. ``get`` loads the
+complete selected artifact; no implicit truncation or execution takes place.
+The caller owns the connection and must close it (or use a context manager).
+SQLite is a trusted local resource, not an authorization boundary against a
+user who can directly open the same database file.
+```
+
+```text
+SqliteToolLibrary(path: str | Path, *, namespace: str) -> Any (see behavior contract)
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `path` | `str \| Path` | `required` |
+| `namespace` | `str` | `required` |
+
+<span id="qitos-kit-tool-library-sqlite_store-sqlitetoollibrary-add-or-update" />
+### SqliteToolLibrary.add_or_update
+
+```text
+add_or_update(artifact: ToolArtifact, *, expected_version: Optional[int]=None) -> ToolArtifact
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `artifact` | `ToolArtifact` | `required` |
+| `expected_version` | `Optional[int]` | `None` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/sqlite_store.py#L113)
+
+<span id="qitos-kit-tool-library-sqlite_store-sqlitetoollibrary-get" />
+### SqliteToolLibrary.get
+
+```text
+get(name: str) -> Optional[ToolArtifact]
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `name` | `str` | `required` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/sqlite_store.py#L95)
+
+<span id="qitos-kit-tool-library-sqlite_store-sqlitetoollibrary-get-version" />
+### SqliteToolLibrary.get_version
+
+```text
+get_version(name: str, version: int) -> Optional[ToolArtifact]
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `name` | `str` | `required` |
+| `version` | `int` | `required` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/sqlite_store.py#L104)
+
+<span id="qitos-kit-tool-library-sqlite_store-sqlitetoollibrary-catalog" />
+### SqliteToolLibrary.catalog
+
+```text
+catalog(query: str='', *, limit: int=20) -> list[dict[str, Any]]
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `query` | `str` | `''` |
+| `limit` | `int` | `20` |
+
+```text
+Return selectable identities/descriptions without source or metadata.
+
+This is a projection, not a privacy sanitizer or bounded-I/O claim.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/sqlite_store.py#L161)
+
+<span id="qitos-kit-tool-library-sqlite_store-sqlitetoollibrary-search" />
+### SqliteToolLibrary.search
+
+```text
+search(query: str, top_k: int=5) -> list[ToolArtifact]
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `query` | `str` | `required` |
+| `top_k` | `int` | `5` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/sqlite_store.py#L148)
+
+<span id="qitos-kit-tool-library-sqlite_store-sqlitetoollibrary-deprecate" />
+### SqliteToolLibrary.deprecate
+
+```text
+deprecate(name: str) -> bool
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `name` | `str` | `required` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/sqlite_store.py#L170)
+
+<span id="qitos-kit-tool-library-sqlite_store-sqlitetoollibrary-close" />
+### SqliteToolLibrary.close
+
+```text
+close() -> None
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/sqlite_store.py#L56)
+
+
+<span id="qitos-kit-tool-library-sqlite_store-toollibraryerror" />
+## ToolLibraryError
+
+```python
+from qitos.kit.tool.library.sqlite_store import ToolLibraryError
+```
+
+[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/sqlite_store.py#L15)
+
+[Usage and executable example](/tutorials/design-lab-hermes)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+# Catch ToolLibraryError and inspect error.code; do not infer success from absence of output.
+```
+
+```text
+Non-echoing library failure, identified by a stable code.
+```
+
+```text
+ToolLibraryError(code: str) -> Any (see behavior contract)
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `code` | `str` | `required` |
+
+
+<span id="qitos-kit-memory-memdir_memory-memdirmemory" />
+## MemdirMemory
+
+```python
+from qitos.kit.memory.memdir_memory import MemdirMemory
+```
+
+[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/memory/memdir_memory.py#L16)
+
+[Usage and executable example](/tutorials/design-lab-hermes)
+
+Usage fragment: continues with objects from the linked complete tutorial; not a standalone program.
+
+```python
+memory = MemdirMemory(private_memory_path, create=True)
+# Subsequent processes reopen with create=False (the default).
+removed = memory.delete(record_id)
+```
+
+```text
+Persist text records with stable identity and fresh disk retrieval.
+
+Restore is the default and fails if a bound root is missing. Pass
+``create=True`` only to explicitly initialize a namespace. ``reset`` and
+``evict`` affect the append-time cache only; ``delete`` removes a local fact.
+Arbitrary Python/JSON content and metadata are not a durable round-trip API.
+```
+
+```text
+MemdirMemory(memory_dir: str='.qitos/memory', *, global_memory_dir: str | None=None, create: bool=False, max_index_entries: int=200, max_index_chars: int=25000) -> Any (see behavior contract)
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `memory_dir` | `str` | `'.qitos/memory'` |
+| `global_memory_dir` | `str \| None` | `None` |
+| `create` | `bool` | `False` |
+| `max_index_entries` | `int` | `200` |
+| `max_index_chars` | `int` | `25000` |
+
+<span id="qitos-kit-memory-memdir_memory-memdirmemory-append" />
+### MemdirMemory.append
+
+```text
+append(record: MemoryRecord) -> None
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `record` | `MemoryRecord` | `required` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/memory/memdir_memory.py#L47)
+
+<span id="qitos-kit-memory-memdir_memory-memdirmemory-retrieve" />
+### MemdirMemory.retrieve
+
+```text
+retrieve(query: Optional[Dict[str, Any]]=None, state: Any=None, observation: Any=None) -> List[MemoryRecord]
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `query` | `Optional[Dict[str, Any]]` | `None` |
+| `state` | `Any` | `None` |
+| `observation` | `Any` | `None` |
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/memory/memdir_memory.py#L103)
+
+<span id="qitos-kit-memory-memdir_memory-memdirmemory-delete" />
+### MemdirMemory.delete
+
+```text
+delete(record_id: str) -> bool
+```
+
+| Parameter | Type | Default |
+| --- | --- | --- |
+| `record_id` | `str` | `required` |
+
+```text
+Forget one logical record in this namespace, never global memory.
+
+Idempotent for an absent identity. This is local-file deletion, not
+secure erasure or a concurrent multi-file transaction. Callers serialize
+writes to one Memdir namespace; use a transactional backend otherwise.
+```
+
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/memory/memdir_memory.py#L78)
+
+{/* api-reference:end */}

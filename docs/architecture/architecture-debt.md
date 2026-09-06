@@ -1,5 +1,12 @@
 # Architecture Debt
 
+Agent Design Lab follow-ups (not claims of completion): SQLite skill catalog is a
+projection, not bounded-I/O search; dependency pinning, signed skill distribution
+and malicious-code-resistant grading are not provided. Memdir forgetting is not
+secure erasure or a multi-writer transaction. The course curriculum is bounded
+mastery ordering, not an open-ended learned curriculum. These do not justify new
+kernel loops or duplicated stores. See the [execution ledger](../internal/plans/agent_design_lab_execution.md).
+
 The [v5 residual-goal roadmap](../v5/README.md) is the current iteration map.
 The [R1 implementation review](../internal/plans/v5_r1_integration_review.md)
 tracks candidate-only reasoning/cleanup, handoff attribution/admission and YAML
