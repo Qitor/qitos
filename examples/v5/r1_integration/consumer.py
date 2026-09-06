@@ -10,6 +10,7 @@ import subprocess
 import sys
 import threading
 from types import SimpleNamespace as NS
+from typing import Any
 from unittest.mock import patch
 
 import qitos
@@ -18,7 +19,7 @@ from qitos.core.artifact import ArtifactRef
 from qitos.core.tool_result import ToolResult
 from qitos.kit.artifact.store import FileArtifactStore
 from qitos.core.context import DeclaredContextBudgetPolicy
-from qitos.core.conversation import ExchangeLog
+from qitos.core.conversation import AssistantItem, ExchangeLog
 from qitos.core.function_tool_decorator import function_tool
 from qitos.core.memory import MemoryRecord
 from qitos.core.session import PauseSafety, SafeBoundaryKind
@@ -116,8 +117,10 @@ def execute(root, mode):
         (root / "memory-seed.json").read_text()
     )
     assert MemorySourceAdapter(MemdirMemory(str(root / "other")), namespace="other").contribute(None) == ()
-    resources, requests, executions, completions, views = [], [], [], [], []
-    prior = json.loads((root / "first.json").read_text()) if restored else None
+    resources: list[Any] = []
+    executions: list[int | str] = []
+    requests, completions, views = [], [], []
+    prior = json.loads((root / "first.json").read_text()) if restored else {}
     offset = len(prior["requests"]) if prior else 0
     released = threading.Event()
     worker_ack = threading.Event()
@@ -368,7 +371,10 @@ def execute(root, mode):
                 graph = WorkGraph.from_canonical_dict(inspection.work_graph)
                 assert graph.operation_receipts[0].state == "completed"
                 assert len(prior["requests"]) + len(requests) == 10
-            assert composition.runtime.checkpoint_store.get_session_head(other_id).snapshot_id == other_head
+            store = composition.runtime.checkpoint_store
+            assert store is not None
+            independent_head = store.get_session_head(other_id)
+            assert independent_head is not None and independent_head.snapshot_id == other_head
             payload = {
                 "session_id": session.session_id.value,
                 "run_id": session.run_id.value,
@@ -404,7 +410,7 @@ def verify(root, first, last):
     batches = [
         item.batch_id
         for item in log.items
-        if callable(getattr(item, "tool_calls", None)) and item.tool_calls()
+        if isinstance(item, AssistantItem) and item.tool_calls() and item.batch_id is not None
     ]
     assert len(batches) == 9, len(batches)
     assert [item.identity.call_id for item in log.results_for_batch(batches[0])] == ["fast0", "chunk0"]
@@ -508,7 +514,7 @@ def protections(log, recorded):
 
     target = RequestTarget.from_dict(recorded["target"])
     before = log.to_persistence_dict()
-    options = dict(
+    options: dict[str, Any] = dict(
         target=target,
         compaction_policy=ClosedExchangeWindowCompactor(),
         context_budget=ContextBudget(
