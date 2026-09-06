@@ -18,7 +18,7 @@ AgentModule 管理策略与状态变更，Engine 驱动 observe、decide、act�
 from qitos import AgentModule
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/core/agent_module.py#L25)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/core/agent_module.py#L25)
 
 [用法与可执行示例](/zh/guides/build-your-first-agent)
 
@@ -69,7 +69,7 @@ init_state(task: str, **kwargs: Any) -> StateT
 Create and return the initial typed state for a run.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/core/agent_module.py#L55)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/core/agent_module.py#L55)
 
 <span id="qitos-agentmodule-decide" />
 ### AgentModule.decide
@@ -87,7 +87,7 @@ decide(state: StateT, observation: ObservationT) -> Optional[Decision[ActionT]]
 Optional custom decision hook. Return None to use Engine model decision.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/core/agent_module.py#L101)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/core/agent_module.py#L101)
 
 <span id="qitos-agentmodule-reduce" />
 ### AgentModule.reduce
@@ -106,7 +106,7 @@ reduce(state: StateT, observation: ObservationT, decision: Decision[ActionT]) ->
 Reduce observation (including action/env outputs) into next state.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/core/agent_module.py#L120)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/core/agent_module.py#L120)
 
 <span id="qitos-agentmodule-should-stop" />
 ### AgentModule.should_stop
@@ -123,7 +123,7 @@ should_stop(state: StateT) -> bool
 Optional additional stop condition.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/core/agent_module.py#L128)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/core/agent_module.py#L128)
 
 <span id="qitos-agentmodule-run" />
 ### AgentModule.run
@@ -161,7 +161,7 @@ run(task: str | Task, return_state: bool=False, hooks: List[Any] | None=None, re
 Execute task with Engine using plain text objective or structured Task.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/core/agent_module.py#L265)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/core/agent_module.py#L265)
 
 
 <span id="qitos-stateschema" />
@@ -171,7 +171,7 @@ Execute task with Engine using plain text objective or structured Task.
 from qitos import StateSchema
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/core/state.py#L56)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/core/state.py#L56)
 
 [用法与可执行示例](/zh/guides/build-your-first-agent)
 
@@ -209,7 +209,7 @@ Canonical typed state base for AgentModule.
 from qitos import Task
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/core/task.py#L76)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/core/task.py#L76)
 
 [用法与可执行示例](/zh/guides/build-your-first-agent)
 
@@ -244,7 +244,7 @@ Task package with objective, resources, and environment requirements.
 from qitos import Decision
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/core/decision.py#L14)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/core/decision.py#L14)
 
 [用法与可执行示例](/zh/guides/build-your-first-agent)
 
@@ -277,7 +277,7 @@ act(actions: List[ActionT], rationale: Optional[str]=None, meta: Optional[Dict[s
 | `rationale` | `Optional[str]` | `None` |
 | `meta` | `Optional[Dict[str, Any]]` | `None` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/core/decision.py#L23)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/core/decision.py#L23)
 
 <span id="qitos-decision-final" />
 ### Decision.final
@@ -292,7 +292,7 @@ final(answer: str, rationale: Optional[str]=None, meta: Optional[Dict[str, Any]]
 | `rationale` | `Optional[str]` | `None` |
 | `meta` | `Optional[Dict[str, Any]]` | `None` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/core/decision.py#L32)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/core/decision.py#L32)
 
 
 <span id="qitos-action" />
@@ -302,7 +302,7 @@ final(answer: str, rationale: Optional[str]=None, meta: Optional[Dict[str, Any]]
 from qitos import Action
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/core/action.py#L26)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/core/action.py#L26)
 
 [用法与可执行示例](/zh/guides/build-your-first-agent)
 
@@ -337,7 +337,7 @@ Normalized action contract emitted by policy and consumed by executor.
 from qitos import Engine
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/engine.py#L292)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/engine.py#L292)
 
 [用法与可执行示例](/zh/guides/build-your-first-agent)
 
@@ -408,7 +408,7 @@ session(task: str | Task, session_id: Any=None) -> Any
 Create one durable Session facade using this Engine composition.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/engine.py#L648)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/engine.py#L648)
 
 <span id="qitos-engine-run" />
 ### Engine.run
@@ -421,7 +421,7 @@ run(task: str | Task, **kwargs: Any) -> EngineResult[StateT]
 | --- | --- | --- |
 | `task` | `str \| Task` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/engine.py#L981)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/engine.py#L981)
 
 <span id="qitos-engine-restore" />
 ### Engine.restore
@@ -440,7 +440,7 @@ restore(session_id: Any, *, resolvers: Any=None, runtime: Optional[RuntimeCompos
 Restore a Session in a fresh Engine through explicit resolvers.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/engine.py#L665)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/engine.py#L665)
 
 
 <span id="qitos-engine-engine-engineresult" />
@@ -450,7 +450,7 @@ Restore a Session in a fresh Engine through explicit resolvers.
 from qitos.engine.engine import EngineResult
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/engine.py#L174)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/engine.py#L174)
 
 [用法与可执行示例](/zh/guides/build-your-first-agent)
 
@@ -486,7 +486,7 @@ for record in result.records:
 from qitos.engine.states import RuntimeBudget
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/states.py#L38)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/states.py#L38)
 
 [用法与可执行示例](/zh/guides/build-your-first-agent)
 
@@ -512,7 +512,7 @@ engine = Engine(NotesAgent(), budget=budget)
 from qitos import StopReason
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/core/errors.py#L20)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/core/errors.py#L20)
 
 [用法与可执行示例](/zh/guides/build-your-first-agent)
 
@@ -530,7 +530,7 @@ print([reason.value for reason in StopReason])
 from qitos.engine.runtime import RuntimeComposition
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/runtime.py#L177)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/runtime.py#L177)
 
 [用法与可执行示例](/zh/guides/build-your-first-agent)
 

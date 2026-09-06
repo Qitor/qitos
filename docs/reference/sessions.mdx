@@ -18,7 +18,7 @@ Signatures and fields below are extracted from the pinned source. Signatures are
 from qitos.engine.session_runtime import Session
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/session_runtime.py#L119)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/session_runtime.py#L119)
 
 [Usage and executable example](/tutorials/checkpoint-and-fork)
 
@@ -70,7 +70,7 @@ run(*, steering: Optional[str]=None) -> 'EngineResult[Any]'
 Run or resume through the one canonical Engine loop.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/session_runtime.py#L1508)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/session_runtime.py#L1508)
 
 <span id="qitos-engine-session_runtime-session-inspect" />
 ### Session.inspect
@@ -79,7 +79,7 @@ Run or resume through the one canonical Engine loop.
 inspect() -> SessionInspection
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/session_runtime.py#L219)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/session_runtime.py#L219)
 
 <span id="qitos-engine-session_runtime-session-pause" />
 ### Session.pause
@@ -92,7 +92,7 @@ pause() -> PauseReceipt
 Request cooperative pause; durable status is returned at a boundary.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/session_runtime.py#L291)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/session_runtime.py#L291)
 
 <span id="qitos-engine-session_runtime-session-steer" />
 ### Session.steer
@@ -109,7 +109,7 @@ steer(text: str) -> SteeringReceipt
 Durably submit one canonical steering item to this Session.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/session_runtime.py#L325)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/session_runtime.py#L325)
 
 <span id="qitos-engine-session_runtime-session-fork" />
 ### Session.fork
@@ -127,7 +127,7 @@ fork(snapshot: SessionSnapshot | SnapshotIdentity | str | None=None, *, operatio
 Create an isolated durable child from one verified immutable snapshot.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/session_runtime.py#L1728)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/session_runtime.py#L1728)
 
 <span id="qitos-engine-session_runtime-session-capabilities" />
 ### Session.capabilities
@@ -136,7 +136,7 @@ Create an isolated durable child from one verified immutable snapshot.
 capabilities() -> frozenset[str]
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/session_runtime.py#L189)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/session_runtime.py#L189)
 
 
 <span id="qitos-engine-session_runtime-sessioninspection" />
@@ -146,7 +146,7 @@ capabilities() -> frozenset[str]
 from qitos.engine.session_runtime import SessionInspection
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/session_runtime.py#L105)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/session_runtime.py#L105)
 
 [Usage and executable example](/tutorials/checkpoint-and-fork)
 
@@ -181,7 +181,7 @@ Read-only inspection result backed by the current durable head.
 from qitos.checkpoint.store import CheckpointStore
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/checkpoint/store.py#L174)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/checkpoint/store.py#L174)
 
 [Usage and executable example](/tutorials/checkpoint-and-fork)
 
@@ -220,7 +220,7 @@ get_session_head(session_id: str) -> Optional[SessionHeadRecord]
 Read the current mutable head for one session.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/checkpoint/store.py#L241)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/checkpoint/store.py#L241)
 
 <span id="qitos-checkpoint-store-checkpointstore-commit-session-snapshot" />
 ### CheckpointStore.commit_session_snapshot
@@ -237,6 +237,6 @@ commit_session_snapshot(request: SessionSnapshotCommit) -> SessionCommitReceipt
 Atomically persist an immutable snapshot and advance its head.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/checkpoint/store.py#L235)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/checkpoint/store.py#L235)
 
 {/* api-reference:end */}

@@ -15,9 +15,11 @@ from qitos import (
 from qitos.core.model_response import ModelResponse
 from qitos.engine import RuntimeBudget
 from qitos.kit import ReActTextParser
+import pytest
 
 
-def test_loop_block_closes_native_tool_batch_before_next_request():
+@pytest.mark.parametrize("mixed_batch", [False, True])
+def test_loop_block_closes_native_tool_batch_before_next_request(mixed_batch):
 
     class RepeatingModel:
         qitos_harness_metadata = {"protocol": "json_decision_multi_v1"}
@@ -30,21 +32,27 @@ def test_loop_block_closes_native_tool_batch_before_next_request():
             if self.calls > 4:
                 self.final_messages = messages
                 return {"choices": [{"message": {"content": "Final Answer: done"}}]}
+            calls = [
+                {
+                    "id": f"repeat_{self.calls}",
+                    "type": "function",
+                    "function": {"name": "weird_tool", "arguments": "{}"},
+                }
+            ]
+            if mixed_batch and self.calls == 4:
+                calls.append(
+                    {
+                        "id": "sibling",
+                        "type": "function",
+                        "function": {"name": "independent", "arguments": "{}"},
+                    }
+                )
             return {
                 "choices": [
                     {
                         "message": {
                             "content": None,
-                            "tool_calls": [
-                                {
-                                    "id": f"repeat_{self.calls}",
-                                    "type": "function",
-                                    "function": {
-                                        "name": "weird_tool",
-                                        "arguments": "{}",
-                                    },
-                                }
-                            ],
+                            "tool_calls": calls,
                         }
                     }
                 ]
@@ -59,6 +67,12 @@ def test_loop_block_closes_native_tool_batch_before_next_request():
                 return {"value": "unchanged"}
 
             registry.register(repeated)
+
+            @tool(name="independent")
+            def independent():
+                return {"value": "sibling completed"}
+
+            registry.register(independent)
             AgentModule.__init__(
                 self,
                 llm=model,
@@ -79,6 +93,11 @@ def test_loop_block_closes_native_tool_batch_before_next_request():
     assert model.calls == 5
     assert result.records[3].action_results[0].error_code == "tool_call_loop_detected"
     assert any(item.get("tool_call_id") == "repeat_4" for item in model.final_messages)
+    if mixed_batch:
+        assert result.records[3].action_results[1].status == "success"
+        assert any(
+            item.get("tool_call_id") == "sibling" for item in model.final_messages
+        )
 
 
 def test_required_before_final_rejects_early_text_and_then_allows_final(

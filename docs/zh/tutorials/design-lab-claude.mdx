@@ -639,13 +639,17 @@ def independent_review(composition, session, task, resolver, *, model_factory=No
         policy=WorkRuntimePolicy(timeout_seconds=1800),
     )
     composition.runtime.work_runtime = runtime
+    ceiling = composition.config.budgets.max_requests if composition.config.budgets else None
+    # Application allocation policy: reserve room for the parent's final response.
+    # The framework still intersects this declaration with the remaining budget.
+    review_requests = max(1, min(30, (ceiling or 90) // 3))
     try:
         operation = session.submit_work(
             "spawn",
             {
                 "agent": composition.config.name,
                 "task": "Independently review the changed source and its limitations.",
-                "budget": {"model_requests": 30},
+                "budget": {"model_requests": review_requests},
             },
             operation_id="independent-review",
         )

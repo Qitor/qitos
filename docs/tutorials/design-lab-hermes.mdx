@@ -193,7 +193,12 @@ class ResearchAgent(AgentModule):
             "for descriptions and load_skill only for a relevant complete procedure. "
             "Save a reusable verification procedure when justified. Forget superseded facts "
             "with forget_fact. Use submit_report with JSON conclusion, metrics, citations, "
-            "limitations; finish afterwards. State missing evidence honestly."
+            "limitations; finish afterwards. Conclusion is a string, metrics is an object "
+            "of numbers, citations is a list of exact source filenames (including the "
+            "original source of recalled facts), and limitations is a list of strings. "
+            "Memory/history search uses a literal substring, not a semantic query: "
+            "try a short identifier; an empty query lists recent records. "
+            "State missing evidence honestly."
         )
 
     # docs:start design

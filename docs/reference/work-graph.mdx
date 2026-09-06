@@ -28,7 +28,7 @@ waiting policy, business retries and manual reconciliation remain application re
 from qitos.engine.session_runtime import Session
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/session_runtime.py#L119)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/session_runtime.py#L119)
 
 [Usage and executable example](/guides/multi-agent-patterns)
 
@@ -78,7 +78,7 @@ delegate(agent: str, *, task: str, operation_id: str | None=None) -> Any
 | `task` | `str` | `required` |
 | `operation_id` | `str \| None` | `None` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/session_runtime.py#L1129)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/session_runtime.py#L1129)
 
 <span id="qitos-engine-session_runtime-session-spawn" />
 ### Session.spawn
@@ -93,7 +93,7 @@ spawn(agent: str, *, task: str, operation_id: str | None=None) -> Any
 | `task` | `str` | `required` |
 | `operation_id` | `str \| None` | `None` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/session_runtime.py#L1136)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/session_runtime.py#L1136)
 
 <span id="qitos-engine-session_runtime-session-fan-out" />
 ### Session.fan_out
@@ -107,7 +107,7 @@ fan_out(specs: Iterable[Mapping[str, Any]], *, operation_id: str | None=None) ->
 | `specs` | `Iterable[Mapping[str, Any]]` | `required` |
 | `operation_id` | `str \| None` | `None` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/session_runtime.py#L1143)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/session_runtime.py#L1143)
 
 <span id="qitos-engine-session_runtime-session-join" />
 ### Session.join
@@ -125,7 +125,7 @@ join(children: Iterable[str], *, policy: str='all', quorum: int | None=None, red
 | `reducer_digest` | `str \| None` | `None` |
 | `operation_id` | `str \| None` | `None` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/session_runtime.py#L1164)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/session_runtime.py#L1164)
 
 <span id="qitos-engine-session_runtime-session-handoff" />
 ### Session.handoff
@@ -140,7 +140,7 @@ handoff(agent: str, *, rationale: str='handoff', operation_id: str | None=None) 
 | `rationale` | `str` | `'handoff'` |
 | `operation_id` | `str \| None` | `None` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/session_runtime.py#L1155)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/session_runtime.py#L1155)
 
 
 <span id="qitos-core-work_graph-workgraph" />
@@ -150,7 +150,7 @@ handoff(agent: str, *, rationale: str='handoff', operation_id: str | None=None) 
 from qitos.core.work_graph import WorkGraph
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/core/work_graph.py#L754)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/core/work_graph.py#L754)
 
 [Usage and executable example](/guides/multi-agent-patterns)
 
@@ -196,7 +196,7 @@ from_canonical_dict(payload: Mapping[str, Any]) -> 'WorkGraph'
 | --- | --- | --- |
 | `payload` | `Mapping[str, Any]` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/core/work_graph.py#L1263)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/core/work_graph.py#L1263)
 
 
 <span id="qitos-core-work_graph-workitem" />
@@ -206,7 +206,7 @@ from_canonical_dict(payload: Mapping[str, Any]) -> 'WorkGraph'
 from qitos.core.work_graph import WorkItem
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/core/work_graph.py#L214)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/core/work_graph.py#L214)
 
 [Usage and executable example](/guides/multi-agent-patterns)
 
@@ -238,7 +238,7 @@ print(work.owner)
 from qitos.core.work_graph import WorkAttempt
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/core/work_graph.py#L193)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/core/work_graph.py#L193)
 
 [Usage and executable example](/guides/multi-agent-patterns)
 
@@ -265,7 +265,7 @@ print([field.name for field in fields(WorkAttempt)])
 from qitos.engine.work_runtime import DurableWorkRuntime
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/work_runtime.py#L208)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/work_runtime.py#L208)
 
 [Usage and executable example](/guides/multi-agent-patterns)
 
@@ -297,7 +297,7 @@ DurableWorkRuntime(scheduler: WorkScheduler, *, policy: WorkRuntimePolicy | None
 from qitos.engine.work_runtime import LocalWorkScheduler
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/work_runtime.py#L134)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/work_runtime.py#L134)
 
 [Usage and executable example](/guides/multi-agent-patterns)
 
@@ -330,7 +330,7 @@ LocalWorkScheduler(resolver: WorkResolver, *, max_workers: int=4, queue_capacity
 from qitos.engine.work_runtime import WorkRuntimeError
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/engine/work_runtime.py#L24)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/engine/work_runtime.py#L24)
 
 [Usage and executable example](/guides/multi-agent-patterns)
 

@@ -659,6 +659,9 @@ class _ActionRuntime(Generic[StateT, ActionT]):
 
         if record.decision_source == "native_tool_calls" and record.native_tool_call_used:
             for idx, result in enumerate(results):
+                if idx in blocked_indices:
+                    # Preflight already emitted this compatibility terminal.
+                    continue
                 payload = result.output
                 if isinstance(payload, dict) and set(payload.keys()) == {"env"}:
                     continue

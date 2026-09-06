@@ -188,3 +188,10 @@ and 600 seconds; output remains 10,240 and no total request/cost quota is impose
 The public project defaults remain 80/80/3600 and are configurable. Up to four
 independent project/repetition groups may run concurrently; each group's learning,
 recall and controls stay ordered. All old 80-step observations remain separate.
+
+The bounded Docker Claude consumer initially exhausted its parent's remainder
+because the application declared a fixed 30-request child allocation. Its review
+policy now declares at most one third of the configured request ceiling, capped
+at 30; the framework still intersects all authorities. The same 24-request Docker
+counterexample now completes parent, independent child and final continuation.
+This is application budget policy, not a framework refund or accounting bypass.

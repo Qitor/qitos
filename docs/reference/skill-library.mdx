@@ -41,7 +41,7 @@ from the matching repository source; this is not a separate PyPI release.
 from qitos.kit.tool.library.base import ToolArtifact
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/base.py#L11)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/kit/tool/library/base.py#L11)
 
 [Usage and executable example](/tutorials/design-lab-hermes)
 
@@ -72,7 +72,7 @@ artifact = ToolArtifact(name="audit", description="Check evidence", source="Read
 from qitos.kit.tool.library.base import BaseToolLibrary
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/base.py#L32)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/kit/tool/library/base.py#L32)
 
 [Usage and executable example](/tutorials/design-lab-hermes)
 
@@ -93,7 +93,7 @@ get(name: str) -> Optional[ToolArtifact]
 | --- | --- | --- |
 | `name` | `str` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/base.py#L38)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/kit/tool/library/base.py#L38)
 
 <span id="qitos-kit-tool-library-base-basetoollibrary-search" />
 ### BaseToolLibrary.search
@@ -107,7 +107,7 @@ search(query: str, top_k: int=5) -> List[ToolArtifact]
 | `query` | `str` | `required` |
 | `top_k` | `int` | `5` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/base.py#L41)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/kit/tool/library/base.py#L41)
 
 <span id="qitos-kit-tool-library-base-basetoollibrary-add-or-update" />
 ### BaseToolLibrary.add_or_update
@@ -120,7 +120,7 @@ add_or_update(artifact: ToolArtifact) -> ToolArtifact
 | --- | --- | --- |
 | `artifact` | `ToolArtifact` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/base.py#L33)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/kit/tool/library/base.py#L33)
 
 
 <span id="qitos-kit-tool-library-sqlite_store-sqlitetoollibrary" />
@@ -130,7 +130,7 @@ add_or_update(artifact: ToolArtifact) -> ToolArtifact
 from qitos.kit.tool.library.sqlite_store import SqliteToolLibrary
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/sqlite_store.py#L23)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/kit/tool/library/sqlite_store.py#L23)
 
 [Usage and executable example](/tutorials/design-lab-hermes)
 
@@ -174,7 +174,7 @@ add_or_update(artifact: ToolArtifact, *, expected_version: Optional[int]=None) -
 | `artifact` | `ToolArtifact` | `required` |
 | `expected_version` | `Optional[int]` | `None` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/sqlite_store.py#L113)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/kit/tool/library/sqlite_store.py#L113)
 
 <span id="qitos-kit-tool-library-sqlite_store-sqlitetoollibrary-get" />
 ### SqliteToolLibrary.get
@@ -187,7 +187,7 @@ get(name: str) -> Optional[ToolArtifact]
 | --- | --- | --- |
 | `name` | `str` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/sqlite_store.py#L95)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/kit/tool/library/sqlite_store.py#L95)
 
 <span id="qitos-kit-tool-library-sqlite_store-sqlitetoollibrary-get-version" />
 ### SqliteToolLibrary.get_version
@@ -201,7 +201,7 @@ get_version(name: str, version: int) -> Optional[ToolArtifact]
 | `name` | `str` | `required` |
 | `version` | `int` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/sqlite_store.py#L104)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/kit/tool/library/sqlite_store.py#L104)
 
 <span id="qitos-kit-tool-library-sqlite_store-sqlitetoollibrary-catalog" />
 ### SqliteToolLibrary.catalog
@@ -221,7 +221,7 @@ Return selectable identities/descriptions without source or metadata.
 This is a projection, not a privacy sanitizer or bounded-I/O claim.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/sqlite_store.py#L161)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/kit/tool/library/sqlite_store.py#L161)
 
 <span id="qitos-kit-tool-library-sqlite_store-sqlitetoollibrary-search" />
 ### SqliteToolLibrary.search
@@ -235,7 +235,7 @@ search(query: str, top_k: int=5) -> list[ToolArtifact]
 | `query` | `str` | `required` |
 | `top_k` | `int` | `5` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/sqlite_store.py#L148)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/kit/tool/library/sqlite_store.py#L148)
 
 <span id="qitos-kit-tool-library-sqlite_store-sqlitetoollibrary-deprecate" />
 ### SqliteToolLibrary.deprecate
@@ -248,7 +248,7 @@ deprecate(name: str) -> bool
 | --- | --- | --- |
 | `name` | `str` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/sqlite_store.py#L170)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/kit/tool/library/sqlite_store.py#L170)
 
 <span id="qitos-kit-tool-library-sqlite_store-sqlitetoollibrary-close" />
 ### SqliteToolLibrary.close
@@ -257,7 +257,7 @@ deprecate(name: str) -> bool
 close() -> None
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/sqlite_store.py#L56)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/kit/tool/library/sqlite_store.py#L56)
 
 
 <span id="qitos-kit-tool-library-sqlite_store-toollibraryerror" />
@@ -267,7 +267,7 @@ close() -> None
 from qitos.kit.tool.library.sqlite_store import ToolLibraryError
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/tool/library/sqlite_store.py#L15)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/kit/tool/library/sqlite_store.py#L15)
 
 [Usage and executable example](/tutorials/design-lab-hermes)
 
@@ -297,7 +297,7 @@ ToolLibraryError(code: str) -> Any (see behavior contract)
 from qitos.kit.memory.memdir_memory import MemdirMemory
 ```
 
-[Source @ 114f242](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/memory/memdir_memory.py#L16)
+[Source @ 19f6258](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/kit/memory/memdir_memory.py#L16)
 
 [Usage and executable example](/tutorials/design-lab-hermes)
 
@@ -341,7 +341,7 @@ append(record: MemoryRecord) -> None
 | --- | --- | --- |
 | `record` | `MemoryRecord` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/memory/memdir_memory.py#L47)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/kit/memory/memdir_memory.py#L47)
 
 <span id="qitos-kit-memory-memdir_memory-memdirmemory-retrieve" />
 ### MemdirMemory.retrieve
@@ -356,7 +356,7 @@ retrieve(query: Optional[Dict[str, Any]]=None, state: Any=None, observation: Any
 | `state` | `Any` | `None` |
 | `observation` | `Any` | `None` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/memory/memdir_memory.py#L103)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/kit/memory/memdir_memory.py#L103)
 
 <span id="qitos-kit-memory-memdir_memory-memdirmemory-delete" />
 ### MemdirMemory.delete
@@ -377,6 +377,6 @@ secure erasure or a concurrent multi-file transaction. Callers serialize
 writes to one Memdir namespace; use a transactional backend otherwise.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/114f2420f72bf08512a291bb022a818f24e2df8a/qitos/kit/memory/memdir_memory.py#L78)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/19f62589a1724693a540a2e822694a2e86ccc2f3/qitos/kit/memory/memdir_memory.py#L78)
 
 {/* api-reference:end */}
