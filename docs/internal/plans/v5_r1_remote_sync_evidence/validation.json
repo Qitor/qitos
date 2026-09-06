@@ -1,0 +1,35 @@
+{
+  "source_head": "2cba812e4103ac27240b96c7b3552d062cca0ef0",
+  "implementation": "f7d4b2d666a156d361da496a41868278f84ffabf",
+  "python": "3.12.7",
+  "tools": {
+    "flake8": "7.0.0",
+    "mypy": "1.19.1",
+    "pyflakes": "3.2.0",
+    "pycodestyle": "2.11.1",
+    "mccabe": "0.7.0"
+  },
+  "mypy_target": "3.11",
+  "artifact_sha256": {
+    "qitos-0.6.0.tar.gz": "92bc284e9088e3066c5d32c7a4db222b4e5d4faab9c79051ea4c1d7207b09ba5",
+    "qitos-0.6.0-py3-none-any.whl": "7e864e08a78fd1822462282c74a952338f1d76a18d2aba53184e9e26f094ef85"
+  },
+  "wheel_python_files_equal": 510,
+  "full_pytest": {
+    "passed": 3731,
+    "skipped": 51,
+    "seconds": 358.51,
+    "skip_scope": "50 existing live opt-ins; 1 existing explicit Docker docs gate"
+  },
+  "python310": {
+    "version": "3.10.18",
+    "targeted_passed": 112,
+    "model_and_installed_passed": 193,
+    "skipped": 0
+  },
+  "python312_targeted_passed": 141,
+  "quality_allowance": 356,
+  "quality_allowance_delta": 0,
+  "api_root_exports_delta": 0,
+  "dependencies_or_python_floor_changed": false
+}

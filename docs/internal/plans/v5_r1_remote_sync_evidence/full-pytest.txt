@@ -1,0 +1,106 @@
+........................................................................ [  1%]
+........................................................................ [  3%]
+........................................................................ [  5%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+...........................................sssssssssssssssssssssssssssss [ 13%]
+sssssss.ssss.....ssssssssss............................................. [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 19%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 24%]
+........................................................................ [ 26%]
+........................................................................ [ 28%]
+........................................................................ [ 30%]
+........................................................................ [ 32%]
+........................................................................ [ 34%]
+........................................................................ [ 36%]
+........................................................................ [ 38%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+..........s............................................................. [ 43%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 51%]
+........................................................................ [ 53%]
+........................................................................ [ 55%]
+........................................................................ [ 57%]
+........................................................................ [ 59%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+........................................................................ [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 70%]
+........................................................................ [ 72%]
+........................................................................ [ 74%]
+........................................................................ [ 76%]
+........................................................................ [ 78%]
+........................................................................ [ 79%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+........................................................................ [ 89%]
+........................................................................ [ 91%]
+........................................................................ [ 93%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+........................................................................ [ 98%]
+......................................                                   [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/e2e/test_auditor_pipeline.py:9: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_auditor_pipeline.py:23: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_auditor_pipeline.py:40: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_checkpoint_resume.py:12: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_checkpoint_resume.py:38: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_checkpoint_resume.py:74: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_critic_system.py:83: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_critic_system.py:100: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_critic_system.py:120: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_critic_system.py:141: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_critic_system.py:162: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_delegation_and_fanout.py:9: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_delegation_and_fanout.py:33: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_delegation_and_fanout.py:62: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_delegation_and_fanout.py:85: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_engine_metrics_and_recovery.py:9: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_engine_metrics_and_recovery.py:30: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_engine_metrics_and_recovery.py:53: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_framework.py:9: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_framework.py:20: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_framework.py:30: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_function_tool_agent.py:9: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_function_tool_agent.py:24: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_function_tool_agent.py:45: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_handoff_agent.py:25: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_handoff_agent.py:47: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_handoff_agent.py:68: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_handoff_agent.py:90: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_handoff_live.py:9: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_handoff_live.py:33: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_handoff_live.py:56: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_hooks_lifecycle.py:96: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_hooks_lifecycle.py:115: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_hooks_lifecycle.py:147: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_hooks_lifecycle.py:166: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_hooks_lifecycle.py:185: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_react_agent.py:9: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_react_agent.py:24: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_react_agent.py:39: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_react_agent.py:53: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_step_by_step_repl.py:9: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_step_by_step_repl.py:24: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_step_by_step_repl.py:39: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_step_by_step_repl.py:68: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_tool_correctness.py:9: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_tool_correctness.py:32: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_tool_correctness.py:50: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_tool_correctness.py:66: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_tool_correctness.py:83: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/e2e/test_tool_correctness.py:97: E2E tests require QITOS_E2E_ENDPOINT and QITOS_E2E_API_KEY environment variables
+SKIPPED [1] tests/test_docs_page_execution.py:137: explicit Docker qualification; not ordinary docs CI
+3731 passed, 51 skipped in 358.51s (0:05:58)

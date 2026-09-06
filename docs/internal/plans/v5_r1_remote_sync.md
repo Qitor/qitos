@@ -140,3 +140,36 @@ horizontal overflow, and visual screenshot review. Browser reports zero errors;
 only the local preview Socket.io version warning is present. All 127 unique API
 source links bind the implementation SHA. The ten tutorial example links now also
 pin that same source instead of moving master; their labels/layout are unchanged.
+
+## Completed pre-push qualification
+
+Full execution source: `2cba812e4103ac27240b96c7b3552d062cca0ef0`.
+**3731 passed, 51 skipped in 358.51 s**; [complete result](v5_r1_remote_sync_evidence/full-pytest.txt).
+The 51 skips are unchanged: 50 live opt-ins and one explicit Docker docs gate.
+Ordinary sandbox tests were not disabled or expanded into a new stress matrix.
+
+[Environment, source identities and artifact SHA256](v5_r1_remote_sync_evidence/validation.json)
+records the exact fixed toolchain, final build and 510-file source equality.
+The full source suite used a source-equivalent wheel; a final clean rebuild from
+this execution source was then installed independently on both interpreters.
+Original and combined consumers from that final wheel pass on 3.10.18 (2/2,
+8.74 s) and 3.12.7 (2/2, 8.72 s), including normal, truncated/dual-cleanup failure,
+namespace and loss-rejection phases. No source PYTHONPATH was supplied.
+
+[Python 3.10 expanded result](v5_r1_remote_sync_evidence/python310.txt),
+[3.12 repair result](v5_r1_remote_sync_evidence/target312.txt),
+[ratchet](v5_r1_remote_sync_evidence/quality.txt),
+[docs](v5_r1_remote_sync_evidence/docs.txt), and
+[76 page/viewport checks](v5_r1_remote_sync_evidence/browser.json) retain bounded
+public receipts. Context pages were rechecked after lambda normalization with no
+overflow or stale rendering; all tutorial links match committed example bytes.
+Stable lint/type, directed generator/regression lint, interface budgets, navigation,
+MDX, 132 Markdown links and git diff whitespace all pass. There is no package
+metadata, runtime dependency, Python floor, root export or allowance growth.
+
+Outgoing audit through this execution source covers **40 commits / 461 unique
+file/blob versions**. The only Gitleaks match remains the reviewed source-SHA
+false positive. New receipts contain public test outcomes, source digests and page
+layout facts only. Local main was rechecked clean at its fixed starting SHA;
+other tasks remain inactive. Formal promotion, push, readback and exact-SHA CI
+are the next authorized actions, not yet claimed as performed here.
