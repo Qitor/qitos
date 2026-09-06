@@ -130,6 +130,57 @@ class QueueOnceScheduler(IndependentSchedulerFake):
         return super().dispatch(request)
 
 
+@pytest.mark.parametrize("fail_restore", [False, True])
+def test_child_transfer_preserves_external_snapshot_before_rebasing_state(fail_restore):
+    """A fresh child resource must restore forked bytes before its first capture."""
+    from qitos.core.session import SnapshotComponentCodec
+
+    class Resource:
+        codec = SnapshotComponentCodec(
+            slot="external_resource", owner="tests.external_resource",
+            schema_version="tests.external_resource/v1", required=True,
+            encode=dict, decode=dict,
+        )
+
+        def __init__(self):
+            self.values = {}
+            self.parent_id = None
+
+        def capture(self, context):
+            return {"body": self.values.setdefault(context.session.session_id.value, "initial")}
+
+        def restore(self, value, context):
+            if fail_restore and context.session.session_id.value != self.parent_id:
+                raise ValueError("resource_restore_failed")
+            self.values[context.session.session_id.value] = value["body"]
+
+    resource = Resource()
+
+    class EditingAgent(_Agent):
+        def reduce(self, state, observation, decision):
+            resource.values[resource.parent_id] = "edited-and-verified"
+            return state
+
+    scheduler = IndependentSchedulerFake()
+    runtime = RuntimeComposition(
+        lifecycle_policy=_PauseAtFirstBoundary(), snapshot_components=(resource,),
+        work_runtime=DurableWorkRuntime(scheduler),
+    )
+    session = Engine(EditingAgent(), runtime=runtime).session("change then review")
+    resource.parent_id = session.session_id.value
+    session.run()
+    if fail_restore:
+        with pytest.raises(ValueError, match="resource_restore_failed"):
+            session.spawn("parent", task="review exact changed bytes")
+        assert scheduler.requests == []
+    else:
+        receipt = session.spawn("parent", task="review exact changed bytes")
+        child_id = receipt.descriptor["child_session_ids"][0]
+        assert resource.values[child_id] == "edited-and-verified"
+    assert resource.values[session.session_id.value] == "edited-and-verified"
+    runtime.work_runtime.close()
+
+
 def _descriptor(
     operation_id: str,
     operation: str,

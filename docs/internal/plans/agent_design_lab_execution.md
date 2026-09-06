@@ -98,3 +98,24 @@ PlanAct+memory+extension composition, 3.10 installation, real Docker mechanism
 tests, full live/ablation matrix, bilingual complete-source courses, API/source
 bindings, documentation rendering, final quality gates and exact-source evidence.
 The draft project files are not a substitute for those receipts.
+
+### Child resource restoration counterexample and repair
+
+The independent Docker reviewer exposed a framework defect: rebasing a forked
+child's Agent/conversation state captured a new external resource before restoring
+the fork's pinned resource snapshot. The child therefore inspected pristine input
+instead of the parent's verified source. Registered components now restore before
+child capture; failure prevents dispatch and parent resources are restored in the
+existing finally boundary. No Docker import or second execution path was added.
+
+The two permanent external-component cases fail without the repair and pass with
+it (preserved content; failed restore causes zero dispatch). Kernel/session/fork
+regression: 335 passed. The independently installed, actual-Docker Claude reviewer
+now passes read/check/structured-final/spawn/join. The scripted provider needed
+distinct call IDs across parent/child; reused IDs were correctly rejected, not
+relaxed in the framework. This is deterministic mechanism evidence, not live results.
+
+Python 3.10 installed PlanAct + Memdir + separately installed Pi extension also
+passes 12 requests, 10 plan revisions and actual closed-window compaction. The
+notebook remains after composition cleanup. Live connectivity recovered on a new
+ReAct probe; the full matrix and ablations are running in private storage.

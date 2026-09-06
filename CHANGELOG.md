@@ -30,6 +30,7 @@ How to update:
 
 ### Fixed
 
+- Durable child input transfer restores registered external snapshot components before recapturing the child. Verified Docker workspace artifacts are no longer replaced by initial staging bytes; restoration failure prevents dispatch.
 - Selected skill instructions are no longer silently cut at 1,200 characters; callers select catalog entries before loading complete bodies and still obey request budgets.
 - Automatically contributed artifact references are user-level evidence, not elevated developer instructions. Existing serialized histories are not rewritten.
 - Bind current API references and tutorial installation commands to reachable integrated source, validate source bytes and ancestry, and reconcile R1 completion with historical documentation.
