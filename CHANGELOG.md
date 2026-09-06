@@ -28,6 +28,8 @@ How to update:
 
 ### Fixed
 
+- Give each notes tutorial child an explicit request allocation so sequential spawn does not inherit an exhausted reservation.
+
 - Preserve canonical ExchangeLog items across history trimming and durable restore; keep user/assistant/tool exchange identity together so repeated compaction remains accurate.
 - Expose bounded partial tool/reasoning counts on typed stream failure, including cleanup failure.
 

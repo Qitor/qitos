@@ -3,6 +3,9 @@ title: "Delegate, join and handoff"
 description: "Learn QitOS with complete, executable notes-project code."
 ---
 
+Each independent child has an explicit two-request allocation. Omitting it can reserve the parent's entire remaining budget for the first child, leaving later workers with zero requests. Completion does not authorize an implicit refund or unknown-effect replay.
+
+
 ## Goal and prerequisites
 
 The parent first creates a durable paused Session. Its explicit resolver maps the known `notes_agent` descriptor to local subprocess execution. Each child restores a real Session using the installed package; there is no distributed worker service hidden behind this example.
@@ -257,9 +260,9 @@ def run(root):
         parent = composition.session("Index, then ask independent note workers")
         parent.run()
         assert parent.lifecycle.value == "paused"
-        delegated = parent.delegate("notes_agent", task="Describe the Session note")
+        delegated = parent.delegate("notes_agent", task="Describe the Session note", budget={"model_requests": 2})
         wait(parent, delegated)
-        spawned = parent.spawn("notes_agent", task="Describe the Artifact note")
+        spawned = parent.spawn("notes_agent", task="Describe the Artifact note", budget={"model_requests": 2})
         wait(parent, spawned)
         batch = parent.fan_out([{"agent": "notes_agent", "task": "Review Session", "budget": {"model_requests": 2}},
                                 {"agent": "notes_agent", "task": "Review Artifact", "budget": {"model_requests": 2}}])

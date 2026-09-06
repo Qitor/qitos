@@ -3,6 +3,9 @@ title: "Delegate、join 与 handoff"
 description: "从网页完整代码学习 QitOS 资料整理项目。"
 ---
 
+每个独立 child 显式分配两次请求预算。省略预算可能让第一个 child 预留 parent 的全部剩余请求，使后续 worker 获得零预算。完成不代表可以隐式退款或重放未知 effect。
+
+
 ## 目标与前置条件
 
 父执行先创建一个持久化的暂停 Session。显式 resolver 把已知 `notes_agent` 描述映射到本地子进程；每个 child 使用已安装包恢复真实 Session，不存在隐藏的分布式 worker 服务。
@@ -257,9 +260,9 @@ def run(root):
         parent = composition.session("Index, then ask independent note workers")
         parent.run()
         assert parent.lifecycle.value == "paused"
-        delegated = parent.delegate("notes_agent", task="Describe the Session note")
+        delegated = parent.delegate("notes_agent", task="Describe the Session note", budget={"model_requests": 2})
         wait(parent, delegated)
-        spawned = parent.spawn("notes_agent", task="Describe the Artifact note")
+        spawned = parent.spawn("notes_agent", task="Describe the Artifact note", budget={"model_requests": 2})
         wait(parent, spawned)
         batch = parent.fan_out([{"agent": "notes_agent", "task": "Review Session", "budget": {"model_requests": 2}},
                                 {"agent": "notes_agent", "task": "Review Artifact", "budget": {"model_requests": 2}}])

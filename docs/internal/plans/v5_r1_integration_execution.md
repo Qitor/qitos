@@ -123,3 +123,19 @@ a clean process uses the adapter's nonstream path (stream callbacks are not dura
 configuration). Provider tool results preserve identity/output association; the
 codec may transmit completion order, which is distinct from declaration order.
 These are development checks, not the final source/wheel qualification receipt.
+
+## First complete qualification failure and tutorial repair
+
+The first final-wheel full suite at 72a5925 completed with 3713 passed, 51 skipped
+and two failed installed tutorial executions (multi-agent page and learning-order
+run). It was not a Docker failure. SQLite inspection showed the spawned child
+failed before a request with max_model_requests=0. The tutorial omitted delegate
+and spawn allocations, allowing the first child to reserve all remaining parent
+requests. Both now declare two requests, as the existing fan-out already did. No
+timeout, sample count, assertion or budget enforcement was weakened; no implicit
+refund was introduced. EN/zh complete source is regenerated. The earlier 86-test
+precommit group passed, so this wider run supplied necessary combination evidence.
+
+Directed lint also found formatting in the three new regression files. Formatting
+is normalized with AST equality checked; their executable behavior is unchanged.
+A new full suite will qualify the final tutorial tree using the same runtime wheel.
