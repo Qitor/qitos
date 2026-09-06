@@ -1597,3 +1597,29 @@ consumers exposed artifact-role HTTP 400 behavior; follow-up requests encountere
 SSL connection failures. Do not infer provider or whole-course qualification.
 Exact failures, commands and remaining gates belong to
 `docs/internal/plans/agent_design_lab_execution.md`. No push/release/deploy.
+
+### Agent Design Lab implementation and experiment closeout (2026-09-07)
+
+This supersedes the preceding implementation-in-progress checkpoint, not its
+historical failures. Source checkpoint: `23facd504e76b390fc0fce70a9235de783431a1a`;
+dispatch ancestor remains `f1545414913d2e0668d0eccdcd82fe91c3b28d01`.
+Six independently installable EN/zh courses, custom composition, persistent
+skills and live-driven framework fixes are implemented. Full suite: 3902 passed,
+52 conditional skips; final documentation/installed gate: 943 passed, 1 opt-in
+skip. Python 3.10 focused: 52 passed. Both 3.10/3.12 installed consumers and the
+actual Docker child-review / generated-skill composition mechanisms passed.
+Ratchet: 352, no growth; stable lint/type, wheel/sdist/twine, API/tutorial sync,
+184 MDX pages and actual desktop/mobile browser checks passed.
+
+The source-bound live candidate completed 99 invocations, including prerequisite
+learning and controls: 23/54 default tasks, 14/18 learning and 10/27 controls passed.
+No whole-lab live qualification is claimed. Two subsequent source corrections
+have deterministic/installed evidence, not a repeated final-source live matrix.
+Raw trajectories, configurations and credentials remain outside Git; only
+allowlisted counts and identity digests are committed. Exact interpretation,
+failed attempts and next experiments are recorded in the
+[execution ledger](internal/plans/agent_design_lab_execution.md).
+
+The user explicitly authorized a normal remote push after closeout; release and
+deployment remain out of scope. This entry records pre-push evidence, not an
+invented remote result. No additional worktree was created or deleted in this task.

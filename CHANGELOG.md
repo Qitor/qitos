@@ -19,6 +19,7 @@ How to update:
 
 ### Added
 
+- Six independently installable Agent Design Lab projects (ReAct, PlanAct, Pi-like, Claude-Code-like, Hermes-like and Voyager-inspired), with synchronized full-source EN/zh courses, installed/Docker consumers, real-model experiment runner and privacy-safe result aggregation. Recorded task failures are not represented as whole-lab live qualification.
 - Optional `build_agent_composition(agent_factory=...)` reuses the canonical model, tools, runtime and Session with custom AgentModule policies; invalid bindings fail and owned resources are cleaned.
 - Module-level `SqliteToolLibrary` provides namespace-scoped immutable skill revisions, optimistic version checks, catalog projection and full-body loading without executing stored code. `MemdirMemory.delete(record_id)` explicitly forgets a local record (not secure erasure).
 - Module-level `MemorySourceAdapter` and model-free `ClosedExchangeWindowCompactor`, with a configured, installed-wheel two-process text-memory consumer.

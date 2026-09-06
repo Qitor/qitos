@@ -27,7 +27,7 @@ the application and provider.
 
 ## What's New
 
-- Agent Design Lab is in development: custom `agent_factory` composition, durable skill revisions, explicit memory deletion and corrected child workspace restoration support six professional teaching projects. See the [implementation ledger](docs/internal/plans/agent_design_lab_execution.md); the complete course/live matrix is not yet qualified.
+- Agent Design Lab now includes six independently installable EN/zh teaching projects, custom `agent_factory` composition, durable skill revisions and live-driven runtime fixes. Python 3.10/3.12 installed and real-Docker mechanism checks pass; real-model task failures remain explicit. See the [evidence and limitations](docs/tutorials/agent-design-lab-results.mdx) and [implementation ledger](docs/internal/plans/agent_design_lab_execution.md). This is not a package release or whole-lab live qualification.
 - Python 3.10 model cleanup compatibility: every owned resource is attempted, with safe numeric cleanup diagnostics and primary exception priority preserved.
 - R1 local integration and all five review repairs are complete: reasoning, accurate request/cleanup facts, handoff ownership and YAML budget/loss wiring; restoration retains original conversation facts.
 - Memdir recall and closed-exchange compaction, canonical Read/Edit ToolResult, consistent Observation, strict snapshot paging and atomic export are available through the user workflow.

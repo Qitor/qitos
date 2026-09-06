@@ -1,6 +1,7 @@
 # Agent Design Lab execution ledger
 
-Status: qualification in progress. The user authorized remote push after closeout;
+Status: framework and installed-consumer qualification passed; real-model task
+qualification is partial. The user authorized remote push after evidence closeout;
 package release and deployment remain unauthorized.
 Source baseline: `f1545414913d2e0668d0eccdcd82fe91c3b28d01`.
 
@@ -23,7 +24,7 @@ Private endpoints, credentials and raw evidence remain outside the repository.
 | Extensible coding | Pi-like, Claude-Code-like | native Env tools, independent extension, child review | real Docker mechanism passed |
 | Memory and skill learning | Hermes, Voyager | cross-session recall, validated executable reuse | installed + real Docker passed; live task quality separate |
 | Independent packaging | all six | Python 3.10 and 3.12 outside checkout | passed |
-| Research qualification | all six | three tasks x three repetitions plus ablations | pending |
+| Research qualification | all six | three tasks x three repetitions plus ablations | real attempts recorded; whole-lab success not qualified |
 | Public teaching material | all six | complete EN/zh source, references, limitations, sync | implemented; actual browser/source checks passed |
 
 ## Confirmed gaps before changes
@@ -202,3 +203,88 @@ the first child could reserve the parent's entire remainder. The lesson now
 declares two requests per child through public submit_work, as its fan-out already
 did. No reservation is refunded or hidden. The precise failing subprocess and
 the requalified installed consumer are retained in private evidence.
+
+## Final framework and installed-source qualification
+
+Implementation/source checkpoint: `23facd504e76b390fc0fce70a9235de783431a1a`.
+The complete suite passed **3902 tests**, with **52 conditional skips**; skips
+are not evidence for live or Docker qualification. Earlier failing full runs
+remain recorded above. Required live/Docker mechanisms were exercised separately.
+The final Python 3.10 focused regression passed 52 tests. Stable flake8 and mypy
+(96 files) passed; the pinned static ratchet contains 352 findings (330 active,
+22 vendored/generated), four retired allowances and zero growth from dispatch.
+
+All six independent installed consumers passed on Python 3.10 and 3.12 without
+source PYTHONPATH. The horizontal consumer passed on both interpreters: 12 tracked
+requests, 10 plan revisions, 9 distinct compactions and durable notebook records.
+The actual-Docker Claude consumer passed with the same 24-request launch ceiling:
+parent edit/check, independent child workspace/review, join and parent continuation.
+Voyager's installed Docker sequence generated and checked three programs in fresh
+processes, loaded their dependencies and reused the composite in another process.
+These are scripted-provider mechanism checks, not substituted live successes.
+
+The closeout wheel and sdist build and twine checks passed. All 511 Python files
+in the wheel match current source bytes; wheel SHA-256 is
+`5ef8bd2ec982d7485eec7c01a65146145d078f88546b40c6bc349aad8fa31298`.
+The wheel is a local candidate, not a published version. API/tutorial synchronization,
+navigation, bilingual parity and 184 public MDX pages passed. Actual Mintlify
+desktop/mobile inspection covered the twelve courses, both overviews, the new
+results pages and skill-library reference. An internal-only link found by browser
+inspection was replaced with the public results page.
+
+One extra documentation rerun accidentally selected the quality-only virtualenv
+without pip: 919 tests passed and 24 fixture setups errored before installation.
+This is an environment failure, not a passing gate. Requalification uses the
+packaging-capable Python 3.12 environment and the exact closeout wheel.
+That requalification passed **943 tests, 1 explicit opt-in skip**.
+
+### Completed real-model matrix
+
+All **99 invocations** completed: 54 default task trials, 18 prerequisite learning
+runs and 27 controls. The independent checker passed 23/54 default tasks, 14/18
+learning runs and 10/27 controls. The final controller returned nonzero, correctly:
+this is **not whole-lab live qualification**. See the machine-readable
+[aggregate](agent_design_lab_evidence/live_counts.json) and public EN/zh results.
+There were no manual interventions or outer-controller timeouts in this group.
+One rejected Voyager snapshot produced no final report and counts as non-passing.
+Session budget stops, transport errors and unsuccessful task checks remain failures.
+No final sample is replaced by a successful retry from an earlier group.
+
+The 18 installed-identity documents are retained privately; their digests are in
+the aggregate. A file-by-file comparison with the final source finds exactly two
+differences: `qitos/engine/_action_runtime.py` (subsequent mixed-batch compatibility
+deduplication) and `examples/projects/hermes_notebook/src/qitos_lab_hermes/agent.py`
+(subsequent report/search prompt clarification). Both changes have deterministic
+and installed regressions, but these 99 live invocations were not rerun on them.
+The live source is therefore a precisely identified candidate, not an assertion
+that every final-source behavior passed real-model qualification.
+
+The experiment used the authorized Qwen3.8-27B through explicit configuration and
+credential resolution. Public artifacts contain neither its private endpoint nor
+credentials, rejected payloads, raw model output or host-local evidence paths.
+Earlier exploratory groups, aborted controllers and their intervention receipts
+remain private and separate. Small unequal results do not establish a causal
+advantage of planning, memory or skill reuse.
+
+### Interpretation and remaining work
+
+Users no longer implement a separate composition/resource owner, skill revision
+database, native tool executor, child workspace restoration, request accounting
+or trajectory writer for these projects. They still implement planning, reporting,
+memory selection, curriculum, code review criteria and task-specific checkers.
+
+All six teaching mechanisms have deterministic installed evidence. Real task
+quality is deliberately separate: the live matrix does not qualify every design
+on every task. Transport failure, exhausted budgets and unsuccessful retrieval
+remain visible. Improving those application policies is a next experiment, not
+grounds to silently weaken the independent checkers or auto-retry unknown effects.
+Persistent skills are not signed packages; Memdir forgetting is not secure erase
+or a multi-file transaction; local Docker is not VM isolation. No product parity,
+paper score, release, deployment or universal agent safety claim is made.
+
+Next bounded experiments should first diagnose Hermes retrieval/report selection
+and coding verification-to-final policy, then repeat the current-source matrix
+under preregistered task guards. Do not add a framework-specific success heuristic
+or weaken the independent checker to raise these scores. A snapshot-content
+rejection also needs a minimized privacy-safe input before deciding whether its
+policy is over-conservative or correctly rejecting raw material.

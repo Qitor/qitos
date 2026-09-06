@@ -1,0 +1,116 @@
+{
+  "attempts": 99,
+  "benchmark_or_product_parity_claim": false,
+  "counts": {
+    "claude/default/recall": {
+      "attempts": 9,
+      "interventions": 0,
+      "missing_report": 0,
+      "not_passed": 7,
+      "passed": 2,
+      "timeout": 0
+    },
+    "hermes/default/learn": {
+      "attempts": 9,
+      "interventions": 0,
+      "missing_report": 0,
+      "not_passed": 1,
+      "passed": 8,
+      "timeout": 0
+    },
+    "hermes/default/recall": {
+      "attempts": 9,
+      "interventions": 0,
+      "missing_report": 0,
+      "not_passed": 9,
+      "passed": 0,
+      "timeout": 0
+    },
+    "hermes/no-memory/recall": {
+      "attempts": 9,
+      "interventions": 0,
+      "missing_report": 0,
+      "not_passed": 9,
+      "passed": 0,
+      "timeout": 0
+    },
+    "pi/default/recall": {
+      "attempts": 9,
+      "interventions": 0,
+      "missing_report": 0,
+      "not_passed": 7,
+      "passed": 2,
+      "timeout": 0
+    },
+    "planact/default/recall": {
+      "attempts": 9,
+      "interventions": 0,
+      "missing_report": 0,
+      "not_passed": 2,
+      "passed": 7,
+      "timeout": 0
+    },
+    "planact/static/recall": {
+      "attempts": 9,
+      "interventions": 0,
+      "missing_report": 0,
+      "not_passed": 0,
+      "passed": 9,
+      "timeout": 0
+    },
+    "react/default/recall": {
+      "attempts": 9,
+      "interventions": 0,
+      "missing_report": 0,
+      "not_passed": 0,
+      "passed": 9,
+      "timeout": 0
+    },
+    "voyager/default/learn": {
+      "attempts": 9,
+      "interventions": 0,
+      "missing_report": 1,
+      "not_passed": 3,
+      "passed": 6,
+      "timeout": 0
+    },
+    "voyager/default/recall": {
+      "attempts": 9,
+      "interventions": 0,
+      "missing_report": 0,
+      "not_passed": 6,
+      "passed": 3,
+      "timeout": 0
+    },
+    "voyager/no-skills/recall": {
+      "attempts": 9,
+      "interventions": 0,
+      "missing_report": 0,
+      "not_passed": 8,
+      "passed": 1,
+      "timeout": 0
+    }
+  },
+  "installed_identity_document_sha256": [
+    "e142b0e23c0e1416c001ba71724b37a24884d855d17e1b1e23a26dabee799d4b",
+    "e142b0e23c0e1416c001ba71724b37a24884d855d17e1b1e23a26dabee799d4b",
+    "e142b0e23c0e1416c001ba71724b37a24884d855d17e1b1e23a26dabee799d4b",
+    "3da3b64affaa3a0ca7e077a12ba401ea84d9186f12b355ade374ba6e9bbd97dd",
+    "3da3b64affaa3a0ca7e077a12ba401ea84d9186f12b355ade374ba6e9bbd97dd",
+    "3da3b64affaa3a0ca7e077a12ba401ea84d9186f12b355ade374ba6e9bbd97dd",
+    "9a3a17eb6fb1d74b07e5f8f31519f0a1a66fbf10e789df58029691459e63b9a8",
+    "9a3a17eb6fb1d74b07e5f8f31519f0a1a66fbf10e789df58029691459e63b9a8",
+    "9a3a17eb6fb1d74b07e5f8f31519f0a1a66fbf10e789df58029691459e63b9a8",
+    "3b85796696e66fdff0d5dfa3ef8a0cd89822103af63c43fa295cadff4534c592",
+    "3b85796696e66fdff0d5dfa3ef8a0cd89822103af63c43fa295cadff4534c592",
+    "3b85796696e66fdff0d5dfa3ef8a0cd89822103af63c43fa295cadff4534c592",
+    "8bdd0049b4e15c1f1394dd6c1287062535859ddbcfb88ece20219851a7930ac2",
+    "8bdd0049b4e15c1f1394dd6c1287062535859ddbcfb88ece20219851a7930ac2",
+    "8bdd0049b4e15c1f1394dd6c1287062535859ddbcfb88ece20219851a7930ac2",
+    "8def8d39087dc2d36447607c4384155f4069a926dba61096bf974d4b6a16d013",
+    "8def8d39087dc2d36447607c4384155f4069a926dba61096bf974d4b6a16d013",
+    "8def8d39087dc2d36447607c4384155f4069a926dba61096bf974d4b6a16d013"
+  ],
+  "kind": "agent_design_lab_aggregate",
+  "raw_payloads_included": false
+}

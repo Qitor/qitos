@@ -1,6 +1,6 @@
 # QitOS
 
-Agent Design Lab 正在实施：自定义 `agent_factory` 接入、持久技能版本、显式记忆删除与子任务工作区恢复修复支撑六个专业教学项目。详见[实施记录](docs/internal/plans/agent_design_lab_execution.md)；完整课程与真实模型矩阵尚未验收，不代表已发布新版本。
+Agent Design Lab 已提供六个可独立安装的中英文教学项目、自定义 `agent_factory`、持久技能版本及实战驱动的运行时修复。Python 3.10/3.12 安装消费者和真实 Docker 机制检查通过；真实模型任务失败仍明确保留。详见[验收事实与限制](docs/zh/tutorials/agent-design-lab-results.mdx)和[实施记录](docs/internal/plans/agent_design_lab_execution.md)。这不代表 package release 或整个课程组通过真实模型资格验证。
 
 <img src="assets/logo.png" alt="QitOS Logo" width="75%">
 

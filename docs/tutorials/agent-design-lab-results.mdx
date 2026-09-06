@@ -53,10 +53,35 @@ groups. Public project defaults remain configurable at 80/80/3600. There is no
 total experiment request or cost quota. Provider/model configuration is explicit;
 TLS verification is not disabled and another model is not silently substituted.
 
-Status: matrix in progress. No whole-lab live qualification claim is made.
-Earlier source groups and all failures remain in private storage; results are not
-selected as the best of repeated runs. The final aggregate will record counts and
-installed-source identity digests, not provider payloads or sensitive paths.
+The matrix completed **99 invocations**: 54 default task trials, 18 preceding
+learning runs and 27 controls. No whole-lab live qualification claim is made.
+
+| Project | Default task passed / attempted | Learning | Control |
+| --- | --- | --- | --- |
+| ReAct | 9 / 9 | Not applicable | Shared tasks with PlanAct |
+| PlanAct | 7 / 9 | Not applicable | Static: 9 / 9 |
+| Pi-like | 2 / 9 | Not applicable | Not run |
+| Claude-Code-like | 2 / 9 | Not applicable | Not run |
+| Hermes-like | 0 / 9 | 8 / 9 | No memory: 0 / 9 |
+| Voyager-inspired | 3 / 9 | 6 / 9 | No skills: 1 / 9 |
+
+These are small, bounded teaching experiments, not rankings or evidence that
+dynamic planning, memory or skills generally improve task success. One Voyager
+learning attempt rejected snapshot content and produced no final report; it is
+counted as non-passing. Controller timeouts and manual interventions in this final
+matrix were zero; declared Session budget stops still count as failures.
+
+All 18 groups preserve installed-file digests. Relative to the final source,
+the live candidate differs only in `_action_runtime.py` (the subsequent mixed
+blocked/executed compatibility-result deduplication) and the Hermes course agent
+(subsequent literal-search/report-shape clarification). Those changes passed
+permanent deterministic and installed checks; the 99-run matrix was **not** rerun
+on them. Therefore it does not qualify the final source's complete live behavior.
+
+The repository ledger includes a counts-only aggregate and installed identity
+document digests. Earlier source groups and every failure remain separately in
+private storage; none is replaced by a best-of retry. No provider payload or
+sensitive path is published.
 
 ## How to inspect and learn from a failure
 
