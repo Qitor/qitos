@@ -2,7 +2,8 @@
 
 ## Current V5 R1 status
 
-R1 local integration and all five repairs are complete on accepted master
+R1 framework/Python 3.10 qualification and formal remote synchronization are complete.
+Original local integration and all five repairs were accepted on master
 `d17a6ab4f6b09b0dd8a9c8896f859d26de17f3ec`. The additional Python 3.10
 cleanup compatibility finding and formal remote synchronization are tracked only
 in the [current R1 record](internal/plans/v5_r1_remote_sync.md).

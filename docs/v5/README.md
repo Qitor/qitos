@@ -1,6 +1,6 @@
 # QitOS v5 — 从可运行内核到好用的 Agent 开发框架
 
-**当前 R1 状态：** 本地融合、27 笔重放、五项修复和组合验收已完成，master 已接受
+**当前 R1 状态：** 本地融合、27 笔重放、五项修复、Python 3.10 兼容资格和正式远端同步已完成。原本地融合接受源码为
 `d17a6ab4f6b09b0dd8a9c8896f859d26de17f3ec`。新增 Python 3.10 cleanup 兼容修复、
 本轮验证和正式远端同步统一见[当前 R1 记录](../internal/plans/v5_r1_remote_sync.md)。
 

@@ -1,6 +1,6 @@
 # V5 R1 Python compatibility and remote synchronization
 
-Current R1 status authority. Updated 2026-09-06; remote synchronization is in progress, not yet verified.
+Current R1 status authority. Updated 2026-09-06: local framework and Python 3.10 compatibility qualified; formal remote synchronization verified. The immutable first-push SHA and its successful CI are recorded below. This factual documentation successor is checked separately by its own SHA in the final task receipt.
 
 ## Starting facts and scope
 
@@ -171,5 +171,70 @@ Outgoing audit through this execution source covers **40 commits / 461 unique
 file/blob versions**. The only Gitleaks match remains the reviewed source-SHA
 false positive. New receipts contain public test outcomes, source digests and page
 layout facts only. Local main was rechecked clean at its fixed starting SHA;
-other tasks remain inactive. Formal promotion, push, readback and exact-SHA CI
-are the next authorized actions, not yet claimed as performed here.
+other tasks remain inactive. At this pre-push checkpoint, promotion and CI were still outstanding; the completed
+operational facts below supersede that checkpoint.
+
+## Formal promotion and first remote readback
+
+At **2026-09-06 02:58:15 UTC**, authorized `git push origin master:master`
+succeeded with `4dfb570..d4f9da9 master -> master`. No force, all-refs, tags,
+release, deploy or protection bypass was used.
+
+- Main fast-forward: `d17a6ab4f6b09b0dd8a9c8896f859d26de17f3ec` →
+  `d4f9da94bd602efdc1562048119a6adb2401274d`.
+- Accepted candidate and main tree both:
+  `d3b30a425a434d6bae07eae4b3ac99e4f09a4ac7`.
+- Promotion revalidation: Python 3.10 core/provider/source regressions **105 passed**;
+  fixed ratchet **356**, API/tutorial/nav/link checks pass; main clean.
+- Post-push fetch, tracking and live ls-remote all returned
+  `d4f9da94bd602efdc1562048119a6adb2401274d`; divergence **0/0**.
+- Final first-push audit range: `4dfb570fb7eef504c1e6d247c21a1984251b80e4..d4f9da94bd602efdc1562048119a6adb2401274d`,
+  **41 commits / 469 file/blob versions**. Same sole reviewed source-SHA false
+  positive; no real secret or prohibited data identified.
+- GitHub confirms the repository is public and implementation commit `f7d4b2d`
+  exists remotely. Anonymous context and trajectory source URLs return HTTP 200.
+- Exact pushed-SHA workflows: [CI](https://github.com/WhitzardAgent/WhitzardOS/actions/runs/34007809170),
+  [docs](https://github.com/WhitzardAgent/WhitzardOS/actions/runs/34007809139),
+  [Code Quality](https://github.com/WhitzardAgent/WhitzardOS/actions/runs/34007808474).
+  All three workflows and all their jobs completed successfully, verified at
+  **2026-09-06 03:11:16 UTC**. [Immutable per-job receipt](v5_r1_remote_sync_evidence/first-remote-ci.json).
+
+This section records an already verified historical SHA. A documentation successor
+will have its own Git identity and must be pushed and checked separately; it does
+not inherit a prior SHA's CI result. The final accepted remote SHA in the task
+report is the sole next-round dispatch baseline for all subsequent lanes.
+
+
+## First-push outcome and documentation successor
+
+The exact `d4f9da94bd602efdc1562048119a6adb2401274d` CI confirms Python 3.10,
+3.11 and 3.12, coverage, package, stable lint/type, full-package ratchet,
+architecture, dependency audit, docs/source bindings/installed tutorials and
+Code Quality all passed. No CI rerun, skip expansion or gate weakening was used.
+
+The successor contains only these factual docs/evidence and current-status links.
+Its own push/readback/CI result belongs to its exact SHA in the final task report;
+the first-push green result is not attributed to the successor in advance.
+
+```ini
+V5_R1_FRAMEWORK_CONFORMANCE=passed
+PYTHON_310_COMPATIBILITY=passed
+DOCUMENTATION_TRUTH=updated
+PUBLIC_SOURCE_LINKS=qualified
+REMOTE_SYNC=verified
+PUSH_PERFORMED=yes
+LOCAL_REMOTE_DIVERGENCE=0/0
+REMOTE_CI_AT_D4F9DA94=passed
+LIVE_MODEL_QUALIFICATION=not_run
+RELEASE_PERFORMED=no
+DEPLOY_PERFORMED=no
+```
+
+Retirement preparation: task preview/browser processes stopped. Ignored build,
+pytest/mypy/bytecode files are reproducible task outputs. The generated
+`security_report.md` from existing offline smoke tests was preserved outside the
+worktree (918 bytes, SHA256 `929c8434b1de2e0ed72d1fcc3a472c97b72bba01c996c099f726bc3783fd8441`).
+Final non-forced worktree removal is performed only after the successor's required
+verification; its actual result is reported operationally. Keep
+`codex/v5-r1-remote-sync` and every existing preservation/source ref. The unrelated
+docs-learning worktree is never a cleanup target.
