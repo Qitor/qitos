@@ -1054,6 +1054,16 @@ class Session:
         )
         try:
             clear_session_runtime(self._engine)
+            child_state = self._engine.agent.init_state(task)
+            if not isinstance(child_state, StateSchema):
+                raise TypeError("transferred child requires StateSchema state")
+            # Restore external resources before applying the authorized transfer.
+            # Component restoration also binds parent conversation/batch caches;
+            # discard those caches so they cannot overwrite the selected input.
+            child._restore_runtime_components(
+                source_snapshot, state=child_state, task=task, step_id=0,
+            )
+            clear_session_runtime(self._engine)
             granted = receipt.granted_budget
             limit = (
                 granted.limits.get("model_requests")
@@ -1076,16 +1086,6 @@ class Session:
                 self._engine,
                 "_qitos_work_graph",
                 WorkGraph(f"work_graph:{child.session_id.value}"),
-            )
-            child_state = self._engine.agent.init_state(task)
-            if not isinstance(child_state, StateSchema):
-                raise TypeError("transferred child requires StateSchema state")
-            # Project conversational/agent state, not the fork's external resources.
-            # A fresh component allocation must restore the pinned source before
-            # capture; otherwise the child commits pristine workspace bytes over
-            # the already verified artifact inherited by the fork.
-            child._restore_runtime_components(
-                source_snapshot, state=child_state, task=task, step_id=0,
             )
             child_head = child._require_head()
             child._commit_snapshot(

@@ -42,9 +42,10 @@ def test_public_snippet(page, index, language, code, tmp_path):
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name.startswith("qitos"):
+                if alias.name == "qitos" or alias.name.startswith("qitos."):
                     importlib.import_module(alias.name)
-        elif isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("qitos"):
+        elif (isinstance(node, ast.ImportFrom) and node.module
+              and (node.module == "qitos" or node.module.startswith("qitos."))):
             module = importlib.import_module(node.module)
             for alias in node.names:
                 if alias.name != "*":

@@ -151,3 +151,18 @@ persistence. The permanent same-owner counterexample now verifies one tool effec
 unchanged owner, advanced head and COMPLETED lifecycle. Session/work-runtime gate:
 33 passed. Installed real-Docker Pi and full Claude parent/child/join/parent-final
 consumers passed. Explicit Engine.restore still creates and fences a new owner.
+
+### Full-suite isolation regression and correction
+
+The first expanded full run recorded 3894 passed, 52 skipped and 3 failed. One
+existing independent child RequestView test caught parent conversation restored
+after the filtered transfer. Resource restoration now precedes cache clearing
+and authorized projection; both external-resource and conversation-isolation
+tests must pass together. The two other failures were the tutorial import gate
+mistaking separately installed `qitos_lab_pi` for the `qitos` package. Package
+matching is now exact (`qitos` or `qitos.*`); external project imports are verified
+by the separate installed consumers, not silently imported from the checkout.
+The old application matrix is stopped at a case boundary before qualifying child
+reviews; its observations remain private. The corrected installed wheel is used
+for final application consumers and live trials. Research trials have no child
+transfer and retain their original installed-source identity.
