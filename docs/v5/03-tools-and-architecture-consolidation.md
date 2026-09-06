@@ -90,3 +90,9 @@ R1 仅执行 [Lane C 指令](../internal/plans/v5_r1_c_runtime_correctness.md)�
 - [ ] 03E 单独报告，不混入基础交付完成率。
 
 实施记录：`docs/internal/plans/v5_consolidation.md`。提交按工具、Observation、func、SharedMemory、recipe/benchmark、hook/MCP/extra 分开；不要一笔同时移动文件和改变所有运行语义。公共删除、警告版本、重依赖需要 maintainer 决策；其余修复不等待清理全仓库才能交付。
+
+## R1 integration closure — 2026-09-06
+
+C1/C2 已修复：准确 work/session/transfer/generation 关联终态；确认无 worker 的 dispatch_not_started 与可能执行的 unknown 分开持久化，destination restore+run 可执行。旧 reader 遇到新增闭集状态须升级，不做隐式忽略。Read/Edit 直接返回 canonical ToolResult，旧字符串调用方先检查 status 再取 output；分页、replace-all、SHA/权限和 Observation 的原子映射/属性、快照、dict/dataclass、旧 checkpoint 能力保留。func/SharedMemory/MCP 全面迁移等仍是后续工作。
+
+完整来源、修复和验证见[融合执行](../internal/plans/v5_r1_integration_execution.md)。本轮 live_not_run，R1 不等于 V5 全完成。

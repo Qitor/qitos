@@ -1,5 +1,9 @@
 # QitOS iteration progress — v4 history and v5 roadmap
 
+## V5 R1 local framework baseline qualified (2026-09-06)
+
+The integration preserves the planning draft, replays C → B → D → A (27 commits), fixes all five review findings and retains the delivered mechanisms. Complete source suite on `55c356f9d0f6b0df431ac1427f2373dfd5e540fa`: **3715 passed, 51 skipped in 352.53s (0:05:52)**. All original and combined installed consumers use one wheel; Event/barrier handoff matrix: 20/20 rounds. Static quality remains 356 allowances, unchanged. [Execution and evidence](internal/plans/v5_r1_integration_execution.md) records earlier failures, exact fixes, artifacts and platform boundaries. Local master promotion and safe worktree retirement are authorized after this qualification; the task final report freezes the actual accepted SHA. `live_not_run`; no remote synchronization, push, deployment or release. This supersedes the historical candidate-review next-step text below. R1 completion does not complete all V5 work.
+
 ## V5 R1 candidate review and integration decision (2026-09-05)
 
 Status: **four candidate deliveries present; bounded repairs required before

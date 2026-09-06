@@ -1,0 +1,18 @@
+{
+  "source_head": "55c356f9d0f6b0df431ac1427f2373dfd5e540fa",
+  "python": "3.12.7 | packaged by Anaconda, Inc. | (main, Oct  4 2024, 08:22:19) [Clang 14.0.6 ]",
+  "platform": "macOS-15.7.3-arm64-arm-64bit",
+  "mypy_target": "3.11",
+  "tools": {
+    "flake8": "7.0.0",
+    "mypy": "1.19.1",
+    "pyflakes": "3.2.0",
+    "pycodestyle": "2.11.1",
+    "mccabe": "0.7.0"
+  },
+  "artifact_digests": {
+    "qitos-0.6.0.tar.gz": "71ffb2188024e21408fd6ff4680269e381b1e385efaf4e953918aa3f17c215ca",
+    "qitos-0.6.0-py3-none-any.whl": "c61903805c1767e31bcf4e4b1e2a1ddefd44f81b4444e49c63eb76058cf29af2"
+  },
+  "wheel_python_files_equal": 510
+}

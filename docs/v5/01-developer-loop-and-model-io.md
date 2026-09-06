@@ -103,3 +103,9 @@ R1 可先完成前 3 行；后 5 行先使用 G5 已支持边界，02/04/05 增�
 - [ ] 01D 同一 Agent 前后胶水差异和行为对照已执行；未建立非劣证据不得宣称非劣。
 - [ ] installed wheel/public API、双语教程、兼容迁移与共同门禁通过。
 - [ ] 无新 Engine、未读私有凭据、未隐式扩大 live 预算或改变安全策略。
+
+## R1 integration closure — 2026-09-06
+
+M1/M2 已修复：Chat reasoning 分段独立保留，声明支持时恢复 provider 表达，否则显式处理 loss；owned cleanup 不覆盖 typed 主失败，保留 sent/usage/partial。组合消费者先用五轮 streaming，再在干净进程恢复后用内置非流式 adapter 完成；十次请求和九轮工具不代表模型智能已获验证。
+
+完整来源、修复和验证见[融合执行](../internal/plans/v5_r1_integration_execution.md)。本轮 live_not_run，R1 不等于 V5 全完成。

@@ -54,6 +54,8 @@ How to update:
 
 ### Changed
 
+- Qualify the integrated V5 R1 offline baseline with one installed wheel across the original lane consumers and combined durable workflows; retain live qualification as not run.
+
 - Memdir restores existing roots by default; pass `create=True` to initialize. Budget-driven exchange omission now requires an explicit compaction policy and a matching selection/loss receipt. Required context precedes optional priority.
 - Journal writers incrementally maintain ID/position bookkeeping and checkpoint derived JSON indexes at open/rebuild/close; ordinary flush remains journal fsync only. Full historical byte verification and frozen wire/privacy contracts remain unchanged.
 

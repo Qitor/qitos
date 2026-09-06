@@ -374,3 +374,5 @@ Terminal reconciliation requires descriptor work/session and explicit context
 transfer linkage to the current owner generation; an Agent name or an ID suffix is
 not lineage. Historical unbound descriptors remain unresolved. Prior terminal
 receipts and unrelated work remain unchanged.
+
+Compatibility: `dispatch_not_started` is a new member of the existing strict operation-state vocabulary. Historical readers reject this value and must upgrade; they must not reinterpret it as admitted/unknown. Historical handoff descriptors without explicit transfer linkage remain unresolved instead of attributing another work item's terminal.

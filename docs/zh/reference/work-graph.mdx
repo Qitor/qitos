@@ -369,3 +369,5 @@ Handoff receipt 的 `state=dispatch_not_started`、`admission_state=closed`、
 终态关联需要 descriptor work/session、显式 context transfer 引用与当前 owner generation；
 不根据 Agent 名称或 ID 后缀推断。历史缺少绑定的 descriptor 保持未决；既有终态与无关 work
 不变。
+
+兼容说明：`dispatch_not_started` 是既有严格 operation-state 闭集中的新增值。旧 reader 会拒绝该值，需要升级，不能将其解释为 admitted/unknown。缺少显式 transfer 关联的历史 handoff descriptor 保持未关联，不能借用另一个 work item 的终态。

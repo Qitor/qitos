@@ -1,0 +1,1 @@
+durable children=4; join=closed; parent retains ownership

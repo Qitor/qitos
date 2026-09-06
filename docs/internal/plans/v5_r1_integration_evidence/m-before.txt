@@ -1,0 +1,2515 @@
+FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF                                          [100%]
+=================================== FAILURES ===================================
+________________ test_reasoning_fragments_separate_once[False-] ________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10341b9e0>
+answer = '', asynchronous = False
+
+    @pytest.mark.parametrize('answer', ['', 'answer'])
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    def test_reasoning_fragments_separate_once(monkeypatch, answer, asynchronous):
+        model, stream, client = adapter(monkeypatch, [chunk(reasoning='first '),
+            chunk(reasoning='second'), chunk(answer), chunk(finish='stop')], asynchronous=asynchronous)
+        if asynchronous:
+            async def consume():
+                return [item async for item in model.astream([])]
+            chunks = asyncio.run(consume())
+            assert ''.join(c.text for c in chunks) == answer
+            assert chunks[-1].reasoning_fields == {'reasoning_content': 'first second'}
+            assert not any(c.reasoning_fields for c in chunks[:-1])
+        else:
+            response = model.qitos_stream_transport({'messages': []})
+            assert response.text == answer
+>           assert response.reasoning_fields == {'reasoning_content': 'first second'}
+E           AssertionError: assert {} == {'reasoning_c...first second'}
+E
+E             Right contains 1 more item:
+E             {'reasoning_content': 'first second'}
+E             Use -v to get more diff
+
+tests/models/test_v5_r1_stream_repairs.py:80: AssertionError
+_____________ test_reasoning_fragments_separate_once[False-answer] _____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10341b950>
+answer = 'answer', asynchronous = False
+
+    @pytest.mark.parametrize('answer', ['', 'answer'])
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    def test_reasoning_fragments_separate_once(monkeypatch, answer, asynchronous):
+        model, stream, client = adapter(monkeypatch, [chunk(reasoning='first '),
+            chunk(reasoning='second'), chunk(answer), chunk(finish='stop')], asynchronous=asynchronous)
+        if asynchronous:
+            async def consume():
+                return [item async for item in model.astream([])]
+            chunks = asyncio.run(consume())
+            assert ''.join(c.text for c in chunks) == answer
+            assert chunks[-1].reasoning_fields == {'reasoning_content': 'first second'}
+            assert not any(c.reasoning_fields for c in chunks[:-1])
+        else:
+            response = model.qitos_stream_transport({'messages': []})
+            assert response.text == answer
+>           assert response.reasoning_fields == {'reasoning_content': 'first second'}
+E           AssertionError: assert {} == {'reasoning_c...first second'}
+E
+E             Right contains 1 more item:
+E             {'reasoning_content': 'first second'}
+E             Use -v to get more diff
+
+tests/models/test_v5_r1_stream_repairs.py:80: AssertionError
+________________ test_reasoning_fragments_separate_once[True-] _________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1046d6f00>
+answer = '', asynchronous = True
+
+    @pytest.mark.parametrize('answer', ['', 'answer'])
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    def test_reasoning_fragments_separate_once(monkeypatch, answer, asynchronous):
+        model, stream, client = adapter(monkeypatch, [chunk(reasoning='first '),
+            chunk(reasoning='second'), chunk(answer), chunk(finish='stop')], asynchronous=asynchronous)
+        if asynchronous:
+            async def consume():
+                return [item async for item in model.astream([])]
+            chunks = asyncio.run(consume())
+            assert ''.join(c.text for c in chunks) == answer
+>           assert chunks[-1].reasoning_fields == {'reasoning_content': 'first second'}
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: 'ModelStreamChunk' object has no attribute 'reasoning_fields'
+
+tests/models/test_v5_r1_stream_repairs.py:75: AttributeError
+_____________ test_reasoning_fragments_separate_once[True-answer] ______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1020f5cd0>
+answer = 'answer', asynchronous = True
+
+    @pytest.mark.parametrize('answer', ['', 'answer'])
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    def test_reasoning_fragments_separate_once(monkeypatch, answer, asynchronous):
+        model, stream, client = adapter(monkeypatch, [chunk(reasoning='first '),
+            chunk(reasoning='second'), chunk(answer), chunk(finish='stop')], asynchronous=asynchronous)
+        if asynchronous:
+            async def consume():
+                return [item async for item in model.astream([])]
+            chunks = asyncio.run(consume())
+            assert ''.join(c.text for c in chunks) == answer
+>           assert chunks[-1].reasoning_fields == {'reasoning_content': 'first second'}
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: 'ModelStreamChunk' object has no attribute 'reasoning_fields'
+
+tests/models/test_v5_r1_stream_repairs.py:75: AttributeError
+________________ test_cleanup_priority[True-False-normal-False] ________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1046d65d0>
+asynchronous = False, mode = 'normal', response_error = True
+client_error = False
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+                asyncio.run(consume())
+            else:
+>               model.qitos_stream_transport({'messages': []})
+
+tests/models/test_v5_r1_stream_repairs.py:102:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+qitos/models/base.py:196: in qitos_stream_transport
+    for chunk in iterator:
+                 ^^^^^^^^
+qitos/models/openai.py:1065: in stream
+    close_owned(response)
+qitos/models/_stream.py:50: in close_owned
+    close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1046d69c0>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+________________ test_cleanup_priority[True-False-normal-True] _________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x104821760>
+asynchronous = True, mode = 'normal', response_error = True
+client_error = False
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+>               asyncio.run(consume())
+
+tests/models/test_v5_r1_stream_repairs.py:100:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/base_events.py:687: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/models/test_v5_r1_stream_repairs.py:99: in consume
+    return [item async for item in model.astream([])]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/models/openai.py:1253: in astream
+    await aclose_owned(response)
+qitos/models/_stream.py:58: in aclose_owned
+    await result
+tests/models/test_v5_r1_stream_repairs.py:50: in aclose
+    self.close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x104820fb0>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+_________________ test_cleanup_priority[True-False-eof-False] __________________
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    def stream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> Iterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, close_owned, failure
+
+        self._last_usage = None
+        client = response = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                try:
+                    for chunk in nested:
+                        partial_text_characters += len(chunk.text)
+                        yield chunk
+                finally:
+                    close_owned(nested)
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+                    yield ModelStreamChunk(text=text)
+            yield state.finish()
+        except Exception as exc:
+>           raise failure(self, exc, sent=sent,
+                          partial_text_characters=partial_text_characters) from None
+E           qitos.models.codec.ProviderFailure: Provider stream violated its terminal contract.
+
+qitos/models/openai.py:1061: ProviderFailure
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1048224b0>
+asynchronous = False, mode = 'eof', response_error = True, client_error = False
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+                asyncio.run(consume())
+            else:
+>               model.qitos_stream_transport({'messages': []})
+
+tests/models/test_v5_r1_stream_repairs.py:102:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+qitos/models/base.py:196: in qitos_stream_transport
+    for chunk in iterator:
+                 ^^^^^^^^
+qitos/models/openai.py:1065: in stream
+    close_owned(response)
+qitos/models/_stream.py:50: in close_owned
+    close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1048218b0>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+__________________ test_cleanup_priority[True-False-eof-True] __________________
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    async def astream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> AsyncIterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, aclose_owned, failure
+
+        self._last_usage = None
+        client = response = nested = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self, asynchronous=True)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _async_responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                async for chunk in nested:
+                    partial_text_characters += len(chunk.text)
+                    yield chunk
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = await client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            async for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+                    yield ModelStreamChunk(text=text)
+            yield state.finish()
+        except Exception as exc:
+>           raise failure(self, exc, sent=sent,
+                          partial_text_characters=partial_text_characters) from None
+E           qitos.models.codec.ProviderFailure: Provider stream violated its terminal contract.
+
+qitos/models/openai.py:1248: ProviderFailure
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x102134230>
+asynchronous = True, mode = 'eof', response_error = True, client_error = False
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+>               asyncio.run(consume())
+
+tests/models/test_v5_r1_stream_repairs.py:100:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/base_events.py:687: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/models/test_v5_r1_stream_repairs.py:99: in consume
+    return [item async for item in model.astream([])]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/models/openai.py:1253: in astream
+    await aclose_owned(response)
+qitos/models/_stream.py:58: in aclose_owned
+    await result
+tests/models/test_v5_r1_stream_repairs.py:50: in aclose
+    self.close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x102134b30>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+______________ test_cleanup_priority[True-False-transport-False] _______________
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    def stream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> Iterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, close_owned, failure
+
+        self._last_usage = None
+        client = response = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                try:
+                    for chunk in nested:
+                        partial_text_characters += len(chunk.text)
+                        yield chunk
+                finally:
+                    close_owned(nested)
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+                    yield ModelStreamChunk(text=text)
+            yield state.finish()
+        except Exception as exc:
+>           raise failure(self, exc, sent=sent,
+                          partial_text_characters=partial_text_characters) from None
+E           qitos.models.codec.ProviderFailure: Provider request failed at the sanitized transport boundary.
+
+qitos/models/openai.py:1061: ProviderFailure
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x102134320>
+asynchronous = False, mode = 'transport', response_error = True
+client_error = False
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+                asyncio.run(consume())
+            else:
+>               model.qitos_stream_transport({'messages': []})
+
+tests/models/test_v5_r1_stream_repairs.py:102:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+qitos/models/base.py:196: in qitos_stream_transport
+    for chunk in iterator:
+                 ^^^^^^^^
+qitos/models/openai.py:1065: in stream
+    close_owned(response)
+qitos/models/_stream.py:50: in close_owned
+    close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1021542c0>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+_______________ test_cleanup_priority[True-False-transport-True] _______________
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    async def astream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> AsyncIterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, aclose_owned, failure
+
+        self._last_usage = None
+        client = response = nested = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self, asynchronous=True)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _async_responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                async for chunk in nested:
+                    partial_text_characters += len(chunk.text)
+                    yield chunk
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = await client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            async for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+                    yield ModelStreamChunk(text=text)
+            yield state.finish()
+        except Exception as exc:
+>           raise failure(self, exc, sent=sent,
+                          partial_text_characters=partial_text_characters) from None
+E           qitos.models.codec.ProviderFailure: Provider request failed at the sanitized transport boundary.
+
+qitos/models/openai.py:1248: ProviderFailure
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x102154860>
+asynchronous = True, mode = 'transport', response_error = True
+client_error = False
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+>               asyncio.run(consume())
+
+tests/models/test_v5_r1_stream_repairs.py:100:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/base_events.py:687: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/models/test_v5_r1_stream_repairs.py:99: in consume
+    return [item async for item in model.astream([])]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/models/openai.py:1253: in astream
+    await aclose_owned(response)
+qitos/models/_stream.py:58: in aclose_owned
+    await result
+tests/models/test_v5_r1_stream_repairs.py:50: in aclose
+    self.close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x102154680>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+____________ test_cleanup_priority[True-False-contradiction-False] _____________
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    def stream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> Iterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, close_owned, failure
+
+        self._last_usage = None
+        client = response = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                try:
+                    for chunk in nested:
+                        partial_text_characters += len(chunk.text)
+                        yield chunk
+                finally:
+                    close_owned(nested)
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+                    yield ModelStreamChunk(text=text)
+            yield state.finish()
+        except Exception as exc:
+>           raise failure(self, exc, sent=sent,
+                          partial_text_characters=partial_text_characters) from None
+E           qitos.models.codec.ProviderFailure: Provider stream violated its terminal contract.
+
+qitos/models/openai.py:1061: ProviderFailure
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1021344a0>
+asynchronous = False, mode = 'contradiction', response_error = True
+client_error = False
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+                asyncio.run(consume())
+            else:
+>               model.qitos_stream_transport({'messages': []})
+
+tests/models/test_v5_r1_stream_repairs.py:102:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+qitos/models/base.py:196: in qitos_stream_transport
+    for chunk in iterator:
+                 ^^^^^^^^
+qitos/models/openai.py:1065: in stream
+    close_owned(response)
+qitos/models/_stream.py:50: in close_owned
+    close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1021343b0>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+_____________ test_cleanup_priority[True-False-contradiction-True] _____________
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    async def astream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> AsyncIterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, aclose_owned, failure
+
+        self._last_usage = None
+        client = response = nested = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self, asynchronous=True)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _async_responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                async for chunk in nested:
+                    partial_text_characters += len(chunk.text)
+                    yield chunk
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = await client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            async for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+                    yield ModelStreamChunk(text=text)
+            yield state.finish()
+        except Exception as exc:
+>           raise failure(self, exc, sent=sent,
+                          partial_text_characters=partial_text_characters) from None
+E           qitos.models.codec.ProviderFailure: Provider stream violated its terminal contract.
+
+qitos/models/openai.py:1248: ProviderFailure
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x104823380>
+asynchronous = True, mode = 'contradiction', response_error = True
+client_error = False
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+>               asyncio.run(consume())
+
+tests/models/test_v5_r1_stream_repairs.py:100:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/base_events.py:687: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/models/test_v5_r1_stream_repairs.py:99: in consume
+    return [item async for item in model.astream([])]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/models/openai.py:1253: in astream
+    await aclose_owned(response)
+qitos/models/_stream.py:58: in aclose_owned
+    await result
+tests/models/test_v5_r1_stream_repairs.py:50: in aclose
+    self.close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x104822450>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+________________ test_cleanup_priority[False-True-normal-False] ________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x104822ab0>
+asynchronous = False, mode = 'normal', response_error = False
+client_error = True
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+                asyncio.run(consume())
+            else:
+>               model.qitos_stream_transport({'messages': []})
+
+tests/models/test_v5_r1_stream_repairs.py:102:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+qitos/models/base.py:196: in qitos_stream_transport
+    for chunk in iterator:
+                 ^^^^^^^^
+qitos/models/openai.py:1067: in stream
+    close_owned(client)
+qitos/models/_stream.py:50: in close_owned
+    close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x104821310>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+________________ test_cleanup_priority[False-True-normal-True] _________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1020f7770>
+asynchronous = True, mode = 'normal', response_error = False
+client_error = True
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+>               asyncio.run(consume())
+
+tests/models/test_v5_r1_stream_repairs.py:100:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/base_events.py:687: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/models/test_v5_r1_stream_repairs.py:99: in consume
+    return [item async for item in model.astream([])]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/models/openai.py:1255: in astream
+    await aclose_owned(client)
+qitos/models/_stream.py:58: in aclose_owned
+    await result
+tests/models/test_v5_r1_stream_repairs.py:50: in aclose
+    self.close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x10341a780>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+_________________ test_cleanup_priority[False-True-eof-False] __________________
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    def stream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> Iterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, close_owned, failure
+
+        self._last_usage = None
+        client = response = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                try:
+                    for chunk in nested:
+                        partial_text_characters += len(chunk.text)
+                        yield chunk
+                finally:
+                    close_owned(nested)
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+                    yield ModelStreamChunk(text=text)
+            yield state.finish()
+        except Exception as exc:
+>           raise failure(self, exc, sent=sent,
+                          partial_text_characters=partial_text_characters) from None
+E           qitos.models.codec.ProviderFailure: Provider stream violated its terminal contract.
+
+qitos/models/openai.py:1061: ProviderFailure
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1046d6660>
+asynchronous = False, mode = 'eof', response_error = False, client_error = True
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+                asyncio.run(consume())
+            else:
+>               model.qitos_stream_transport({'messages': []})
+
+tests/models/test_v5_r1_stream_repairs.py:102:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+qitos/models/base.py:196: in qitos_stream_transport
+    for chunk in iterator:
+                 ^^^^^^^^
+qitos/models/openai.py:1067: in stream
+    close_owned(client)
+qitos/models/_stream.py:50: in close_owned
+    close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1046d7920>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+__________________ test_cleanup_priority[False-True-eof-True] __________________
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    async def astream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> AsyncIterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, aclose_owned, failure
+
+        self._last_usage = None
+        client = response = nested = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self, asynchronous=True)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _async_responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                async for chunk in nested:
+                    partial_text_characters += len(chunk.text)
+                    yield chunk
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = await client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            async for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+                    yield ModelStreamChunk(text=text)
+            yield state.finish()
+        except Exception as exc:
+>           raise failure(self, exc, sent=sent,
+                          partial_text_characters=partial_text_characters) from None
+E           qitos.models.codec.ProviderFailure: Provider stream violated its terminal contract.
+
+qitos/models/openai.py:1248: ProviderFailure
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1046d7410>
+asynchronous = True, mode = 'eof', response_error = False, client_error = True
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+>               asyncio.run(consume())
+
+tests/models/test_v5_r1_stream_repairs.py:100:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/base_events.py:687: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/models/test_v5_r1_stream_repairs.py:99: in consume
+    return [item async for item in model.astream([])]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/models/openai.py:1255: in astream
+    await aclose_owned(client)
+qitos/models/_stream.py:58: in aclose_owned
+    await result
+tests/models/test_v5_r1_stream_repairs.py:50: in aclose
+    self.close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1046d7650>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+______________ test_cleanup_priority[False-True-transport-False] _______________
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    def stream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> Iterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, close_owned, failure
+
+        self._last_usage = None
+        client = response = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                try:
+                    for chunk in nested:
+                        partial_text_characters += len(chunk.text)
+                        yield chunk
+                finally:
+                    close_owned(nested)
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+                    yield ModelStreamChunk(text=text)
+            yield state.finish()
+        except Exception as exc:
+>           raise failure(self, exc, sent=sent,
+                          partial_text_characters=partial_text_characters) from None
+E           qitos.models.codec.ProviderFailure: Provider request failed at the sanitized transport boundary.
+
+qitos/models/openai.py:1061: ProviderFailure
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1046d6e10>
+asynchronous = False, mode = 'transport', response_error = False
+client_error = True
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+                asyncio.run(consume())
+            else:
+>               model.qitos_stream_transport({'messages': []})
+
+tests/models/test_v5_r1_stream_repairs.py:102:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+qitos/models/base.py:196: in qitos_stream_transport
+    for chunk in iterator:
+                 ^^^^^^^^
+qitos/models/openai.py:1067: in stream
+    close_owned(client)
+qitos/models/_stream.py:50: in close_owned
+    close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1048d5a30>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+_______________ test_cleanup_priority[False-True-transport-True] _______________
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    async def astream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> AsyncIterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, aclose_owned, failure
+
+        self._last_usage = None
+        client = response = nested = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self, asynchronous=True)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _async_responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                async for chunk in nested:
+                    partial_text_characters += len(chunk.text)
+                    yield chunk
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = await client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            async for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+                    yield ModelStreamChunk(text=text)
+            yield state.finish()
+        except Exception as exc:
+>           raise failure(self, exc, sent=sent,
+                          partial_text_characters=partial_text_characters) from None
+E           qitos.models.codec.ProviderFailure: Provider request failed at the sanitized transport boundary.
+
+qitos/models/openai.py:1248: ProviderFailure
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1048d72c0>
+asynchronous = True, mode = 'transport', response_error = False
+client_error = True
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+>               asyncio.run(consume())
+
+tests/models/test_v5_r1_stream_repairs.py:100:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/base_events.py:687: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/models/test_v5_r1_stream_repairs.py:99: in consume
+    return [item async for item in model.astream([])]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/models/openai.py:1255: in astream
+    await aclose_owned(client)
+qitos/models/_stream.py:58: in aclose_owned
+    await result
+tests/models/test_v5_r1_stream_repairs.py:50: in aclose
+    self.close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1048d74a0>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+____________ test_cleanup_priority[False-True-contradiction-False] _____________
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    def stream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> Iterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, close_owned, failure
+
+        self._last_usage = None
+        client = response = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                try:
+                    for chunk in nested:
+                        partial_text_characters += len(chunk.text)
+                        yield chunk
+                finally:
+                    close_owned(nested)
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+                    yield ModelStreamChunk(text=text)
+            yield state.finish()
+        except Exception as exc:
+>           raise failure(self, exc, sent=sent,
+                          partial_text_characters=partial_text_characters) from None
+E           qitos.models.codec.ProviderFailure: Provider stream violated its terminal contract.
+
+qitos/models/openai.py:1061: ProviderFailure
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1046d69f0>
+asynchronous = False, mode = 'contradiction', response_error = False
+client_error = True
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+                asyncio.run(consume())
+            else:
+>               model.qitos_stream_transport({'messages': []})
+
+tests/models/test_v5_r1_stream_repairs.py:102:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+qitos/models/base.py:196: in qitos_stream_transport
+    for chunk in iterator:
+                 ^^^^^^^^
+qitos/models/openai.py:1067: in stream
+    close_owned(client)
+qitos/models/_stream.py:50: in close_owned
+    close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1048d5400>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+_____________ test_cleanup_priority[False-True-contradiction-True] _____________
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    async def astream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> AsyncIterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, aclose_owned, failure
+
+        self._last_usage = None
+        client = response = nested = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self, asynchronous=True)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _async_responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                async for chunk in nested:
+                    partial_text_characters += len(chunk.text)
+                    yield chunk
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = await client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            async for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+                    yield ModelStreamChunk(text=text)
+            yield state.finish()
+        except Exception as exc:
+>           raise failure(self, exc, sent=sent,
+                          partial_text_characters=partial_text_characters) from None
+E           qitos.models.codec.ProviderFailure: Provider stream violated its terminal contract.
+
+qitos/models/openai.py:1248: ProviderFailure
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1048d5cd0>
+asynchronous = True, mode = 'contradiction', response_error = False
+client_error = True
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+>               asyncio.run(consume())
+
+tests/models/test_v5_r1_stream_repairs.py:100:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/base_events.py:687: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/models/test_v5_r1_stream_repairs.py:99: in consume
+    return [item async for item in model.astream([])]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/models/openai.py:1255: in astream
+    await aclose_owned(client)
+qitos/models/_stream.py:58: in aclose_owned
+    await result
+tests/models/test_v5_r1_stream_repairs.py:50: in aclose
+    self.close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1048d4e30>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+________________ test_cleanup_priority[True-True-normal-False] _________________
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1048d5760>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1048d61b0>
+asynchronous = False, mode = 'normal', response_error = True
+client_error = True
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+                asyncio.run(consume())
+            else:
+>               model.qitos_stream_transport({'messages': []})
+
+tests/models/test_v5_r1_stream_repairs.py:102:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+qitos/models/base.py:196: in qitos_stream_transport
+    for chunk in iterator:
+                 ^^^^^^^^
+qitos/models/openai.py:1067: in stream
+    close_owned(client)
+qitos/models/_stream.py:50: in close_owned
+    close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1048d4080>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+_________________ test_cleanup_priority[True-True-normal-True] _________________
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x102153710>
+
+    async def aclose(self):
+>       self.close()
+
+tests/models/test_v5_r1_stream_repairs.py:50:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x102153710>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x102152ea0>
+asynchronous = True, mode = 'normal', response_error = True, client_error = True
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+>               asyncio.run(consume())
+
+tests/models/test_v5_r1_stream_repairs.py:100:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/base_events.py:687: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/models/test_v5_r1_stream_repairs.py:99: in consume
+    return [item async for item in model.astream([])]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/models/openai.py:1255: in astream
+    await aclose_owned(client)
+qitos/models/_stream.py:58: in aclose_owned
+    await result
+tests/models/test_v5_r1_stream_repairs.py:50: in aclose
+    self.close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x102151070>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+__________________ test_cleanup_priority[True-True-eof-False] __________________
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    def stream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> Iterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, close_owned, failure
+
+        self._last_usage = None
+        client = response = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                try:
+                    for chunk in nested:
+                        partial_text_characters += len(chunk.text)
+                        yield chunk
+                finally:
+                    close_owned(nested)
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+                    yield ModelStreamChunk(text=text)
+            yield state.finish()
+        except Exception as exc:
+>           raise failure(self, exc, sent=sent,
+                          partial_text_characters=partial_text_characters) from None
+E           qitos.models.codec.ProviderFailure: Provider stream violated its terminal contract.
+
+qitos/models/openai.py:1061: ProviderFailure
+
+During handling of the above exception, another exception occurred:
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x102151520>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1021520f0>
+asynchronous = False, mode = 'eof', response_error = True, client_error = True
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+                asyncio.run(consume())
+            else:
+>               model.qitos_stream_transport({'messages': []})
+
+tests/models/test_v5_r1_stream_repairs.py:102:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+qitos/models/base.py:196: in qitos_stream_transport
+    for chunk in iterator:
+                 ^^^^^^^^
+qitos/models/openai.py:1067: in stream
+    close_owned(client)
+qitos/models/_stream.py:50: in close_owned
+    close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x102151640>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+__________________ test_cleanup_priority[True-True-eof-True] ___________________
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    async def astream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> AsyncIterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, aclose_owned, failure
+
+        self._last_usage = None
+        client = response = nested = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self, asynchronous=True)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _async_responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                async for chunk in nested:
+                    partial_text_characters += len(chunk.text)
+                    yield chunk
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = await client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            async for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+                    yield ModelStreamChunk(text=text)
+            yield state.finish()
+        except Exception as exc:
+>           raise failure(self, exc, sent=sent,
+                          partial_text_characters=partial_text_characters) from None
+E           qitos.models.codec.ProviderFailure: Provider stream violated its terminal contract.
+
+qitos/models/openai.py:1248: ProviderFailure
+
+During handling of the above exception, another exception occurred:
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x102150650>
+
+    async def aclose(self):
+>       self.close()
+
+tests/models/test_v5_r1_stream_repairs.py:50:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x102150650>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1021522d0>
+asynchronous = True, mode = 'eof', response_error = True, client_error = True
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+>               asyncio.run(consume())
+
+tests/models/test_v5_r1_stream_repairs.py:100:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/base_events.py:687: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/models/test_v5_r1_stream_repairs.py:99: in consume
+    return [item async for item in model.astream([])]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/models/openai.py:1255: in astream
+    await aclose_owned(client)
+qitos/models/_stream.py:58: in aclose_owned
+    await result
+tests/models/test_v5_r1_stream_repairs.py:50: in aclose
+    self.close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x102150620>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+_______________ test_cleanup_priority[True-True-transport-False] _______________
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    def stream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> Iterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, close_owned, failure
+
+        self._last_usage = None
+        client = response = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                try:
+                    for chunk in nested:
+                        partial_text_characters += len(chunk.text)
+                        yield chunk
+                finally:
+                    close_owned(nested)
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+                    yield ModelStreamChunk(text=text)
+            yield state.finish()
+        except Exception as exc:
+>           raise failure(self, exc, sent=sent,
+                          partial_text_characters=partial_text_characters) from None
+E           qitos.models.codec.ProviderFailure: Provider request failed at the sanitized transport boundary.
+
+qitos/models/openai.py:1061: ProviderFailure
+
+During handling of the above exception, another exception occurred:
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x102152ab0>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1021511f0>
+asynchronous = False, mode = 'transport', response_error = True
+client_error = True
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+                asyncio.run(consume())
+            else:
+>               model.qitos_stream_transport({'messages': []})
+
+tests/models/test_v5_r1_stream_repairs.py:102:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+qitos/models/base.py:196: in qitos_stream_transport
+    for chunk in iterator:
+                 ^^^^^^^^
+qitos/models/openai.py:1067: in stream
+    close_owned(client)
+qitos/models/_stream.py:50: in close_owned
+    close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x102152b70>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+_______________ test_cleanup_priority[True-True-transport-True] ________________
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    async def astream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> AsyncIterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, aclose_owned, failure
+
+        self._last_usage = None
+        client = response = nested = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self, asynchronous=True)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _async_responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                async for chunk in nested:
+                    partial_text_characters += len(chunk.text)
+                    yield chunk
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = await client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            async for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+                    yield ModelStreamChunk(text=text)
+            yield state.finish()
+        except Exception as exc:
+>           raise failure(self, exc, sent=sent,
+                          partial_text_characters=partial_text_characters) from None
+E           qitos.models.codec.ProviderFailure: Provider request failed at the sanitized transport boundary.
+
+qitos/models/openai.py:1248: ProviderFailure
+
+During handling of the above exception, another exception occurred:
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x104936ab0>
+
+    async def aclose(self):
+>       self.close()
+
+tests/models/test_v5_r1_stream_repairs.py:50:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x104936ab0>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x104934290>
+asynchronous = True, mode = 'transport', response_error = True
+client_error = True
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+>               asyncio.run(consume())
+
+tests/models/test_v5_r1_stream_repairs.py:100:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/base_events.py:687: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/models/test_v5_r1_stream_repairs.py:99: in consume
+    return [item async for item in model.astream([])]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/models/openai.py:1255: in astream
+    await aclose_owned(client)
+qitos/models/_stream.py:58: in aclose_owned
+    await result
+tests/models/test_v5_r1_stream_repairs.py:50: in aclose
+    self.close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x104936f30>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+_____________ test_cleanup_priority[True-True-contradiction-False] _____________
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    def stream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> Iterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, close_owned, failure
+
+        self._last_usage = None
+        client = response = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                try:
+                    for chunk in nested:
+                        partial_text_characters += len(chunk.text)
+                        yield chunk
+                finally:
+                    close_owned(nested)
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+                    yield ModelStreamChunk(text=text)
+            yield state.finish()
+        except Exception as exc:
+>           raise failure(self, exc, sent=sent,
+                          partial_text_characters=partial_text_characters) from None
+E           qitos.models.codec.ProviderFailure: Provider stream violated its terminal contract.
+
+qitos/models/openai.py:1061: ProviderFailure
+
+During handling of the above exception, another exception occurred:
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x102152090>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x102150fe0>
+asynchronous = False, mode = 'contradiction', response_error = True
+client_error = True
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+                asyncio.run(consume())
+            else:
+>               model.qitos_stream_transport({'messages': []})
+
+tests/models/test_v5_r1_stream_repairs.py:102:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+qitos/models/base.py:196: in qitos_stream_transport
+    for chunk in iterator:
+                 ^^^^^^^^
+qitos/models/openai.py:1067: in stream
+    close_owned(client)
+qitos/models/_stream.py:50: in close_owned
+    close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1021539e0>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+_____________ test_cleanup_priority[True-True-contradiction-True] ______________
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    async def astream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> AsyncIterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, aclose_owned, failure
+
+        self._last_usage = None
+        client = response = nested = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self, asynchronous=True)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _async_responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                async for chunk in nested:
+                    partial_text_characters += len(chunk.text)
+                    yield chunk
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = await client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            async for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+                    yield ModelStreamChunk(text=text)
+            yield state.finish()
+        except Exception as exc:
+>           raise failure(self, exc, sent=sent,
+                          partial_text_characters=partial_text_characters) from None
+E           qitos.models.codec.ProviderFailure: Provider stream violated its terminal contract.
+
+qitos/models/openai.py:1248: ProviderFailure
+
+During handling of the above exception, another exception occurred:
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1049352b0>
+
+    async def aclose(self):
+>       self.close()
+
+tests/models/test_v5_r1_stream_repairs.py:50:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1049352b0>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1049353a0>
+asynchronous = True, mode = 'contradiction', response_error = True
+client_error = True
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    @pytest.mark.parametrize('mode', ['normal', 'eof', 'transport', 'contradiction'])
+    @pytest.mark.parametrize('response_error,client_error', [(True, False), (False, True), (True, True)])
+    def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
+        usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+        events = [chunk('partial', usage=usage)]
+        events += {'normal': [chunk(finish='stop')], 'eof': [],
+                   'transport': [ConnectionError(PRIVATE)],
+                   'contradiction': [chunk(finish='stop'), chunk('late')]}[mode]
+        model, stream, client = adapter(monkeypatch, events, asynchronous=asynchronous,
+                                        response_error=response_error, client_error=client_error)
+        with pytest.raises(ProviderFailure) as caught:
+            if asynchronous:
+                async def consume():
+                    return [item async for item in model.astream([])]
+>               asyncio.run(consume())
+
+tests/models/test_v5_r1_stream_repairs.py:100:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/base_events.py:687: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/models/test_v5_r1_stream_repairs.py:99: in consume
+    return [item async for item in model.astream([])]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/models/openai.py:1255: in astream
+    await aclose_owned(client)
+qitos/models/_stream.py:58: in aclose_owned
+    await result
+tests/models/test_v5_r1_stream_repairs.py:50: in aclose
+    self.close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1049361e0>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+______________ test_consumer_exception_identity_survives_cleanup _______________
+
+text = 'partial'
+
+    def callback(text):
+>       raise original
+E       ValueError: consumer failed
+
+tests/models/test_v5_r1_stream_repairs.py:119: ValueError
+
+During handling of the above exception, another exception occurred:
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    def stream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> Iterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, close_owned, failure
+
+        self._last_usage = None
+        client = response = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                try:
+                    for chunk in nested:
+                        partial_text_characters += len(chunk.text)
+                        yield chunk
+                finally:
+                    close_owned(nested)
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+>                   yield ModelStreamChunk(text=text)
+E                   GeneratorExit
+
+qitos/models/openai.py:1058: GeneratorExit
+
+During handling of the above exception, another exception occurred:
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x104937590>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x104936d50>
+
+    def test_consumer_exception_identity_survives_cleanup(monkeypatch):
+        model, stream, client = adapter(monkeypatch, [chunk('partial')], response_error=True, client_error=True)
+        original = ValueError('consumer failed')
+        def callback(text):
+            raise original
+        with pytest.raises(ValueError) as caught:
+>           model.qitos_stream_transport({'messages': []}, on_delta=callback)
+
+tests/models/test_v5_r1_stream_repairs.py:121:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+qitos/models/base.py:233: in qitos_stream_transport
+    close_owned(iterator)
+qitos/models/_stream.py:50: in close_owned
+    close()
+qitos/models/openai.py:1067: in stream
+    close_owned(client)
+qitos/models/_stream.py:50: in close_owned
+    close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x104937ad0>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+_________________ test_explicit_close_failure_is_typed[False] __________________
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    def stream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> Iterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, close_owned, failure
+
+        self._last_usage = None
+        client = response = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                try:
+                    for chunk in nested:
+                        partial_text_characters += len(chunk.text)
+                        yield chunk
+                finally:
+                    close_owned(nested)
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+>                   yield ModelStreamChunk(text=text)
+E                   GeneratorExit
+
+qitos/models/openai.py:1058: GeneratorExit
+
+During handling of the above exception, another exception occurred:
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1049abb60>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1049a88c0>
+asynchronous = False
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    def test_explicit_close_failure_is_typed(monkeypatch, asynchronous):
+        model, stream, client = adapter(monkeypatch, [chunk('partial')], asynchronous=asynchronous,
+                                        response_error=True, client_error=True)
+        with pytest.raises(ProviderFailure):
+            if asynchronous:
+                async def consume():
+                    iterator = model.astream([])
+                    await anext(iterator)
+                    await iterator.aclose()
+                asyncio.run(consume())
+            else:
+                iterator = model.stream([])
+                next(iterator)
+>               iterator.close()
+
+tests/models/test_v5_r1_stream_repairs.py:141:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+qitos/models/openai.py:1067: in stream
+    close_owned(client)
+qitos/models/_stream.py:50: in close_owned
+    close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1049aa1b0>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+__________________ test_explicit_close_failure_is_typed[True] __________________
+
+self = Model(model='offline', temperature=0.7), messages = [], kwargs = {}
+
+    async def astream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> AsyncIterator[ModelStreamChunk]:
+        """Stream with explicit terminal validation and owned-resource cleanup."""
+        from ._stream import ChatStream, aclose_owned, failure
+
+        self._last_usage = None
+        client = response = nested = None
+        sent = False
+        partial_text_characters = 0
+        try:
+            client = _new_client(self, asynchronous=True)
+            safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
+            sent = True
+            if self.api_mode == "responses":
+                nested = _async_responses_stream(
+                    self, client, messages, provider=str(self.qitos_provider_id), **safe
+                )
+                async for chunk in nested:
+                    partial_text_characters += len(chunk.text)
+                    yield chunk
+                return
+            sent = False
+            payload = _chat_stream_payload(self, messages, safe)
+            sent = True
+            response = await client.chat.completions.create(**payload)
+            state = ChatStream(self)
+            async for raw in response:
+                text = state.feed(raw)
+                if text:
+                    partial_text_characters += len(text)
+>                   yield ModelStreamChunk(text=text)
+E                   GeneratorExit
+
+qitos/models/openai.py:1245: GeneratorExit
+
+During handling of the above exception, another exception occurred:
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1049ab110>
+
+    async def aclose(self):
+>       self.close()
+
+tests/models/test_v5_r1_stream_repairs.py:50:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1049ab110>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1049a9eb0>
+asynchronous = True
+
+    @pytest.mark.parametrize('asynchronous', [False, True])
+    def test_explicit_close_failure_is_typed(monkeypatch, asynchronous):
+        model, stream, client = adapter(monkeypatch, [chunk('partial')], asynchronous=asynchronous,
+                                        response_error=True, client_error=True)
+        with pytest.raises(ProviderFailure):
+            if asynchronous:
+                async def consume():
+                    iterator = model.astream([])
+                    await anext(iterator)
+                    await iterator.aclose()
+>               asyncio.run(consume())
+
+tests/models/test_v5_r1_stream_repairs.py:137:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/anaconda3/lib/python3.12/asyncio/base_events.py:687: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/models/test_v5_r1_stream_repairs.py:136: in consume
+    await iterator.aclose()
+qitos/models/openai.py:1255: in astream
+    await aclose_owned(client)
+qitos/models/_stream.py:58: in aclose_owned
+    await result
+tests/models/test_v5_r1_stream_repairs.py:50: in aclose
+    self.close()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_v5_r1_stream_repairs.SDKStream object at 0x1049a9d00>
+
+    def close(self):
+        self.closed += 1
+        if self.close_error:
+>           raise RuntimeError(PRIVATE)
+E           RuntimeError: SYNTHETIC_PRIVATE_MARKER https://private.invalid Authorization token /private/host
+
+tests/models/test_v5_r1_stream_repairs.py:47: RuntimeError
+=========================== short test summary info ============================
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_reasoning_fragments_separate_once[False-]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_reasoning_fragments_separate_once[False-answer]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_reasoning_fragments_separate_once[True-]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_reasoning_fragments_separate_once[True-answer]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[True-False-normal-False]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[True-False-normal-True]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[True-False-eof-False]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[True-False-eof-True]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[True-False-transport-False]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[True-False-transport-True]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[True-False-contradiction-False]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[True-False-contradiction-True]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[False-True-normal-False]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[False-True-normal-True]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[False-True-eof-False]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[False-True-eof-True]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[False-True-transport-False]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[False-True-transport-True]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[False-True-contradiction-False]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[False-True-contradiction-True]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[True-True-normal-False]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[True-True-normal-True]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[True-True-eof-False]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[True-True-eof-True]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[True-True-transport-False]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[True-True-transport-True]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[True-True-contradiction-False]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_cleanup_priority[True-True-contradiction-True]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_consumer_exception_identity_survives_cleanup
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_explicit_close_failure_is_typed[False]
+FAILED tests/models/test_v5_r1_stream_repairs.py::test_explicit_close_failure_is_typed[True]
+31 failed in 1.78s

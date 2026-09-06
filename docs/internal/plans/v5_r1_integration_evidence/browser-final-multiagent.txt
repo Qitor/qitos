@@ -1,0 +1,12 @@
+### Result
+[{"prefix":"","width":1440,"scrollWidth":1440,"correctPayload":true},{"prefix":"","width":390,"scrollWidth":390,"correctPayload":true},{"prefix":"/zh","width":1440,"scrollWidth":1440,"correctPayload":true},{"prefix":"/zh","width":390,"scrollWidth":390,"correctPayload":true}]
+### Ran Playwright code
+```js
+await (async page=>{const facts=[];for(const prefix of ["","/zh"])for(const width of [1440,390]){await page.setViewportSize({width,height:width===390?844:1000});await page.goto("http://localhost:3177"+prefix+"/guides/multi-agent-patterns");await page.locator("h1").first().waitFor();const f=await page.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,correctPayload:document.body.innerText.includes("parent.submit_work")}));if(!f.correctPayload||f.scrollWidth>f.width)throw new Error(JSON.stringify(f));facts.push({prefix,...f});}return facts;})(page);
+```
+### Page
+- Page URL: http://localhost:3177/zh/guides/multi-agent-patterns
+- Page Title: Delegate、join 与 handoff - QitOS
+- Console: 0 errors, 1 warnings
+### Events
+- New console entries: .playwright-cli/console-2026-09-06T01-31-16-199Z.log#L2-L5

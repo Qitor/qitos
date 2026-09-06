@@ -1,0 +1,66 @@
+FFFF.FFF                                                                 [100%]
+=================================== FAILURES ===================================
+_____________ test_review_same_agent_different_work_and_generation _____________
+tests/engine/test_v5_r1_handoff_repairs.py:37: in test_review_same_agent_different_work_and_generation
+    assert graph.operation_receipts[1] == unrelated
+E   AssertionError: assert WorkOperation...position=None) == WorkOperation...position=None)
+E
+E     Omitting 8 identical items, use -vv to show
+E     Differing attributes:
+E     ['state', 'outcome_unknown', 'terminal_receipt_ref', 'admission_state']
+E
+E     Drill down into differing attribute state:
+E       state: 'completed' != 'transfer_admitted'...
+E
+E     ...Full output truncated (13 lines hidden), use '-vv' to show
+_ test_known_non_dispatch_persists_and_retry_does_not_duplicate[queue_capacity_exceeded] _
+tests/engine/test_v5_r1_handoff_repairs.py:76: in test_known_non_dispatch_persists_and_retry_does_not_duplicate
+    assert receipt.state == 'dispatch_not_started'
+E   AssertionError: assert 'transfer_admitted' == 'dispatch_not_started'
+E
+E     - dispatch_not_started
+E     + transfer_admitted
+_ test_known_non_dispatch_persists_and_retry_does_not_duplicate[scheduler_unavailable] _
+tests/engine/test_v5_r1_handoff_repairs.py:76: in test_known_non_dispatch_persists_and_retry_does_not_duplicate
+    assert receipt.state == 'dispatch_not_started'
+E   AssertionError: assert 'transfer_admitted' == 'dispatch_not_started'
+E
+E     - dispatch_not_started
+E     + transfer_admitted
+_ test_known_non_dispatch_persists_and_retry_does_not_duplicate[descriptor_resolution_failed] _
+tests/engine/test_v5_r1_handoff_repairs.py:76: in test_known_non_dispatch_persists_and_retry_does_not_duplicate
+    assert receipt.state == 'dispatch_not_started'
+E   AssertionError: assert 'transfer_admitted' == 'dispatch_not_started'
+E
+E     - dispatch_not_started
+E     + transfer_admitted
+_ test_public_sqlite_known_failure_destination_recovery[queue_capacity_exceeded] _
+tests/engine/test_v5_r1_handoff_repairs.py:122: in test_public_sqlite_known_failure_destination_recovery
+    assert graph.operation_receipts[0].state == 'dispatch_not_started'
+E   AssertionError: assert 'transfer_admitted' == 'dispatch_not_started'
+E
+E     - dispatch_not_started
+E     + transfer_admitted
+_ test_public_sqlite_known_failure_destination_recovery[scheduler_unavailable] _
+tests/engine/test_v5_r1_handoff_repairs.py:122: in test_public_sqlite_known_failure_destination_recovery
+    assert graph.operation_receipts[0].state == 'dispatch_not_started'
+E   AssertionError: assert 'transfer_admitted' == 'dispatch_not_started'
+E
+E     - dispatch_not_started
+E     + transfer_admitted
+_ test_public_sqlite_known_failure_destination_recovery[descriptor_resolution_failed] _
+tests/engine/test_v5_r1_handoff_repairs.py:122: in test_public_sqlite_known_failure_destination_recovery
+    assert graph.operation_receipts[0].state == 'dispatch_not_started'
+E   AssertionError: assert 'transfer_admitted' == 'dispatch_not_started'
+E
+E     - dispatch_not_started
+E     + transfer_admitted
+=========================== short test summary info ============================
+FAILED tests/engine/test_v5_r1_handoff_repairs.py::test_review_same_agent_different_work_and_generation
+FAILED tests/engine/test_v5_r1_handoff_repairs.py::test_known_non_dispatch_persists_and_retry_does_not_duplicate[queue_capacity_exceeded]
+FAILED tests/engine/test_v5_r1_handoff_repairs.py::test_known_non_dispatch_persists_and_retry_does_not_duplicate[scheduler_unavailable]
+FAILED tests/engine/test_v5_r1_handoff_repairs.py::test_known_non_dispatch_persists_and_retry_does_not_duplicate[descriptor_resolution_failed]
+FAILED tests/engine/test_v5_r1_handoff_repairs.py::test_public_sqlite_known_failure_destination_recovery[queue_capacity_exceeded]
+FAILED tests/engine/test_v5_r1_handoff_repairs.py::test_public_sqlite_known_failure_destination_recovery[scheduler_unavailable]
+FAILED tests/engine/test_v5_r1_handoff_repairs.py::test_public_sqlite_known_failure_destination_recovery[descriptor_resolution_failed]
+7 failed, 1 passed in 0.50s

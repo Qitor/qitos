@@ -1,0 +1,13 @@
+A [] 0 [{"interrupted": false, "requests": 3, "executions": 3, "completion_order": ["multiply", "add", "add"], "final": "11"}, {"interrupted": true, "requests": 2, "executions": 2, "completion_order": ["multiply", "add"], "final": null}]
+ [QitOS] runtime exception phase=DECIDE step=1 type=ProviderFailure code=provider_stream_protocol_error
+
+B ['seed', '--root', 'run'] 0 seed: one durable text record; process may exit
+
+B ['run', '--root', 'run'] 0 {"requests": 10, "budget_compactions": 3, "memory_records": 1, "namespace_isolated": true, "namespace_requests": 1, "qitos_source": "/tmp/qitos-v5-r1-installed/lib/python3.12/site-packages/qitos/__init__.py"}
+
+C ['run'] 0 installed public API: Read/Edit/Observation passed
+
+D ['--root', 'run'] 0 [qita] completed canonical export: 10 records
+{"installed_consumer": "passed", "records": 10, "page_watermark": 9, "canonical_reimport": "record_equal"}
+
+All four producer installed consumers passed from the same wheel.

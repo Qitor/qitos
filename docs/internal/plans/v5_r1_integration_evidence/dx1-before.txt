@@ -1,0 +1,184 @@
+F............FFF                                                         [100%]
+=================================== FAILURES ===================================
+__________________________ test_yaml_roundtrip_digest __________________________
+
+tmp_path = PosixPath('/private/var/folders/8z/ycbqn4pn0159stcvwf708lnc0000gn/T/pytest-of-morinop/pytest-1264/test_yaml_roundtrip_digest0')
+
+    def test_yaml_roundtrip_digest(tmp_path):
+>       config = load(tmp_path, {'budget_policy': 'budget', 'allow_codec_loss': True})
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_v5_r1_yaml_context.py:26:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_v5_r1_yaml_context.py:22: in load
+    return load_agent_config(target)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/config/loader.py:541: in load_agent_config
+    config = _parse_canonical_config(raw)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/config/loader.py:642: in _parse_canonical_config
+    context=_parse_context(_mapping(raw.get("context", {}), "context")),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/config/loader.py:717: in _parse_context
+    _exact_keys(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = {'allow_codec_loss': True, 'budget_policy': 'budget'}, required = set()
+optional = {'compact_ratio', 'conversation_max_rounds', 'default_context_window', 'enabled', 'loop_max_repeats', 'max_handoffs', ...}
+field = 'context'
+
+    def _exact_keys(
+        value: Mapping[str, Any],
+        *,
+        required: set[str],
+        optional: set[str],
+        field: str,
+    ) -> None:
+        keys = set(value)
+        unknown = sorted(keys - required - optional)
+        if unknown:
+>           raise UnknownConfigFieldError(
+                f"{field} contains unknown fields: {', '.join(unknown)}", field=field
+            )
+E           qitos.config.errors.UnknownConfigFieldError: context contains unknown fields: allow_codec_loss, budget_policy
+
+qitos/config/loader.py:1240: UnknownConfigFieldError
+_____________ test_missing_policy_fails_before_request[registry0] ______________
+
+tmp_path = PosixPath('/private/var/folders/8z/ycbqn4pn0159stcvwf708lnc0000gn/T/pytest-of-morinop/pytest-1264/test_missing_policy_fails_befo0')
+registry = {}
+
+    @pytest.mark.parametrize('registry', [{}, {'budget': object()}])
+    def test_missing_policy_fails_before_request(tmp_path, registry):
+>       config = load(tmp_path, {'budget_policy': 'budget'})
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_v5_r1_yaml_context.py:53:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_v5_r1_yaml_context.py:22: in load
+    return load_agent_config(target)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/config/loader.py:541: in load_agent_config
+    config = _parse_canonical_config(raw)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/config/loader.py:642: in _parse_canonical_config
+    context=_parse_context(_mapping(raw.get("context", {}), "context")),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/config/loader.py:717: in _parse_context
+    _exact_keys(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = {'budget_policy': 'budget'}, required = set()
+optional = {'compact_ratio', 'conversation_max_rounds', 'default_context_window', 'enabled', 'loop_max_repeats', 'max_handoffs', ...}
+field = 'context'
+
+    def _exact_keys(
+        value: Mapping[str, Any],
+        *,
+        required: set[str],
+        optional: set[str],
+        field: str,
+    ) -> None:
+        keys = set(value)
+        unknown = sorted(keys - required - optional)
+        if unknown:
+>           raise UnknownConfigFieldError(
+                f"{field} contains unknown fields: {', '.join(unknown)}", field=field
+            )
+E           qitos.config.errors.UnknownConfigFieldError: context contains unknown fields: budget_policy
+
+qitos/config/loader.py:1240: UnknownConfigFieldError
+_____________ test_missing_policy_fails_before_request[registry1] ______________
+
+tmp_path = PosixPath('/private/var/folders/8z/ycbqn4pn0159stcvwf708lnc0000gn/T/pytest-of-morinop/pytest-1264/test_missing_policy_fails_befo1')
+registry = {'budget': <object object at 0x10294e630>}
+
+    @pytest.mark.parametrize('registry', [{}, {'budget': object()}])
+    def test_missing_policy_fails_before_request(tmp_path, registry):
+>       config = load(tmp_path, {'budget_policy': 'budget'})
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_v5_r1_yaml_context.py:53:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_v5_r1_yaml_context.py:22: in load
+    return load_agent_config(target)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/config/loader.py:541: in load_agent_config
+    config = _parse_canonical_config(raw)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/config/loader.py:642: in _parse_canonical_config
+    context=_parse_context(_mapping(raw.get("context", {}), "context")),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/config/loader.py:717: in _parse_context
+    _exact_keys(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = {'budget_policy': 'budget'}, required = set()
+optional = {'compact_ratio', 'conversation_max_rounds', 'default_context_window', 'enabled', 'loop_max_repeats', 'max_handoffs', ...}
+field = 'context'
+
+    def _exact_keys(
+        value: Mapping[str, Any],
+        *,
+        required: set[str],
+        optional: set[str],
+        field: str,
+    ) -> None:
+        keys = set(value)
+        unknown = sorted(keys - required - optional)
+        if unknown:
+>           raise UnknownConfigFieldError(
+                f"{field} contains unknown fields: {', '.join(unknown)}", field=field
+            )
+E           qitos.config.errors.UnknownConfigFieldError: context contains unknown fields: budget_policy
+
+qitos/config/loader.py:1240: UnknownConfigFieldError
+___________________ test_policy_resolves_without_loss_optin ____________________
+
+tmp_path = PosixPath('/private/var/folders/8z/ycbqn4pn0159stcvwf708lnc0000gn/T/pytest-of-morinop/pytest-1264/test_policy_resolves_without_l0')
+
+    def test_policy_resolves_without_loss_optin(tmp_path):
+>       config = load(tmp_path, {'budget_policy': 'budget'})
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_v5_r1_yaml_context.py:65:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_v5_r1_yaml_context.py:22: in load
+    return load_agent_config(target)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/config/loader.py:541: in load_agent_config
+    config = _parse_canonical_config(raw)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/config/loader.py:642: in _parse_canonical_config
+    context=_parse_context(_mapping(raw.get("context", {}), "context")),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+qitos/config/loader.py:717: in _parse_context
+    _exact_keys(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = {'budget_policy': 'budget'}, required = set()
+optional = {'compact_ratio', 'conversation_max_rounds', 'default_context_window', 'enabled', 'loop_max_repeats', 'max_handoffs', ...}
+field = 'context'
+
+    def _exact_keys(
+        value: Mapping[str, Any],
+        *,
+        required: set[str],
+        optional: set[str],
+        field: str,
+    ) -> None:
+        keys = set(value)
+        unknown = sorted(keys - required - optional)
+        if unknown:
+>           raise UnknownConfigFieldError(
+                f"{field} contains unknown fields: {', '.join(unknown)}", field=field
+            )
+E           qitos.config.errors.UnknownConfigFieldError: context contains unknown fields: budget_policy
+
+qitos/config/loader.py:1240: UnknownConfigFieldError
+=========================== short test summary info ============================
+FAILED tests/test_v5_r1_yaml_context.py::test_yaml_roundtrip_digest - qitos.c...
+FAILED tests/test_v5_r1_yaml_context.py::test_missing_policy_fails_before_request[registry0]
+FAILED tests/test_v5_r1_yaml_context.py::test_missing_policy_fails_before_request[registry1]
+FAILED tests/test_v5_r1_yaml_context.py::test_policy_resolves_without_loss_optin
+4 failed, 12 passed in 1.27s

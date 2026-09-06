@@ -18,6 +18,8 @@ QitOS core is the small framework. Product-grade applications and showcase agent
 
 ## What you can build
 
+- V5 R1 offline integration qualified: one wheel passes all four lane consumers and the combined durable workflow; 20 handoff race rounds pass. Local promotion is authorized; no live, push or release qualification.
+
 - R1 combined installed consumer now covers YAML budgets, durable memory, repeated compaction, native multi-round tools, handoff/restore and canonical export; raw conversation facts survive restoration.
 
 QitOS is a research-first Agent framework: one `AgentModule + Engine` kernel,

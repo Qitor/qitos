@@ -1,0 +1,21 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______________________ test_combined_installed_consumer _______________________
+tests/models/test_v5_r1_combined_installed.py:22: in test_combined_installed_consumer
+    assert result.returncode == 0, result.stdout + result.stderr
+E   AssertionError: Traceback (most recent call last):
+E       File "/private/var/folders/8z/ycbqn4pn0159stcvwf708lnc0000gn/T/pytest-of-morinop/pytest-1313/test_combined_installed_consum0/consumer.py", line 317, in <module>
+E         seed(root) if args.mode == 'seed' else execute(root, args.mode)
+E                                                ^^^^^^^^^^^^^^^^^^^^^^^^
+E       File "/private/var/folders/8z/ycbqn4pn0159stcvwf708lnc0000gn/T/pytest-of-morinop/pytest-1313/test_combined_installed_consum0/consumer.py", line 256, in execute
+E         verify(root, prior, payload)
+E       File "/private/var/folders/8z/ycbqn4pn0159stcvwf708lnc0000gn/T/pytest-of-morinop/pytest-1313/test_combined_installed_consum0/consumer.py", line 263, in verify
+E         assert len(compacted) >= 2, len(compacted)
+E                ^^^^^^^^^^^^^^^^^^^
+E     AssertionError: 1
+E
+E   assert 1 == 0
+E    +  where 1 = CompletedProcess(args=['/tmp/qitos-v5-r1-installed/bin/python', '-I', 'consumer.py', 'restore', '--root', '/private/va...e 263, in verify\n    assert len(compacted) >= 2, len(compacted)\n           ^^^^^^^^^^^^^^^^^^^\nAssertionError: 1\n').returncode
+=========================== short test summary info ============================
+FAILED tests/models/test_v5_r1_combined_installed.py::test_combined_installed_consumer
+1 failed in 2.92s

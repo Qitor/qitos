@@ -94,3 +94,9 @@ R1 机制验收：warm 单条 append 不重复解码全部历史、不逐次重�
 - [ ] 原 canonical/default/historical compatibility 均保留，无第二 truth、无假的 bounded-memory 或压缩收益。
 
 实施记录：`docs/internal/plans/v5_trajectory_research_data.md`。提交顺序：instrumentation/regression → incremental I/O/index → artifact lifecycle → 各 exporter 独立提交 → qita → benchmark/双语使用说明。大型 private 轨迹留仓库外，只提交可发布 fixture 和有界摘要。
+
+## R1 integration closure — 2026-09-06
+
+D 的 incremental derived index、snapshot cursor、bounded iteration、原子 export、source integrity 和失败保护在融合源码保留，组合 journal 逐项 page/iterator/export/reimport 等价。没有重测性能：继续绑定 df9316415db7ec76f1e5d70a11ceabfd47744169 的原始报告（准确 SHA 以报告为准），不能将旧数字贴到融合 HEAD。full historical-byte hashing、writer O(N) retention、cold-open 成本、部分遍历更慢，以及 Python allocation 与 RSS 的区别均仍成立。
+
+完整来源、修复和验证见[融合执行](../internal/plans/v5_r1_integration_execution.md)。本轮 live_not_run，R1 不等于 V5 全完成。

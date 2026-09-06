@@ -1,0 +1,86 @@
+[
+  {
+    "lane": "a",
+    "relative_path": "security_report.md",
+    "bytes": 918,
+    "sha256": "e84db108526f9ed6f5e76f4173e561846b7faf8339d85bdf74ff08dccd029f5a",
+    "preserved_path": "/Users/morinop/.codex/visualizations/2026/09/05/01a07209-8650-7920-8953-bfb549c22456/r1-local-artifacts/retired/a/security_report.md"
+  },
+  {
+    "lane": "a",
+    "relative_path": "dist/qitos-0.6.0-py3-none-any.whl",
+    "bytes": 1313253,
+    "sha256": "56a3ce7d5515cc9f250a21d6c029072218e1a42263440fc3e389913efae3ef12",
+    "preserved_path": "/Users/morinop/.codex/visualizations/2026/09/05/01a07209-8650-7920-8953-bfb549c22456/r1-local-artifacts/retired/a/dist/qitos-0.6.0-py3-none-any.whl"
+  },
+  {
+    "lane": "a",
+    "relative_path": "dist/qitos-0.6.0.tar.gz",
+    "bytes": 1331728,
+    "sha256": "e7f792c00e4f6772fe3aaacf7209f33fcaff0346c6c73cff3df28ec4d4e21e56",
+    "preserved_path": "/Users/morinop/.codex/visualizations/2026/09/05/01a07209-8650-7920-8953-bfb549c22456/r1-local-artifacts/retired/a/dist/qitos-0.6.0.tar.gz"
+  },
+  {
+    "lane": "b",
+    "relative_path": "security_report.md",
+    "bytes": 918,
+    "sha256": "1c0903c2263f5225c6a65ba615e766373538d6ab1453d4458dad32895c75e22b",
+    "preserved_path": "/Users/morinop/.codex/visualizations/2026/09/05/01a07209-8650-7920-8953-bfb549c22456/r1-local-artifacts/retired/b/security_report.md"
+  },
+  {
+    "lane": "b",
+    "relative_path": "dist/qitos-0.6.0-py3-none-any.whl",
+    "bytes": 1314048,
+    "sha256": "013ccda9a58cb2c148d37a4b10b4515e353f79a7c86fb8d18a4c97144d6b65f1",
+    "preserved_path": "/Users/morinop/.codex/visualizations/2026/09/05/01a07209-8650-7920-8953-bfb549c22456/r1-local-artifacts/retired/b/dist/qitos-0.6.0-py3-none-any.whl"
+  },
+  {
+    "lane": "b",
+    "relative_path": "dist/qitos-0.6.0.tar.gz",
+    "bytes": 1334707,
+    "sha256": "55c5539eb756c3f2206236d31fcc8f5dba5a2f1cc1d63cbcdf6d00d1c3e044ae",
+    "preserved_path": "/Users/morinop/.codex/visualizations/2026/09/05/01a07209-8650-7920-8953-bfb549c22456/r1-local-artifacts/retired/b/dist/qitos-0.6.0.tar.gz"
+  },
+  {
+    "lane": "c",
+    "relative_path": "security_report.md",
+    "bytes": 918,
+    "sha256": "25006eb80ad7e1fa0607140e6a1df23222e71af03532e71f7b509f7b52cbf183",
+    "preserved_path": "/Users/morinop/.codex/visualizations/2026/09/05/01a07209-8650-7920-8953-bfb549c22456/r1-local-artifacts/retired/c/security_report.md"
+  },
+  {
+    "lane": "c",
+    "relative_path": "dist/qitos-0.6.0-py3-none-any.whl",
+    "bytes": 1312730,
+    "sha256": "157b9425a4d25f3522dea60b1340f46c72ba15163b8fe6dc7e0c62ae1a306a71",
+    "preserved_path": "/Users/morinop/.codex/visualizations/2026/09/05/01a07209-8650-7920-8953-bfb549c22456/r1-local-artifacts/retired/c/dist/qitos-0.6.0-py3-none-any.whl"
+  },
+  {
+    "lane": "c",
+    "relative_path": "dist/qitos-0.6.0.tar.gz",
+    "bytes": 1332799,
+    "sha256": "faf80080f6cdd03f7f79b72f23f85725a72d4e6fdb3f71e901c5904c51112473",
+    "preserved_path": "/Users/morinop/.codex/visualizations/2026/09/05/01a07209-8650-7920-8953-bfb549c22456/r1-local-artifacts/retired/c/dist/qitos-0.6.0.tar.gz"
+  },
+  {
+    "lane": "d",
+    "relative_path": "security_report.md",
+    "bytes": 918,
+    "sha256": "3e93908702f2a5c562789aaf936a466b6e1df924193ccf3b42616f8d657a80c8",
+    "preserved_path": "/Users/morinop/.codex/visualizations/2026/09/05/01a07209-8650-7920-8953-bfb549c22456/r1-local-artifacts/retired/d/security_report.md"
+  },
+  {
+    "lane": "d",
+    "relative_path": "dist/qitos-0.6.0-py3-none-any.whl",
+    "bytes": 1319114,
+    "sha256": "0638a2d3b555de33697e24b78952fd10d6419ca162101ae5f20bb9a79f01ed3e",
+    "preserved_path": "/Users/morinop/.codex/visualizations/2026/09/05/01a07209-8650-7920-8953-bfb549c22456/r1-local-artifacts/retired/d/dist/qitos-0.6.0-py3-none-any.whl"
+  },
+  {
+    "lane": "d",
+    "relative_path": "dist/qitos-0.6.0.tar.gz",
+    "bytes": 1337087,
+    "sha256": "a537caf9822ebdd9f26702c6e0ac20befc33995a2c729a36ccfcea78a07fbe53",
+    "preserved_path": "/Users/morinop/.codex/visualizations/2026/09/05/01a07209-8650-7920-8953-bfb549c22456/r1-local-artifacts/retired/d/dist/qitos-0.6.0.tar.gz"
+  }
+]

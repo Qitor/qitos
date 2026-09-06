@@ -18,6 +18,8 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 
 ## 当前能力
 
+- V5 R1 离线融合资格通过：同一 wheel 的四线消费者与持久组合路径、20 轮 handoff 交错全部通过；授权本地提升，未执行 live、push 或 release。
+
 - R1 安装后组合消费者贯通 YAML 预算、持久记忆、重复压缩、原生多轮工具、handoff/restore 与 canonical export；恢复保留原始会话事实。
 
 QitOS 是研究优先的 Agent 框架：一个 `AgentModule + Engine` 内核，

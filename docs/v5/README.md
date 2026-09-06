@@ -1,5 +1,7 @@
 # QitOS v5 — 从可运行内核到好用的 Agent 开发框架
 
+**2026-09-06 R1 更新：** 本轮本地框架融合已通过离线资格：23 份草稿保全、27 笔来源重放、五项修复、同 wheel 四线与组合消费者、20 轮 handoff。详见[融合执行](../internal/plans/v5_r1_integration_execution.md)。当前指令已授权合格后的本地 fast-forward 和安全退役，替代下文历史审查中的等待授权边界；不 push 仍有效。下一轮唯一 dispatch SHA 由最终接受报告给出。V5 整体继续 in_progress；live_not_run。
+
 状态：`in_progress`；R1 四线候选已交付，独立审查要求有界修复后融合。本目录是仓库内工程规划，不是软件版本号或站点教程。
 日期：2026-09-05。正文以中文维护；每次实现带来的公共教程/API 变更必须同步 EN/zh。
 

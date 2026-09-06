@@ -1,5 +1,7 @@
 # V5 R1 independent implementation review
 
+**Integration closure, 2026-09-06:** the historical review below is retained unchanged as failure evidence. All five findings are fixed and the merged framework is qualified offline. Complete suite on `55c356f9d0f6b0df431ac1427f2373dfd5e540fa`: **3715 passed, 51 skipped in 352.53s (0:05:52)**. Same final wheel passes all producer consumers and the combined normal/failure/loss/namespace processes. Evidence and replay mapping: [integration execution](v5_r1_integration_execution.md). Local fast-forward and safe retirement are authorized by the current integration instruction; old no-promotion/no-cleanup review boundaries are superseded. No push or live/release qualification occurred.
+
 Date: 2026-09-05. Status: **changes requested before integration qualification**.
 This is a source review with offline diagnostics, not a merged-tree, live-model,
 release or remote-promotion qualification.
@@ -246,3 +248,13 @@ not be advertised as autonomous task success.
 No runtime patch, merge, commit, push, deployment, package publication or worktree
 cleanup was performed by this review. Only planning/evidence documentation was
 added or updated in the existing main-worktree draft.
+
+## Fix attribution and retained regressions
+
+| Finding | Fixing commit | Permanent regression and after behavior |
+|---|---|---|
+| R1-M1 | `3a3970315996bca7275896137d5856bd93437e48` + `72a5925d107099f6e32bd18344dae5212a5c4786` | `tests/models/test_v5_r1_stream_repairs.py` and combined installed consumer: distinct reasoning fragments retained once, tool-history reread, capability preservation or explicit loss, no invented answer. |
+| R1-M2 | `3a3970315996bca7275896137d5856bd93437e48` + `72a5925d107099f6e32bd18344dae5212a5c4786` | Same model regressions plus installed truncated batch: all owned closes attempted, borrowed resource retained, primary typed sent/usage/partial facts with safe numeric cleanup failures. |
+| R1-C1 | `a99752376e31cf14963eb0a75f9b4817bb7a5753` | `tests/engine/test_v5_r1_handoff_repairs.py`: two legal same-Agent works, SQLite destination recovery, parent/child, generations and fences; original C Event/barrier matrix passes 20/20 processes. |
+| R1-C2 | `a99752376e31cf14963eb0a75f9b4817bb7a5753` | Same runtime regressions: confirmed no-worker rejection survives restore as dispatch_not_started; destination restore+run is executable, changed payload conflicts, unknown never automatically dispatches again. |
+| R1-DX1 | `5e34cf7ae948a91ae2aac02e87bea03b45a9832a` | `tests/test_v5_r1_yaml_context.py`: strict policy name/boolean, factory failure before request, roundtrip/digest, installed no-loss rejection and ordinary lossless success. |

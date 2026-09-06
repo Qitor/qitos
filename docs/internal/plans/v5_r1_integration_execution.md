@@ -1,10 +1,10 @@
 # V5 R1 integration execution
 
-Status: in progress; qualification and promotion pending. Live not run; no push or release.
+Status: offline framework qualification passed; local acceptance follows the authorized fast-forward gate. Live not run; no push or release.
 
 ## Authorization and preservation
 
-The 2026-09-05 integration instruction supersedes older planning restrictions on
+The current integration instruction supersedes older planning restrictions on
 local preservation, qualified fast-forward promotion and non-forced retirement.
 Remote synchronization remains unauthorized. Source baseline:
 `4dfb570fb7eef504c1e6d247c21a1984251b80e4`.
@@ -35,7 +35,7 @@ and combined behavior gates remain required: B step/exchange identity and
 pre-selection policy; A completion order and dispatch/usage/refund; B/D API sync
 features; all EN/zh source bindings will be regenerated on repaired source.
 
-## Remaining execution
+## Initial execution sequence (completed)
 
 1. Reproduce and repair C1/C2, M1/M2, DX1, retaining source regressions.
 2. Same-wheel original and combined installed consumers, success/failure variants.
@@ -144,3 +144,68 @@ The first tutorial edit incorrectly passed budget to the convenience delegate/sp
 methods, whose signatures do not accept it. The second full run exposed that TypeError;
 it is retained as failed evidence. The corrected tutorial uses the existing public
 submit_work operation payload for explicit child allocations. No new API is added.
+
+## Final qualification and compatibility
+
+Source/test/example execution HEAD: `55c356f9d0f6b0df431ac1427f2373dfd5e540fa`. Packaged runtime last changed at
+`72a5925d107099f6e32bd18344dae5212a5c4786`; all 510 qitos Python files in the final
+wheel match the accepted source bytes. The final wheel/sdist were built at
+`13b10d229c28479120781fb8dd1a89004e8c672f`; the following consumer typing commit
+changes no packaged runtime. [Environment and digests](v5_r1_integration_evidence/environment-final.json).
+
+- Full source suite: **3715 passed, 51 skipped in 352.53s (0:05:52)**, [raw receipt](v5_r1_integration_evidence/final-full-suite-3.txt).
+- 50 existing live model E2E opt-ins skipped; one existing explicit Docker docs gate skipped. Every skip is listed in the raw log. No added skips or relaxed limits. Ordinary suite Docker tests ran serially; no new sandbox/Env safety semantics were introduced.
+- All A/B/C/D original installed consumers pass, including C serial/concurrent handoff. [Four consumers](v5_r1_integration_evidence/original-installed-2.txt), [C handoff](v5_r1_integration_evidence/c-handoff-installed-final.txt).
+- Combined success, truncated-stream plus dual-close failure, namespace and no-loss cases pass. Standalone assertions are `examples/v5/r1_integration/consumer.py`; each phase is a separate outside-repository process. No live model, source PYTHONPATH, private Engine fields or tests helpers are used.
+- Original C bounded Event/barrier matrix: 20 rounds × 6 cases, every process passed, no sleep sorting or rerun-only qualification. [Per-round facts](v5_r1_integration_evidence/handoff20.json).
+- Static quality: 356 findings (334 active + 22 vendored/generated), allowance delta 0. Flake8 and mypy pinned gates pass; new helpers also pass directed lint and mypy with check-untyped-defs. Public/architecture/path and G2/S2 interface budgets pass. Root exports/Engine constructor defaults do not grow.
+- API and tutorial generators preserve both B/D features; regenerated composition/context/trajectory/work-graph EN/zh bindings pass. 166 MDX pages compile; navigation, bilingual parity and local links pass. Actual browser checks covered 28 page/viewports at 1440×1000 and 390×844; no horizontal overflow or browser errors, only local preview Socket.io warnings. Final budget payload rendering was rechecked.
+- Clean build artifacts each pass twine. Earlier build/test/development failures remain evidence and are not counted as qualification. No external model, 149, remote mutation or release occurred.
+
+| Finding | Fixing commit | Permanent regression and after behavior |
+|---|---|---|
+| R1-M1 | `3a3970315996bca7275896137d5856bd93437e48` + `72a5925d107099f6e32bd18344dae5212a5c4786` | `tests/models/test_v5_r1_stream_repairs.py` and combined installed consumer: distinct reasoning fragments retained once, tool-history reread, capability preservation or explicit loss, no invented answer. |
+| R1-M2 | `3a3970315996bca7275896137d5856bd93437e48` + `72a5925d107099f6e32bd18344dae5212a5c4786` | Same model regressions plus installed truncated batch: all owned closes attempted, borrowed resource retained, primary typed sent/usage/partial facts with safe numeric cleanup failures. |
+| R1-C1 | `a99752376e31cf14963eb0a75f9b4817bb7a5753` | `tests/engine/test_v5_r1_handoff_repairs.py`: two legal same-Agent works, SQLite destination recovery, parent/child, generations and fences; original C Event/barrier matrix passes 20/20 processes. |
+| R1-C2 | `a99752376e31cf14963eb0a75f9b4817bb7a5753` | Same runtime regressions: confirmed no-worker rejection survives restore as dispatch_not_started; destination restore+run is executable, changed payload conflicts, unknown never automatically dispatches again. |
+| R1-DX1 | `5e34cf7ae948a91ae2aac02e87bea03b45a9832a` | `tests/test_v5_r1_yaml_context.py`: strict policy name/boolean, factory failure before request, roundtrip/digest, installed no-loss rejection and ordinary lossless success. |
+
+
+Compatibility is explicit: Memdir initialization requires create=True and otherwise
+restores; Read/Edit direct callers receive ToolResult, must check status then read
+output, and are not universally string-compatible. Observation's single authority,
+atomic validation, snapshots, dict/dataclass and historical checkpoint contracts
+remain. WorkGraph adds a strictly recognized dispatch_not_started state; old readers
+reject it and must upgrade. Historical handoff descriptors lacking explicit linkage
+remain unresolved rather than guessing another work's terminal. No new canonical
+config, Engine, SessionStore or outcome is introduced.
+
+Performance is not remeasured. D's [source-bound report](v5_r1_d_evidence/REPORT.md)
+measured runtime df9316415db7ec76f1e5d70a11ceabfd47744169 against the fixed baseline:
+100k warm append median 0.1717→0.0868 s, while hashing all ~205 MB historical bytes.
+Writer retention/open checkpoints remain O(N); reader cold-open validates all history;
+whole iteration and some smaller streaming exports are slower. 100k streaming export
+Python peak 1,435,215 bytes and traced-process RSS 62,160,896 bytes are distinct
+measurements, not a universal bound or new integration measurement.
+
+## Local acceptance and retirement boundary
+
+All implementation changes and documentation closure are committed before local
+acceptance. The user authorizes master fast-forward only after the candidate and
+remote ancestry checks, then main static/public/repair/combined revalidation. Exact
+old/new master, final dispatch SHA, main revalidation and actual disk retirement are
+reported in the task final receipt, without a self-referential evidence commit.
+The preservation, integration and four source refs remain local and are not deleted.
+Producer tasks are completed/inactive; pre-retirement heads/status match the fixed
+source mapping. Cache/venv/build data are reproducible. Any non-cache artifacts are
+preserved outside Git before non-forced removal; unexpected data retains its tree.
+No unrelated docs-learning tree is a retirement target.
+
+R1 closes only its framework integration scope. Future owners remain V5-01 for full
+original-Agent live migration, V5-02 for summary quality/Markdown durable reader and
+history retirement, V5-03 for func/SharedMemory/MCP/hooks/optional dependencies,
+V5-04 for Artifact GC/external training formats/campaign/suffix-only I/O, V5-05 for
+interactive controls/new sandbox/daemon, and packaging for PEP 621. Async Session
+full parity remains a separate runtime task. No documentation-only closing wave is
+needed. LIVE_MODEL_QUALIFICATION=not_run; REMOTE_SYNC=not_performed;
+PUSH_PERFORMED=no; RELEASE_PERFORMED=no.

@@ -85,3 +85,9 @@ Memory 内容、检索策略和语义摘要质量属于 Agent 作者；框架负
 - [ ] 新旧路径、默认选择与限制进入 EN/zh 教程；不存在第二会话 store 或隐式 summary 模型请求。
 
 实施/证据文件：`docs/internal/plans/v5_long_task_context.md`（实现时创建）。建议提交：memory adapter → closed-exchange compaction → owner 接线 → 长任务/恢复消费者 → 教程与迁移。输出应包含移除的重复 history/token 机制，不只列新增类名。
+
+## R1 integration closure — 2026-09-06
+
+DX1 已修复：纯 YAML 的 budget_policy 名称和真实布尔 allow_codec_loss 经显式 extensions 解析。Memdir 默认恢复，初始化 create=True；组合消费者真实 namespace 隔离、重复压缩且 required memory/artifact、recent window、continuation/open batch 保护通过。原始 ExchangeLog 在恢复后不再从有损 History 重建。Markdown durable reader 与模型摘要仍未实现。
+
+完整来源、修复和验证见[融合执行](../internal/plans/v5_r1_integration_execution.md)。本轮 live_not_run，R1 不等于 V5 全完成。
