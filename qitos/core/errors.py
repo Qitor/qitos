@@ -98,6 +98,20 @@ def _is_network_error(exc: Exception) -> bool:
 
 
 def classify_exception(exc: Exception, phase: str, step_id: int) -> RuntimeErrorInfo:
+    from .session import SessionContractError
+
+    if isinstance(exc, SessionContractError):
+        # Session recoverability describes an explicit reconstruction/remediation
+        # path, never permission to advance a live loop after failed persistence.
+        return RuntimeErrorInfo(
+            category=ErrorCategory.STATE,
+            message="Session contract rejected the current execution.",
+            phase=phase,
+            step_id=step_id,
+            recoverable=False,
+            details={"code": exc.error_code.value,
+                     "external_recovery_available": exc.recoverable},
+        )
     if isinstance(exc, ModelExecutionError):
         return exc.info
     if isinstance(exc, ParseExecutionError):

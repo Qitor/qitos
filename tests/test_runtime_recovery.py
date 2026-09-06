@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from qitos.core.errors import (
     ErrorCategory,
     ModelExecutionError,
@@ -7,6 +9,24 @@ from qitos.core.errors import (
     classify_exception,
 )
 from qitos.engine.recovery import RecoveryPolicy
+
+
+@pytest.mark.parametrize("phase", ["ACT", "DECIDE"])
+@pytest.mark.parametrize("recoverable", [False, True])
+def test_session_contract_failure_requires_external_recovery_not_another_step(phase, recoverable):
+    from qitos.core.session import SessionContractError, SessionErrorCode
+
+    error = SessionContractError(
+        SessionErrorCode.CORRUPT_SNAPSHOT, "PRIVATE_VALUE json timeout",
+        recoverable=recoverable, remediation="reconstruct through the explicit owner",
+    )
+    info = classify_exception(error, phase, 0)
+    assert info.category is ErrorCategory.STATE
+    assert info.recoverable is False
+    assert info.details["code"] == "corrupt_snapshot"
+    assert "PRIVATE_VALUE" not in info.message
+    decision = RecoveryPolicy().handle(object(), phase, 0, error)
+    assert decision.continue_run is False
 
 
 def test_classify_exception_marks_stream_timeout_as_recoverable_model_error() -> None:

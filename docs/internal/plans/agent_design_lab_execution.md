@@ -119,3 +119,24 @@ Python 3.10 installed PlanAct + Memdir + separately installed Pi extension also
 passes 12 requests, 10 plan revisions and actual closed-window compaction. The
 notebook remains after composition cleanup. Live connectivity recovered on a new
 ReAct probe; the full matrix and ablations are running in private storage.
+
+### Live-driven encoded scalar and recovery repair
+
+The initial full matrix exposed a reproducible false positive: JSON tool arguments
+containing Python `as f:\n` matched a Windows drive-path pattern. Complete encoded
+JSON is now decoded only for inspection (original bytes are preserved). Inspection
+also closes the prior encoded real-path bypass, with bounded depth/node handling
+and non-echoing failures. Counterexamples: 8 failed / 9 passed before the repair;
+the combined core/factory gate passed 494 tests afterward.
+
+SessionContractError was separately classified as recoverable merely because it
+occurred during ACT, allowing another decision with an unclosed batch. Such errors
+now terminate the current loop with typed state failure; explicit reconstruction
+remains distinct from automatic retry. Four classification counterexamples failed
+before the fix; engine tests also check zero additional decisions after rejection.
+
+The old experimental group remains private and is not discarded. Its controller
+was paused while its last active child finished normally, then stopped before
+dispatching more old-source cases. The final unappended child's exit code is not
+invented; its actual failure log and an intervention receipt remain. A new wheel
+and independently identified matrix must qualify the corrected implementation.

@@ -181,6 +181,40 @@ def test_child_transfer_preserves_external_snapshot_before_rebasing_state(fail_r
     runtime.work_runtime.close()
 
 
+def test_snapshot_rejection_does_not_advance_the_agent_loop():
+    from qitos.core.session import SessionContractError, SessionErrorCode, SnapshotComponentCodec
+
+    decisions = []
+
+    class Agent(_Agent):
+        def decide(self, state, observation):
+            decisions.append(state.current_step)
+            return Decision.act([Action("noop")])
+
+    class RejectedStorage:
+        codec = SnapshotComponentCodec(
+            slot="rejected_store", owner="tests.rejected", schema_version="tests.rejected/v1",
+            required=True, encode=dict, decode=dict,
+        )
+
+        def capture(self, context):
+            if decisions:
+                raise SessionContractError(
+                    SessionErrorCode.CORRUPT_SNAPSHOT, "snapshot material rejected",
+                    recoverable=False, remediation="repair outside the active run",
+                )
+            return {}
+
+        def restore(self, value, context):
+            pass
+
+    runtime = RuntimeComposition(snapshot_components=(RejectedStorage(),))
+    session = Engine(Agent(), runtime=runtime).session("do not advance failed persistence")
+    with pytest.raises(SessionContractError):
+        session.run()
+    assert decisions == [0]
+
+
 def _descriptor(
     operation_id: str,
     operation: str,

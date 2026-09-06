@@ -1910,11 +1910,54 @@ def _digest_json(payload: Mapping[str, Any]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _unsafe_snapshot_text(value: str) -> bool:
+    """Inspect encoded JSON values, not escapes such as Python ``f:\\n``.
+
+    Preserve the original bytes; decoding is only a bounded inspection view.
+    Real paths/credentials remain rejected, including multiply encoded values.
+    """
+    pending: list[tuple[Any, int]] = [(value, 0)]
+    inspected = 0
+    while pending:
+        current, depth = pending.pop()
+        inspected += 1
+        if inspected > 10_000 or depth > 32:
+            raise SessionContractError(
+                SessionErrorCode.CORRUPT_SNAPSHOT,
+                "Encoded snapshot text exceeds safe inspection bounds.",
+                recoverable=False,
+                remediation="Retain oversized material through an artifact reference.",
+            )
+        if isinstance(current, str):
+            if current.lstrip().startswith(("{", "[", '"')):
+                try:
+                    decoded = json.loads(current)
+                except RecursionError:
+                    raise SessionContractError(
+                        SessionErrorCode.CORRUPT_SNAPSHOT,
+                        "Encoded snapshot text exceeds safe inspection bounds.",
+                        recoverable=False,
+                        remediation="Retain oversized material through an artifact reference.",
+                    ) from None
+                except ValueError:
+                    pass  # Ordinary prose/source, not a complete JSON value.
+                else:
+                    pending.append((decoded, depth + 1))
+                    continue
+            if _HOST_LOCAL_OR_CREDENTIAL_VALUE.search(current):
+                return True
+        elif isinstance(current, dict):
+            pending.extend((item, depth + 1) for pair in current.items() for item in pair)
+        elif isinstance(current, list):
+            pending.extend((item, depth + 1) for item in current)
+    return False
+
+
 def _freeze_json(value: Any, *, path: str) -> Any:
     if value is None or isinstance(value, bool):
         return value
     if isinstance(value, str):
-        if _HOST_LOCAL_OR_CREDENTIAL_VALUE.search(value):
+        if _unsafe_snapshot_text(value):
             raise SessionContractError(
                 SessionErrorCode.CORRUPT_SNAPSHOT,
                 "Snapshot contains a host-local path or credential value.",
