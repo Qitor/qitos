@@ -921,6 +921,16 @@ class ProviderFailure(Exception):
         safe_details = redact_diagnostic_value(self.redacted_details)
         if not isinstance(safe_details, dict):
             raise CodecError("provider failure details must be an object")
+        raw_usage = self.redacted_details.get("usage")
+        if isinstance(raw_usage, Mapping):
+            # Closed numeric accounting vocabulary; never echo provider extras.
+            safe_details["usage"] = {
+                key: value for key in (
+                    "prompt_tokens", "completion_tokens", "total_tokens",
+                    "input_tokens", "output_tokens",
+                ) if isinstance((value := raw_usage.get(key)), int)
+                and not isinstance(value, bool) and value >= 0
+            }
         remediation_by_category = {
             "provider_refusal": "Review the request against the provider policy.",
             "provider_rejection": "Review the request against the provider contract.",

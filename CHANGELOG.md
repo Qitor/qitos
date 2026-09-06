@@ -28,6 +28,8 @@ How to update:
 
 ### Fixed
 
+- Preserve Chat stream reasoning in existing response/ExchangeLog fields. Replay requires declared reasoning-input support or explicit loss; cleanups attempt every owned resource and retain primary failure/accounting facts with bounded cleanup counts.
+
 - Accept strict YAML context budget/loss options through existing factories; canonical unsafe-host config serialization omits inapplicable sandbox defaults so reload preserves config and digest.
 
 - Give Observation one mutable authority for attribute and mapping writes, atomic alias validation and independent canonical/legacy snapshots.

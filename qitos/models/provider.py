@@ -846,7 +846,7 @@ def context_text(value: Any) -> str:
 
 
 def request_view_to_compat_messages(
-    request: RequestView,
+    request: RequestView, *, preserve_chat_reasoning: bool = False,
 ) -> tuple[List[Dict[str, Any]], tuple[str, ...]]:
     """Strict compatibility projection; never a canonical history writer."""
 
@@ -880,6 +880,7 @@ def request_view_to_compat_messages(
             calls: list[Dict[str, Any]] = []
             native_items: list[Dict[str, Any]] = []
             seen_call = False
+            chat_reasoning: Dict[str, str] = {}
             for part in parts:
                 part_kind = part.get("kind")
                 if part_kind == "content":
@@ -895,7 +896,12 @@ def request_view_to_compat_messages(
                         if isinstance(metadata, Mapping)
                         else None
                     )
-                    if isinstance(native_item, Mapping):
+                    source_field = metadata.get("source_field") if isinstance(metadata, Mapping) else None
+                    if (preserve_chat_reasoning and source_field in {"reasoning_content", "reasoning"}
+                            and part.get("provider_scope") == f"{request.target.provider}:{request.target.api_mode}"
+                            and isinstance(part.get("summary"), str)):
+                        chat_reasoning[source_field] = chat_reasoning.get(source_field, "") + part["summary"]
+                    elif isinstance(native_item, Mapping):
                         native_items.append(dict(native_item))
                     else:
                         losses.append("assistant.reasoning")
@@ -925,6 +931,7 @@ def request_view_to_compat_messages(
                 "role": "assistant",
                 "content": content_payload(blocks) if blocks else None,
             }
+            message.update(chat_reasoning)
             if calls:
                 message["tool_calls"] = calls
             if native_items:
@@ -949,6 +956,7 @@ def request_view_to_compat_messages(
 class LegacyMessageCodec:
     """Explicit compatibility codec for callable models without S2 adapters."""
 
+    _preserve_chat_reasoning = False
     codec_id = "qitos.compatibility.messages"
     codec_version = "v1"
 
@@ -963,13 +971,19 @@ class LegacyMessageCodec:
         resolved = capabilities or legacy_capabilities(request.target)
         if transport is not None and transport != request.target:
             raise CodecCapabilityError("legacy codec transport mismatch")
-        messages, losses = request_view_to_compat_messages(request)
+        messages, losses = request_view_to_compat_messages(
+            request, preserve_chat_reasoning=(
+                self._preserve_chat_reasoning and resolved.supports_reasoning_input
+            ),
+        )
         report = report_for_request(
             request,
             resolved,
             codec_id=self.codec_id,
             codec_version=self.codec_version,
-            reasoning=("dropped" if losses else "not_present"),
+            reasoning=("dropped" if "assistant.reasoning" in losses else
+                       "preserved" if any("reasoning_content" in message or "reasoning" in message
+                                          for message in messages) else "not_present"),
             continuation=("rejected" if request.continuation else "not_requested"),
             supported=request.capability_requirements,
             lossy_fields=losses,

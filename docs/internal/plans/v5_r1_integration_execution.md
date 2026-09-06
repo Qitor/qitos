@@ -55,3 +55,21 @@ neutral defaults rejected by its own loader. Serialization now emits type and
 workspace only for that backend; admission and Env execution constraints are
 unchanged. Config roundtrip and digest equality are asserted without a workaround.
 Installed consumers and final source bindings remain pending.
+
+## R1-M1/M2 repair
+
+The initial 31 real-adapter regressions failed before repair. Stream chunks now
+carry the existing reasoning_fields representation into ModelResponse, decoded
+ReasoningBlock and RequestView. OpenAI-compatible selects the same Chat/Responses
+codec as the built-in OpenAI adapter. Chat field replay requires explicit capability
+support, matching provider/API scope and supported source field; generic providers
+remain loss-explicit. No visible answer is synthesized from reasoning.
+
+Cleanup attempts every owned resource, reports numeric cleanup_failures only,
+retains typed primary category/stage/sent/partial/usage and preserves callback
+exception identity/cancellation. Normal cleanup failure is typed. ProviderFailure
+keeps only allowlisted non-negative integer usage counters, never raw SDK extras.
+Expanded tests include borrowed Responses helper clients, cancellation during
+iteration/cleanup, explicit sync/async close and no-reasoning behavior. A focused
+144-test adapter/codec sweep passed before the last cancellation-only additions;
+final complete tests and installed two-tool-round verification remain pending.

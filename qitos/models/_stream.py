@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import sys
 from dataclasses import replace
 from typing import Any
 
@@ -20,6 +21,9 @@ def failure(
     )
     actual_sent = normalized.provider_request_sent if isinstance(error, ProviderFailure) else sent
     details = {**normalized.redacted_details, "transport_attempts": int(actual_sent)}
+    usage = getattr(model, "_last_usage", None)
+    if usage is not None:
+        details["usage"] = usage
     if partial_text_characters:
         details["partial_text_characters"] = partial_text_characters
     return replace(normalized, provider_request_sent=actual_sent, redacted_details=details)
@@ -44,18 +48,69 @@ def refusal_failure(model: Any) -> ProviderFailure:
     )
 
 
-def close_owned(resource: Any) -> None:
-    close = getattr(resource, "close", None)
-    if callable(close):
-        close()
+def _cleanup_failure(primary: BaseException | None, count: int, model: Any) -> None:
+    if not count:
+        return
+    # Never retain exception text, class names, resource reprs or SDK payloads.
+    if isinstance(primary, ProviderFailure):
+        details = dict(primary.redacted_details)
+        details["cleanup_failures"] = int(details.get("cleanup_failures", 0)) + count
+        raise replace(primary, redacted_details=details) from None
+    if primary is not None and not isinstance(primary, GeneratorExit):
+        primary.add_note(f"provider_cleanup_failures={count}")
+        return
+    target = model.qitos_request_target() if model is not None else {}
+    details = {"cleanup_failures": count, "transport_attempts": 1}
+    usage = getattr(model, "_last_usage", None)
+    if usage is not None:
+        details["usage"] = usage
+    raise ProviderFailure(
+        category="provider_exception", message="Owned provider resource cleanup failed.",
+        provider=target.get("provider", "unknown"),
+        api_mode=target.get("api_mode", "chat_completions"),
+        stage="stream", error_code="provider_cleanup_failed",
+        provider_request_sent=True, redacted_details=details,
+    ) from None
 
 
-async def aclose_owned(resource: Any) -> None:
-    close = getattr(resource, "aclose", None) or getattr(resource, "close", None)
-    if callable(close):
-        result = close()
-        if inspect.isawaitable(result):
-            await result
+def close_owned(*resources: Any, model: Any = None) -> None:
+    primary = sys.exception()
+    failures = 0
+    interruption: BaseException | None = None
+    for resource in resources:
+        try:
+            close = getattr(resource, "close", None)
+            if callable(close):
+                close()
+        except BaseException as error:
+            if not isinstance(error, Exception) and primary is None:
+                primary = interruption = error
+            failures += (int(error.redacted_details.get("cleanup_failures", 1))
+                         if isinstance(error, ProviderFailure) else 1)
+    _cleanup_failure(primary, failures, model)
+    if interruption is not None:
+        raise interruption
+
+
+async def aclose_owned(*resources: Any, model: Any = None) -> None:
+    primary = sys.exception()
+    failures = 0
+    interruption: BaseException | None = None
+    for resource in resources:
+        try:
+            close = getattr(resource, "aclose", None) or getattr(resource, "close", None)
+            if callable(close):
+                result = close()
+                if inspect.isawaitable(result):
+                    await result
+        except BaseException as error:
+            if not isinstance(error, Exception) and primary is None:
+                primary = interruption = error
+            failures += (int(error.redacted_details.get("cleanup_failures", 1))
+                         if isinstance(error, ProviderFailure) else 1)
+    _cleanup_failure(primary, failures, model)
+    if interruption is not None:
+        raise interruption
 
 
 def validate_calls(model: Any, calls: Any, reason: str) -> None:
@@ -81,6 +136,7 @@ class ChatStream:
         self.reason: str | None = None
         self.usage: dict[str, Any] | None = None
         self.calls: dict[int, dict[str, Any]] = {}
+        self.reasoning_fields: dict[str, str] = {}
 
     def feed(self, chunk: Any) -> str:
         usage = self.model._usage_from_response(chunk)
@@ -88,6 +144,7 @@ class ChatStream:
             if self.usage is not None and self.usage != usage:
                 raise protocol_failure(self.model)
             self.usage = usage
+            self.model._set_last_usage(usage)
         choices = getattr(chunk, "choices", None) or []
         if not choices:
             return ""
@@ -96,10 +153,19 @@ class ChatStream:
         if getattr(delta, "refusal", None):
             raise refusal_failure(self.model)
         text = getattr(delta, "content", None) or ""
+        reasoning = {}
+        for key in ("reasoning_content", "reasoning"):
+            value = getattr(delta, key, None)
+            if value is not None and not isinstance(value, str):
+                raise protocol_failure(self.model)
+            if value:
+                reasoning[key] = value
         tools = getattr(delta, "tool_calls", None) or []
         reason = getattr(choice, "finish_reason", None)
-        if self.reason is not None and (text or tools or reason not in {None, self.reason}):
+        if self.reason is not None and (text or reasoning or tools or reason not in {None, self.reason}):
             raise protocol_failure(self.model)
+        for key, value in reasoning.items():
+            self.reasoning_fields[key] = self.reasoning_fields.get(key, "") + value
         for item in tools:
             index = getattr(item, "index", None)
             if not isinstance(index, int) or index < 0:
@@ -129,4 +195,5 @@ class ChatStream:
         return ModelStreamChunk(
             text="", done=True, usage=self.usage, tool_calls=calls or None,
             event_metadata={"finish_reason": self.reason},
+            reasoning_fields=dict(self.reasoning_fields),
         )

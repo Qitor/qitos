@@ -41,6 +41,7 @@ from .base import Model, ModelStreamChunk
 from .codec import (
     CodecReport,
     ProviderCapabilities,
+    ProviderFailure,
     _request_tool_options,
     report_for_request,
     validate_codec_result,
@@ -279,6 +280,7 @@ def _normalize_messages_for_tokenizer(payload: List[Any]) -> List[Dict[str, str]
 class OpenAIChatCodec(LegacyMessageCodec):
     """Chat Completions codec; reasoning replay is loss-explicit."""
 
+    _preserve_chat_reasoning = True
     codec_id = "qitos.openai.chat_completions"
     codec_version = "v1"
 
@@ -690,9 +692,10 @@ class OpenAIModel(Model):
                           partial_text_characters=partial_text_characters) from None
         finally:
             try:
-                close_owned(response)
-            finally:
-                close_owned(client)
+                close_owned(response, client, model=self)
+            except ProviderFailure as exc:
+                raise failure(self, exc, sent=sent,
+                              partial_text_characters=partial_text_characters) from None
 
     def _usage_from_response(self, response: Any) -> Optional[Dict[str, Any]]:
         usage = getattr(response, "usage", None)
@@ -800,6 +803,11 @@ class OpenAICompatibleModel(Model):
     qitos_transport_id = "openai"
     qitos_api_mode = "chat_completions"
     qitos_capabilities_by_api_mode = OpenAIModel.qitos_capabilities_by_api_mode
+
+    def qitos_provider_codec(self) -> Any:
+        if self.api_mode == "responses":
+            return OpenAIResponsesCodec()
+        return OpenAIChatCodec()
 
     def __init__(
         self,
@@ -1062,9 +1070,10 @@ class OpenAICompatibleModel(Model):
                           partial_text_characters=partial_text_characters) from None
         finally:
             try:
-                close_owned(response)
-            finally:
-                close_owned(client)
+                close_owned(response, client, model=self)
+            except ProviderFailure as exc:
+                raise failure(self, exc, sent=sent,
+                              partial_text_characters=partial_text_characters) from None
 
 
 class AzureOpenAIModel(OpenAICompatibleModel):
@@ -1249,10 +1258,10 @@ class AsyncOpenAICompatibleModel(OpenAICompatibleModel):
                           partial_text_characters=partial_text_characters) from None
         finally:
             try:
-                await aclose_owned(nested)
-                await aclose_owned(response)
-            finally:
-                await aclose_owned(client)
+                await aclose_owned(nested, response, client, model=self)
+            except ProviderFailure as exc:
+                raise failure(self, exc, sent=sent,
+                              partial_text_characters=partial_text_characters) from None
 
 
 class AsyncOpenAIModel(OpenAIModel):
@@ -1336,10 +1345,10 @@ class AsyncOpenAIModel(OpenAIModel):
                           partial_text_characters=partial_text_characters) from None
         finally:
             try:
-                await aclose_owned(nested)
-                await aclose_owned(response)
-            finally:
-                await aclose_owned(client)
+                await aclose_owned(nested, response, client, model=self)
+            except ProviderFailure as exc:
+                raise failure(self, exc, sent=sent,
+                              partial_text_characters=partial_text_characters) from None
 
 
 # Register to factory

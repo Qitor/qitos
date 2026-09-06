@@ -30,6 +30,7 @@ class ModelStreamChunk:
     usage: Optional[Dict[str, Any]] = field(default=None)
     tool_calls: Optional[List[Dict[str, Any]]] = field(default=None)
     native_items: Optional[List[Dict[str, Any]]] = field(default=None)
+    reasoning_fields: Dict[str, str] = field(default_factory=dict)
     event_type: Optional[str] = None
     event_metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -187,6 +188,7 @@ class Model(ABC):
         native_items: Optional[List[Dict[str, Any]]] = None
         accumulated_native_items: List[Dict[str, Any]] = []
         metadata: Dict[str, Any] = {}
+        reasoning_fields: Dict[str, str] = {}
         from ._stream import close_owned, protocol_failure
 
         done = False
@@ -226,6 +228,7 @@ class Model(ABC):
                     chunk_items = getattr(chunk, "native_items", None)
                     if isinstance(chunk_items, list):
                         native_items = [dict(item) for item in chunk_items]
+                    reasoning_fields = dict(chunk.reasoning_fields)
                     event_metadata = getattr(chunk, "event_metadata", None)
                     if isinstance(event_metadata, dict):
                         metadata.update(event_metadata)
@@ -243,6 +246,9 @@ class Model(ABC):
             provider=self.qitos_request_target()["provider"],
             metadata=metadata,
             native_items=(native_items or accumulated_native_items or None),
+            reasoning_fields=reasoning_fields,
+            reasoning_content=next(iter(reasoning_fields.values()), None),
+            reasoning_source=next(iter(reasoning_fields), None),
         )
 
     def qitos_normalize_failure(
