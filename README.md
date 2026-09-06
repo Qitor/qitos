@@ -18,46 +18,28 @@ QitOS core is the small framework. Product-grade applications and showcase agent
 
 ## What you can build
 
-- V5 R1 offline integration qualified: one wheel passes all four lane consumers and the combined durable workflow; 20 handoff race rounds pass. Local promotion is authorized; no live, push or release qualification.
-
-- R1 combined installed consumer now covers YAML budgets, durable memory, repeated compaction, native multi-round tools, handoff/restore and canonical export; raw conversation facts survive restoration.
-
-QitOS is a research-first Agent framework: one `AgentModule + Engine` kernel,
-with Session ownership, pause, durable recovery and fork. Extend tools,
-providers, context, stores, sinks and sandboxes; inspect Trajectory through
-read-only qita. Framework correctness does not guarantee arbitrary model task success.
+Build multi-round tool Agents on one `AgentModule + Engine` kernel, with Session
+pause, restore, fork and handoff. Configure budgets in YAML, select durable memory
+and explicit compaction policies, and inspect or export canonical Trajectory with
+qita. Extend tools, providers, context, stores, sinks and sandboxes. The framework
+owns execution correctness; application strategy and model behavior remain with
+the application and provider.
 
 ## What's New
 
-- Handoff reconciliation now binds explicit work/session/transfer/generation facts. Confirmed no-worker dispatch failures persist separately from unknown outcomes and can recover by restoring the destination.
+- Python 3.10 model cleanup compatibility: every owned resource is attempted, with safe numeric cleanup diagnostics and primary exception priority preserved.
+- R1 local integration and all five review repairs are complete: reasoning, accurate request/cleanup facts, handoff ownership and YAML budget/loss wiring; restoration retains original conversation facts.
+- Memdir recall and closed-exchange compaction, canonical Read/Edit ToolResult, consistent Observation, strict snapshot paging and atomic export are available through the user workflow.
+- Bilingual tutorials include complete runnable files, and API Reference binds to exact implementation source. See [migration guidance](docs/reference/g5-migration.mdx) for compatibility changes.
 
-- Integration stream repairs preserve Chat reasoning separately and retain typed primary failures when owned cleanup also fails.
-
-- R1 integration: strict YAML now wires named context budgets and explicit codec loss through the existing composition extensions.
-
-- Observation attribute and mapping writes now stay consistent, with atomic validation and independent serialization snapshots.
-
-- Legacy Read/Edit now preserve line windows, reject ambiguous edits and expose canonical failure results.
-
-- Same-Session handoff persists admission before dispatch; destination restore and completion are independent of late source callbacks.
-- Explicit memory adapters and deterministic closed-exchange compaction: installed two-process Memdir recall, namespace isolation, and actual request selection; [usage and limits](examples/v5/r1_b_memory_context/README.md).
-- V5 R1 Lane D adds strict snapshot paging and atomic streaming canonical export; warm journal append maintains IDs/positions incrementally. Full historical byte hashing remains enabled. See [execution evidence](docs/internal/plans/v5_r1_d_execution.md).
-- Model I/O stream regressions now cover sanitized failures, terminal validation, usage and owned cleanup; an offline multi-round composition consumer checks final 11 and truncated tool input.
-
-- Self-contained web tutorials: complete notes-Agent code, bilingual learning path and source-checked core API reference; tests execute the files shown on each page.
-
-- The [v5 iteration roadmap](docs/v5/README.md) now records four delivered R1 candidates: model I/O, memory/compaction, runtime correctness and bounded trajectory consumption. An [independent review](docs/internal/plans/v5_r1_integration_review.md) reran 198 tests and identified five bounded repairs before combined qualification; these candidates are not yet integrated into master.
-
-- Master fixes Python 3.10 publication, repeated journal parsing and portable historical evidence verification; these are separately tested successors to the historical G5 runtime.
-
-- G5 framework qualification passed; S4 local integration complete. Runtime identity: `717b4cf1b23f2ed252cd03234ffd8605038d9567`.
-- Bilingual docs converge on installation → project → configuration → Session → inspection → recovery/extension.
-- The default development branch is `master`, with CI/docs checks on pushes and PRs. Publication remains explicit.
-- Documentation/tutorial qualification is recorded separately. Remote synchronization is verified. Docs CI passed; successor CI stabilization is tracked with exact results in the [CI plan](docs/internal/plans/master_ci_stabilization.md). Package releases and documentation deployments are tracked separately from CI qualification.
+[Current R1 status and remote synchronization](docs/internal/plans/v5_r1_remote_sync.md)
+is the sole status entry; the [V5 roadmap](docs/v5/README.md) retains subsequent scope.
+R1 completion does not complete V5. Offline framework qualification does not imply
+live-model qualification, a package release or a documentation deployment.
 
 ## Start developing
 
-`pip install qitos` selects a published PyPI version, not an identity for unreleased G5.
+`pip install qitos` selects a published PyPI version, not an identity for unreleased R1.
 Follow [Installation](docs/installation.mdx), then the
 [credential-free Quickstart](docs/quickstart.mdx).
 Real providers use [agent.yaml, CredentialRef and an explicit resolver](docs/reference/configuration.mdx).
@@ -71,8 +53,4 @@ Docker file tools fail closed when unavailable; they do not fall back to host ex
 - [Contributing](docs/contributing/development.mdx) and [architecture](ARCHITECTURE.md).
 - [CHANGELOG](CHANGELOG.md), [historical engineering progress](docs/progress.md) and [G5 evidence](docs/internal/plans/s4_g5_convergence_execution.md).
 
-The historical 2663 passed / 50 skipped result belongs only to the runtime SHA
-above, on Python 3.12.7. Advanced `AgentModule.run()` and historical trace
-compatibility remain supported; they are not a second beginner path.
-
-V5 R1 Lane D: trajectory work instrumentation now distinguishes historical byte verification from parsing and index maintenance.
+Advanced `AgentModule.run()` and historical trace compatibility remain supported.

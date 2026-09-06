@@ -651,7 +651,7 @@ class OpenAIModel(Model):
                 )
             return self._chat_completion(client, messages, **kwargs)
         finally:
-            close_owned(client)
+            close_owned(client, model=self)
 
     def stream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> Iterator[ModelStreamChunk]:
         """Stream with explicit terminal validation and owned-resource cleanup."""
@@ -1011,7 +1011,7 @@ class OpenAICompatibleModel(Model):
                 )
             return self._chat_completion(client, messages, **kwargs)
         finally:
-            close_owned(client)
+            close_owned(client, model=self)
 
     def _usage_from_response(self, response: Any) -> Optional[Dict[str, Any]]:
         usage = getattr(response, "usage", None)
@@ -1222,7 +1222,7 @@ class AsyncOpenAICompatibleModel(OpenAICompatibleModel):
                 )
             return await self._achat_completion(client, messages, **kwargs)
         finally:
-            await aclose_owned(client)
+            await aclose_owned(client, model=self)
 
     async def astream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> AsyncIterator[ModelStreamChunk]:
         """Stream with explicit terminal validation and owned-resource cleanup."""
@@ -1310,7 +1310,7 @@ class AsyncOpenAIModel(OpenAIModel):
                 )
             return await self._achat_completion(client, messages, **kwargs)
         finally:
-            await aclose_owned(client)
+            await aclose_owned(client, model=self)
 
     async def astream(self, messages: List[Dict[str, Any]], **kwargs: Any) -> AsyncIterator[ModelStreamChunk]:
         """Stream with explicit terminal validation and owned-resource cleanup."""

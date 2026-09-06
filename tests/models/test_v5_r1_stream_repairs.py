@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import sys
 from types import SimpleNamespace as NS
 
 import pytest
@@ -104,7 +105,7 @@ def test_reasoning_fragments_separate_once(monkeypatch, answer, asynchronous):
 @pytest.mark.parametrize("response_error,client_error", [(True, False), (False, True), (True, True)])
 def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, client_error):
     usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
-    events = [chunk("partial", usage=usage)]
+    events = [chunk("partial", reasoning="plan", usage=usage)]
     events += {
         "normal": [chunk(finish="stop")],
         "eof": [],
@@ -134,6 +135,7 @@ def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, clien
     assert error.provider_request_sent
     assert error.redacted_details["cleanup_failures"] == int(response_error) + int(client_error)
     assert error.redacted_details["partial_text_characters"] == 7
+    assert error.redacted_details["partial_reasoning_characters"] == 4
     assert error.redacted_details["usage"]["total_tokens"] == 5
     assert stream.closed == client.closed == 1
     public = str(error) + json.dumps(error.to_dict())
@@ -144,6 +146,7 @@ def test_cleanup_priority(monkeypatch, asynchronous, mode, response_error, clien
 def test_consumer_exception_identity_survives_cleanup(monkeypatch):
     model, stream, client = adapter(monkeypatch, [chunk("partial")], response_error=True, client_error=True)
     original = ValueError("consumer failed")
+    original.__notes__ = ["existing consumer note"]
 
     def callback(text):
         raise original
@@ -152,7 +155,7 @@ def test_consumer_exception_identity_survives_cleanup(monkeypatch):
         model.qitos_stream_transport({"messages": []}, on_delta=callback)
     assert caught.value is original
     assert stream.closed == client.closed == 1
-    assert "cleanup" in str(original.__notes__)
+    assert original.__notes__ == ["existing consumer note", "provider_cleanup_failures=2"]
 
 
 @pytest.mark.parametrize("asynchronous", [False, True])
@@ -245,30 +248,46 @@ def test_async_cancellation_retains_identity_and_cleans_both(monkeypatch):
         model, stream, client = adapter(
             monkeypatch, [], asynchronous=True, response_error=True, client_error=True
         )
+        original = []
+        delivered = []
 
-        async def wait_for_response(**kwargs):
-            entered.set()
-            await release.wait()
-            return stream
-
-        # Cancel while reading an already-owned response, not before creation.
         async def wait_next(self):
             entered.set()
-            await release.wait()
+            try:
+                await release.wait()
+            except asyncio.CancelledError as error:
+                original.append(error)
+                raise
             raise StopAsyncIteration
 
         monkeypatch.setattr(SDKStream, "__anext__", wait_next)
 
         async def consume():
-            return [item async for item in model.astream([])]
+            try:
+                return [item async for item in model.astream([])]
+            except asyncio.CancelledError as error:
+                delivered.append(error)
+                raise
 
         task = asyncio.create_task(consume())
         await entered.wait()
         task.cancel()
         with pytest.raises(asyncio.CancelledError) as caught:
             await task
+        assert task.cancelled()
         assert stream.closed == client.closed == 1
-        assert caught.value.__notes__ == ["provider_cleanup_failures=2"]
+        assert len(original) == len(delivered) == 1
+        assert delivered[0] is original[0]
+        assert delivered[0].__notes__ == ["provider_cleanup_failures=2"]
+        if sys.version_info < (3, 11):
+            # CPython 3.10 Task creates an outer cancellation, chaining the
+            # exact exception that left the adapter as its context.
+            assert caught.value is not delivered[0]
+            assert caught.value.__context__ is delivered[0]
+            assert caught.value.__context__.__notes__ == ["provider_cleanup_failures=2"]
+        else:
+            assert caught.value is delivered[0]
+            assert caught.value.__notes__ == ["provider_cleanup_failures=2"]
 
     asyncio.run(scenario())
 
@@ -312,3 +331,85 @@ def test_cancellation_during_cleanup_attempts_remaining_resource(monkeypatch):
 
     asyncio.run(consume())
     assert resource.closed == other.closed == 1
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+@pytest.mark.parametrize("client_error", [False, True])
+@pytest.mark.parametrize("request_error", [False, True])
+def test_nonstream_cleanup_preserves_result_or_primary(
+    monkeypatch, asynchronous, client_error, request_error
+):
+    model, response, client = adapter(
+        monkeypatch, [], asynchronous=asynchronous, client_error=client_error
+    )
+    response.usage = NS(prompt_tokens=2, completion_tokens=3, total_tokens=5)
+    original = ConnectionError("offline request failed")
+
+    def create(**kwargs):
+        if request_error:
+            raise original
+        return response
+
+    async def acreate(**kwargs):
+        return create(**kwargs)
+
+    client.chat.completions.create = acreate if asynchronous else create
+
+    def invoke():
+        return asyncio.run(model.acall_raw([])) if asynchronous else model.call_raw([])
+
+    if request_error:
+        with pytest.raises(ConnectionError) as caught:
+            invoke()
+        assert caught.value is original
+        assert getattr(original, "__notes__", []) == (
+            ["provider_cleanup_failures=1"] if client_error else []
+        )
+    elif client_error:
+        with pytest.raises(ProviderFailure) as caught:
+            invoke()
+        assert caught.value.error_code == "provider_cleanup_failed"
+        assert caught.value.provider == "openai-compatible"
+        assert caught.value.redacted_details["usage"]["total_tokens"] == 5
+        assert caught.value.provider_request_sent
+        assert caught.value.redacted_details["cleanup_failures"] == 1
+        assert PRIVATE not in str(caught.value)
+    else:
+        assert invoke() is response
+        assert model._last_usage["total_tokens"] == 5
+    assert client.closed == 1
+    # Nonstream return values are borrowed data, not streaming transports.
+    assert response.closed == 0
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+def test_pre_dispatch_failure_with_cleanup_retains_unsent(monkeypatch, asynchronous):
+    import qitos.models.openai as implementation
+
+    model, stream, client = adapter(
+        monkeypatch, [], asynchronous=asynchronous, client_error=True
+    )
+    original = ProviderFailure(
+        category="unsupported_request", message="Offline payload rejected.",
+        provider="openai-compatible", api_mode="chat_completions", stage="encode",
+        provider_request_sent=False,
+    )
+
+    def reject(*args, **kwargs):
+        raise original
+
+    monkeypatch.setattr(implementation, "_chat_stream_payload", reject)
+    with pytest.raises(ProviderFailure) as caught:
+        if asynchronous:
+            async def consume():
+                return [item async for item in model.astream([])]
+            asyncio.run(consume())
+        else:
+            model.qitos_stream_transport({"messages": []})
+    error = caught.value
+    assert error.category == original.category
+    assert error.stage == original.stage
+    assert not error.provider_request_sent
+    assert error.redacted_details["transport_attempts"] == 0
+    assert error.redacted_details["cleanup_failures"] == 1
+    assert client.closed == 1 and stream.closed == 0

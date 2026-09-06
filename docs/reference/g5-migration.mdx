@@ -3,7 +3,27 @@ title: "G5 migration and limits"
 description: "QitOS G5 · G5 migration and limits"
 ---
 
-## Current status
+## Current R1 capabilities and migration
+
+R1 local integration and the five reasoning, cleanup, handoff and YAML repairs are
+complete. Python 3.10 cleanup compatibility was discovered and repaired afterwards.
+Every owned resource is attempted; cleanup failures cannot masquerade as success or
+refund a sent request. Callback/cancellation exceptions retain their identity.
+On Python 3.10, safe numeric diagnostics remain accessible in exception `__notes__`;
+the standard traceback does not automatically display them. CPython 3.10 Task
+awaiters receive a cancellation wrapper whose `__context__` retains that original
+exception and its notes.
+
+- Initialize Memdir explicitly with `MemdirMemory("./memory", create=True)`; the default restores an existing directory.
+- Direct Read/Edit calls return `ToolResult`; check `result.status`, then read `result.output`.
+- Upgrade older WorkGraph readers that do not recognize `dispatch_not_started`; do not ignore unknown states.
+- Strict snapshot paging and streaming export support bounded consumption; complete reads still materialize records and historical bytes are still verified.
+
+Offline qualification does not imply live-model qualification, a PyPI release or a
+site deployment. R1 does not complete all V5 scope. This page describes source
+capabilities; install an exact source identity.
+
+## Historical G5 qualification (not current R1 synchronization status)
 
 G5 runtime `717b4cf1b23f2ed252cd03234ffd8605038d9567` passed framework qualification; S4 local integration is complete. Historical 2663 passed / 50 skipped belongs to that SHA, not documentation successors. Remote sync is verified and the default development branch is master. Successor CI stabilization is recorded separately; no release or deployment was performed. On the pinned historical G5 commit, Python 3.10 publication fails because it uses hashlib.file_digest (introduced in Python 3.11); use Python 3.11+ for this path, with local G5 qualification specifically on 3.12.7.
 

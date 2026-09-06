@@ -60,7 +60,14 @@ def _cleanup_failure(primary: BaseException | None, count: int, model: Any) -> N
         details["cleanup_failures"] = int(details.get("cleanup_failures", 0)) + count
         raise replace(primary, redacted_details=details) from None
     if primary is not None and not isinstance(primary, GeneratorExit):
-        primary.add_note(f"provider_cleanup_failures={count}")
+        note = f"provider_cleanup_failures={count}"
+        add_note = getattr(primary, "add_note", None)
+        if callable(add_note):
+            add_note(note)
+        else:
+            # Python 3.10 does not render notes, but callers can still inspect
+            # the same safe diagnostic without replacing the primary exception.
+            primary.__notes__ = [*getattr(primary, "__notes__", []), note]
         return
     target = model.qitos_request_target() if model is not None else {}
     details = {"cleanup_failures": count, "transport_attempts": 1}
@@ -77,7 +84,7 @@ def _cleanup_failure(primary: BaseException | None, count: int, model: Any) -> N
 
 
 def close_owned(*resources: Any, model: Any = None) -> None:
-    primary = sys.exception()
+    primary = sys.exc_info()[1]
     failures = 0
     interruption: BaseException | None = None
     for resource in resources:
@@ -96,7 +103,7 @@ def close_owned(*resources: Any, model: Any = None) -> None:
 
 
 async def aclose_owned(*resources: Any, model: Any = None) -> None:
-    primary = sys.exception()
+    primary = sys.exc_info()[1]
     failures = 0
     interruption: BaseException | None = None
     for resource in resources:

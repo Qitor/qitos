@@ -3,7 +3,23 @@ title: "G5 迁移与限制"
 description: "QitOS G5 · G5 迁移与限制"
 ---
 
-## 当前状态
+## 当前 R1 能力与迁移
+
+R1 已完成本地融合及 reasoning、cleanup、handoff、YAML 五项修复。
+Python 3.10 清理兼容性作为后续发现单独修复；所有自有资源尝试关闭，
+清理失败不会冒充成功或退回已发送请求的预算。Callback/取消保留原异常；
+Python 3.10 可读取异常的 `__notes__` 安全数字诊断，标准 traceback 不自动显示它。
+CPython 3.10 的 Task 等待方收到取消包装异常，`__context__` 保留原异常及其诊断。
+
+- 新建 Memdir 必须显式 `MemdirMemory("./memory", create=True)`；默认恢复已有目录。
+- Read/Edit 直接调用返回 `ToolResult`；先检查 `result.status`，再读取 `result.output`。
+- 旧 WorkGraph reader 若不认识 `dispatch_not_started` 必须升级；不要忽略未知状态。
+- 严格快照分页与流式导出支持有界消费；完整读取仍物化记录，仍校验历史字节。
+
+离线验收不等于 live 模型资格、PyPI 发布或站点部署。R1 不等于 V5 全部完成。
+本页描述源码中的能力；安装时选择准确的源码身份。
+
+## 历史 G5 资格（非当前 R1 同步状态）
 
 G5 runtime `717b4cf1b23f2ed252cd03234ffd8605038d9567` 框架资格通过，S4 本地融合完成。历史 2663 passed / 50 skipped 属于该 SHA；本轮不重跑或冒称新提交通过 G5。远端同步已核验，默认开发分支为 master。后继 CI 修复结果独立记录；未发布或部署。固定历史 G5 提交中的 Python 3.10 publication 会因使用 Python 3.11 才引入的 hashlib.file_digest 而失败；此路径需 Python 3.11+，本地 G5 资格具体属于 3.12.7。
 

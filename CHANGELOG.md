@@ -28,6 +28,8 @@ How to update:
 
 ### Fixed
 
+- Restore Python 3.10 owned model cleanup with compatible exception discovery and retained safe numeric exception notes; preserve primary failure priority and cancellation semantics.
+
 - Give each notes tutorial child an explicit request allocation so sequential spawn does not inherit an exhausted reservation.
 
 - Preserve canonical ExchangeLog items across history trimming and durable restore; keep user/assistant/tool exchange identity together so repeated compaction remains accurate.

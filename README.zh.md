@@ -18,46 +18,25 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 
 ## 当前能力
 
-- V5 R1 离线融合资格通过：同一 wheel 的四线消费者与持久组合路径、20 轮 handoff 交错全部通过；授权本地提升，未执行 live、push 或 release。
-
-- R1 安装后组合消费者贯通 YAML 预算、持久记忆、重复压缩、原生多轮工具、handoff/restore 与 canonical export；恢复保留原始会话事实。
-
-QitOS 是研究优先的 Agent 框架：一个 `AgentModule + Engine` 内核，
-通过 Session 管理运行、暂停、持久化恢复和 fork。工具、provider、context、
-store、sink 和 sandbox 可扩展；qita 只读检查 Trajectory。
-框架保证执行机制的正确性，不保证任意模型完成任意任务。
+在一个 `AgentModule + Engine` 内核上构建多轮工具 Agent，用 Session 暂停、恢复、
+fork 和 handoff。通过 YAML 配置预算，选择持久记忆与显式压缩策略，使用 qita
+检查和导出 canonical Trajectory。工具、provider、context、store、sink 与 sandbox
+均可扩展。框架负责执行正确性；任务策略和模型表现仍由应用与 provider 决定。
 
 ## What's New
 
-- Handoff 终态现在关联明确的 work/session/transfer/generation；确认未创建 worker 的失败单独持久化，可通过恢复目标 Session 继续。
+- Python 3.10 模型清理兼容修复：所有自有资源都会尝试关闭，清理失败保留安全数字诊断和原异常优先级。
+- R1 本地融合与五项审查修复已完成：保留 reasoning、准确请求/清理事实、handoff 归属与纯 YAML budget/loss 接线；恢复继续保留原始会话事实。
+- Memdir 召回与 closed-exchange 压缩、Read/Edit 的 canonical ToolResult、统一 Observation，以及严格快照分页与原子导出已接入用户路径。
+- 中英文教程包含完整可运行文件，API Reference 绑定准确实现源码。[迁移说明](docs/zh/reference/g5-migration.mdx)列出兼容变化。
 
-- 融合修复保留独立的 Chat reasoning；自有资源清理再次失败时仍保留原 typed failure。
-
-- R1 融合：严格 YAML 通过现有 composition extensions 接通具名上下文预算与显式 codec loss。
-
-- Observation 的属性与映射写入保持一致，提供原子校验和独立序列化快照。
-
-- 旧 Read/Edit 现在正确保留分页窗口、拒绝非唯一编辑，并返回 canonical 失败结果。
-
-- 同一 Session 的 handoff 在 dispatch 前持久化 admission；目标 restore 与完成不再依赖迟到的源 callback。
-- 显式 memory adapter 与确定性 closed-exchange 压缩：已验证安装后两进程 Memdir 召回、namespace 隔离和实际 request selection；[用法与边界](examples/v5/r1_b_memory_context/README.md)。
-- V5 R1 Lane D 新增严格快照分页与原子流式 canonical export，warm append 增量维护 ID/位置索引；仍校验全部历史字节。见[实施证据](docs/internal/plans/v5_r1_d_execution.md)。
-- Model I/O stream 回归覆盖净化错误、终态校验、usage 与自有资源清理；离线多轮 composition 消费者验证最终结果 11 和工具输入中断。
-
-- 网页自足教程：资料整理 Agent 的完整代码、中英文学习路径、可核对源码签名的核心 API Reference；测试直接执行网页文件。
-
-- [v5 迭代路线](docs/v5/README.md)现已记录四条 R1 候选交付：模型 I/O、memory/compaction、runtime 正确性和有界轨迹消费。[独立审查](docs/internal/plans/v5_r1_integration_review.md)复跑 198 项测试，并列出组合验收前的五项有界修复；这些候选尚未融合进 master。
-
-- master 修复 Python 3.10 publication、journal 重复解析和历史证据可移植核验；这些后继修复独立验证，不改写 G5 历史资格。
-- G5 框架资格通过，S4 本地集成完成，runtime 身份固定为 `717b4cf1b23f2ed252cd03234ffd8605038d9567`。
-- 双语文档统一到安装 → 项目 → 配置 → Session → 检查 → 恢复/扩展。
-- 默认开发分支为 `master`，push 和 PR 执行 CI/docs 门禁；发布仍须显式触发。
-- 本轮文档与运行教程的验收结果单独记录；远端同步已核验，docs CI 已通过。
-  后继提交的 CI 修复与准确验证结果见[CI 计划](docs/internal/plans/master_ci_stabilization.md)；未发布 package 或部署文档。
+[当前 R1 状态与远端同步](docs/internal/plans/v5_r1_remote_sync.md)是唯一状态入口；
+[V5 路线](docs/v5/README.md)保留后续范围。R1 完成不等于 V5 全完成，
+离线框架验收不代表 live 模型资格，也不代表 package release 或文档部署。
 
 ## 开始开发
 
-`pip install qitos` 得到 PyPI 已发布版本，不代表未发布的 G5。
+`pip install qitos` 得到 PyPI 已发布版本，不代表未发布的 R1。
 先按[安装说明](docs/zh/installation.mdx)安装准确来源，再运行
 [无凭据 Quickstart](docs/zh/quickstart.mdx)。
 真实模型使用 [agent.yaml、CredentialRef 与显式 resolver](docs/zh/reference/configuration.mdx)。
@@ -71,7 +50,4 @@ Docker 文件工具不可用时 fail closed，不降级成 host 执行。
 - [贡献指南](docs/zh/contributing/development.mdx)、[架构](ARCHITECTURE.md)。
 - [CHANGELOG](CHANGELOG.md)、[历史工程进度](docs/progress.md)、[G5 证据](docs/internal/plans/s4_g5_convergence_execution.md)。
 
-G5 历史结果 2663 passed / 50 skipped 仅属于上述 runtime SHA（Python 3.12.7）。
-高级 `AgentModule.run()` 和兼容 historical trace 仍保留；它们不是第二条初学者路径。
-
-V5 R1 Lane D：轨迹工作量计数区分历史字节校验、解析和索引维护。
+高级 `AgentModule.run()` 和 historical trace 兼容仍保留。
