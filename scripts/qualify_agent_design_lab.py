@@ -38,6 +38,7 @@ def main():
         "--only", nargs="+", choices=list(PROJECTS), default=list(PROJECTS)
     )
     parser.add_argument("--repetitions", type=int, default=3)
+    parser.add_argument("--repetition-start", type=int, default=0)
     parser.add_argument("--ablation", action="store_true")
     args = parser.parse_args()
     if not args.execute_live:
@@ -45,7 +46,7 @@ def main():
             json.dumps({"status": "live_not_authorized", "planned_projects": args.only})
         )
         return 2
-    if args.repetitions < 1:
+    if args.repetitions < 1 or args.repetition_start < 0:
         raise ValueError("invalid_repetition_count")
     args.root.mkdir(parents=True, exist_ok=False, mode=0o700)
     ledger = []
@@ -64,7 +65,9 @@ def main():
     )
     # Serial Docker admission deliberately avoids unbounded host resource pressure.
     for name in args.only:
-        for repetition in range(args.repetitions):
+        for repetition in range(
+            args.repetition_start, args.repetition_start + args.repetitions
+        ):
             for task in range(3):
                 variants = ["default"]
                 if args.ablation and name in {"planact", "hermes", "voyager"}:

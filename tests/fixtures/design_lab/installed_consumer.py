@@ -118,6 +118,7 @@ def check_project(package, config_path, root):
             ),
             ("catalog_skills", {"query": "audit"}),
             ("load_skill", {"name": "audit"}),
+            ("submit_report", {"report_json": '{"conclusion":"mechanism only"}'}),
         ]
     model = Model(actions)
     with ExitStack() as stack:
@@ -169,6 +170,7 @@ def check_project(package, config_path, root):
         with module.build_factory(task, root=root) as reopened:
             assert reopened.memory.retrieve()[0].content.startswith("weight=0.8")
             assert reopened.skills.get("audit").source.endswith("LAST_CHECK")
+            assert len(reopened.history.retrieve()) == 1
     if package.endswith("planact"):
         static = Model(
             [

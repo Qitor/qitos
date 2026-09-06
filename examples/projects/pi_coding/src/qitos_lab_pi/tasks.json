@@ -44,4 +44,3 @@
     "checks": "from admission import admit\nfrom join import join_state\np=['a','b','b','c','d']; a=['a']\nassert admit(p,a,3)==['b','c']\nassert p==['a','b','b','c','d'] and a==['a']\ntry: admit(p,a,-1)\nexcept ValueError: pass\nelse: raise AssertionError('negative limit accepted')\nassert join_state({'a':'success','b':'failed'},2,3)=='pending'\nassert join_state({'a':'success','b':'failed','c':'failed'},2,3)=='impossible'\nassert join_state({'a':'success','b':'success'},2,3)=='success'\n"
   }
 ]
-

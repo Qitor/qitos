@@ -37,5 +37,3 @@ python -m pip install .
 python -m qitos_lab_hermes validate --config agent.yaml --root /tmp/lab-validation
 python -m qitos_lab_hermes run --config agent.yaml --model-config /private-config/model.yaml --credentials /private-config/credentials.yaml --root /private-runs/hermes-attempt --task 0 --live --phase learn --shared-root /private-runs/shared-notebook
 ```
-
-

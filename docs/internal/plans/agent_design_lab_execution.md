@@ -166,3 +166,25 @@ The old application matrix is stopped at a case boundary before qualifying child
 reviews; its observations remain private. The corrected installed wheel is used
 for final application consumers and live trials. Research trials have no child
 transfer and retain their original installed-source identity.
+
+### Live-driven history and native preflight closure
+
+The next full suite passed 3899 tests with 52 conditional skips. Subsequent real
+Hermes execution exposed a course KeyError: its task descriptors have an objective,
+not a required `id`. History now labels the declared objective (or explicit ID);
+a permanent test executes the history tool on the packaged task, and the installed
+consumer also publishes/reopens an episode. Its original failing result is retained.
+
+Repeated failed calls exposed an independent framework issue: loop-detector blocks
+returned before recording canonical tool terminals. Preflight blocks now close
+their matching conversation slots, and warnings are appended only after results.
+A native Session counterexample on the prior action runtime fails with an open
+batch; the corrected runtime reaches final with exactly one terminal per blocked
+call. No repeated tool is actually executed after the policy block.
+
+Final live qualification is a new source-bound group, not a best-of retry. For
+bounded completion it uses explicit per-task launch guards of 24 steps/requests
+and 600 seconds; output remains 10,240 and no total request/cost quota is imposed.
+The public project defaults remain 80/80/3600 and are configurable. Up to four
+independent project/repetition groups may run concurrently; each group's learning,
+recall and controls stay ordered. All old 80-step observations remain separate.

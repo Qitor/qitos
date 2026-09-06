@@ -16,6 +16,31 @@ from qitos.core.tool_result import ToolResult
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_hermes_history_accepts_the_packaged_task_shape(monkeypatch, tmp_path):
+    from qitos.core.tool_registry import ToolRegistry
+
+    module = load(monkeypatch, "hermes_notebook", "qitos_lab_hermes", "agent")
+    task = json.loads(
+        (
+            ROOT / "examples/projects/hermes_notebook/src/qitos_lab_hermes/tasks.json"
+        ).read_text()
+    )[0]
+    registry = ToolRegistry()
+    with module.build_factory(task, root=tmp_path) as factory:
+        factory(
+            config=SimpleNamespace(max_steps=4),
+            model=None,
+            tool_registry=registry,
+            protocol=SimpleNamespace(id="json_decision_multi_v1"),
+            parser=None,
+        )
+        outcome = registry.get("submit_report").execute(
+            {"report_json": '{"conclusion":"test"}'}, {}
+        )
+        assert outcome["submitted_report"]["conclusion"] == "test"
+        assert len(factory.history.retrieve()) == 1
+
+
 def load(monkeypatch, directory, package, filename):
     name = f"lab_policy_{package}_{filename}"
     path = ROOT / "examples/projects" / directory / "src" / package / (filename + ".py")

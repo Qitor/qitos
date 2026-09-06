@@ -74,6 +74,7 @@ class _ActionRuntime(Generic[StateT, ActionT]):
         blocked_indices: set[int] = set()
         blocked_results: List[tuple[int, ToolResult]] = []
         blocked_invocations: List[tuple[int, Dict[str, Any]]] = []
+        deferred_loop_warnings: List[str] = []
         for i, normalized_action in enumerate(actions):
             engine._memory_append("action", normalized_action, record.step_id)
             block_reason = self._action_block_reason(state, normalized_action)
@@ -162,7 +163,7 @@ class _ActionRuntime(Generic[StateT, ActionT]):
             if loop_result is not None and loop_result.level == "block":
                 loop_tool_result = ToolResult(
                     status="error",
-                    output=None,
+                    output=loop_result.message,
                     error="tool_call_loop_detected",
                     error_kind="policy",
                     error_code="tool_call_loop_detected",
@@ -187,12 +188,21 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                     "error_category": "tool_call_loop_detected",
                     "error": "tool_call_loop_detected",
                 }))
-                engine._history_append(
-                    "user",
-                    loop_result.message,
-                    record.step_id,
-                    metadata={"source": "loop_detector"},
-                )
+                if record.decision_source == "native_tool_calls" and record.native_tool_call_used:
+                    engine._history_append(
+                        "tool", self._serialize_for_tool_message(
+                            loop_tool_result.to_model_dict().get("model_output"),
+                            loop_tool_result.error,
+                        ), record.step_id,
+                        metadata={"source": "loop_detector"},
+                        tool_call_id=normalized_action.action_id,
+                        name=normalized_action.name,
+                    )
+                else:
+                    engine._history_append(
+                        "user", loop_result.message, record.step_id,
+                        metadata={"source": "loop_detector"},
+                    )
                 engine._emit(
                     record.step_id,
                     RuntimePhase.ACT,
@@ -205,11 +215,29 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                 continue
             elif loop_result is not None and loop_result.level == "warn":
                 # Soft warning: inject into the observation as guidance
-                engine._history_append(
-                    "user",
-                    loop_result.message,
-                    record.step_id,
-                    metadata={"source": "loop_detector_warning"},
+                deferred_loop_warnings.append(loop_result.message)
+
+        # Preflight policy decisions are terminal facts too. They never enter
+        # the executor, but must close their canonical slots before another
+        # model request (including the all-blocked early return).
+        conversation = getattr(engine, "_qitos_exchange_log", None)
+        open_batch = conversation.open_batch_id() if isinstance(conversation, ExchangeLog) else None
+        if isinstance(conversation, ExchangeLog) and open_batch and blocked_results:
+            builder = ToolBatchBuilder(conversation, open_batch)
+            for index, result in blocked_results:
+                call = next((item for item in builder.calls
+                             if item.identity.call_id == actions[index].action_id), None)
+                if call is None:
+                    raise ValueError("preflight terminal has no matching conversation call")
+                digest = hashlib.sha256(f"{open_batch}:{call.identity.call_id}:preflight".encode()).hexdigest()[:24]
+                builder.record_result(ToolResultItem(
+                    item_id=f"tool_result_{digest}", exchange_id=builder.exchange_id,
+                    identity=call.identity, batch_id=open_batch, result=result,
+                ))
+            if conversation.open_batch_id() is None:
+                engine._qitos_steering_receipts = reconcile_steering_receipts(
+                    conversation, tuple(getattr(engine, "_qitos_steering_receipts", ()) or ()),
+                    boundary_id=f"closed_{open_batch}",
                 )
 
         # If all actions were blocked, return immediately
@@ -654,6 +682,11 @@ class _ActionRuntime(Generic[StateT, ActionT]):
                     tool_call_id=native_call_id,
                     name=(tool_name or None),
                 )
+        for warning in deferred_loop_warnings:
+            engine._history_append(
+                "user", warning, record.step_id,
+                metadata={"source": "loop_detector_warning"},
+            )
         engine._emit(
             record.step_id,
             RuntimePhase.ACT,

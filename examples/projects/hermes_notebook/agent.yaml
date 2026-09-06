@@ -32,4 +32,3 @@ budgets:
   max_runtime_seconds: 3600
 failure_policy:
   tool: continue
-

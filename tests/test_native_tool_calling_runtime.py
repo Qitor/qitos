@@ -2,10 +2,83 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from qitos import Action, AgentModule, Decision, Engine, Observation, StateSchema, ToolRegistry, tool
+from qitos import (
+    Action,
+    AgentModule,
+    Decision,
+    Engine,
+    Observation,
+    StateSchema,
+    ToolRegistry,
+    tool,
+)
 from qitos.core.model_response import ModelResponse
 from qitos.engine import RuntimeBudget
 from qitos.kit import ReActTextParser
+
+
+def test_loop_block_closes_native_tool_batch_before_next_request():
+
+    class RepeatingModel:
+        qitos_harness_metadata = {"protocol": "json_decision_multi_v1"}
+
+        def __init__(self):
+            self.calls = 0
+
+        def call_raw(self, messages, **options):
+            self.calls += 1
+            if self.calls > 4:
+                self.final_messages = messages
+                return {"choices": [{"message": {"content": "Final Answer: done"}}]}
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": None,
+                            "tool_calls": [
+                                {
+                                    "id": f"repeat_{self.calls}",
+                                    "type": "function",
+                                    "function": {
+                                        "name": "weird_tool",
+                                        "arguments": "{}",
+                                    },
+                                }
+                            ],
+                        }
+                    }
+                ]
+            }
+
+    class RepeatingAgent(_NativeToolAgent):
+        def __init__(self, model):
+            registry = ToolRegistry()
+
+            @tool(name="weird_tool")
+            def repeated():
+                return {"value": "unchanged"}
+
+            registry.register(repeated)
+            AgentModule.__init__(
+                self,
+                llm=model,
+                tool_registry=registry,
+                model_protocol="json_decision_multi_v1",
+            )
+
+        def init_state(self, task, **kwargs):
+            return _State(task=task, max_steps=6)
+
+    model = RepeatingModel()
+    result = (
+        Engine(RepeatingAgent(model), budget=RuntimeBudget(max_steps=6))
+        .session("repeat safely")
+        .run()
+    )
+    assert result.state.final_result == "done"
+    assert model.calls == 5
+    assert result.records[3].action_results[0].error_code == "tool_call_loop_detected"
+    assert any(item.get("tool_call_id") == "repeat_4" for item in model.final_messages)
 
 
 def test_required_before_final_rejects_early_text_and_then_allows_final(
@@ -130,7 +203,7 @@ def test_malformed_native_tool_call_is_typed_and_not_text_fallback() -> None:
                         }
                     }
                 ]
-        }
+            }
 
     engine = Engine(
         agent=_NativeToolAgent(llm=MalformedModel()),
@@ -178,6 +251,8 @@ def test_required_native_tool_call_reports_provider_capability_loss() -> None:
         and event.payload.get("code") == "provider_capability_loss"
         for event in result.events
     )
+
+
 from qitos.models._openai_responses import _to_responses_input
 
 
@@ -214,7 +289,10 @@ class _NativeToolModel:
                                 {
                                     "id": "call_native_1",
                                     "type": "function",
-                                    "function": {"name": "weird_tool", "arguments": "{}"},
+                                    "function": {
+                                        "name": "weird_tool",
+                                        "arguments": "{}",
+                                    },
                                 }
                             ],
                         }
@@ -234,17 +312,23 @@ class _NativeToolAgent(AgentModule[_State, Observation, Action]):
             return {"payload": {1, 2}}
 
         registry.register(weird_tool)
-        super().__init__(tool_registry=registry, llm=llm, model_parser=ReActTextParser())
+        super().__init__(
+            tool_registry=registry, llm=llm, model_parser=ReActTextParser()
+        )
 
     def init_state(self, task: str, **kwargs: Any) -> _State:
         return _State(task=task, max_steps=3)
 
-    def decide(self, state: _State, observation: Observation) -> Decision[Action] | None:
+    def decide(
+        self, state: _State, observation: Observation
+    ) -> Decision[Action] | None:
         _ = state
         _ = observation
         return None
 
-    def reduce(self, state: _State, observation: Observation, decision: Decision[Action]) -> _State:
+    def reduce(
+        self, state: _State, observation: Observation, decision: Decision[Action]
+    ) -> _State:
         _ = observation
         _ = decision
         return state
@@ -271,12 +355,16 @@ class _HarnessAgent(AgentModule[_State, Observation, Action]):
         _ = kwargs
         return _State(task=task, max_steps=2)
 
-    def decide(self, state: _State, observation: Observation) -> Decision[Action] | None:
+    def decide(
+        self, state: _State, observation: Observation
+    ) -> Decision[Action] | None:
         _ = state
         _ = observation
         return None
 
-    def reduce(self, state: _State, observation: Observation, decision: Decision[Action]) -> _State:
+    def reduce(
+        self, state: _State, observation: Observation, decision: Decision[Action]
+    ) -> _State:
         _ = observation
         _ = decision
         return state
@@ -336,11 +424,7 @@ def test_default_history_window_never_sends_orphan_parallel_tool_results() -> No
             call_index = self.calls
             self.calls += 1
             if call_index >= 8:
-                return {
-                    "choices": [
-                        {"message": {"content": "Final Answer: done"}}
-                    ]
-                }
+                return {"choices": [{"message": {"content": "Final Answer: done"}}]}
 
             tool_call_count = 3 if call_index == 0 else 1
             return {
@@ -355,8 +439,7 @@ def test_default_history_window_never_sends_orphan_parallel_tool_results() -> No
                                     "function": {
                                         "name": "probe",
                                         "arguments": (
-                                            '{"value": %d}'
-                                            % (call_index * 10 + offset)
+                                            '{"value": %d}' % (call_index * 10 + offset)
                                         ),
                                     },
                                 }

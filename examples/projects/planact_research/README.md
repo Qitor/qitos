@@ -37,5 +37,3 @@ python -m pip install .
 python -m qitos_lab_planact validate --config agent.yaml --root /tmp/lab-validation
 python -m qitos_lab_planact run --config agent.yaml --model-config /private-config/model.yaml --credentials /private-config/credentials.yaml --root /private-runs/planact-attempt --task 0 --live
 ```
-
-

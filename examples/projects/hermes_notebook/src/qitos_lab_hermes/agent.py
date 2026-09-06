@@ -192,7 +192,7 @@ class NotebookFactory:
                         "runtime",
                         json.dumps(
                             {
-                                "task": self.task["id"],
+                                "task": self.task.get("id", self.task["task"]),
                                 "report": report,
                                 "verification": "not_yet_independently_checked",
                             }
