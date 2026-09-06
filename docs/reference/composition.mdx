@@ -38,7 +38,7 @@ FakeCredentialResolver(values: Mapping[str, str] | None=None) -> None
 
 | Parameter | Type | Default |
 | --- | --- | --- |
-| `values` | `Mapping[str, str] &#124; None` | `None` |
+| `values` | `Mapping[str, str] \| None` | `None` |
 
 
 <span id="qitos-config-agentcomposition" />
@@ -192,7 +192,7 @@ build_agent_composition(config: AgentConfig, *, credential_resolver: Optional[Cr
 from qitos.config import load_agent_config
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L500)
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L503)
 
 [Usage and executable example](/quickstart)
 
@@ -225,7 +225,7 @@ load_agent_config(path: str | Path, *, compatibility: bool=False, environment_in
 from qitos.config import AgentConfig
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L232)
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L235)
 
 [Usage and executable example](/quickstart)
 
@@ -279,7 +279,7 @@ to_dict() -> Dict[str, Any]
 Return deterministic JSON/YAML-safe canonical launch data.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L294)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L297)
 
 <span id="qitos-config-agentconfig-digest" />
 ### AgentConfig.digest
@@ -288,7 +288,7 @@ Return deterministic JSON/YAML-safe canonical launch data.
 digest() -> str
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L338)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L341)
 
 
 <span id="qitos-config-credentialref" />
@@ -374,7 +374,7 @@ resolve(ref: CredentialRef) -> CredentialResolution
 from qitos.config import BudgetConfig
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L218)
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L221)
 
 [Usage and executable example](/quickstart)
 
@@ -463,7 +463,7 @@ model = ModelConfig(provider="openai_compatible", model="notes-fake")
 from qitos.config import RuntimeConfig
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L202)
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L205)
 
 [Usage and executable example](/quickstart)
 
@@ -488,7 +488,7 @@ runtime = RuntimeConfig(environment=EnvironmentConfig(workspace="./source"))
 from qitos.config import TrajectoryConfig
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L186)
+[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/config/loader.py#L189)
 
 [Usage and executable example](/quickstart)
 

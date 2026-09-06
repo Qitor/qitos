@@ -21,7 +21,7 @@ Continuous `iter_records` and file export validate the full snapshot at the star
 from qitos.core.conversation import ExchangeLog
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/conversation.py#L480)
+[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/core/conversation.py#L480)
 
 [Usage and executable example](/guides/observability)
 
@@ -57,7 +57,7 @@ from_dict(payload: Mapping[str, Any]) -> 'ExchangeLog'
 | --- | --- | --- |
 | `payload` | `Mapping[str, Any]` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/conversation.py#L870)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/core/conversation.py#L870)
 
 <span id="qitos-core-conversation-exchangelog-declared-calls" />
 ### ExchangeLog.declared_calls
@@ -70,7 +70,7 @@ declared_calls(batch_id: str) -> List[ToolCall]
 | --- | --- | --- |
 | `batch_id` | `str` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/conversation.py#L702)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/core/conversation.py#L702)
 
 <span id="qitos-core-conversation-exchangelog-results-for-batch" />
 ### ExchangeLog.results_for_batch
@@ -83,7 +83,7 @@ results_for_batch(batch_id: str) -> List[ToolResultItem]
 | --- | --- | --- |
 | `batch_id` | `str` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/conversation.py#L710)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/core/conversation.py#L710)
 
 <span id="qitos-core-conversation-exchangelog-results-for-batch-in-declaration-order" />
 ### ExchangeLog.results_for_batch_in_declaration_order
@@ -100,7 +100,7 @@ results_for_batch_in_declaration_order(batch_id: str) -> List[ToolResultItem]
 Derive results in call declaration order without rewriting facts.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/conversation.py#L717)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/core/conversation.py#L717)
 
 <span id="qitos-core-conversation-exchangelog-open-batch-id" />
 ### ExchangeLog.open_batch_id
@@ -109,7 +109,7 @@ Derive results in call declaration order without rewriting facts.
 open_batch_id() -> Optional[str]
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/conversation.py#L732)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/core/conversation.py#L732)
 
 
 <span id="qitos-tracing-journal_store-journaltrajectorystore" />
@@ -119,7 +119,7 @@ open_batch_id() -> Optional[str]
 from qitos.tracing.journal_store import JournalTrajectoryStore
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/tracing/journal_store.py#L58)
+[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/journal_store.py#L59)
 
 [Usage and executable example](/guides/observability)
 
@@ -139,7 +139,7 @@ JournalTrajectoryStore(path: str | Path, *, recover_partial_tail: bool=True, max
 
 | Parameter | Type | Default |
 | --- | --- | --- |
-| `path` | `str &#124; Path` | `required` |
+| `path` | `str \| Path` | `required` |
 | `recover_partial_tail` | `bool` | `True` |
 | `max_query_records` | `int` | `10000` |
 | `read_only` | `bool` | `False` |
@@ -155,7 +155,7 @@ read_session(session_id: str) -> Trajectory
 | --- | --- | --- |
 | `session_id` | `str` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/tracing/journal_store.py#L447)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/journal_store.py#L473)
 
 
 <span id="qitos-qita-reader-default_reader" />
@@ -318,7 +318,7 @@ from_journal(path: str | Path) -> 'StoreTrajectoryReader'
 
 | Parameter | Type | Default |
 | --- | --- | --- |
-| `path` | `str &#124; Path` | `required` |
+| `path` | `str \| Path` | `required` |
 
 ```text
 Open a validated read-only journal without materializing its history.
@@ -336,7 +336,7 @@ read_page(query: TrajectoryQuery, cursor: TrajectoryCursor | None=None, *, view:
 | Parameter | Type | Default |
 | --- | --- | --- |
 | `query` | `TrajectoryQuery` | `required` |
-| `cursor` | `TrajectoryCursor &#124; None` | `None` |
+| `cursor` | `TrajectoryCursor \| None` | `None` |
 | `view` | `PrivacyView` | `PrivacyView.REDACTED_PUBLIC` |
 
 [Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/readers.py#L508)
@@ -474,7 +474,7 @@ read_page(reader: Any, query: TrajectoryQuery, cursor: TrajectoryCursor | None=N
 | --- | --- | --- |
 | `reader` | `Any` | `required` |
 | `query` | `TrajectoryQuery` | `required` |
-| `cursor` | `TrajectoryCursor &#124; None` | `None` |
+| `cursor` | `TrajectoryCursor \| None` | `None` |
 | `view` | `PrivacyView` | `PrivacyView.REDACTED_PUBLIC` |
 
 

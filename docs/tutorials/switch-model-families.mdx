@@ -3,6 +3,9 @@ title: "Switch model families with presets"
 description: "Run the same agent across Qwen, Kimi, DeepSeek, and other model families using family presets — without rewriting agent code."
 ---
 
+Chat streaming retains supported provider reasoning separately from the visible answer. Replaying provider reasoning requires declared capability and matching provider/API scope; otherwise codec loss is explicit. Owned cleanup failures preserve the original typed request failure and safe usage/partial facts; a cleanup-only failure is not success. The offline combined consumer exercises these contracts through the built-in adapter, without claiming live provider qualification.
+
+
 <Note>Advanced/compatible programmatic examples. Fragments illustrate mechanisms; HostEnv or workspace does not provide isolation. New projects start with [Quickstart](/quickstart), Session and explicit resource configuration.</Note>
 
 

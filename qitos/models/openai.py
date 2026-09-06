@@ -661,6 +661,7 @@ class OpenAIModel(Model):
         client = response = None
         sent = False
         partial_text_characters = 0
+        state = None
         try:
             client = _new_client(self)
             safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
@@ -689,13 +690,13 @@ class OpenAIModel(Model):
             yield state.finish()
         except Exception as exc:
             raise failure(self, exc, sent=sent,
-                          partial_text_characters=partial_text_characters) from None
+                          partial_text_characters=partial_text_characters, stream_state=state) from None
         finally:
             try:
                 close_owned(response, client, model=self)
             except ProviderFailure as exc:
                 raise failure(self, exc, sent=sent,
-                              partial_text_characters=partial_text_characters) from None
+                              partial_text_characters=partial_text_characters, stream_state=state) from None
 
     def _usage_from_response(self, response: Any) -> Optional[Dict[str, Any]]:
         usage = getattr(response, "usage", None)
@@ -1039,6 +1040,7 @@ class OpenAICompatibleModel(Model):
         client = response = None
         sent = False
         partial_text_characters = 0
+        state = None
         try:
             client = _new_client(self)
             safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
@@ -1067,13 +1069,13 @@ class OpenAICompatibleModel(Model):
             yield state.finish()
         except Exception as exc:
             raise failure(self, exc, sent=sent,
-                          partial_text_characters=partial_text_characters) from None
+                          partial_text_characters=partial_text_characters, stream_state=state) from None
         finally:
             try:
                 close_owned(response, client, model=self)
             except ProviderFailure as exc:
                 raise failure(self, exc, sent=sent,
-                              partial_text_characters=partial_text_characters) from None
+                              partial_text_characters=partial_text_characters, stream_state=state) from None
 
 
 class AzureOpenAIModel(OpenAICompatibleModel):
@@ -1230,6 +1232,7 @@ class AsyncOpenAICompatibleModel(OpenAICompatibleModel):
         client = response = nested = None
         sent = False
         partial_text_characters = 0
+        state = None
         try:
             client = _new_client(self, asynchronous=True)
             safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
@@ -1255,13 +1258,13 @@ class AsyncOpenAICompatibleModel(OpenAICompatibleModel):
             yield state.finish()
         except Exception as exc:
             raise failure(self, exc, sent=sent,
-                          partial_text_characters=partial_text_characters) from None
+                          partial_text_characters=partial_text_characters, stream_state=state) from None
         finally:
             try:
                 await aclose_owned(nested, response, client, model=self)
             except ProviderFailure as exc:
                 raise failure(self, exc, sent=sent,
-                              partial_text_characters=partial_text_characters) from None
+                              partial_text_characters=partial_text_characters, stream_state=state) from None
 
 
 class AsyncOpenAIModel(OpenAIModel):
@@ -1317,6 +1320,7 @@ class AsyncOpenAIModel(OpenAIModel):
         client = response = nested = None
         sent = False
         partial_text_characters = 0
+        state = None
         try:
             client = _new_client(self, asynchronous=True)
             safe = _relocate_chat_template_kwargs({**self.default_request_kwargs, **kwargs})
@@ -1342,13 +1346,13 @@ class AsyncOpenAIModel(OpenAIModel):
             yield state.finish()
         except Exception as exc:
             raise failure(self, exc, sent=sent,
-                          partial_text_characters=partial_text_characters) from None
+                          partial_text_characters=partial_text_characters, stream_state=state) from None
         finally:
             try:
                 await aclose_owned(nested, response, client, model=self)
             except ProviderFailure as exc:
                 raise failure(self, exc, sent=sent,
-                              partial_text_characters=partial_text_characters) from None
+                              partial_text_characters=partial_text_characters, stream_state=state) from None
 
 
 # Register to factory

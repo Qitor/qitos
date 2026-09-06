@@ -18,6 +18,8 @@ QitOS 主仓库是小而清晰的核心框架。产品级 / 展示级应用会�
 
 ## 当前能力
 
+- R1 安装后组合消费者贯通 YAML 预算、持久记忆、重复压缩、原生多轮工具、handoff/restore 与 canonical export；恢复保留原始会话事实。
+
 QitOS 是研究优先的 Agent 框架：一个 `AgentModule + Engine` 内核，
 通过 Session 管理运行、暂停、持久化恢复和 fork。工具、provider、context、
 store、sink 和 sandbox 可扩展；qita 只读检查 Trajectory。

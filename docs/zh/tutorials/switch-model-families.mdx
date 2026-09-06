@@ -3,6 +3,9 @@ title: "用预设切换模型家族"
 description: "使用家族预设让同一个智能体在 Qwen、Kimi、DeepSeek 等模型家族之间切换——无需重写智能体代码。"
 ---
 
+Chat streaming 将支持的 provider reasoning 与可见回答分开保留。重放需要声明 capability 且 provider/API scope 匹配，否则必须显式处理 codec loss。Owned cleanup 失败保留原 typed 请求错误及安全的 usage/partial 事实；仅清理失败也不算成功。离线组合消费者通过内置 adapter 验证这些合同，不代表真实 provider 已通过 live 资格。
+
+
 <Note>高级/兼容程序化示例。此页代码片段仅作机制说明；HostEnv 或 workspace 不提供隔离。新项目先按 [Quickstart](/zh/quickstart) 使用 Session 与明确资源配置。</Note>
 
 

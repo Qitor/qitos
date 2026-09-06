@@ -2686,7 +2686,7 @@ class Session:
         graph = getattr(self._engine, "_qitos_work_graph", None)
         if isinstance(graph, WorkGraph):
             for operation in reversed(graph.operation_receipts):
-                if self._current_handoff(graph, operation):
+                if operation.descriptor is not None and self._current_handoff(graph, operation):
                     descriptor = WorkDescriptor.from_dict(operation.descriptor)
                     if descriptor.agent_refs:
                         target = ResolverReference.from_dict(descriptor.agent_refs[0])

@@ -9,7 +9,7 @@ The notes Agent needs project instructions and remembered facts. Bind concrete i
 
 This fixture makes four scripted tool calls (two passes over the two notes), then finishes. `ClosedExchangeWindowCompactor` omits the oldest eligible closed exchanges without a summary only when the request exceeds its configured budget. `ContextBudget.protected_recent_exchanges=2` protects the recent window. Without an explicitly selected compactor, history overflow fails instead of silently dropping exchanges.
 
-Read the factory bindings in `run`. The existing YAML loader accepts the memory and compaction names. The existing Python `dataclasses.replace` configuration supplies `context.budget_policy` and explicitly sets `context.allow_codec_loss=True`; those context service keys are not accepted by the YAML loader. This is a visible loss opt-in for the example, never a setting enabled inside the adapter or compactor.
+The public YAML loader accepts `context.budget_policy: budget` and `context.allow_codec_loss: true`. Bind `budget` explicitly through extensions to a context budget policy factory. Loss must be a real boolean; unknown fields and unbound factories fail before the first model request. The complete tutorial below also demonstrates Python composition of other context services; the installed B consumer uses these options directly in YAML.
 
 Basic Python is required. The package declares Python ≥3.10; local qualification uses Python 3.12.7. Each chapter runs independently; reuse the environment and matching files when continuing your project. Commands below use a macOS/Linux shell.
 

@@ -18,6 +18,8 @@ QitOS core is the small framework. Product-grade applications and showcase agent
 
 ## What you can build
 
+- R1 combined installed consumer now covers YAML budgets, durable memory, repeated compaction, native multi-round tools, handoff/restore and canonical export; raw conversation facts survive restoration.
+
 QitOS is a research-first Agent framework: one `AgentModule + Engine` kernel,
 with Session ownership, pause, durable recovery and fork. Extend tools,
 providers, context, stores, sinks and sandboxes; inspect Trajectory through

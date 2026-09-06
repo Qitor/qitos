@@ -3,6 +3,15 @@ title: "Configure a real model"
 description: "Use the same notes project with explicit credentials and bounded requests."
 ---
 
+R1 context configuration supports the following strict YAML. `budget` resolves through the existing explicit extensions factory boundary. No callable, client or credential value is persisted. Without loss opt-in, ordinary lossless requests still run; requests requiring loss fail before provider dispatch.
+
+```yaml
+context:
+  budget_policy: budget
+  allow_codec_loss: true
+```
+
+
 Continue with the same notes project. By default the script validates configuration only; `--live` explicitly opts into credential resolution and model requests. Documentation qualification never executes that option. Complete [Quickstart](/quickstart) installation first; to start independently, create an empty directory and save every file on this page.
 
 ## Dependencies and configuration

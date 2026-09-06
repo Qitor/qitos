@@ -3,6 +3,15 @@ title: "配置真实模型"
 description: "Use the same notes project with explicit credentials and bounded requests."
 ---
 
+R1 context 配置支持以下严格 YAML。`budget` 通过现有显式 extensions factory 边界解析；不持久化 callable、client 或凭据值。未启用 loss 时普通无损请求仍可运行，需要损失授权的请求在 provider dispatch 前失败。
+
+```yaml
+context:
+  budget_policy: budget
+  allow_codec_loss: true
+```
+
+
 本章继续同一个资料项目。默认只校验配置；必须显式传 `--live` 才读取凭据并请求模型。本轮文档验收不会执行该选项。先完成 [Quickstart](/zh/quickstart) 安装；独立开始时，创建空目录并保存本页全部文件。
 
 ## 依赖和配置

@@ -14,7 +14,7 @@ from ..core.request_view import RequestTarget
 
 def failure(
     model: Any, error: BaseException, *, sent: bool = True,
-    partial_text_characters: int = 0,
+    partial_text_characters: int = 0, stream_state: Any = None,
 ) -> ProviderFailure:
     normalized = normalize_provider_failure(
         error, target=RequestTarget.from_dict(model.qitos_request_target())
@@ -24,6 +24,9 @@ def failure(
     usage = getattr(model, "_last_usage", None)
     if usage is not None:
         details["usage"] = usage
+    if stream_state is not None:
+        details["partial_tool_calls"] = len(stream_state.calls)
+        details["partial_reasoning_characters"] = sum(len(v) for v in stream_state.reasoning_fields.values())
     if partial_text_characters:
         details["partial_text_characters"] = partial_text_characters
     return replace(normalized, provider_request_sent=actual_sent, redacted_details=details)

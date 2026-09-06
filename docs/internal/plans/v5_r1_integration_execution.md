@@ -93,3 +93,33 @@ concurrent destination claim fails normal owner CAS and cannot rewrite its termi
 Local resolver failures (including non-callable return) are normalized before worker
 creation, with capacity released. Forty-one focused work/runtime/race tests passed;
 the final 20-process interleaving gate and installed combination remain pending.
+
+## Combined-consumer discovered repair
+
+The installed consumer first failed because RequestView inherited the model's
+128k default instead of the declared fixture budget; YAML now explicitly sets the
+model context window to 100000. With real overflow, it then exposed a runtime
+regression: after durable restore, the second step rebuilt canonical conversation
+from compatibility History, losing old raw items/reasoning and changing identity.
+Canonical ExchangeLog now remains authoritative; only the current user input is
+appended once, keyed by run/step/content. Assistant/tool facts share that user's
+exchange identity, allowing whole eligible exchanges to compact. No second log or
+execution loop was introduced. The installed regression asserts original items
+byte-for-byte unchanged after restore and nine reasoning-bearing tool rounds.
+
+Development wheel 4 passed the public combination in 7.29 seconds: ten requests,
+nine tool batches, forced fast-before-slow completion via Event/terminal hook,
+multiple actual compactions, required memory/artifact/recent-window preservation,
+continuation/missing-artifact/open-batch rejection, same-Agent independent Session,
+page/iterator/export/reimport equality and owned thread/resource release. A separate
+namespace made a real ordinary no-loss request. Missing loss permission prevented
+the second SDK request (`provider_capability_loss`). The failure variant truncated
+the second tool batch and failed both closes: zero incomplete-batch tool effects,
+two earlier results retained, no final, two consumed requests, sent/usage/partial
+counts and two cleanup failures retained. Recovery did not redispatch it.
+
+Only SDK I/O is scripted. The first five calls stream; the destination restored in
+a clean process uses the adapter's nonstream path (stream callbacks are not durable
+configuration). Provider tool results preserve identity/output association; the
+codec may transmit completion order, which is distinct from declaration order.
+These are development checks, not the final source/wheel qualification receipt.

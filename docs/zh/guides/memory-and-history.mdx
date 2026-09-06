@@ -9,7 +9,7 @@ description: "从网页完整代码学习 QitOS 资料整理项目。"
 
 fixture 发出四次脚本化工具调用（对两篇笔记各处理两次），然后结束。只有请求超过配置预算时，`ClosedExchangeWindowCompactor` 才按最旧优先省略符合条件的 closed exchanges，不生成摘要。`ContextBudget.protected_recent_exchanges=2` 保护最近窗口。没有显式选择 compactor 时，历史超预算会失败，不会静默丢弃 exchanges。
 
-先阅读 `run` 中的 factory 绑定。现有 YAML loader 接受 memory 与 compaction 名称；现有 Python `dataclasses.replace` 配置提供 `context.budget_policy`，并显式设置 `context.allow_codec_loss=True`。YAML loader 不接受这两个 context service 字段。这是示例明确展示的损失 opt-in，不是 adapter 或 compactor 内部自动启用的设置。
+公开 YAML loader 接受 `context.budget_policy: budget` 与 `context.allow_codec_loss: true`。在 extensions 中将 `budget` 显式绑定到预算 policy factory。loss 必须是真实布尔值；未知字段、未绑定 factory 会在首个模型请求前失败。下方完整教程同时展示其他 context 服务的 Python 组合；B 的安装消费者直接在 YAML 中配置这两个字段。
 
 需要 Python 基础；声明支持 Python ≥3.10，本轮本地验证使用 Python 3.12.7。每章可独立运行；继续已有项目时可复用环境和同名文件。以下命令为 macOS/Linux shell。
 
