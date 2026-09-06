@@ -54,6 +54,7 @@
                 "group": "Agent Design Lab",
                 "pages": [
                   "tutorials/agent-design-lab",
+                  "tutorials/agent-design-lab-results",
                   "tutorials/design-lab-react",
                   "tutorials/design-lab-planact",
                   "tutorials/design-lab-pi",
@@ -218,6 +219,7 @@
                 "group": "Agent 设计实验室",
                 "pages": [
                   "zh/tutorials/agent-design-lab",
+                  "zh/tutorials/agent-design-lab-results",
                   "zh/tutorials/design-lab-react",
                   "zh/tutorials/design-lab-planact",
                   "zh/tutorials/design-lab-pi",

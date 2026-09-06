@@ -32,6 +32,7 @@ How to update:
 
 - Native preflight policy blocks close their canonical conversation slots even when every action is blocked; loop warnings wait until tool results, avoiding orphan batches on the next request.
 - The Hermes course persists history for its packaged task shape, without requiring an undeclared `id` field.
+- The offline work-graph lesson explicitly allocates requests to delegate/spawn children, leaving budget for the remaining operations.
 - Same-owner `Session.run()` continuation now traverses the restoring lifecycle and retires the previous pause receipt; a completed continuation persists its terminal head instead of remaining running.
 - Child resource restoration no longer overwrites authorized context transfer with parent conversation or batch caches. Independent task input and inherited workspace artifacts are checked together.
 - Snapshot inspection decodes complete JSON strings before classifying scalar values: escaped Python newlines no longer resemble Windows drive paths, while encoded real private paths remain rejected. Session contract failures stop the active loop instead of being retried as ordinary tool errors.

@@ -56,9 +56,15 @@ def run(root):
         parent = composition.session("Compute, then ask independent arithmetic workers")
         parent.run()
         assert parent.lifecycle.value == "paused"
-        delegated = parent.delegate("arithmetic", task="Explain the addition")
+        delegated = parent.submit_work("delegate", {
+            "agent": "arithmetic", "task": "Explain the addition",
+            "budget": {"model_requests": 2},
+        })
         wait(parent, delegated)
-        spawned = parent.spawn("arithmetic", task="Check the sum")
+        spawned = parent.submit_work("spawn", {
+            "agent": "arithmetic", "task": "Check the sum",
+            "budget": {"model_requests": 2},
+        })
         wait(parent, spawned)
         batch = parent.fan_out([{"agent": "arithmetic", "task": "Check 20", "budget": {"model_requests": 2}},
                                 {"agent": "arithmetic", "task": "Check 22", "budget": {"model_requests": 2}}])

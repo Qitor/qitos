@@ -17,14 +17,14 @@ Private endpoints, credentials and raw evidence remain outside the repository.
 
 | Work | Consumers | Required evidence | State |
 | --- | --- | --- | --- |
-| Custom composition factory | ReAct, PlanAct | invalid bindings, cleanup, persistence, installed usage | pending |
-| Durable tool/skill library | Hermes, Voyager | reopen, version, isolation, retrieval, full-body loading | pending |
-| Feedback and planning | ReAct, PlanAct | same tasks, actual replanning, recorded model requests | pending |
-| Extensible coding | Pi-like, Claude-Code-like | native Env tools, independent extension, child review | pending |
-| Memory and skill learning | Hermes, Voyager | cross-session recall, validated executable reuse | pending |
-| Independent packaging | all six | Python 3.10 and 3.12 outside checkout | pending |
+| Custom composition factory | ReAct, PlanAct | invalid bindings, cleanup, persistence, installed usage | deterministic + installed passed |
+| Durable tool/skill library | Hermes, Voyager | reopen, version, isolation, retrieval, full-body loading | deterministic + installed passed |
+| Feedback and planning | ReAct, PlanAct | same tasks, actual replanning, recorded model requests | deterministic passed; real trials recorded separately |
+| Extensible coding | Pi-like, Claude-Code-like | native Env tools, independent extension, child review | real Docker mechanism passed |
+| Memory and skill learning | Hermes, Voyager | cross-session recall, validated executable reuse | installed + real Docker passed; live task quality separate |
+| Independent packaging | all six | Python 3.10 and 3.12 outside checkout | passed |
 | Research qualification | all six | three tasks x three repetitions plus ablations | pending |
-| Public teaching material | all six | complete EN/zh source, references, limitations, sync | pending |
+| Public teaching material | all six | complete EN/zh source, references, limitations, sync | implemented; actual browser/source checks passed |
 
 ## Confirmed gaps before changes
 
@@ -195,3 +195,10 @@ policy now declares at most one third of the configured request ceiling, capped
 at 30; the framework still intersects all authorities. The same 24-request Docker
 counterexample now completes parent, independent child and final continuation.
 This is application budget policy, not a framework refund or accounting bypass.
+
+The expanded full run then recorded 3900 passed, 52 skipped and one failed legacy
+installed work-graph lesson. It left delegate/spawn request allocations implicit;
+the first child could reserve the parent's entire remainder. The lesson now
+declares two requests per child through public submit_work, as its fan-out already
+did. No reservation is refunded or hidden. The precise failing subprocess and
+the requalified installed consumer are retained in private evidence.
