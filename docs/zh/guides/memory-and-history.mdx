@@ -18,12 +18,12 @@ fixture 发出四次脚本化工具调用（对两篇笔记各处理两次），
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install /path/to/reviewed/qitos-0.6.0-py3-none-any.whl
+python -m pip install "qitos @ git+https://github.com/WhitzardAgent/WhitzardOS.git@f7d4b2d666a156d361da496a41868278f84ffabf"
 mkdir notes_lesson
 cd notes_lesson
 ```
 
-本章使用经过审阅、尚未发布的 Lane B wheel（从对应源码运行 `python -m build` 构建）；此前教程固定的版本不包含这些新 adapter。
+本教程使用下方固定的 R1 融合实现；源码安装不代表已发布 PyPI 版本。
 
 将下方完整文件保存到当前目录。无需 clone 仓库、安装 editable 包或复制 tests。
 

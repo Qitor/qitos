@@ -7,13 +7,13 @@ description: "QitOS G5 · Installation"
 
 | Source | Installation | Capability identity |
 |---|---|---|
-| Published PyPI | `python -m pip install qitos` | Published distribution; **does not identify G5** |
-| Documented source (G5 successor) | Exact commit command below | `60809b3be388d22ea40ea41b4aaa1f5540c76fda` |
+| Published PyPI | `python -m pip install qitos` | Published distribution; **does not identify R1** |
+| Documented R1 implementation | Exact commit command below | `f7d4b2d666a156d361da496a41868278f84ffabf` |
 | GitHub development branch | `python -m pip install "qitos @ git+https://github.com/WhitzardAgent/WhitzardOS.git@master"` | Moving development tree; record the resolved SHA |
 | Local wheel | `python -m pip install ./qitos-0.6.0-py3-none-any.whl` | Verify the wheel digest and source receipt |
 | Framework contributor | `python -m pip install -e ".[dev]"` in your clone | Editable checkout, not installed-wheel qualification |
 
-The G5 source still declares package version 0.6.0. A version string alone
+The R1 source still declares package version 0.6.0. A version string alone
 cannot distinguish it from a published build. This task does not publish a package.
 
 ## Install the documented runtime
@@ -25,7 +25,7 @@ shell for these commands (Windows users need corresponding activation commands).
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install "qitos @ git+https://github.com/WhitzardAgent/WhitzardOS.git@60809b3be388d22ea40ea41b4aaa1f5540c76fda"
+python -m pip install "qitos @ git+https://github.com/WhitzardAgent/WhitzardOS.git@f7d4b2d666a156d361da496a41868278f84ffabf"
 python -m pip install pytest
 qit --help
 qita --help
@@ -39,7 +39,7 @@ A rebuilt wheel need not have identical archive bytes; compare its source identi
 
 The fake notes path needs only the base package and pytest. For an
 OpenAI or OpenAI-compatible client use the same pinned install with
-`qitos[openai] @ git+https://github.com/WhitzardAgent/WhitzardOS.git@60809b3be388d22ea40ea41b4aaa1f5540c76fda`.
+`qitos[openai] @ git+https://github.com/WhitzardAgent/WhitzardOS.git@f7d4b2d666a156d361da496a41868278f84ffabf`.
 `qitos[models]` also adds LiteLLM. `qitos[docker]` and `qitos[qita]` currently add
 no Python dependencies; Docker still requires a working Docker CLI and daemon.
 MCP needs `[mcp]`, browser tools `[web]`, W&B `[wandb]`, MLflow `[mlflow]`.
@@ -51,4 +51,4 @@ Both help commands must exit zero. A missing G5 import usually means a different
 interpreter or an older installed distribution; verify `python -m pip show qitos`
 and recreate the venv from the exact source. Continue to [Quickstart](/quickstart).
 
-<Note>These lessons use 60809b3, which includes the Python 3.10 publication fix. Historical G5 baseline remains 717b4cf1b23f2ed252cd03234ffd8605038d9567; the historical wheel digest above belongs only to that qualification. Historical test results are not attributed to this successor.</Note>
+<Note>These lessons use f7d4b2d666a156d361da496a41868278f84ffabf, including the Python 3.10 publication and model cleanup fixes. Historical G5 baseline remains 717b4cf1b23f2ed252cd03234ffd8605038d9567; the historical wheel digest above belongs only to that qualification. Historical test results are not attributed to this successor.</Note>

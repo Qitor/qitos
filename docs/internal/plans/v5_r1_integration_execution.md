@@ -1,8 +1,8 @@
 # V5 R1 integration execution
 
-Status: offline framework qualification passed; local acceptance follows the authorized fast-forward gate. Live not run; no push or release.
+Status: historical completed integration. Offline framework qualification passed; local master acceptance completed at `d17a6ab4f6b09b0dd8a9c8896f859d26de17f3ec`. Live was not run; this integration task did not push or release. Current status and the additional Python 3.10 repair/push authorization are in the [remote synchronization record](v5_r1_remote_sync.md).
 
-## Authorization and preservation
+## Historical authorization and preservation
 
 The current integration instruction supersedes older planning restrictions on
 local preservation, qualified fast-forward promotion and non-forced retirement.
@@ -54,7 +54,7 @@ Roundtrip exposed an existing serializer issue: unsafe_host emitted sandbox-only
 neutral defaults rejected by its own loader. Serialization now emits type and
 workspace only for that backend; admission and Env execution constraints are
 unchanged. Config roundtrip and digest equality are asserted without a workaround.
-Installed consumers and final source bindings remain pending.
+At this intermediate point, installed consumers and source bindings were pending; completed results appear below.
 
 ## R1-M1/M2 repair
 
@@ -72,7 +72,7 @@ keeps only allowlisted non-negative integer usage counters, never raw SDK extras
 Expanded tests include borrowed Responses helper clients, cancellation during
 iteration/cleanup, explicit sync/async close and no-reasoning behavior. A focused
 144-test adapter/codec sweep passed before the last cancellation-only additions;
-final complete tests and installed two-tool-round verification remain pending.
+complete tests and installed two-tool-round verification were then pending; both completed below.
 
 ## R1-C1/C2 repair
 
@@ -92,7 +92,7 @@ Changing the payload is still a typed identity conflict. A source write after a
 concurrent destination claim fails normal owner CAS and cannot rewrite its terminal.
 Local resolver failures (including non-callable return) are normalized before worker
 creation, with capacity released. Forty-one focused work/runtime/race tests passed;
-the final 20-process interleaving gate and installed combination remain pending.
+the 20-process interleaving gate and installed combination were then pending; both completed below.
 
 ## Combined-consumer discovered repair
 
@@ -188,7 +188,9 @@ whole iteration and some smaller streaming exports are slower. 100k streaming ex
 Python peak 1,435,215 bytes and traced-process RSS 62,160,896 bytes are distinct
 measurements, not a universal bound or new integration measurement.
 
-## Local acceptance and retirement boundary
+## Historical local acceptance and retirement contract (executed)
+
+Local acceptance subsequently completed at `d17a6ab4f6b09b0dd8a9c8896f859d26de17f3ec`; the integration and four lane worktrees were retired with refs preserved. The following paragraph retains the original acceptance procedure.
 
 All implementation changes and documentation closure are committed before local
 acceptance. The user authorizes master fast-forward only after the candidate and

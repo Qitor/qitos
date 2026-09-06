@@ -1,13 +1,12 @@
 # V5-03 — 一套工具入口、可信公共接口与旧架构收敛
 
-状态：`in_progress`；R1-C 候选已交付，handoff 补充反例待融合修复。优先级：高。执行前先读 [共同合同](README.md)。
+状态：`in_progress`；R1-C 与 handoff C1/C2 修复已融合并验收。优先级：高。后续范围遵循 [共同合同](README.md)；当前状态统一见[本轮记录](../internal/plans/v5_r1_remote_sync.md)。
 承接 v4 03D、08B/C/D、09E/F、10B–F；不是全仓库格式清理任务。
 
 R1 仅执行 [Lane C 指令](../internal/plans/v5_r1_c_runtime_correctness.md)：当前 handoff ownership/terminal 竞态、Read/Edit 与 Observation。原 03B 的 func/SharedMemory 决策和 03C–E 仍开放，不能因本轮 C 合格就全部勾选完成。
 
-独立复跑 45 项通过；额外探针显示同 Agent 的不同 work item 被共同关闭，以及明确队列
-拒绝仍留下 admitted/unknown。按[融合计划](../internal/plans/v5_r1_integration_plan.md)精确修复，
-不恢复旧 owner 的终态写入。Read/Edit 的 ToolResult 返回变化须保留迁移说明。
+历史独立复跑 45 项通过，但额外探针曾暴露 work 归属和已知未调度事实缺陷。
+两项均已按[融合执行](../internal/plans/v5_r1_integration_execution.md)修复，未恢复旧 owner 的终态写入。Read/Edit 的 ToolResult 返回变化须保留迁移说明。
 
 ## 1. 用户结果
 
@@ -20,7 +19,7 @@ R1 仅执行 [Lane C 指令](../internal/plans/v5_r1_c_runtime_correctness.md)�
 - 表面：`qitos/core/observation.py`、`shared_memory.py`、`qitos/func/`、`qitos/recipes/benchmarks/`、`qitos/benchmark/`。
 - 生命周期/依赖：`qitos/engine/_trace_runtime.py`、`qitos/mcp/`、`qitos/kit/tool/cron/scheduler.py`、`qitos/kit/vectorstore/pgvector_store.py`、`setup.py`、`pyproject.toml`。
 
-审计探针：旧 Read 重复 offset 得到空结果；旧 Edit 未传 replace_all；Observation 属性与 dict 可分叉；TaskFunction 配置重试仍只调用一次。另有普通 hook debug-only 吞错、Cron inert job、PgVector driver 不一致和 benchmark/recipes 反向依赖。
+历史审计探针（Read/Edit、Observation 已修复，其余仍开放）：旧 Read 重复 offset 得到空结果；旧 Edit 未传 replace_all；Observation 属性与 dict 可分叉；TaskFunction 配置重试仍只调用一次。另有普通 hook debug-only 吞错、Cron inert job、PgVector driver 不一致和 benchmark/recipes 反向依赖。
 
 审计时 static baseline 为 356（334 active、22 vendored），其中 active correctness 30。它们是诊断条目，不等于 30 个已证实运行时 bug。先按当前源码重核，已经修复的项只 shrink，不重新制造旧错误。
 

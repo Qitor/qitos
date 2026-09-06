@@ -8,7 +8,7 @@ description: "QitOS G5 · 安装"
 | 来源 | 安装方式 | 能力身份 |
 |---|---|---|
 | 已发布 PyPI | `python -m pip install qitos` | 已发布包，**不代表 G5** |
-| 可重现 G5 源码 | 下方固定 commit 命令 | `60809b3be388d22ea40ea41b4aaa1f5540c76fda` |
+| 可重现 R1 实现源码 | 下方固定 commit 命令 | `f7d4b2d666a156d361da496a41868278f84ffabf` |
 | GitHub 开发分支 | `python -m pip install "qitos @ git+https://github.com/WhitzardAgent/WhitzardOS.git@master"` | 会变化，需记录实际 SHA |
 | 本地 wheel | `python -m pip install ./qitos-0.6.0-py3-none-any.whl` | 核对 wheel digest 和来源 |
 | 框架贡献者 | clone 内 `python -m pip install -e ".[dev]"` | editable checkout，不是 wheel 安装验收 |
@@ -23,7 +23,7 @@ G5 源码仍声明版本 0.6.0；仅凭版本号不能区分已发布构建。�
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install "qitos @ git+https://github.com/WhitzardAgent/WhitzardOS.git@60809b3be388d22ea40ea41b4aaa1f5540c76fda"
+python -m pip install "qitos @ git+https://github.com/WhitzardAgent/WhitzardOS.git@f7d4b2d666a156d361da496a41868278f84ffabf"
 python -m pip install pytest
 qit --help
 qita --help
@@ -36,7 +36,7 @@ qita --help
 ## 可选依赖
 
 fake 算术入门只需基础包和 pytest。真实 OpenAI 或兼容客户端使用相同固定来源的
-`qitos[openai] @ git+https://github.com/WhitzardAgent/WhitzardOS.git@60809b3be388d22ea40ea41b4aaa1f5540c76fda`；
+`qitos[openai] @ git+https://github.com/WhitzardAgent/WhitzardOS.git@f7d4b2d666a156d361da496a41868278f84ffabf`；
 `[models]` 还安装 LiteLLM。`[docker]` 与 `[qita]` 当前不增加 Python 依赖，
 但 Docker 仍需可用的 CLI 和 daemon。MCP 使用 `[mcp]`，浏览器工具 `[web]`，
 W&B `[wandb]`，MLflow `[mlflow]`。初次运行不需要全部 extras。
@@ -47,4 +47,4 @@ W&B `[wandb]`，MLflow `[mlflow]`。初次运行不需要全部 extras。
 用 `python -m pip show qitos` 核对，并按准确源码重建 venv。
 接着阅读[快速开始](/zh/quickstart)。
 
-<Note>本教程使用已包含 Python 3.10 publication 修复的 60809b3。历史 G5 baseline 为 717b4cf1b23f2ed252cd03234ffd8605038d9567；上面的历史 wheel digest 仅属于该历史资格。本轮不会把历史测试归属到新源码。</Note>
+<Note>本教程使用 f7d4b2d666a156d361da496a41868278f84ffabf，包含 Python 3.10 publication 和模型 cleanup 修复。历史 G5 baseline 为 717b4cf1b23f2ed252cd03234ffd8605038d9567；上面的历史 wheel digest 仅属于该历史资格。本轮不会把历史测试归属到新源码。</Note>

@@ -23,7 +23,7 @@ RequestView now requires an explicit compaction policy for budget-driven exchang
 from qitos.core.context import StaticContextContributor
 ```
 
-[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/core/context.py#L302)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/context.py#L302)
 
 [Usage and executable example](/guides/memory-and-history)
 
@@ -56,7 +56,7 @@ Small reusable contributor for project/user/session context.
 from qitos.core.context import PriorityContextSelectionPolicy
 ```
 
-[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/core/context.py#L118)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/context.py#L118)
 
 [Usage and executable example](/guides/memory-and-history)
 
@@ -92,7 +92,7 @@ select(contributions: Iterable[ContextContribution], *, budget: ContextBudget, a
 | `already_used_units` | `int` | `0` |
 | `counter` | `UnitCounter` | `default_unit_counter` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/core/context.py#L123)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/context.py#L123)
 
 
 <span id="qitos-core-context-declaredcontextbudgetpolicy" />
@@ -102,7 +102,7 @@ select(contributions: Iterable[ContextContribution], *, budget: ContextBudget, a
 from qitos.core.context import DeclaredContextBudgetPolicy
 ```
 
-[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/core/context.py#L189)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/context.py#L189)
 
 [Usage and executable example](/guides/memory-and-history)
 
@@ -131,7 +131,7 @@ Use adapter-declared capacity; never infer it from a model name.
 from qitos.core.request_view import CompactionReceipt
 ```
 
-[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/core/request_view.py#L530)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/request_view.py#L530)
 
 [Usage and executable example](/guides/memory-and-history)
 
@@ -159,7 +159,7 @@ print(receipt.declared_losses, receipt.output_digest)
 from qitos.core.memory import MemoryRecord
 ```
 
-[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/core/memory.py#L20)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/memory.py#L20)
 
 [Usage and executable example](/guides/memory-and-history)
 
@@ -179,7 +179,7 @@ One logical memory fact; independent equal facts receive distinct IDs.
 | `content` | `Any` | `required` |
 | `step_id` | `int` | `required` |
 | `metadata` | `Dict[str, Any]` | `field(default_factory=dict)` |
-| `record_id` | `str` | `field(default_factory=lambda: uuid4().hex)` |
+| `record_id` | `str` | `field(default_factory=lambda : uuid4().hex)` |
 
 
 <span id="qitos-core-memory-memoryresourceerror" />
@@ -189,7 +189,7 @@ One logical memory fact; independent equal facts receive distinct IDs.
 from qitos.core.memory import MemoryResourceError
 ```
 
-[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/core/memory.py#L13)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/memory.py#L13)
 
 [Usage and executable example](/guides/memory-and-history)
 
@@ -211,7 +211,7 @@ A bound durable memory resource is missing or unavailable.
 from qitos.kit.memory.memdir_memory import MemdirMemory
 ```
 
-[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/memdir_memory.py#L16)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/kit/memory/memdir_memory.py#L16)
 
 [Usage and executable example](/guides/memory-and-history)
 
@@ -255,7 +255,7 @@ append(record: MemoryRecord) -> None
 | --- | --- | --- |
 | `record` | `MemoryRecord` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/memdir_memory.py#L47)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/kit/memory/memdir_memory.py#L47)
 
 <span id="qitos-kit-memory-memdir_memory-memdirmemory-retrieve" />
 ### MemdirMemory.retrieve
@@ -270,7 +270,7 @@ retrieve(query: Optional[Dict[str, Any]]=None, state: Any=None, observation: Any
 | `state` | `Any` | `None` |
 | `observation` | `Any` | `None` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/memdir_memory.py#L78)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/kit/memory/memdir_memory.py#L78)
 
 <span id="qitos-kit-memory-memdir_memory-memdirmemory-summarize" />
 ### MemdirMemory.summarize
@@ -287,7 +287,7 @@ summarize(max_items: int=30) -> str
 Render current records, never stale index snippets after external edits.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/memdir_memory.py#L117)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/kit/memory/memdir_memory.py#L117)
 
 <span id="qitos-kit-memory-memdir_memory-memdirmemory-reset" />
 ### MemdirMemory.reset
@@ -300,7 +300,7 @@ reset(run_id: Optional[str]=None) -> None
 | --- | --- | --- |
 | `run_id` | `Optional[str]` | `None` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/memdir_memory.py#L132)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/kit/memory/memdir_memory.py#L132)
 
 <span id="qitos-kit-memory-memdir_memory-memdirmemory-evict" />
 ### MemdirMemory.evict
@@ -309,7 +309,7 @@ reset(run_id: Optional[str]=None) -> None
 evict() -> int
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/memdir_memory.py#L125)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/kit/memory/memdir_memory.py#L125)
 
 
 <span id="qitos-kit-memory-markdown_file_memory-markdownfilememory" />
@@ -319,7 +319,7 @@ evict() -> int
 from qitos.kit.memory.markdown_file_memory import MarkdownFileMemory
 ```
 
-[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/markdown_file_memory.py#L12)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/kit/memory/markdown_file_memory.py#L12)
 
 [Usage and executable example](/guides/memory-and-history)
 
@@ -351,7 +351,7 @@ MarkdownFileMemory(path: str='memory.md', max_in_memory: int=200) -> Any (see be
 from qitos.kit.memory.adapter import MemorySourceAdapter
 ```
 
-[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/adapter.py#L15)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/kit/memory/adapter.py#L15)
 
 [Usage and executable example](/guides/memory-and-history)
 
@@ -394,7 +394,7 @@ contribute(request: Any) -> Sequence[ContextContribution]
 | --- | --- | --- |
 | `request` | `Any` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/adapter.py#L48)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/kit/memory/adapter.py#L48)
 
 <span id="qitos-kit-memory-adapter-memorysourceadapter-reset" />
 ### MemorySourceAdapter.reset
@@ -411,7 +411,7 @@ reset(run_id: str | None=None) -> None
 No owned state; never reset the borrowed memory.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/adapter.py#L79)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/kit/memory/adapter.py#L79)
 
 <span id="qitos-kit-memory-adapter-memorysourceadapter-close" />
 ### MemorySourceAdapter.close
@@ -424,7 +424,7 @@ close() -> None
 No owned resources; never close the borrowed memory.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/memory/adapter.py#L82)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/kit/memory/adapter.py#L82)
 
 
 <span id="qitos-kit-context-compaction-closedexchangewindowcompactor" />
@@ -434,7 +434,7 @@ No owned resources; never close the borrowed memory.
 from qitos.kit.context.compaction import ClosedExchangeWindowCompactor
 ```
 
-[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/context/compaction.py#L12)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/kit/context/compaction.py#L12)
 
 [Usage and executable example](/guides/memory-and-history)
 
@@ -467,7 +467,7 @@ compact(*, exchange_ids: Sequence[str], selected_digest: str, required_units: in
 | `required_units` | `int` | `required` |
 | `available_units` | `int` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/kit/context/compaction.py#L22)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/kit/context/compaction.py#L22)
 
 
 <span id="qitos-core-request_view-requestview" />
@@ -477,7 +477,7 @@ compact(*, exchange_ids: Sequence[str], selected_digest: str, required_units: in
 from qitos.core.request_view import RequestView
 ```
 
-[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/core/request_view.py#L794)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/request_view.py#L794)
 
 [Usage and executable example](/guides/memory-and-history)
 
@@ -506,7 +506,7 @@ One immutable, deterministic provider-neutral model request view.
 | `reasoning_policy` | `ReasoningPolicy` | `field(default_factory=ReasoningPolicy)` |
 | `continuation` | `Optional[ContinuationRef]` | `None` |
 | `context_budget` | `ContextBudget` | `field(default_factory=ContextBudget)` |
-| `selection` | `SelectionReport` | `field(default_factory=lambda: SelectionReport((), (), (), (), (), (), (), (), 0, 0, 0, 'characters'))` |
+| `selection` | `SelectionReport` | `field(default_factory=lambda : SelectionReport((), (), (), (), (), (), (), (), 0, 0, 0, 'characters'))` |
 | `compaction_receipts` | `tuple[CompactionReceipt, ...]` | `()` |
 | `artifact_refs` | `tuple[ArtifactRef, ...]` | `()` |
 | `steering_boundary_json` | `str` | `'{}'` |
@@ -546,7 +546,7 @@ from_exchange_log(log: ExchangeLog, *, model: Any=None, target: Optional[Request
 | `tool_use_policy` | `str` | `'auto'` |
 | `tool_use_satisfied` | `bool` | `False` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/core/request_view.py#L1017)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/request_view.py#L1017)
 
 
 <span id="qitos-core-request_view-contextbudgetexceedederror" />
@@ -556,7 +556,7 @@ from_exchange_log(log: ExchangeLog, *, model: Any=None, target: Optional[Request
 from qitos.core.request_view import ContextBudgetExceededError
 ```
 
-[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/core/request_view.py#L60)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/request_view.py#L60)
 
 [Usage and executable example](/guides/memory-and-history)
 
@@ -574,7 +574,7 @@ Usage fragment: continues with objects from the linked complete tutorial; not a 
 from qitos.engine.runtime import LifecyclePolicy
 ```
 
-[Source @ 1710b27](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/engine/runtime.py#L88)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/engine/runtime.py#L88)
 
 [Usage and executable example](/guides/memory-and-history)
 
@@ -602,6 +602,6 @@ should_pause(context: RuntimeSnapshotContext) -> bool
 | --- | --- | --- |
 | `context` | `RuntimeSnapshotContext` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/1710b2723238648e3d7394b262f06e97290cd093/qitos/engine/runtime.py#L94)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/engine/runtime.py#L94)
 
 {/* api-reference:end */}

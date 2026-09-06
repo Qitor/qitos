@@ -18,12 +18,12 @@ Basic Python is required. The package declares Python ≥3.10; local qualificati
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install /path/to/reviewed/qitos-0.6.0-py3-none-any.whl
+python -m pip install "qitos @ git+https://github.com/WhitzardAgent/WhitzardOS.git@f7d4b2d666a156d361da496a41868278f84ffabf"
 mkdir notes_lesson
 cd notes_lesson
 ```
 
-This chapter uses the reviewed unreleased Lane B wheel, built from its source with `python -m build`; the earlier pinned tutorial release does not contain these new adapters.
+This lesson uses the integrated R1 implementation pinned below; a source install does not imply a PyPI release.
 
 Save the complete files below in this directory. No repository clone, editable install, or copied tests are needed.
 

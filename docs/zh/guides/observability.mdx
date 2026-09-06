@@ -15,12 +15,12 @@ description: "从网页完整代码学习 QitOS 资料整理项目。"
 
 ## 准备项目
 
-安装前将本地构建的 Lane D wheel（runtime source `df93164`）放在教程目录旁。本线尚未发布。确定性 installed 示例位于 `examples/v5/r1_d_trajectory/consumer.py`。
+本教程使用下方固定的 R1 融合实现；源码安装不代表已发布 PyPI 版本。
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install ./qitos-0.6.0-py3-none-any.whl
+python -m pip install "qitos @ git+https://github.com/WhitzardAgent/WhitzardOS.git@f7d4b2d666a156d361da496a41868278f84ffabf"
 mkdir notes_lesson
 cd notes_lesson
 ```

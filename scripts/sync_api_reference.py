@@ -2,10 +2,12 @@
 import argparse
 import ast
 from copy import deepcopy
+from functools import lru_cache
 import importlib
 import inspect
 import json
 from pathlib import Path
+import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 START, END = "{/* api-reference:start */}", "{/* api-reference:end */}"
@@ -23,12 +25,31 @@ def definition(obj):
     index = len(parts) - 1 - list(reversed(parts)).index("qitos")
     relative = Path(*parts[index:])
     source = ROOT / relative
+    if filename.read_bytes() != source.read_bytes():
+        raise ValueError(f"{relative}: imported QitOS differs from this checkout")
     tree = ast.parse(source.read_text())
     _, line = inspect.getsourcelines(obj)
     nodes = [node for node in ast.walk(tree) if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
              and node.name == obj.__name__]
     node = min(nodes, key=lambda n: abs(n.lineno - line))
     return node, relative
+
+
+@lru_cache(maxsize=None)
+def validate_source_binding(baseline, relative):
+    """Every public link must resolve to identical source in outgoing history."""
+    reachable = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", baseline, "HEAD"], cwd=ROOT,
+        capture_output=True,
+    )
+    if reachable.returncode:
+        raise ValueError(f"API source {baseline} is not reachable from HEAD; fetch full history")
+    committed = subprocess.run(
+        ["git", "show", f"{baseline}:{relative.as_posix()}"], cwd=ROOT,
+        capture_output=True,
+    )
+    if committed.returncode or committed.stdout != (ROOT / relative).read_bytes():
+        raise ValueError(f"{relative}: public source binding differs from current implementation")
 
 
 def signature(node):
@@ -61,6 +82,7 @@ def symbol_text(item, baseline, chinese, tutorial):
     module, name = item["module"], item["name"]
     obj = getattr(importlib.import_module(module), name)
     node, relative = definition(obj)
+    validate_source_binding(baseline, relative)
     title = anchor(module, name)
     text = [f'<span id="{title}" />', f"## {name}", "", f"```python\nfrom {module} import {name}\n```", "",
             f"[Source @ {baseline[:7]}](https://github.com/WhitzardAgent/WhitzardOS/blob/{baseline}/{relative.as_posix()}#L{node.lineno})", "",
@@ -89,6 +111,7 @@ def symbol_text(item, baseline, chinese, tutorial):
     for method in item["methods"]:
         member = getattr(obj, method)
         method_node, method_file = definition(member)
+        validate_source_binding(baseline, method_file)
         text += [f'<span id="{title}-{method.replace("_", "-")}" />', f"### {name}.{method}", "", "```text", signature(method_node), "```", "", *parameter_table(method_node)]
         doc = ast.get_docstring(method_node)
         if doc:

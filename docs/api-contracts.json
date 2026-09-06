@@ -1,5 +1,5 @@
 {
-  "baseline": "60809b3be388d22ea40ea41b4aaa1f5540c76fda",
+  "baseline": "f7d4b2d666a156d361da496a41868278f84ffabf",
   "groups": [
     {
       "slug": "composition",
@@ -11,7 +11,6 @@
           "methods": [],
           "example": "resolver = FakeCredentialResolver()  # offline fixtures only"
         },
-
         {
           "module": "qitos.config",
           "name": "AgentComposition",
@@ -261,7 +260,7 @@
     },
     {
       "slug": "context",
-      "baseline": "1710b2723238648e3d7394b262f06e97290cd093",
+      "baseline": "f7d4b2d666a156d361da496a41868278f84ffabf",
       "tutorial": "guides/memory-and-history",
       "symbols": [
         {
@@ -442,7 +441,6 @@
           ],
           "example": "store = JournalTrajectoryStore(\"trajectory.journal\", read_only=True)"
         },
-
         {
           "module": "qitos.qita.reader",
           "name": "default_reader",
@@ -527,7 +525,7 @@
           "methods": []
         }
       ],
-      "baseline": "df9316415db7ec76f1e5d70a11ceabfd47744169"
+      "baseline": "f7d4b2d666a156d361da496a41868278f84ffabf"
     }
   ]
 }

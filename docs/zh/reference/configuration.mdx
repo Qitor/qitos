@@ -17,7 +17,7 @@ context:
 ## 依赖和配置
 
 ```bash
-python -m pip install "qitos[openai] @ git+https://github.com/WhitzardAgent/WhitzardOS.git@60809b3be388d22ea40ea41b4aaa1f5540c76fda"
+python -m pip install "qitos[openai] @ git+https://github.com/WhitzardAgent/WhitzardOS.git@f7d4b2d666a156d361da496a41868278f84ffabf"
 ```
 
 将 `real_agent.yaml` 的 `example-model` 和 `https://provider.example/v1` 替换为你的模型和 endpoint；此保留域名不是服务地址。本例使用受信任纯函数，不需要 Docker。若引入文件/命令工具，必须先按 sandbox 章节配置 Docker，不能直接扩展这里的 unsafe_host 工具权限。

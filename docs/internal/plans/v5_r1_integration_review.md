@@ -1,5 +1,7 @@
 # V5 R1 independent implementation review
 
+> Historical review / superseded current status: all five findings were fixed and locally accepted. See [current R1 status](v5_r1_remote_sync.md); original counterexamples and source identities below remain unchanged.
+
 **Integration closure, 2026-09-06:** the historical review below is retained unchanged as failure evidence. All five findings are fixed and the merged framework is qualified offline. Complete suite on `55c356f9d0f6b0df431ac1427f2373dfd5e540fa`: **3715 passed, 51 skipped in 352.53s (0:05:52)**. Same final wheel passes all producer consumers and the combined normal/failure/loss/namespace processes. Evidence and replay mapping: [integration execution](v5_r1_integration_execution.md). Local fast-forward and safe retirement are authorized by the current integration instruction; old no-promotion/no-cleanup review boundaries are superseded. No push or live/release qualification occurred.
 
 Date: 2026-09-05. Status: **changes requested before integration qualification**.

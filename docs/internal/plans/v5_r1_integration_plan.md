@@ -1,9 +1,12 @@
 # V5 R1 — 有界修复、融合与用户路径验收
 
-**Executed R1 closure (2026-09-06):** preservation and all 27 replays complete; five repairs, same-wheel original/combined consumers, 20 handoff rounds and complete qualification pass on `55c356f9d0f6b0df431ac1427f2373dfd5e540fa`. The current user instruction authorizes qualified local master fast-forward and non-forced retirement; it replaces earlier waiting-for-authorization text. Remote sync/push is still unauthorized. Final local acceptance SHA and actual retirement receipts are reported by the executing task after these gates, avoiding a self-referential SHA commit. This plan has no deferred documentation-only closing round. See [execution evidence](v5_r1_integration_execution.md).
-
-日期：2026-09-05。状态：`planned`；本文件不是融合已执行或 push 授权。
-依据：[独立实现审查](v5_r1_integration_review.md)。
+**Historical executed plan / superseded status.** All 27 replays, five repairs and
+combined qualification completed on `55c356f9d0f6b0df431ac1427f2373dfd5e540fa`.
+Local master acceptance completed at `d17a6ab4f6b09b0dd8a9c8896f859d26de17f3ec`.
+The original 2026-09-05 plan below is retained as the executed contract, including
+its then-current authorization boundaries. Current Python 3.10 repair, push
+and CI facts belong to the [remote synchronization record](v5_r1_remote_sync.md).
+See [integration evidence](v5_r1_integration_execution.md) for historical results.
 
 ## 1. 本轮结果与停止边界
 

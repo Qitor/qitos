@@ -15,12 +15,12 @@ Basic Python is required. The package declares Python ≥3.10; local qualificati
 
 ## Prepare the project
 
-Place the locally built Lane D wheel (runtime source `df93164`) beside this lesson before installing. This lane has not been published. The deterministic installed example is `examples/v5/r1_d_trajectory/consumer.py`.
+This lesson uses the integrated R1 implementation pinned below; a source install does not imply a PyPI release.
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install ./qitos-0.6.0-py3-none-any.whl
+python -m pip install "qitos @ git+https://github.com/WhitzardAgent/WhitzardOS.git@f7d4b2d666a156d361da496a41868278f84ffabf"
 mkdir notes_lesson
 cd notes_lesson
 ```

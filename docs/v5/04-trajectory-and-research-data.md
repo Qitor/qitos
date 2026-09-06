@@ -1,6 +1,6 @@
 # V5-04 — 高效轨迹、Artifact 与研究数据消费
 
-状态：`in_progress`；R1-D 的索引、bounded reader 和流式 canonical export 候选已交付，整体集成待验收。优先级：高。执行前先读 [共同合同](README.md)。
+状态：`in_progress`；R1-D 的索引、bounded reader、流式 canonical export 与组合验收已完成。优先级：高。后续范围遵循 [共同合同](README.md)；当前状态统一见[本轮记录](../internal/plans/v5_r1_remote_sync.md)。
 承接 v4 05A–E 中未完效率/export 工作、00 Gate D 和 10E/F。
 
 本轮数据见[独立审查](../internal/plans/v5_r1_integration_review.md)：100k warm append 中位数
@@ -14,7 +14,7 @@
 
 G5 已冻结 Trajectory、默认 journal writer、qita 默认 reader 和历史 compatibility。**不重新设计另一套 canonical schema，不重做已完成默认切换。** 内部 wire 标识保留历史 spelling；性能改造不能偷偷破坏已写数据。
 
-审计事实：append/query 调用 `_load()` 读全部 frames，append 重建 index，完整读取物化全轨迹。10,003 records 约 10.86 MB journal，带 tracemalloc 的读取约 5.57–5.76 秒、Python 分配峰值约 196 MB。这是特定来源测量，不是 v5 性能门槛或总进程 RSS。
+历史审计事实（非当前测量）：append/query 调用 `_load()` 读全部 frames，append 重建 index，完整读取物化全轨迹。10,003 records 约 10.86 MB journal，带 tracemalloc 的读取约 5.57–5.76 秒、Python 分配峰值约 196 MB。这是特定来源测量，不是 v5 性能门槛或总进程 RSS。
 
 master CI 稳定化已减少重复 journal 解析，R1 基线包含该修复。当前每次仍逐字节 hash 历史 journal，以检测同尺寸、恢复 mtime 的原地修改。必须重测读字节/解析/index 成本，不能重复实施缓存修复，也不能把仅免解析等同于增量 I/O。
 

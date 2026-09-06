@@ -29,7 +29,7 @@ Env `read_file`/`edit_file` 仍只使用 Env ops，保留从 1 开始的 `line_o
 from qitos import ToolRegistry
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/tool_registry.py#L20)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/tool_registry.py#L20)
 
 [用法与可执行示例](/zh/concepts/tools-and-registry)
 
@@ -65,7 +65,7 @@ register(item: Any, name: Optional[str]=None, meta: Optional[ToolMeta]=None) -> 
 | `name` | `Optional[str]` | `None` |
 | `meta` | `Optional[ToolMeta]` | `None` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/tool_registry.py#L32)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/tool_registry.py#L32)
 
 
 <span id="qitos-core-function_tool_decorator-function_tool" />
@@ -75,7 +75,7 @@ register(item: Any, name: Optional[str]=None, meta: Optional[ToolMeta]=None) -> 
 from qitos.core.function_tool_decorator import function_tool
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/function_tool_decorator.py#L11)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/function_tool_decorator.py#L11)
 
 [用法与可执行示例](/zh/concepts/tools-and-registry)
 
@@ -126,7 +126,7 @@ function_tool(func: Optional[Callable[..., Any]]=None, *, name: Optional[str]=No
 from qitos.core.tool import BaseTool
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/tool.py#L611)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/tool.py#L611)
 
 [用法与可执行示例](/zh/concepts/tools-and-registry)
 
@@ -169,7 +169,7 @@ execute(args: Dict[str, Any], runtime_context: Optional[Dict[str, Any]]=None) ->
 Execute tool with optional runtime context.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/tool.py#L706)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/tool.py#L706)
 
 
 <span id="qitos-core-tool_result-toolresult" />
@@ -179,7 +179,7 @@ Execute tool with optional runtime context.
 from qitos.core.tool_result import ToolResult
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/tool_result.py#L547)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/tool_result.py#L547)
 
 [用法与可执行示例](/zh/concepts/tools-and-registry)
 
@@ -240,7 +240,7 @@ Lossless terminal outcome for one declared action/tool slot.
 from qitos.core.artifact import ArtifactRef
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/artifact.py#L78)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/artifact.py#L78)
 
 [用法与可执行示例](/zh/concepts/tools-and-registry)
 
@@ -281,7 +281,7 @@ from_dict(value: Any) -> 'ArtifactRef'
 | --- | --- | --- |
 | `value` | `Any` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/artifact.py#L159)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/artifact.py#L159)
 
 
 <span id="qitos-engine-action_executor-actionexecutionpolicy" />
@@ -291,7 +291,7 @@ from_dict(value: Any) -> 'ArtifactRef'
 from qitos.engine.action_executor import ActionExecutionPolicy
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/core/action.py#L145)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/action.py#L145)
 
 [用法与可执行示例](/zh/concepts/tools-and-registry)
 
@@ -321,7 +321,7 @@ Executor policy for action batches.
 from qitos.kit.tool.internal.publication import SandboxPublicationTool
 ```
 
-[Source @ 60809b3](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/kit/tool/internal/publication.py#L15)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/kit/tool/internal/publication.py#L15)
 
 [用法与可执行示例](/zh/concepts/tools-and-registry)
 
@@ -362,6 +362,6 @@ execute(args: Any, runtime_context: Any=None) -> ToolResult
 | `args` | `Any` | `required` |
 | `runtime_context` | `Any` | `None` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/60809b3be388d22ea40ea41b4aaa1f5540c76fda/qitos/kit/tool/internal/publication.py#L33)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/kit/tool/internal/publication.py#L33)
 
 {/* api-reference:end */}

@@ -1,9 +1,9 @@
 # V5-01 — 真实 Agent 开发闭环与统一模型 I/O
 
-状态：`in_progress`；R1-A 候选已交付，reasoning/cleanup 补充反例及整体融合尚待关闭。优先级：最高。执行前先读 [共同合同](README.md)。
+状态：`in_progress`；R1-A 与 M1/M2 已融合并验收；新增 Python 3.10 cleanup 兼容性另由当前同步任务修复。优先级：最高。后续范围遵循 [共同合同](README.md)；当前状态统一见[本轮记录](../internal/plans/v5_r1_remote_sync.md)。
 承接 v4 00 Gate A/B/C、02C–E、09B/C，以及 G5 之后的功能性 E2E。
 
-当前验收与剩余动作见[实现审查](../internal/plans/v5_r1_integration_review.md)和[融合计划](../internal/plans/v5_r1_integration_plan.md)。12 adapter 离线测试与安装消费者是机制证据，不代替 01C/D 的真实 Agent 迁移、胶水减少及 live 对照。
+历史反例和已执行修复见[实现审查](../internal/plans/v5_r1_integration_review.md)与[融合执行](../internal/plans/v5_r1_integration_execution.md)。12 adapter 离线测试与安装消费者是机制证据，不代替 01C/D 的真实 Agent 迁移、胶水减少及 live 对照。
 
 ## 1. 用户结果与范围
 
@@ -19,7 +19,7 @@
 - `qitos/engine/_model_runtime.py`、`async_engine.py`、`qitos/config/`、`qitos/config/scaffold.py`。
 - `tests/models/`、`tests/test_docs_golden_paths.py`、`tests/test_tutorial_snippets.py`、`examples/tutorials/`。
 
-审计已复现：模拟 SDK 连接异常后，`qitos_stream_transport()` 返回带 `Error:` 文本、`finish_reason=stop` 的 ModelResponse，并向 delta 发送该文本。保留真正以 `Error:` 开头的正常模型回答，禁止通过文本前缀猜错误。
+历史审计（已由 R1 修复）：模拟 SDK 连接异常后，`qitos_stream_transport()` 返回带 `Error:` 文本、`finish_reason=stop` 的 ModelResponse，并向 delta 发送该文本。保留真正以 `Error:` 开头的正常模型回答，禁止通过文本前缀猜错误。
 
 ## 3. Ownership
 
@@ -95,7 +95,7 @@ R1 可先完成前 3 行；后 5 行先使用 G5 已支持边界，02/04/05 增�
 
 建议提交顺序：错误回归与修复 → stream/async ownership → 配置/scaffold DX → 离线消费者 → 有界 live/迁移证据及双语教程。不得更改 model、prompt、loss policy 后继续把前后两次当同一次实验。
 
-## 7. 完成清单
+## 7. V5 整体完成清单（R1 子集完成不等于下列整项完成）
 
 - [ ] 01A 内置入口不再将基础设施错误冒充模型内容。
 - [ ] 01B 支持的多轮/stream/async 路径有同等合同和资源清理。

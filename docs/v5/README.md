@@ -1,9 +1,11 @@
 # QitOS v5 — 从可运行内核到好用的 Agent 开发框架
 
-**2026-09-06 R1 更新：** 本轮本地框架融合已通过离线资格：23 份草稿保全、27 笔来源重放、五项修复、同 wheel 四线与组合消费者、20 轮 handoff。详见[融合执行](../internal/plans/v5_r1_integration_execution.md)。当前指令已授权合格后的本地 fast-forward 和安全退役，替代下文历史审查中的等待授权边界；不 push 仍有效。下一轮唯一 dispatch SHA 由最终接受报告给出。V5 整体继续 in_progress；live_not_run。
+**当前 R1 状态：** 本地融合、27 笔重放、五项修复和组合验收已完成，master 已接受
+`d17a6ab4f6b09b0dd8a9c8896f859d26de17f3ec`。新增 Python 3.10 cleanup 兼容修复、
+本轮验证和正式远端同步统一见[当前 R1 记录](../internal/plans/v5_r1_remote_sync.md)。
 
-状态：`in_progress`；R1 四线候选已交付，独立审查要求有界修复后融合。本目录是仓库内工程规划，不是软件版本号或站点教程。
-日期：2026-09-05。正文以中文维护；每次实现带来的公共教程/API 变更必须同步 EN/zh。
+V5 状态：`in_progress`。R1 已关闭本地框架融合范围；live 未运行，R1 不等于 V5 全完成。
+本目录是仓库内工程规划，不是软件版本号或站点教程。正文以中文维护；公共教程/API 同步 EN/zh。
 
 ## 1. 北极星与起点
 
@@ -14,7 +16,7 @@
 - 2026-09-05 复核：publication/Python 3.10、journal 重复解析与完整双语教学页已由后继提交修复；不是待重做任务。
 - R1 源码基线冻结为 `4dfb570fb7eef504c1e6d247c21a1984251b80e4`；该 HEAD 的 CI、docs、Code Quality 已通过。具体任务见 [R1 dispatch](../internal/plans/v5_dispatch.md)，审计见 [R1 review](../internal/plans/v5_r1_review.md)。
 - R1 四线实现已交付；[独立实现审查](../internal/plans/v5_r1_integration_review.md)记录准确 HEAD、198 项定向复跑和五项补充反例。四线各自合格报告不等于合并树通过。
-- 下一步是[单 owner 有界修复与融合](../internal/plans/v5_r1_integration_plan.md)，不是重新派发原 R1 四线。任务文档仍是本地主工作树输入；本次审查不授权 live 请求、push、发布或 worktree 清理。
+- [原融合计划](../internal/plans/v5_r1_integration_plan.md)已执行；保留历史审查和失败身份，不再作为当前待办或本轮授权边界。
 
 已经完成并必须保留：一个 `AgentModule + Engine` 内核、ExchangeLog/RequestView/codec、原生工具批次、同步 durable Session/checkpoint/pause/restore/fork、本地持久 WorkGraph、Env-only 工具与受限 Docker 沙箱、默认 Trajectory/qita reader、配置文件/CredentialRef、composition 和安装后教学路径。
 
@@ -32,9 +34,9 @@
 
 五组是能力归属，不是五个必须同时启动的 Agent。测试、类型、文档、安全是每组自带的交付要求，不另开长期“工程门禁产线”。
 
-### R1 交付状态（2026-09-05）
+### R1 已完成范围（2026-09-06）
 
-| 组 | 已存在于候选的增量 | 融合前剩余 | 不因本轮交付而关闭 |
+| 组 | 已融合增量 | 已完成的融合修复/验收 | 不因 R1 完成而关闭 |
 |---|---|---|---|
 | 01 / A | 内置 adapter stream 终态、usage、dispatch/cleanup；安装后多轮工具消费者 | reasoning 保留、cleanup 失败优先级；最终组合消费 | live 自主任务成功、原 Agent 迁移对照 |
 | 02 / B | Memdir 稳定身份和跨进程召回；显式 closed-window compactor | 纯 YAML budget/loss 接线；保留 A/B 两种请求组装修复 | Markdown replay、摘要模型、完整 history 退休和跨 Agent 策略 |
@@ -42,8 +44,7 @@
 | 04 / D | 增量 derived index、有界 page/iterator、原子 canonical export | 同一 wheel/qita 消费与准确性能说明 | suffix-only I/O、Artifact GC、外部训练格式、campaign 出版 |
 | 05 | 本轮没有新增实现 | R1 稳定后派发具名子包 | 审批、实时控制、额外 sandbox/异步 Session 能力 |
 
-当前 R1 不是 `closed`，也没有新的统一 dispatch SHA。四线来源仍固定在同一 R1 起点，
-新的 baseline 只在真实融合及验收后生成。模型质量、摘要策略和应用流程仍由 Agent 作者决定。
+R1 本地框架融合已完成；本轮远端同步后的唯一下一轮 dispatch baseline 以[当前记录](../internal/plans/v5_r1_remote_sync.md)及最终报告的实际完整 SHA 为准。模型质量、摘要策略和应用流程仍由 Agent 作者决定。
 
 ## 3. v4 目标移交账本
 
@@ -89,7 +90,7 @@
 
 ## 5. 迭代顺序与并行租约
 
-### R1 — 原始派发范围（四线候选已交付）
+### R1 — 历史派发合同（已执行 / superseded）
 
 - A：01A/B 的内置 streaming failure/termination/usage/cleanup，以及安装后离线多轮工具消费者；live 另记资格。
 - B：02A 与 02B 的可用 memory adapter、无需模型的 closed-exchange compactor；不要求本轮完成摘要模型或全部长会话迁移。
@@ -101,7 +102,7 @@
 
 上述段落保留原派发合同，不再作为“尚未开工”状态。B 的实施报告记录了获准的最小请求
 接线调整；融合 owner 要保留该调整与 A 的 completion-order/dispatch 修复，不能整文件覆盖。
-当前唯一下一步是 R1 integration plan 的五项修复、27 提交吸收和安装后组合消费者。
+这些五项修复、27 提交吸收和安装后组合消费者均已完成，不再重新派发。
 
 ### R2 — 同一基线上的长任务、真实迁移与交互恢复
 

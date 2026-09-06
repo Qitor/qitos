@@ -23,7 +23,7 @@ default_reader 选择 canonical journal 和支持的历史 reader。读取与回
 from qitos.core.conversation import ExchangeLog
 ```
 
-[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/core/conversation.py#L480)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/conversation.py#L480)
 
 [用法与可执行示例](/zh/guides/observability)
 
@@ -59,7 +59,7 @@ from_dict(payload: Mapping[str, Any]) -> 'ExchangeLog'
 | --- | --- | --- |
 | `payload` | `Mapping[str, Any]` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/core/conversation.py#L870)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/conversation.py#L870)
 
 <span id="qitos-core-conversation-exchangelog-declared-calls" />
 ### ExchangeLog.declared_calls
@@ -72,7 +72,7 @@ declared_calls(batch_id: str) -> List[ToolCall]
 | --- | --- | --- |
 | `batch_id` | `str` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/core/conversation.py#L702)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/conversation.py#L702)
 
 <span id="qitos-core-conversation-exchangelog-results-for-batch" />
 ### ExchangeLog.results_for_batch
@@ -85,7 +85,7 @@ results_for_batch(batch_id: str) -> List[ToolResultItem]
 | --- | --- | --- |
 | `batch_id` | `str` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/core/conversation.py#L710)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/conversation.py#L710)
 
 <span id="qitos-core-conversation-exchangelog-results-for-batch-in-declaration-order" />
 ### ExchangeLog.results_for_batch_in_declaration_order
@@ -102,7 +102,7 @@ results_for_batch_in_declaration_order(batch_id: str) -> List[ToolResultItem]
 Derive results in call declaration order without rewriting facts.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/core/conversation.py#L717)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/conversation.py#L717)
 
 <span id="qitos-core-conversation-exchangelog-open-batch-id" />
 ### ExchangeLog.open_batch_id
@@ -111,7 +111,7 @@ Derive results in call declaration order without rewriting facts.
 open_batch_id() -> Optional[str]
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/core/conversation.py#L732)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/core/conversation.py#L732)
 
 
 <span id="qitos-tracing-journal_store-journaltrajectorystore" />
@@ -121,7 +121,7 @@ open_batch_id() -> Optional[str]
 from qitos.tracing.journal_store import JournalTrajectoryStore
 ```
 
-[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/journal_store.py#L59)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/journal_store.py#L59)
 
 [用法与可执行示例](/zh/guides/observability)
 
@@ -157,7 +157,7 @@ read_session(session_id: str) -> Trajectory
 | --- | --- | --- |
 | `session_id` | `str` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/journal_store.py#L473)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/journal_store.py#L473)
 
 
 <span id="qitos-qita-reader-default_reader" />
@@ -167,7 +167,7 @@ read_session(session_id: str) -> Trajectory
 from qitos.qita.reader import default_reader
 ```
 
-[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/qita/reader.py#L12)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/qita/reader.py#L12)
 
 [用法与可执行示例](/zh/guides/observability)
 
@@ -200,7 +200,7 @@ default_reader(root: str | Path, *, selector: str='trajectory') -> Any
 from qitos.tracing.exporter import CanonicalTrajectoryExporter
 ```
 
-[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/exporter.py#L95)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/exporter.py#L95)
 
 [用法与可执行示例](/zh/guides/observability)
 
@@ -228,7 +228,7 @@ export(trajectory: Trajectory, *, view: PrivacyView=PrivacyView.REDACTED_PUBLIC)
 | `trajectory` | `Trajectory` | `required` |
 | `view` | `PrivacyView` | `PrivacyView.REDACTED_PUBLIC` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/exporter.py#L111)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/exporter.py#L111)
 
 <span id="qitos-tracing-exporter-canonicaltrajectoryexporter-export-file" />
 ### CanonicalTrajectoryExporter.export_file
@@ -249,7 +249,7 @@ export_file(reader: Any, query: Any, target: Any, *, view: PrivacyView=PrivacyVi
 Export a bounded snapshot through owned staging and atomic replacement.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/exporter.py#L141)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/exporter.py#L141)
 
 <span id="qitos-tracing-exporter-canonicaltrajectoryexporter-reimport" />
 ### CanonicalTrajectoryExporter.reimport
@@ -262,7 +262,7 @@ reimport(artifact: ExportArtifact) -> Trajectory
 | --- | --- | --- |
 | `artifact` | `ExportArtifact` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/exporter.py#L148)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/exporter.py#L148)
 
 
 <span id="qitos-tracing-trajectory-privacyview" />
@@ -272,7 +272,7 @@ reimport(artifact: ExportArtifact) -> Trajectory
 from qitos.tracing.trajectory import PrivacyView
 ```
 
-[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/trajectory.py#L91)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/trajectory.py#L91)
 
 [用法与可执行示例](/zh/guides/observability)
 
@@ -295,7 +295,7 @@ Named projections over canonical raw data.
 from qitos.tracing.readers import StoreTrajectoryReader
 ```
 
-[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/readers.py#L479)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/readers.py#L479)
 
 [用法与可执行示例](/zh/guides/observability)
 
@@ -326,7 +326,7 @@ from_journal(path: str | Path) -> 'StoreTrajectoryReader'
 Open a validated read-only journal without materializing its history.
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/readers.py#L487)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/readers.py#L487)
 
 <span id="qitos-tracing-readers-storetrajectoryreader-read-page" />
 ### StoreTrajectoryReader.read_page
@@ -341,7 +341,7 @@ read_page(query: TrajectoryQuery, cursor: TrajectoryCursor | None=None, *, view:
 | `cursor` | `TrajectoryCursor \| None` | `None` |
 | `view` | `PrivacyView` | `PrivacyView.REDACTED_PUBLIC` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/readers.py#L508)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/readers.py#L508)
 
 <span id="qitos-tracing-readers-storetrajectoryreader-close" />
 ### StoreTrajectoryReader.close
@@ -350,7 +350,7 @@ read_page(query: TrajectoryQuery, cursor: TrajectoryCursor | None=None, *, view:
 close() -> None
 ```
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/readers.py#L534)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/readers.py#L534)
 
 
 <span id="qitos-tracing-paging-trajectorycursor" />
@@ -360,7 +360,7 @@ close() -> None
 from qitos.tracing.paging import TrajectoryCursor
 ```
 
-[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/paging.py#L38)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/paging.py#L38)
 
 [用法与可执行示例](/zh/guides/observability)
 
@@ -380,7 +380,7 @@ Reader-local opaque token. No host path or credential is serialized.
 from qitos.tracing.paging import TrajectoryPage
 ```
 
-[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/paging.py#L45)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/paging.py#L45)
 
 [用法与可执行示例](/zh/guides/observability)
 
@@ -399,7 +399,7 @@ from qitos.tracing.paging import TrajectoryPage
 from qitos.tracing.paging import BoundedReadUnsupported
 ```
 
-[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/paging.py#L29)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/paging.py#L29)
 
 [用法与可执行示例](/zh/guides/observability)
 
@@ -415,7 +415,7 @@ The selected source has no bounded snapshot capability.
 from qitos.tracing.paging import CursorRejected
 ```
 
-[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/paging.py#L33)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/paging.py#L33)
 
 [用法与可执行示例](/zh/guides/observability)
 
@@ -431,7 +431,7 @@ A cursor or its source no longer describes the captured snapshot.
 from qitos.tracing.paging import iter_records
 ```
 
-[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/paging.py#L60)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/paging.py#L60)
 
 [用法与可执行示例](/zh/guides/observability)
 
@@ -460,7 +460,7 @@ iter_records(reader: Any, query: TrajectoryQuery, *, view: PrivacyView=PrivacyVi
 from qitos.tracing.paging import read_page
 ```
 
-[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/paging.py#L52)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/paging.py#L52)
 
 [用法与可执行示例](/zh/guides/observability)
 
@@ -487,7 +487,7 @@ read_page(reader: Any, query: TrajectoryQuery, cursor: TrajectoryCursor | None=N
 from qitos.tracing.trajectory import TrajectoryQuery
 ```
 
-[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/trajectory.py#L413)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/trajectory.py#L413)
 
 [用法与可执行示例](/zh/guides/observability)
 
@@ -512,7 +512,7 @@ Store-independent declarative trajectory query.
 from qitos.tracing.trajectory import LossReport
 ```
 
-[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/trajectory.py#L122)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/trajectory.py#L122)
 
 [用法与可执行示例](/zh/guides/observability)
 
@@ -536,7 +536,7 @@ from_dict(value: Mapping[str, Any]) -> 'LossReport'
 | --- | --- | --- |
 | `value` | `Mapping[str, Any]` | `required` |
 
-[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/trajectory.py#L149)
+[Source](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/trajectory.py#L149)
 
 
 <span id="qitos-tracing-exporter-exportartifact" />
@@ -546,7 +546,7 @@ from_dict(value: Mapping[str, Any]) -> 'LossReport'
 from qitos.tracing.exporter import ExportArtifact
 ```
 
-[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/exporter.py#L40)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/exporter.py#L40)
 
 [用法与可执行示例](/zh/guides/observability)
 
@@ -570,7 +570,7 @@ from qitos.tracing.exporter import ExportArtifact
 from qitos.tracing.streaming import FileExportReceipt
 ```
 
-[Source @ df93164](https://github.com/WhitzardAgent/WhitzardOS/blob/df9316415db7ec76f1e5d70a11ceabfd47744169/qitos/tracing/streaming.py#L22)
+[Source @ f7d4b2d](https://github.com/WhitzardAgent/WhitzardOS/blob/f7d4b2d666a156d361da496a41868278f84ffabf/qitos/tracing/streaming.py#L22)
 
 [用法与可执行示例](/zh/guides/observability)
 

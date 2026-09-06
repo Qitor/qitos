@@ -1,6 +1,6 @@
 # V5-02 — 可直接使用的长任务上下文、记忆与压缩
 
-状态：`in_progress`；R1-B 的 Memdir adapter 与确定性 compactor 已交付为候选，纯 YAML 接线和组合验收待融合。优先级：高。执行前先读 [共同合同](README.md)。
+状态：`in_progress`；R1-B 的 Memdir adapter、确定性 compactor、纯 YAML 接线与组合验收已完成。优先级：高。后续范围遵循 [共同合同](README.md)；当前状态统一见[本轮记录](../internal/plans/v5_r1_remote_sync.md)。
 承接 v4 04A–D、02B/D、10F 中 request-budget/token/history 归属。
 
 ## 1. 用户结果
@@ -17,7 +17,7 @@ Memory 内容、检索策略和语义摘要质量属于 Agent 作者；框架负
 - `qitos/engine/_context_runtime.py`、`_model_runtime.py`、`qitos/config/_extensions.py`。
 - `tests/core/test_s4_context_extensions.py`、`tests/test_context_contributor_conformance.py`、`examples/tutorials/context_memory.py`。
 
-现有 extension slots 已接入，Memdir/Markdown 仍是旧 Memory.retrieve 接口；教程 memory 为 static contributor，compactor 为明确有损删除。CompactHistory 仍拥有 HistoryMessage 列表和旧 summary 调用。不能把“接口存在”直接当成内置长任务体验完成。
+历史审计起点（MemorySourceAdapter 已由 R1 接入）：Memdir/Markdown 原为旧 Memory.retrieve 接口；教程 memory 为 static contributor，compactor 为明确有损删除。CompactHistory 仍拥有 HistoryMessage 列表和旧 summary 调用。不能把“接口存在”直接当成内置长任务体验完成。
 
 ## 3. Ownership 与依赖
 
@@ -75,7 +75,7 @@ Memory 内容、检索策略和语义摘要质量属于 Agent 作者；框架负
 
 先运行已有 context/memory/history 测试及 `tests/core/test_s4_context_extensions.py`、`tests/test_context_contributor_conformance.py`。新增建议 `tests/engine/test_v5_long_context_restore.py`、`tests/test_v5_memory_adapters.py`，再跑共同门禁。测试进程使用 Event/barrier 和有界 deadline，不用 sleep 排序制造恢复正确性。
 
-## 6. 交付与完成
+## 6. V5 整体交付与完成（R1 子集见文末）
 
 - [ ] 02A 两种既有 memory 可通过统一 adapter/config 使用，跨 run 示例实际执行。
 - [ ] 02B 内置 compaction 可直接选择，旧机制已委托，完整 exchange/预算/损失不变假。

@@ -82,3 +82,29 @@ combined consumer fixture's nested stdlib ensurepip process aborted in the downl
 macOS interpreter. This environment failure is not a passing consumer receipt.
 The final wheel will be installed with the task's isolated venv tooling and consumed
 via the test's existing QITOS_R1_INSTALLED_PYTHON entry point.
+
+Implementation fix and public API/tutorial runtime source:
+`f7d4b2d666a156d361da496a41868278f84ffabf`.
+Python 3.10.18 expanded model/provider plus installed original/combined consumers:
+**193 passed, zero skipped, 16.06 s** using an independently installed wheel.
+The earlier ensurepip abort was avoided by normal task-owned uv venv creation;
+no repository test or skip rule was changed to bypass it.
+
+Public documentation now pins the integrated implementation for installation,
+all API groups (including B/D overrides) and tutorial runtime overrides. The
+API generator rejects unreachable commits, changed source bytes, and imports
+from an outdated installation. Both former lane references fail its negative
+check; a reachable but stale implementation also fails. Docs CI fetches complete
+history to make the same ancestry check meaningful. Original audit/performance
+identities remain intact. EN/zh generated APIs and complete tutorials synchronize.
+
+Initial outgoing-history audit: 37 commits, 376 distinct file/blob versions,
+including intermediate logs; largest inspected blob 185,140 bytes. Gitleaks's one
+finding at commit `82290e5ce994d714cae6e43bffefbaba79defddc`,
+`docs/internal/plans/v5_r1_b_execution.md:12`, is the exact 40-character production
+source commit, not a credential. Supplementary literal/URL/path review found
+synthetic redaction fixtures, placeholder keys, public provider/documentation URLs,
+loopback addresses and noncredential historical build paths. No real secret,
+private model profile/payload, credential file, wheel, environment, cache or large
+temporary artifact was identified. `docs/internal` was treated as public.
+Final outgoing range will be rescanned after the last planned commits.
