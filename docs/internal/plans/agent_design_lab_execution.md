@@ -1,6 +1,7 @@
 # Agent Design Lab execution ledger
 
-Status: in progress; not qualified. No push, release or deployment authorized.
+Status: qualification in progress. The user authorized remote push after closeout;
+package release and deployment remain unauthorized.
 Source baseline: `f1545414913d2e0668d0eccdcd82fe91c3b28d01`.
 
 ## Contract
@@ -140,3 +141,13 @@ was paused while its last active child finished normally, then stopped before
 dispatching more old-source cases. The final unappended child's exit code is not
 invented; its actual failure log and an intervention receipt remain. A new wheel
 and independently identified matrix must qualify the corrected implementation.
+
+### Same-owner continuation repair
+
+The Docker review consumer exposed another existing contract inconsistency:
+RUN accepted PAUSED but skipped its required RESTORING transition. After fixing
+that transition, a retained historical pause receipt also suppressed terminal
+persistence. The permanent same-owner counterexample now verifies one tool effect,
+unchanged owner, advanced head and COMPLETED lifecycle. Session/work-runtime gate:
+33 passed. Installed real-Docker Pi and full Claude parent/child/join/parent-final
+consumers passed. Explicit Engine.restore still creates and fences a new owner.

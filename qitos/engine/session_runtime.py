@@ -1555,6 +1555,11 @@ class Session:
                     self._engine._active_task = (
                         task.objective if isinstance(task, Task) else str(task)
                     )
+                    # RUN accepts a paused same-owner handle as well as a newly
+                    # restored handle. Resource/state restoration above must
+                    # complete before traversing the required restore edge.
+                    if lifecycle in {SessionLifecycle.PAUSED, SessionLifecycle.WAITING_INPUT}:
+                        self._transition(SessionLifecycle.RESTORING)
                     self._transition(SessionLifecycle.RUNNING)
                     self._commit_snapshot(
                         state=state,
@@ -1563,6 +1568,9 @@ class Session:
                         step_id=next_step,
                         expected_head=head,
                     )
+                    # An earlier pause receipt is historical, not evidence that
+                    # this continuation has already persisted its terminal head.
+                    self._pause_receipt = None
 
                 try:
                     next_step = self._recover_tool_batch(

@@ -167,6 +167,25 @@ def test_restore_rejects_a_different_agent_config_digest() -> None:
     }
 
 
+def test_same_owner_can_continue_a_durably_paused_session() -> None:
+    runtime = RuntimeComposition(lifecycle_policy=PauseAfterFirstStep())
+    agent = CounterAgent()
+    session = Engine(agent, runtime=runtime).session("continue after review")
+    session.run()
+    owner = session.run_id
+    generation = session.current_head.generation.value
+    assert session.lifecycle is SessionLifecycle.PAUSED
+
+    result = session.run(steering="review complete; finish")
+
+    assert session.run_id == owner
+    assert session.current_head.generation.value > generation
+    assert session.lifecycle is SessionLifecycle.COMPLETED
+    assert result.state.effects == 1
+    assert result.state.final_result == "done"
+    assert agent.calls == 1
+
+
 def test_unsupported_pause_is_typed_and_does_not_start_worker() -> None:
     runtime = RuntimeComposition(lifecycle_policy=UnsupportedPausePolicy())
     session = Engine(CounterAgent(), runtime=runtime).session("count")

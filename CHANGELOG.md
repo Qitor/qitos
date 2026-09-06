@@ -30,6 +30,7 @@ How to update:
 
 ### Fixed
 
+- Same-owner `Session.run()` continuation now traverses the restoring lifecycle and retires the previous pause receipt; a completed continuation persists its terminal head instead of remaining running.
 - Snapshot inspection decodes complete JSON strings before classifying scalar values: escaped Python newlines no longer resemble Windows drive paths, while encoded real private paths remain rejected. Session contract failures stop the active loop instead of being retried as ordinary tool errors.
 - Durable child input transfer restores registered external snapshot components before recapturing the child. Verified Docker workspace artifacts are no longer replaced by initial staging bytes; restoration failure prevents dispatch.
 - Selected skill instructions are no longer silently cut at 1,200 characters; callers select catalog entries before loading complete bodies and still obey request budgets.
