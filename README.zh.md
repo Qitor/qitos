@@ -25,6 +25,8 @@ store、sink 和 sandbox 可扩展；qita 只读检查 Trajectory。
 
 ## What's New
 
+- Handoff 终态现在关联明确的 work/session/transfer/generation；确认未创建 worker 的失败单独持久化，可通过恢复目标 Session 继续。
+
 - 融合修复保留独立的 Chat reasoning；自有资源清理再次失败时仍保留原 typed failure。
 
 - R1 融合：严格 YAML 通过现有 composition extensions 接通具名上下文预算与显式 codec loss。

@@ -73,3 +73,23 @@ Expanded tests include borrowed Responses helper clients, cancellation during
 iteration/cleanup, explicit sync/async close and no-reasoning behavior. A focused
 144-test adapter/codec sweep passed before the last cancellation-only additions;
 final complete tests and installed two-tool-round verification remain pending.
+
+## R1-C1/C2 repair
+
+Seven of eight initial review/public-path tests failed before repair. Reconciliation
+and snapshot resolver selection now match descriptor work/session, explicit context
+receipt linkage, actual transfer work and committed owner generation. Terminal refs
+include the executing Session/run/attempt. Historical descriptors without enough
+transfer linkage remain unreconciled instead of guessing ID conventions. CAS still
+fences stale source runs; no source terminal callback was restored.
+
+WorkGraph's existing strict state reader now accepts dispatch_not_started with
+closed admission, outcome_unknown=false and a safe dispatch reason reference.
+Queue rejection, closed scheduler and pre-worker resolver failure are distinct
+from possibly dispatched outcomes. Same operation retry returns the persisted fact;
+restore the destination Session, then run it to continue without another dispatch.
+Changing the payload is still a typed identity conflict. A source write after a
+concurrent destination claim fails normal owner CAS and cannot rewrite its terminal.
+Local resolver failures (including non-callable return) are normalized before worker
+creation, with capacity released. Forty-one focused work/runtime/race tests passed;
+the final 20-process interleaving gate and installed combination remain pending.

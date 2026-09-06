@@ -28,6 +28,8 @@ How to update:
 
 ### Fixed
 
+- Scope handoff terminal and resolver selection to explicit transfer lineage and current work ownership. Persist confirmed no-worker failures as `dispatch_not_started`; same-operation retries return that durable fact and destination restore is the recovery path. Uncertain dispatch remains unknown and is never automatically replayed.
+
 - Preserve Chat stream reasoning in existing response/ExchangeLog fields. Replay requires declared reasoning-input support or explicit loss; cleanups attempt every owned resource and retain primary failure/accounting facts with bounded cleanup counts.
 
 - Accept strict YAML context budget/loss options through existing factories; canonical unsafe-host config serialization omits inapplicable sandbox defaults so reload preserves config and digest.

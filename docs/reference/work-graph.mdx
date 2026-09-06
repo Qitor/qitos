@@ -358,3 +358,19 @@ WorkRuntimeError(code: str, message: str, *, operation_id: str='') -> None
 | `operation_id` | `str` | `''` |
 
 {/* api-reference:end */}
+
+## Confirmed dispatch rejection and destination recovery
+
+A handoff receipt with `state=dispatch_not_started`, `admission_state=closed`, and
+`outcome_unknown=false` proves the scheduler created no worker. Its
+`terminal_receipt_ref` records the safe dispatch reason. Calling handoff again with
+the same operation and payload returns this fact; changing the payload conflicts.
+Rebind the destination Agent and resources in a new composition, call
+`composition.restore(session_id)`, then `session.run()`. No scheduler retry is
+needed. After an uncertain dispatch, the outcome stays unknown and recovery does
+not automatically replay effects. Scheduler callable return is not task completion.
+
+Terminal reconciliation requires descriptor work/session and explicit context
+transfer linkage to the current owner generation; an Agent name or an ID suffix is
+not lineage. Historical unbound descriptors remain unresolved. Prior terminal
+receipts and unrelated work remain unchanged.

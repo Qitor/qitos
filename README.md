@@ -25,6 +25,8 @@ read-only qita. Framework correctness does not guarantee arbitrary model task su
 
 ## What's New
 
+- Handoff reconciliation now binds explicit work/session/transfer/generation facts. Confirmed no-worker dispatch failures persist separately from unknown outcomes and can recover by restoring the destination.
+
 - Integration stream repairs preserve Chat reasoning separately and retain typed primary failures when owned cleanup also fails.
 
 - R1 integration: strict YAML now wires named context budgets and explicit codec loss through the existing composition extensions.

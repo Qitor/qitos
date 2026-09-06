@@ -356,3 +356,16 @@ WorkRuntimeError(code: str, message: str, *, operation_id: str='') -> None
 | `operation_id` | `str` | `''` |
 
 {/* api-reference:end */}
+
+## 确认未调度与目标恢复
+
+Handoff receipt 的 `state=dispatch_not_started`、`admission_state=closed`、
+`outcome_unknown=false` 表示 scheduler 确认没有创建 worker；`terminal_receipt_ref`
+记录安全的 dispatch 原因。同 operation 和 payload 重试返回该事实，修改 payload 会冲突。
+在新 composition 重新绑定目标 Agent 与资源后调用 `composition.restore(session_id)`，
+再调用 `session.run()`；无需再次调度。dispatch 后结果不明仍保持 unknown，不自动重放
+未知 effect。Scheduler callable 返回不代表业务完成。
+
+终态关联需要 descriptor work/session、显式 context transfer 引用与当前 owner generation；
+不根据 Agent 名称或 ID 后缀推断。历史缺少绑定的 descriptor 保持未决；既有终态与无关 work
+不变。

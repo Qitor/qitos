@@ -162,9 +162,8 @@ class LocalWorkScheduler:
             raise WorkRuntimeError("queue_capacity_exceeded", "scheduler admission capacity is full", operation_id=request.operation_id)
         try:
             worker = self._resolver.resolve(request.descriptor)
-        except WorkRuntimeError:
-            self._capacity.release()
-            raise
+            if not callable(worker):
+                raise TypeError("resolver must return callable work")
         except Exception as exc:
             self._capacity.release()
             raise WorkRuntimeError(
@@ -179,7 +178,14 @@ class LocalWorkScheduler:
             finally:
                 self._capacity.release()
 
-        future = self._executor.submit(run)
+        try:
+            future = self._executor.submit(run)
+        except RuntimeError:
+            self._capacity.release()
+            raise WorkRuntimeError(
+                "scheduler_unavailable", "scheduler did not create a worker",
+                operation_id=request.operation_id,
+            ) from None
         handle = _LocalHandle(
             f"{self.scheduler_id}:{request.operation_id}:{request.attempt}", future
         )
@@ -310,7 +316,7 @@ class DurableWorkRuntime:
             for receipt in tuple(graph.operation_receipts):
                 if receipt.operation == "handoff" and receipt.state in {
                     "transfer_admitted", "ownership_committed", "running",
-                    "completed", "failed", "cancelled", "outcome_unknown",
+                    "completed", "failed", "cancelled", "outcome_unknown", "dispatch_not_started",
                 }:
                     recovered.append(receipt)
                     continue
@@ -477,7 +483,30 @@ class DurableWorkRuntime:
             admitted.operation_id, admitted.payload_digest, admitted.attempt,
             admitted.generation, descriptor,
         )
-        handle = self.scheduler.dispatch(request)
+        try:
+            handle = self.scheduler.dispatch(request)
+        except WorkRuntimeError as error:
+            if error.code in {
+                "queue_capacity_exceeded", "scheduler_unavailable", "descriptor_resolution_failed",
+            }:
+                # Only the scheduler's explicit no-worker contract permits this.
+                # The Session callback still performs its normal owner-fenced CAS;
+                # a concurrently claimed destination prevents any source rewrite.
+                rejected = replace(
+                    admitted, state="dispatch_not_started", admission_state="closed",
+                    outcome_unknown=False, terminal_receipt_ref=f"dispatch:{error.code}",
+                )
+                self._replace(graph, rejected)
+                try:
+                    persist()
+                except Exception:
+                    self._replace(graph, admitted)
+                    raise
+                raise WorkRuntimeError(
+                    error.code, "no worker was created; restore the destination Session to continue",
+                    operation_id=receipt.operation_id,
+                ) from None
+            raise
         self._handles[receipt.operation_id] = handle
         handle.add_terminal_callback(
             lambda result, error: self._terminal(graph, admitted, result, error, persist)

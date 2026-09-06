@@ -71,7 +71,7 @@ _OPERATION_STATES = frozenset(
     {
         "declared", "dispatchable", "queued", "dispatched", "running", "completed", "failed",
         "cancelled", "cancellation_requested_worker_still_running", "outcome_unknown",
-        "rejected", "transfer_admitted", "ownership_committed",
+        "rejected", "transfer_admitted", "ownership_committed", "dispatch_not_started",
     }
 )
 _MAX_GRAPH_DEPTH = 32

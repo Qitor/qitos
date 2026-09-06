@@ -2645,11 +2645,8 @@ class Session:
         work = graph.work_items.get(self._work_item_id)
         if work is None or work.owner.agent_id != self._agent_id:
             return
-        transfers = {item.transfer_id: item for item in graph.transfers}
         for index, operation in enumerate(graph.operation_receipts):
-            transfer = transfers.get(f"ownership:{operation.operation_id}")
-            if (operation.operation != "handoff" or transfer is None
-                    or transfer.to_agent_id != self._agent_id
+            if (not self._current_handoff(graph, operation)
                     or operation.state in {"completed", "failed", "cancelled"}):
                 continue
             state = lifecycle.value
@@ -2660,16 +2657,36 @@ class Session:
                 operation, state=state, outcome_unknown=False,
                 admission_state="closed" if terminal else "admitted",
                 terminal_receipt_ref=(
-                    f"session:{self._session_id.value}:{self._run_id.value}:{state}"
+                    f"session:{self._session_id.value}:{self._run_id.value}:{self._attempt_id.value}:{state}"
                     if terminal else None
                 ),
             )
+
+    def _current_handoff(self, graph: WorkGraph, operation: Any) -> bool:
+        """Match explicit transfer receipts; names and ID conventions are not lineage."""
+        work = graph.work_items.get(self._work_item_id)
+        if (work is None or work.session_ref != self._session_id
+                or operation.operation != "handoff" or operation.descriptor is None):
+            return False
+        descriptor = WorkDescriptor.from_dict(operation.descriptor)
+        if (descriptor.parent_work_item_id != self._work_item_id.value
+                or descriptor.parent_session_id != self._session_id.value):
+            return False
+        receipt_ids = {item.get("receipt_id") for item in descriptor.transfer_receipts}
+        return any(
+            transfer.context_transfer_ref is not None
+            and transfer.context_transfer_ref in receipt_ids
+            and transfer.work_item_id == work.work_item_id
+            and transfer.committed_generation == work.owner.generation
+            and transfer.to_agent_id == work.owner.agent_id
+            for transfer in graph.transfers
+        )
 
     def _snapshot_references(self) -> tuple[ResolverReference, ...]:
         graph = getattr(self._engine, "_qitos_work_graph", None)
         if isinstance(graph, WorkGraph):
             for operation in reversed(graph.operation_receipts):
-                if operation.operation == "handoff" and operation.descriptor is not None:
+                if self._current_handoff(graph, operation):
                     descriptor = WorkDescriptor.from_dict(operation.descriptor)
                     if descriptor.agent_refs:
                         target = ResolverReference.from_dict(descriptor.agent_refs[0])
