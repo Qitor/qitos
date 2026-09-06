@@ -5,9 +5,11 @@ from copy import deepcopy
 from functools import lru_cache
 import importlib
 import inspect
+import io
 import json
 from pathlib import Path
 import subprocess
+import tokenize
 
 ROOT = Path(__file__).resolve().parents[1]
 START, END = "{/* api-reference:start */}", "{/* api-reference:end */}"
@@ -52,12 +54,26 @@ def validate_source_binding(baseline, relative):
         raise ValueError(f"{relative}: public source binding differs from current implementation")
 
 
+def unparse(node):
+    """Normalize the zero-argument lambda spacing difference in Python 3.10."""
+    source = ast.unparse(node)
+    lines = source.splitlines(keepends=True)
+    tokens = list(tokenize.generate_tokens(io.StringIO(source).readline))
+    for left, right in reversed(list(zip(tokens, tokens[1:]))):
+        if (left.type == tokenize.NAME and left.string == "lambda"
+                and right.type == tokenize.OP and right.string == ":"
+                and left.end[0] == right.start[0]):
+            index = left.end[0] - 1
+            lines[index] = lines[index][:left.end[1]] + lines[index][right.start[1]:]
+    return "".join(lines)
+
+
 def signature(node):
     args = deepcopy(node.args)
     if args.args and args.args[0].arg in ("self", "cls"):
         args.args.pop(0)
-    result = ast.unparse(node.returns) if node.returns else "Any (see behavior contract)"
-    return f"{node.name}({ast.unparse(args)}) -> {result}"
+    result = unparse(node.returns) if node.returns else "Any (see behavior contract)"
+    return f"{node.name}({unparse(args)}) -> {result}"
 
 
 def parameter_table(node):
@@ -68,8 +84,8 @@ def parameter_table(node):
     for argument, default in parameters:
         if argument.arg in ("self", "cls"):
             continue
-        annotation = ast.unparse(argument.annotation) if argument.annotation else "not annotated"
-        value = ast.unparse(default) if default is not None else "required"
+        annotation = unparse(argument.annotation) if argument.annotation else "not annotated"
+        value = unparse(default) if default is not None else "required"
         annotation = annotation.replace("|", "\\|")
         value = value.replace("|", "\\|")
         rows.append(f"| `{argument.arg}` | `{annotation}` | `{value}` |")
@@ -104,8 +120,8 @@ def symbol_text(item, baseline, chinese, tutorial):
         if fields:
             text += ["| Field | Type | Default |", "| --- | --- | --- |"]
             for field in fields:
-                annotation = ast.unparse(field.annotation).replace("|", "\\|")
-                value = ast.unparse(field.value).replace("|", "\\|") if field.value else "required"
+                annotation = unparse(field.annotation).replace("|", "\\|")
+                value = unparse(field.value).replace("|", "\\|") if field.value else "required"
                 text += [f"| `{field.target.id}` | `{annotation}` | `{value}` |"]
             text += [""]
     for method in item["methods"]:

@@ -108,3 +108,35 @@ loopback addresses and noncredential historical build paths. No real secret,
 private model profile/payload, credential file, wheel, environment, cache or large
 temporary artifact was identified. `docs/internal` was treated as public.
 Final outgoing range will be rescanned after the last planned commits.
+
+## Qualification progress and portability repair
+
+At `c51f46023eca9190ce6f6adf6df3801e5a206d53`, Python 3.12.7 targeted repairs pass
+**141/141**; stable flake8/mypy pass (96 source files); static ratchet stays
+**356 = 334 active + 22 vendored/generated**, allowance delta zero. Architecture,
+public surface, G2/S2 interface budgets and no-local-path checks pass **16/16**.
+
+The first full run required installing CI's setuptools/wheel build tools in the
+fresh Python 3.12 environment. The subsequent complete run was **3724 passed,
+51 skipped, 1 failed in 366.64 s**. The sole failure was API generation parity:
+Python 3.10 AST renders a zero-argument lambda as `lambda :`; 3.12 renders
+`lambda:`. Two context reference pages therefore drifted. The generator now
+normalizes only the token gap between an argumentless lambda and its colon,
+without rewriting strings/default values. New portability and source-binding
+negative regressions plus the original docs contract test pass **7/7 on each
+of Python 3.10.18 and 3.12.7**. The full suite will be rerun on this successor.
+No framework/runtime implementation changed after `f7d4b2d`.
+
+Both final artifacts build in an empty task-owned output directory and pass twine.
+All 510 wheel Python files equal the current checkout. Final-wheel original and
+combined installed consumers pass on 3.12.7 (2 tests, 8.72 s) and 3.10.18; all
+processes run outside the checkout without source PYTHONPATH. Artifact digests
+and final source execution identity will be recorded with completed qualification.
+
+MDX compiles 166/166 pages. Navigation, local links, EN/zh API/tutorial generation
+and complete-file parity pass. Desktop/mobile checks cover all 38 changed MDX
+pages at 1440×1000 and 390×844: 76 HTTP 200 pages, populated headings, zero page
+horizontal overflow, and visual screenshot review. Browser reports zero errors;
+only the local preview Socket.io version warning is present. All 127 unique API
+source links bind the implementation SHA. The ten tutorial example links now also
+pin that same source instead of moving master; their labels/layout are unchanged.

@@ -23,10 +23,12 @@ How to update:
 - Strict snapshot-bound journal pages and bounded canonical file export via the existing reader adapter, with typed unsupported/cursor failures and a qita canonical export consumer.
 
 - Self-contained EN/zh notes-Agent lessons with complete inline files, source-synchronized excerpts, core API signatures and page-extracted installed-wheel checks.
-- Explicit serialized handoff lesson and documented same-head concurrent callback limitation; runtime unchanged.
+- Historical serialized handoff lesson documented the then-current concurrent callback limitation; the R1 ownership repairs below supersede that limitation.
 
 
 ### Fixed
+
+- Bind current API references and tutorial installation commands to reachable integrated source, validate source bytes and ancestry, and reconcile R1 completion with historical documentation.
 
 - Restore Python 3.10 owned model cleanup with compatible exception discovery and retained safe numeric exception notes; preserve primary failure priority and cancellation semantics.
 

@@ -179,7 +179,7 @@ One logical memory fact; independent equal facts receive distinct IDs.
 | `content` | `Any` | `required` |
 | `step_id` | `int` | `required` |
 | `metadata` | `Dict[str, Any]` | `field(default_factory=dict)` |
-| `record_id` | `str` | `field(default_factory=lambda : uuid4().hex)` |
+| `record_id` | `str` | `field(default_factory=lambda: uuid4().hex)` |
 
 
 <span id="qitos-core-memory-memoryresourceerror" />
@@ -506,7 +506,7 @@ One immutable, deterministic provider-neutral model request view.
 | `reasoning_policy` | `ReasoningPolicy` | `field(default_factory=ReasoningPolicy)` |
 | `continuation` | `Optional[ContinuationRef]` | `None` |
 | `context_budget` | `ContextBudget` | `field(default_factory=ContextBudget)` |
-| `selection` | `SelectionReport` | `field(default_factory=lambda : SelectionReport((), (), (), (), (), (), (), (), 0, 0, 0, 'characters'))` |
+| `selection` | `SelectionReport` | `field(default_factory=lambda: SelectionReport((), (), (), (), (), (), (), (), 0, 0, 0, 'characters'))` |
 | `compaction_receipts` | `tuple[CompactionReceipt, ...]` | `()` |
 | `artifact_refs` | `tuple[ArtifactRef, ...]` | `()` |
 | `steering_boundary_json` | `str` | `'{}'` |
