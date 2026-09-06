@@ -8,7 +8,7 @@ import sqlite3
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional, Tuple
+from typing import Any, Callable, Dict, Mapping, Optional, Tuple
 
 from ..checkpoint import InMemoryCheckpointStore, SqliteCheckpointStore
 from ..core.action import Action, ActionExecutionPolicy
@@ -139,7 +139,7 @@ class AgentComposition:
     tool_registry: ToolRegistry
     env: Any
     runtime: RuntimeComposition
-    agent: ConfiguredAgent
+    agent: AgentModule[Any, Any, Any]
     engine: Engine[Any, Any, Any]
     credential_receipt: Dict[str, Any]
     sandbox_backend: Any = None
@@ -663,8 +663,19 @@ def build_agent_composition(
     model_override: Any = None,
     env_override: Any = None,
     extensions: Optional[Mapping[str, Any]] = None,
+    agent_factory: Optional[Callable[..., AgentModule[Any, Any, Any]]] = None,
 ) -> AgentComposition:
-    """Compose the existing model/tools/Env/runtime/AgentModule/Engine stack."""
+    """Compose the existing model/tools/Env/runtime/AgentModule/Engine stack.
+
+    ``agent_factory`` is called once with keyword arguments ``config``, ``model``,
+    ``tool_registry``, ``protocol`` (a resolved protocol), and ``parser``. It
+    returns an AgentModule bound to those resources; it must not replace them.
+    The factory may register application tools. Composition retains ownership
+    of resources it created. Recreate the factory in the restoring process;
+    no callable is serialized in Session snapshots.
+    """
+    if agent_factory is not None and not callable(agent_factory):
+        raise CompositionError("agent factory must be callable", field="agent_factory")
     model: Any = None
     runtime: Optional[RuntimeComposition] = None
     sandbox_backend: Any = None
@@ -690,6 +701,7 @@ def build_agent_composition(
         if (
             config.tool_use_policy not in {"auto", "disabled"}
             and not tools
+            and agent_factory is None
         ):
             raise CompositionError(
                 "required tool-use policy needs at least one declared tool",
@@ -736,18 +748,30 @@ def build_agent_composition(
                 runtime.snapshot_components += (SessionSandboxComponent(
                     env, sandbox_backend, runtime.checkpoint_store, services["artifact_resolver"],
                 ),)
-        agent = ConfiguredAgent(
-            name=config.name,
-            llm=model,
-            tool_registry=tools,
-            protocol=protocol.id,
-            parser=parser,
-            tool_use_policy=config.tool_use_policy,
-            native_tool_calls_required=bool(
-                config.tool_options.get("native_tool_calls_required", False)
-            ),
-            config_digest=config.digest(),
-        )
+        agent: AgentModule[Any, Any, Any]
+        if agent_factory is None:
+            agent = ConfiguredAgent(
+                name=config.name,
+                llm=model,
+                tool_registry=tools,
+                protocol=protocol.id,
+                parser=parser,
+                tool_use_policy=config.tool_use_policy,
+                native_tool_calls_required=bool(
+                    config.tool_options.get("native_tool_calls_required", False)
+                ),
+                config_digest=config.digest(),
+            )
+        else:
+            agent = _build_custom_agent(
+                agent_factory, config=config, model=model, tools=tools,
+                protocol=protocol, parser=parser,
+            )
+        if config.tool_use_policy not in {"auto", "disabled"} and not tools:
+            raise CompositionError(
+                "required tool-use policy needs at least one declared tool",
+                field="tools.policy",
+            )
         agent.config.update(services)
         budget_config = config.budgets
         budget = RuntimeBudget(
@@ -812,6 +836,37 @@ def build_agent_composition(
                 composition.sandbox_receipt = backend.durability_receipt()
             component.on_bind = bind_owned_environment
     return composition
+
+
+def _build_custom_agent(
+    factory: Callable[..., AgentModule[Any, Any, Any]], *, config: AgentConfig,
+    model: Any, tools: ToolRegistry, protocol: Any, parser: Any,
+) -> AgentModule[Any, Any, Any]:
+    try:
+        agent = factory(config=config, model=model, tool_registry=tools,
+                        protocol=protocol, parser=parser)
+    except Exception:
+        # User exceptions may contain private launch values. The outer builder
+        # still cleans up every resource it owns.
+        raise CompositionError("agent factory construction failed", field="agent_factory") from None
+    if not isinstance(agent, AgentModule):
+        raise CompositionError("agent factory must return AgentModule", field="agent_factory")
+    if (agent.llm is not model or agent.tool_registry is not tools
+            or agent.model_parser is not parser
+            or (agent.model_protocol is not protocol and agent.model_protocol != protocol.id)):
+        raise CompositionError("agent factory returned incompatible bindings", field="agent_factory")
+    bindings = {
+        "tool_use_policy": config.tool_use_policy,
+        "native_tool_calls_required": bool(config.tool_options.get("native_tool_calls_required", False)),
+        "agent_config_digest": config.digest(),
+    }
+    if not isinstance(agent.config, dict) or any(
+        key in agent.config and agent.config[key] != value for key, value in bindings.items()
+    ):
+        raise CompositionError("agent factory conflicts with launch policy", field="agent_factory")
+    agent.name = config.name
+    agent.config.update(bindings)
+    return agent
 
 
 def run_agent_config(

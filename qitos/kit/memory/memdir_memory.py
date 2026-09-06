@@ -18,7 +18,7 @@ class MemdirMemory(Memory):
 
     Restore is the default and fails if a bound root is missing. Pass
     ``create=True`` only to explicitly initialize a namespace. ``reset`` and
-    ``evict`` affect the append-time cache only; persistent deletion is external.
+    ``evict`` affect the append-time cache only; ``delete`` removes a local fact.
     Arbitrary Python/JSON content and metadata are not a durable round-trip API.
     """
 
@@ -74,6 +74,31 @@ class MemdirMemory(Memory):
         self._records = [item for item in self._records if item.record_id != record.record_id]
         self._records.append(record)
         self._append_index_entry(path=path, record=record, memory_type=memory_type)
+
+    def delete(self, record_id: str) -> bool:
+        """Forget one logical record in this namespace, never global memory.
+
+        Idempotent for an absent identity. This is local-file deletion, not
+        secure erasure or a concurrent multi-file transaction. Callers serialize
+        writes to one Memdir namespace; use a transactional backend otherwise.
+        """
+        self._require_roots()
+        if not isinstance(record_id, str) or not re.fullmatch(r"[a-zA-Z0-9_.:-]{1,128}", record_id):
+            raise ValueError("memory record_id must be a logical identity")
+        stem = hashlib.sha256(record_id.encode()).hexdigest()
+        paths = sorted(self.memory_dir.glob(f"*/{stem}.md"))
+        if any(path.is_symlink() or path.parent.is_symlink() for path in paths):
+            raise MemoryResourceError("memory record has unsupported indirection")
+        index = self.memory_dir / "MEMORY.md"
+        if index.is_symlink():
+            raise MemoryResourceError("memory index has unsupported indirection")
+        lines = index.read_text(encoding="utf-8").splitlines()
+        for path in paths:
+            path.unlink()
+        self._records = [item for item in self._records if item.record_id != record_id]
+        index.write_text("\n".join(line for line in lines if f"/{stem}.md" not in line) + "\n",
+                         encoding="utf-8")
+        return bool(paths)
 
     def retrieve(
         self,

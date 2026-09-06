@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from .manifest import SkillManifest
+
+if TYPE_CHECKING:
+    from .registry import SkillRegistry
 
 
 @dataclass
@@ -81,13 +84,18 @@ class SkillInjector:
         if not self.include_guidelines:
             instructions = self._remove_section(instructions, "## Guidelines")
 
-        if len(instructions) > 1200:
-            instructions = instructions[:1200].rstrip() + "\n..."
-
         lines.append(instructions)
         lines.append("")
 
         return "\n".join(lines)
+
+    def build_catalog(self, skills: List[SkillManifest]) -> str:
+        """Advertise descriptions only; select skills before injecting full bodies.
+
+        This is not a context budget policy. The normal request compiler still
+        decides whether the selected, complete instructions fit its budget.
+        """
+        return "\n".join(f"- {skill.name}: {skill.description}" for skill in skills)
 
     def _remove_section(self, content: str, section_header: str) -> str:
         """Remove a section from markdown content."""

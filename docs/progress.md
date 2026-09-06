@@ -1584,3 +1584,16 @@ from 306e689; full primary suite 2663 passed / 50 opt-in live skips, plus 94
 targeted regressions. See execution ledger and local-promotion-c9d9e40.json.
 Original audit failures remain historical facts. Closing evidence receives
 final-tree verification. No push/release/default-branch readiness is implied.
+
+### Agent Design Lab implementation checkpoint (2026-09-06)
+
+Current work starts at `f1545414913d2e0668d0eccdcd82fe91c3b28d01`.
+Custom composition factory, SQLite skill revisions, complete selected skill
+instructions, explicit Memdir forgetting and artifact user-data authority are
+implemented with counterexamples/regressions. Six course packages are under
+development; they are NOT six fully qualified deliveries. Initial real ReAct
+and PlanAct research cases passed independent numeric/source checks. Coding
+consumers exposed artifact-role HTTP 400 behavior; follow-up requests encountered
+SSL connection failures. Do not infer provider or whole-course qualification.
+Exact failures, commands and remaining gates belong to
+`docs/internal/plans/agent_design_lab_execution.md`. No push/release/deploy.

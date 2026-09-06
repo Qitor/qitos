@@ -27,6 +27,7 @@ the application and provider.
 
 ## What's New
 
+- Agent Design Lab is in development: custom `agent_factory` composition, durable skill revisions and explicit memory deletion support six professional teaching projects. See the [implementation ledger](docs/internal/plans/agent_design_lab_execution.md); the complete course/live matrix is not yet qualified.
 - Python 3.10 model cleanup compatibility: every owned resource is attempted, with safe numeric cleanup diagnostics and primary exception priority preserved.
 - R1 local integration and all five review repairs are complete: reasoning, accurate request/cleanup facts, handoff ownership and YAML budget/loss wiring; restoration retains original conversation facts.
 - Memdir recall and closed-exchange compaction, canonical Read/Edit ToolResult, consistent Observation, strict snapshot paging and atomic export are available through the user workflow.

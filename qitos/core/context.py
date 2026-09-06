@@ -387,7 +387,8 @@ class ArtifactRefContributor:
                 source=self.source,
                 content={"artifacts": visible},
                 priority=self.priority,
-                requested_placement="developer",
+                # Tool-produced metadata is evidence, never privileged policy.
+                requested_placement="user",
                 persistence_horizon="request",
                 sensitivity="internal",
                 required=any(item.required for item in self.artifact_refs),

@@ -19,6 +19,8 @@ How to update:
 
 ### Added
 
+- Optional `build_agent_composition(agent_factory=...)` reuses the canonical model, tools, runtime and Session with custom AgentModule policies; invalid bindings fail and owned resources are cleaned.
+- Module-level `SqliteToolLibrary` provides namespace-scoped immutable skill revisions, optimistic version checks, catalog projection and full-body loading without executing stored code. `MemdirMemory.delete(record_id)` explicitly forgets a local record (not secure erasure).
 - Module-level `MemorySourceAdapter` and model-free `ClosedExchangeWindowCompactor`, with a configured, installed-wheel two-process text-memory consumer.
 - Strict snapshot-bound journal pages and bounded canonical file export via the existing reader adapter, with typed unsupported/cursor failures and a qita canonical export consumer.
 
@@ -28,6 +30,8 @@ How to update:
 
 ### Fixed
 
+- Selected skill instructions are no longer silently cut at 1,200 characters; callers select catalog entries before loading complete bodies and still obey request budgets.
+- Automatically contributed artifact references are user-level evidence, not elevated developer instructions. Existing serialized histories are not rewritten.
 - Bind current API references and tutorial installation commands to reachable integrated source, validate source bytes and ancestry, and reconcile R1 completion with historical documentation.
 
 - Restore Python 3.10 owned model cleanup with compatible exception discovery and retained safe numeric exception notes; preserve primary failure priority and cancellation semantics.
